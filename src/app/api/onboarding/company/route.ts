@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       companyId: company.id,
       slug: company.slug,
-      redirectTo: "/settings/integrations",
+      redirectTo: "/settings?tab=integrations",
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Erro inesperado.";

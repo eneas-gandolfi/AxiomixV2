@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TeamMembersTable } from "@/components/whatsapp/team-members-table";
 import { WorkloadChart } from "@/components/whatsapp/workload-chart";
 
+export const dynamic = "force-dynamic";
+
 type User = {
   id: string;
   name: string | null;

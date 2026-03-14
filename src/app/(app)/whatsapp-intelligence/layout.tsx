@@ -8,6 +8,8 @@
 import type React from "react";
 import { WhatsAppModuleNav } from "@/components/whatsapp/whatsapp-module-nav";
 
+export const dynamic = "force-dynamic";
+
 export default function WhatsAppIntelligenceLayout({
   children,
 }: {

@@ -11,6 +11,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Kanban, Loader2, ChevronDown } from "lucide-react";
 import { KanbanBoard } from "@/components/whatsapp/kanban-board";
 
+export const dynamic = "force-dynamic";
+
 type Board = {
   id: string;
   name: string | null;

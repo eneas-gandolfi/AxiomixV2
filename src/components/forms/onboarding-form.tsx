@@ -146,7 +146,7 @@ export function OnboardingForm() {
     setToast("Empresa criada! Configure as integrações para começar.");
 
     setTimeout(() => {
-      router.push(response.redirectTo ?? "/settings/integrations");
+      router.push(response.redirectTo ?? "/settings?tab=integrations");
       router.refresh();
     }, 1200);
   };

@@ -539,7 +539,7 @@ async function DashboardContent() {
           description: integration.last_tested_at
             ? `Último teste ${formatRelativeTime(integration.last_tested_at)}`
             : "A integração precisa ser revisada.",
-          actionHref: "/settings/integrations",
+          actionHref: "/settings?tab=integrations",
           actionLabel: "Verificar configuração",
         });
       });

@@ -15,6 +15,8 @@ import { ContactDetailDrawer } from "@/components/whatsapp/contact-detail-drawer
 import { CreateContactModal } from "@/components/whatsapp/create-contact-modal";
 import { LabelsManager } from "@/components/whatsapp/labels-manager";
 
+export const dynamic = "force-dynamic";
+
 type ContactData = {
   id: string;
   name: string | null;

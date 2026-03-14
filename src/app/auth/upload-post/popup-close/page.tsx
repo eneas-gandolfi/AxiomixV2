@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+export const dynamic = "force-dynamic";
+
 export default function UploadPostPopupClosePage() {
   useEffect(() => {
     const platform = new URLSearchParams(window.location.search).get("platform");
