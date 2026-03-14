@@ -1,0 +1,541 @@
+/**
+ * Arquivo: src/lib/integrations/service.ts
+ * Proposito: Validar, serializar e testar integracoes por empresa.
+ * Autor: AXIOMIX
+ * Data: 2026-03-11
+ */
+
+import { z } from "zod";
+import type { Json, Database } from "@/database/types/database.types";
+import { decryptSecret, encryptSecret } from "@/lib/integrations/crypto";
+import type {
+  EvolutionApiConfig,
+  EvolutionVendor,
+  IntegrationConfigByType,
+  IntegrationType,
+  OpenRouterConfig,
+  SofiaCrmConfig,
+  UploadPostConfig,
+  UploadPostSocialConnection,
+} from "@/lib/integrations/types";
+
+const baseUrlSchema = z
+  .string()
+  .trim()
+  .url("Informe uma URL valida.")
+  .transform((value) => value.replace(/\/+$/, ""));
+
+const requiredSecretSchema = z.string().trim().min(1, "Campo obrigatorio.");
+
+const sofiaCrmSchema: z.ZodType<SofiaCrmConfig> = z.object({
+  baseUrl: baseUrlSchema,
+  apiToken: requiredSecretSchema,
+  inboxId: z.string().trim().min(1, "Inbox ID e obrigatorio."),
+});
+
+const evolutionVendorSchema: z.ZodType<EvolutionVendor> = z.object({
+  id: z.string().trim().min(1),
+  vendorName: z.string().trim().min(2),
+  instanceName: z.string().trim().min(2),
+  status: z.enum(["pending", "connected", "error"]),
+  qrCodeSource: z.string().trim().optional().nullable(),
+  lastQrAt: z.string().trim().optional().nullable(),
+  connectedAt: z.string().trim().optional().nullable(),
+  lastError: z.string().trim().optional().nullable(),
+});
+
+const evolutionApiSchema: z.ZodType<EvolutionApiConfig> = z.object({
+  managerPhone: z.string().trim().min(8, "Numero do gestor invalido."),
+  baseUrl: baseUrlSchema.optional(),
+  apiKey: requiredSecretSchema.optional(),
+  vendors: z.array(evolutionVendorSchema).optional(),
+});
+
+const uploadPostConnectionSchema: z.ZodType<UploadPostSocialConnection> = z.object({
+  id: z.string().trim().min(1),
+  platform: z.enum(["instagram", "linkedin", "tiktok"]),
+  status: z.enum(["pending", "connected", "error"]),
+  externalConnectionId: z.string().trim().optional().nullable(),
+  accountName: z.string().trim().optional().nullable(),
+  connectUrl: z.string().trim().optional().nullable(),
+  connectedAt: z.string().trim().optional().nullable(),
+  lastError: z.string().trim().optional().nullable(),
+});
+
+const uploadPostSchema: z.ZodType<UploadPostConfig> = z.object({
+  apiKey: requiredSecretSchema.optional(),
+  profileId: z.string().trim().min(1).optional(),
+  profileName: z.string().trim().min(2).optional(),
+  profileStatus: z.enum(["pending", "connected", "error"]).optional(),
+  profileCreatedAt: z.string().trim().optional(),
+  socialConnections: z.array(uploadPostConnectionSchema).optional(),
+});
+
+const openRouterSchema: z.ZodType<OpenRouterConfig> = z.object({
+  apiKey: requiredSecretSchema,
+  model: z.string().trim().min(3, "Modelo invalido.").default("openai/gpt-4o"),
+});
+
+function assertObjectPayload(payload: unknown) {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    throw new Error("Payload invalido para integracao.");
+  }
+
+  return payload as Record<string, unknown>;
+}
+
+type IntegrationPublicConfig = {
+  [key: string]: string | number | null;
+};
+
+type IntegrationTestResult = {
+  ok: boolean;
+  detail: string;
+};
+
+function parseVendors(raw: unknown): EvolutionVendor[] {
+  const parsed = z.array(evolutionVendorSchema).safeParse(raw);
+  return parsed.success ? parsed.data : [];
+}
+
+function parseSocialConnections(raw: unknown): UploadPostSocialConnection[] {
+  const parsed = z.array(uploadPostConnectionSchema).safeParse(raw);
+  return parsed.success ? parsed.data : [];
+}
+
+function decryptIfEncrypted(payload: unknown) {
+  if (typeof payload !== "string" || payload.trim().length === 0) {
+    return "";
+  }
+
+  const normalized = payload.trim();
+  if (!normalized.startsWith("enc:v1:")) {
+    return normalized;
+  }
+
+  return decryptSecret(normalized);
+}
+
+function resolveSofiaBaseUrl(configBaseUrl?: string) {
+  const source = configBaseUrl?.trim() || "";
+  const normalized = source.replace(/\/+$/, "");
+  return normalized.endsWith("/api") ? normalized.slice(0, -4) : normalized;
+}
+
+function resolveEvolutionBaseUrl(configBaseUrl?: string) {
+  const fallback =
+    process.env.EVOLUTION_API_URL?.trim() || process.env.EVOLUTION_API_BASE_URL?.trim();
+  const source = configBaseUrl?.trim() || fallback || "";
+  return source.replace(/\/+$/, "");
+}
+
+function resolveEvolutionApiKey(configApiKey?: string) {
+  return configApiKey?.trim() || process.env.EVOLUTION_API_KEY?.trim() || "";
+}
+
+function resolveUploadPostApiKey(configApiKey?: string) {
+  return configApiKey?.trim() || process.env.UPLOAD_POST_API_KEY?.trim() || "";
+}
+
+function resolveUploadPostBaseUrl(configBaseUrl?: string) {
+  const fallback =
+    process.env.UPLOAD_POST_API_URL?.trim() || process.env.UPLOAD_POST_API_BASE_URL?.trim();
+  const source = configBaseUrl?.trim() || fallback || "";
+  return source.replace(/\/+$/, "");
+}
+
+function buildUploadPostApiUrl(baseUrl: string, path: string) {
+  if (!baseUrl) {
+    return "";
+  }
+
+  const normalized = baseUrl.replace(/\/+$/, "");
+  if (normalized.endsWith("/api") && path.startsWith("/api/")) {
+    return `${normalized}${path.slice(4)}`;
+  }
+
+  return `${normalized}${path}`;
+}
+
+export function parseIntegrationType(value: string): IntegrationType {
+  const schema = z.enum(["sofia_crm", "evolution_api", "upload_post", "openrouter"]);
+  return schema.parse(value);
+}
+
+export function parseIntegrationConfig<T extends IntegrationType>(
+  type: T,
+  payload: unknown
+): IntegrationConfigByType[T] {
+  const objectPayload = assertObjectPayload(payload);
+
+  switch (type) {
+    case "sofia_crm":
+      return sofiaCrmSchema.parse(objectPayload) as IntegrationConfigByType[T];
+    case "evolution_api":
+      return evolutionApiSchema.parse(objectPayload) as IntegrationConfigByType[T];
+    case "upload_post":
+      return uploadPostSchema.parse(objectPayload) as IntegrationConfigByType[T];
+    case "openrouter":
+      return openRouterSchema.parse(objectPayload) as IntegrationConfigByType[T];
+    default:
+      throw new Error("Tipo de integracao nao suportado.");
+  }
+}
+
+export function encodeIntegrationConfig<T extends IntegrationType>(
+  type: T,
+  config: IntegrationConfigByType[T]
+): Json {
+  switch (type) {
+    case "sofia_crm": {
+      const data = config as SofiaCrmConfig;
+      return {
+        base_url: data.baseUrl,
+        inbox_id: data.inboxId,
+        api_token_encrypted: encryptSecret(data.apiToken),
+      };
+    }
+    case "evolution_api": {
+      const data = config as EvolutionApiConfig;
+      const payload: Record<string, Json> = {
+        manager_phone: data.managerPhone,
+      };
+
+      if (data.baseUrl) {
+        payload.base_url = data.baseUrl;
+      }
+
+      if (data.apiKey) {
+        payload.api_key_encrypted = encryptSecret(data.apiKey);
+      }
+
+      if (Array.isArray(data.vendors)) {
+        payload.vendors = data.vendors as unknown as Json;
+      }
+
+      return payload;
+    }
+    case "upload_post": {
+      const data = config as UploadPostConfig;
+      const payload: Record<string, Json> = {};
+
+      if (data.apiKey) {
+        payload.api_key_encrypted = encryptSecret(data.apiKey);
+      }
+      if (data.profileId) {
+        payload.profile_id = data.profileId;
+      }
+      if (data.profileName) {
+        payload.profile_name = data.profileName;
+      }
+      if (data.profileStatus) {
+        payload.profile_status = data.profileStatus;
+      }
+      if (data.profileCreatedAt) {
+        payload.profile_created_at = data.profileCreatedAt;
+      }
+      if (Array.isArray(data.socialConnections)) {
+        payload.social_connections = data.socialConnections as unknown as Json;
+      }
+
+      return payload;
+    }
+    case "openrouter": {
+      const data = config as OpenRouterConfig;
+      return {
+        model: data.model,
+        api_key_encrypted: encryptSecret(data.apiKey),
+      };
+    }
+    default:
+      throw new Error("Tipo de integracao nao suportado.");
+  }
+}
+
+export function decodeIntegrationConfig<T extends IntegrationType>(
+  type: T,
+  payload: Json | null
+): IntegrationConfigByType[T] {
+  const config = assertObjectPayload(payload ?? {});
+
+  switch (type) {
+    case "sofia_crm":
+      return {
+        baseUrl: String(config.base_url ?? ""),
+        inboxId: String(config.inbox_id ?? ""),
+        apiToken: decryptIfEncrypted(config.api_token_encrypted ?? config.api_token),
+      } as IntegrationConfigByType[T];
+    case "evolution_api": {
+      const decrypted = decryptIfEncrypted(config.api_key_encrypted ?? config.api_key);
+      const apiKey = resolveEvolutionApiKey(decrypted);
+      const baseUrl = resolveEvolutionBaseUrl(
+        typeof config.base_url === "string" ? config.base_url : undefined
+      );
+
+      return {
+        baseUrl: baseUrl || undefined,
+        managerPhone: String(config.manager_phone ?? ""),
+        apiKey: apiKey || undefined,
+        vendors: parseVendors(config.vendors),
+      } as IntegrationConfigByType[T];
+    }
+    case "upload_post": {
+      const decrypted = decryptIfEncrypted(config.api_key_encrypted ?? config.api_key);
+      const apiKey = resolveUploadPostApiKey(decrypted);
+
+      return {
+        apiKey: apiKey || undefined,
+        profileId: typeof config.profile_id === "string" ? config.profile_id : undefined,
+        profileName: typeof config.profile_name === "string" ? config.profile_name : undefined,
+        profileStatus:
+          config.profile_status === "pending" ||
+          config.profile_status === "connected" ||
+          config.profile_status === "error"
+            ? config.profile_status
+            : undefined,
+        profileCreatedAt:
+          typeof config.profile_created_at === "string" ? config.profile_created_at : undefined,
+        socialConnections: parseSocialConnections(config.social_connections),
+      } as IntegrationConfigByType[T];
+    }
+    case "openrouter":
+      return {
+        model: String(config.model ?? "openai/gpt-4o"),
+        apiKey: decryptIfEncrypted(config.api_key_encrypted ?? config.api_key),
+      } as IntegrationConfigByType[T];
+    default:
+      throw new Error("Tipo de integracao nao suportado.");
+  }
+}
+
+export function sanitizeIntegrationConfig(type: IntegrationType, payload: Json | null): IntegrationPublicConfig {
+  const config = assertObjectPayload(payload ?? {});
+
+  switch (type) {
+    case "sofia_crm":
+      return {
+        baseUrl: typeof config.base_url === "string" ? config.base_url : null,
+        inboxId: typeof config.inbox_id === "string" ? config.inbox_id : null,
+        apiToken:
+          typeof config.api_token_encrypted === "string" || typeof config.api_token === "string"
+            ? "********"
+            : null,
+      };
+    case "evolution_api": {
+      const vendors = parseVendors(config.vendors);
+      const connected = vendors.filter((vendor) => vendor.status === "connected").length;
+
+      return {
+        baseUrl:
+          typeof config.base_url === "string"
+            ? config.base_url
+            : resolveEvolutionBaseUrl() || null,
+        managerPhone: typeof config.manager_phone === "string" ? config.manager_phone : null,
+        apiKey:
+          typeof config.api_key_encrypted === "string" ||
+          typeof config.api_key === "string" ||
+          Boolean(process.env.EVOLUTION_API_KEY?.trim())
+            ? "********"
+            : null,
+        vendorsCount: vendors.length,
+        connectedVendors: connected,
+      };
+    }
+    case "upload_post": {
+      const socialConnections = parseSocialConnections(config.social_connections);
+      const connected = socialConnections.filter((connection) => connection.status === "connected").length;
+
+      return {
+        apiKey:
+          typeof config.api_key_encrypted === "string" ||
+          typeof config.api_key === "string" ||
+          Boolean(process.env.UPLOAD_POST_API_KEY?.trim())
+            ? "********"
+            : null,
+        profileId: typeof config.profile_id === "string" ? config.profile_id : null,
+        profileStatus:
+          config.profile_status === "pending" ||
+          config.profile_status === "connected" ||
+          config.profile_status === "error"
+            ? config.profile_status
+            : null,
+        socialConnections: socialConnections.length,
+        connectedSocial: connected,
+      };
+    }
+    case "openrouter":
+      return {
+        model: typeof config.model === "string" ? config.model : "openai/gpt-4o",
+        apiKey:
+          typeof config.api_key_encrypted === "string" || typeof config.api_key === "string"
+            ? "********"
+            : null,
+      };
+    default:
+      return {};
+  }
+}
+
+export function buildIntegrationPublicItem(
+  row: Database["public"]["Tables"]["integrations"]["Row"]
+) {
+  return {
+    id: row.id,
+    type: row.type,
+    isActive: Boolean(row.is_active),
+    testStatus: row.test_status,
+    lastTestedAt: row.last_tested_at,
+    config: sanitizeIntegrationConfig(row.type, row.config),
+  };
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function readFailureDetail(response: Response) {
+  const text = await response.text();
+  if (!text) {
+    return `HTTP ${response.status}`;
+  }
+
+  return `${response.status}: ${text.slice(0, 160)}`;
+}
+
+export async function testIntegrationConnection<T extends IntegrationType>(
+  type: T,
+  config: IntegrationConfigByType[T]
+): Promise<IntegrationTestResult> {
+  try {
+    switch (type) {
+      case "sofia_crm": {
+        const sofia = config as SofiaCrmConfig;
+        const baseUrl = resolveSofiaBaseUrl(sofia.baseUrl);
+
+        if (!baseUrl) {
+          return { ok: false, detail: "URL base do Sofia CRM nao configurada." };
+        }
+
+        const response = await fetchWithTimeout(`${baseUrl}/api/conversations?limit=1`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${sofia.apiToken}`,
+            "x-inbox-id": sofia.inboxId,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          return { ok: false, detail: `Sofia CRM falhou: ${await readFailureDetail(response)}` };
+        }
+
+        return { ok: true, detail: "Conexao com Sofia CRM validada." };
+      }
+      case "evolution_api": {
+        const evolution = config as EvolutionApiConfig;
+        const baseUrl = resolveEvolutionBaseUrl(evolution.baseUrl);
+        const apiKey = resolveEvolutionApiKey(evolution.apiKey);
+
+        if (!baseUrl || !apiKey) {
+          return {
+            ok: false,
+            detail: "Credenciais da Evolution API nao encontradas no servidor.",
+          };
+        }
+
+        const response = await fetchWithTimeout(`${baseUrl}/instance/fetchInstances`, {
+          method: "GET",
+          headers: {
+            apikey: apiKey,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          return {
+            ok: false,
+            detail: `Evolution API falhou: ${await readFailureDetail(response)}`,
+          };
+        }
+
+        return { ok: true, detail: "Conexao com Evolution API validada." };
+      }
+      case "upload_post": {
+        const uploadPost = config as UploadPostConfig;
+        const uploadPostApiUrl = resolveUploadPostBaseUrl();
+        const apiKey = resolveUploadPostApiKey(uploadPost.apiKey);
+
+        if (!uploadPostApiUrl) {
+          return {
+            ok: false,
+            detail:
+              "UPLOAD_POST_API_URL (ou UPLOAD_POST_API_BASE_URL) nao configurada para teste de conexao.",
+          };
+        }
+
+        if (!apiKey) {
+          return {
+            ok: false,
+            detail: "UPLOAD_POST_API_KEY nao configurada para teste de conexao.",
+          };
+        }
+
+        const response = await fetchWithTimeout(
+          buildUploadPostApiUrl(uploadPostApiUrl, "/api/uploadposts/me"),
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Apikey ${apiKey}`,
+              "x-api-key": apiKey,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          return {
+            ok: false,
+            detail: `Upload-Post API falhou: ${await readFailureDetail(response)}`,
+          };
+        }
+
+        return { ok: true, detail: "Conexao com Upload-Post API validada." };
+      }
+      case "openrouter": {
+        const openrouter = config as OpenRouterConfig;
+        const response = await fetchWithTimeout("https://openrouter.ai/api/v1/models", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${openrouter.apiKey}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          return {
+            ok: false,
+            detail: `OpenRouter falhou: ${await readFailureDetail(response)}`,
+          };
+        }
+
+        return { ok: true, detail: "Conexao com OpenRouter validada." };
+      }
+      default:
+        return { ok: false, detail: "Tipo de integracao nao suportado." };
+    }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Erro inesperado";
+    return { ok: false, detail: `Falha ao testar integracao: ${detail}` };
+  }
+}

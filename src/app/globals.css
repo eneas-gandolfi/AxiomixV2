@@ -1,27 +1,253 @@
-@tailwind base;
+/*
+ * Arquivo: src/app/globals.css
+ * Propósito: Tokens CSS globais, utilities e estilos base do AXIOMIX Design System v2.0.
+ * Autor: AXIOMIX
+ * Data: 2026-03-13
+ */
+
+@layer tailwind-base, antd-reset, antd;
+
+@layer antd-reset {
+  /* Garante que o Ant Design receba os defaults corretos de browser
+     dentro do escopo .antd-scope, sem interferir no restante da app */
+}
+
+@layer tailwind-base {
+  @tailwind base;
+}
+
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ═══════════════════════════════════════════════════════════
+   ANT DESIGN SCOPE
+   ═══════════════════════════════════════════════════════════ */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.antd-scope {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  input, button, select, textarea {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  /* Header uppercase */
+  .ant-table-thead > tr > th {
+    font-family: 'Geist Mono', monospace !important;
+    font-size: 12px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Row highlights customizados */
+  .ant-table-row-negative-recent > td {
+    background-color: var(--color-danger-bg) !important;
+  }
+  .ant-table-row-negative-recent:hover > td {
+    background-color: var(--color-danger-bg) !important;
+  }
+  .ant-table-row-selected-axiomix > td {
+    background-color: var(--color-primary-dim) !important;
+    border-left: 2px solid var(--color-primary);
+  }
+  .ant-table-row-selected-axiomix:hover > td {
+    background-color: var(--color-primary-dim) !important;
+  }
+
+  /* Override default Ant selection blue */
+  .ant-table-row-selected > td {
+    background-color: var(--color-primary-dim) !important;
+  }
+
+  /* Quick actions visíveis no hover da row */
+  .ant-table-row:hover .quick-actions {
+    opacity: 1;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+/* ═══════════════════════════════════════════════════════════
+   DESIGN TOKENS v2.0 — Light / Dark
+   ═══════════════════════════════════════════════════════════ */
+
+@layer base {
+
+  /* ── Light Mode ──────────────────────────────────────── */
+  :root {
+    --color-primary:        #FA5E24;
+    --color-primary-hover:  #E84D13;
+    --color-primary-muted:  #C94B1B;
+    --color-primary-dim:    #FFF0EB;
+
+    --color-background:     #F8FAFC;
+    --color-surface:        #FFFFFF;
+    --color-surface-2:      #F1F5F9;
+    --color-surface-3:      #E8EDF3;
+    --color-border:         #E2E8F0;
+    --color-border-strong:  #CBD5E1;
+
+    --color-text:           #1E293B;
+    --color-text-secondary: #64748B;
+    --color-text-tertiary:  #94A3B8;
+
+    --color-success:        #22C55E;
+    --color-success-bg:     #F0FDF4;
+    --color-warning:        #F59E0B;
+    --color-warning-bg:     #FFFBEB;
+    --color-danger:         #EF4444;
+    --color-danger-bg:      #FEF2F2;
+    --color-info:           #3B82F6;
+    --color-info-bg:        #EFF6FF;
+
+    /* ── Aliases backward-compat ── */
+    --color-primary-light:  var(--color-primary-dim);
+    --color-card:           var(--color-surface);
+    --color-sidebar:        var(--color-surface-2);
+    --color-muted:          var(--color-text-secondary);
+    --color-muted-light:    var(--color-text-tertiary);
+    --color-surface-subtle: var(--color-surface-2);
+    --color-success-light:  var(--color-success-bg);
+    --color-warning-light:  var(--color-warning-bg);
+    --color-danger-light:   var(--color-danger-bg);
+    --color-info-light:     var(--color-info-bg);
+  }
+
+  /* ── Dark Mode ───────────────────────────────────────── */
+  .dark {
+    --color-primary-dim:    #7A2D11;
+
+    --color-background:     #0D0D0D;
+    --color-surface:        #141414;
+    --color-surface-2:      #1A1A1A;
+    --color-surface-3:      #222222;
+    --color-border:         #2A2A2A;
+    --color-border-strong:  #333333;
+
+    --color-text:           #F0EDE8;
+    --color-text-secondary: #8A8A8A;
+    --color-text-tertiary:  #555555;
+
+    --color-success:        #22C55E;
+    --color-success-bg:     #103D26;
+    --color-warning:        #F59E0B;
+    --color-warning-bg:     #7A4E06;
+    --color-danger:         #EF4444;
+    --color-danger-bg:      #7A1F1F;
+    --color-info:           #3B82F6;
+    --color-info-bg:        #1E2A3A;
+
+    /* ── Aliases backward-compat ── */
+    --color-primary-light:  var(--color-primary-dim);
+    --color-card:           var(--color-surface);
+    --color-sidebar:        var(--color-surface-2);
+    --color-muted:          var(--color-text-secondary);
+    --color-muted-light:    var(--color-text-tertiary);
+    --color-surface-subtle: var(--color-surface-2);
+    --color-success-light:  var(--color-success-bg);
+    --color-warning-light:  var(--color-warning-bg);
+    --color-danger-light:   var(--color-danger-bg);
+    --color-info-light:     var(--color-info-bg);
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    @apply antialiased;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-instrument), 'Instrument Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-bricolage), 'Bricolage Grotesque', sans-serif;
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-geist-mono), 'Geist Mono', monospace;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-text-tertiary); }
+
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THEME TRANSITION
+   ═══════════════════════════════════════════════════════════ */
+
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition:
+    background-color 200ms ease,
+    color 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COMPONENT UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* Barra de acento de módulo (topo do card) */
+  .module-accent {
+    position: relative;
+  }
+  .module-accent::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+    background-color: var(--module-color, var(--color-primary));
+  }
+
+  /* Skeleton shimmer */
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--color-surface-2);
+  }
+  .skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+    animation: shimmer 1.5s infinite;
+  }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .line-clamp-1 {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
   }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }

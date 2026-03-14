@@ -1,19 +1,144 @@
+/*
+ * Arquivo: tailwind.config.ts
+ * Propósito: Tokens visuais do AXIOMIX Design System v2.0 no TailwindCSS.
+ * Autor: AXIOMIX
+ * Data: 2026-03-13
+ */
+
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  important: false,
+  darkMode: "class",
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{ts,tsx}",
+    "./src/components/**/*.{ts,tsx}",
+    "./src/lib/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        /* ── Primary (invariante) ── */
+        primary: {
+          DEFAULT: "var(--color-primary)",
+          hover: "var(--color-primary-hover)",
+          muted: "var(--color-primary-muted)",
+          dim: "var(--color-primary-dim)",
+          light: "var(--color-primary-light)", // alias backward-compat
+        },
+
+        /* ── Superfícies ── */
+        background: "var(--color-background)",
+        surface: {
+          DEFAULT: "var(--color-surface)",
+          2: "var(--color-surface-2)",
+          3: "var(--color-surface-3)",
+          subtle: "var(--color-surface-subtle)",
+        },
+
+        /* ── Bordas ── */
+        border: {
+          DEFAULT: "var(--color-border)",
+          strong: "var(--color-border-strong)",
+        },
+
+        /* ── Texto ── */
+        text: "var(--color-text)",
+        tx: {
+          DEFAULT: "var(--color-text)",
+          secondary: "var(--color-text-secondary)",
+          tertiary: "var(--color-text-tertiary)",
+        },
+
+        /* ── Semânticas ── */
+        success: {
+          DEFAULT: "var(--color-success)",
+          bg: "var(--color-success-bg)",
+          light: "var(--color-success-light)", // alias
+        },
+        warning: {
+          DEFAULT: "var(--color-warning)",
+          bg: "var(--color-warning-bg)",
+          light: "var(--color-warning-light)", // alias
+        },
+        danger: {
+          DEFAULT: "var(--color-danger)",
+          bg: "var(--color-danger-bg)",
+          light: "var(--color-danger-light)", // alias
+        },
+        info: {
+          DEFAULT: "var(--color-info)",
+          bg: "var(--color-info-bg)",
+          light: "var(--color-info-light)", // alias
+        },
+
+        /* ── Módulos ── */
+        teal: {
+          DEFAULT: "#2EC4B6",
+          dim: "#164E4A",
+          light: "#E0FAF7",
+        },
+        gold: {
+          DEFAULT: "#D4A853",
+          dim: "#6B5429",
+          light: "#FDF6E3",
+        },
+
+        /* ── Backward-compat aliases ── */
+        card: "var(--color-card)",
+        sidebar: "var(--color-sidebar)",
+        muted: {
+          DEFAULT: "var(--color-muted)",
+          light: "var(--color-muted-light)",
+        },
+      },
+
+      fontFamily: {
+        display: ["var(--font-bricolage)", "Bricolage Grotesque", "sans-serif"],
+        sans: ["var(--font-instrument)", "Instrument Sans", "sans-serif"],
+        mono: ["var(--font-geist-mono)", "Geist Mono", "monospace"],
+      },
+
+      fontSize: {
+        xs: ["12px", { lineHeight: "1.5" }],
+        sm: ["14px", { lineHeight: "1.5" }],
+        base: ["16px", { lineHeight: "1.6" }],
+        lg: ["20px", { lineHeight: "1.4" }],
+        xl: ["24px", { lineHeight: "1.3" }],
+        "2xl": ["32px", { lineHeight: "1.2" }],
+        hero: ["48px", { lineHeight: "1.1" }],
+      },
+
+      boxShadow: {
+        "card-sm": "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+        card: "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+        "card-hover": "0 4px 16px rgba(0,0,0,0.08)",
+        dropdown: "0 4px 16px rgba(0,0,0,0.10)",
+        modal: "0 20px 60px rgba(0,0,0,0.15)",
+        primary: "0 4px 14px rgba(250,94,36,0.25)",
+        "primary-hover": "0 6px 20px rgba(250,94,36,0.40)",
+      },
+
+      keyframes: {
+        shimmer: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(100%)" },
+        },
+      },
+      animation: {
+        shimmer: "shimmer 1.5s ease-in-out infinite",
+      },
+
+      borderRadius: {
+        sm: "4px",
+        md: "6px",
+        lg: "8px",
+        xl: "12px",
+        "2xl": "16px",
       },
     },
   },
   plugins: [],
 };
+
 export default config;
