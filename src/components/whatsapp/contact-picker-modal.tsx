@@ -103,7 +103,7 @@ export function ContactPickerModal({
         open={open}
         onCancel={onClose}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         centered
         width={480}
       >

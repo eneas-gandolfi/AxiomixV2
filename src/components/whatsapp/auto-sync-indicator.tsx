@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { RefreshCw, Wifi, WifiOff, Pause, Play } from "lucide-react";
 
 type AutoSyncIndicatorProps = {
   companyId: string;
@@ -22,8 +22,11 @@ export function AutoSyncIndicator({ companyId, intervalSeconds = 60 }: AutoSyncI
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
   const [error, setError] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [pausedByVisibility, setPausedByVisibility] = useState(false);
+  const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isEffectivelyPaused = pausedByVisibility || isManuallyPaused;
 
   const doSync = useCallback(async () => {
     setSyncing(true);
@@ -49,7 +52,7 @@ export function AutoSyncIndicator({ companyId, intervalSeconds = 60 }: AutoSyncI
   }, [companyId, intervalSeconds, router]);
 
   useEffect(() => {
-    if (paused) return;
+    if (isEffectivelyPaused) return;
 
     timerRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
@@ -64,23 +67,25 @@ export function AutoSyncIndicator({ companyId, intervalSeconds = 60 }: AutoSyncI
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [paused, intervalSeconds, doSync]);
+  }, [isEffectivelyPaused, intervalSeconds, doSync]);
 
   // Pausar quando tab não está visível
   useEffect(() => {
     const handleVisibility = () => {
       if (document.hidden) {
-        setPaused(true);
+        setPausedByVisibility(true);
       } else {
-        setPaused(false);
-        // Sync imediato ao voltar para a tab
-        doSync();
+        setPausedByVisibility(false);
+        // Sync imediato ao voltar para a tab, mas só se não estiver pausado manualmente
+        if (!isManuallyPaused) {
+          doSync();
+        }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [doSync]);
+  }, [doSync, isManuallyPaused]);
 
   const formatTime = (seconds: number) => {
     if (seconds >= 60) {
@@ -102,6 +107,14 @@ export function AutoSyncIndicator({ companyId, intervalSeconds = 60 }: AutoSyncI
           <span>Erro ao sincronizar</span>
           <span className="text-muted-light">· próxima em {formatTime(secondsLeft)}</span>
         </>
+      ) : isManuallyPaused ? (
+        <>
+          <Pause className="h-3 w-3 text-warning" />
+          <span>Auto-sync pausado</span>
+          {lastSyncAt && (
+             <span className="text-muted-light">· Última sync: {lastSyncAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+          )}
+        </>
       ) : (
         <>
           <Wifi className="h-3 w-3 text-success" />
@@ -111,14 +124,26 @@ export function AutoSyncIndicator({ companyId, intervalSeconds = 60 }: AutoSyncI
           <span className="text-muted-light">· próxima em {formatTime(secondsLeft)}</span>
         </>
       )}
-      <button
-        onClick={() => { setSecondsLeft(0); doSync(); }}
-        disabled={syncing}
-        className="rounded px-1.5 py-0.5 text-xs text-muted hover:text-text hover:bg-sidebar transition-colors"
-        title="Sincronizar agora"
-      >
-        <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
-      </button>
+
+      {/* Botões de Ação do Indicador */}
+      <div className="flex items-center ml-1">
+        <button
+          onClick={() => setIsManuallyPaused(!isManuallyPaused)}
+          disabled={syncing}
+          className="rounded px-1.5 py-0.5 text-xs text-muted hover:text-text hover:bg-sidebar transition-colors"
+          title={isManuallyPaused ? "Retomar auto-sync" : "Pausar auto-sync"}
+        >
+          {isManuallyPaused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+        </button>
+        <button
+          onClick={() => { setSecondsLeft(0); doSync(); }}
+          disabled={syncing}
+          className="rounded px-1.5 py-0.5 text-xs text-muted hover:text-text hover:bg-sidebar transition-colors"
+          title="Sincronizar agora"
+        >
+          <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
+        </button>
+      </div>
     </div>
   );
 }

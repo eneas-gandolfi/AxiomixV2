@@ -106,12 +106,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const queued = await enqueueJob(parsed.data.type, {}, access.companyId);
+    const queued = await enqueueJob(parsed.data.type, {}, access.companyId, undefined, 1);
 
     // Processar o job imediatamente (nao depender de cron externo)
     const summary = await processJobs({ companyId: access.companyId, maxJobs: 1 });
     revalidatePath("/dashboard");
     revalidatePath("/settings");
+
+    if (summary.processed === 0) {
+      // Job criado mas nao processado — forcar falha
+      await admin
+        .from("async_jobs")
+        .update({
+          status: "failed",
+          error_message: "Job não foi processado.",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", queued.id);
+
+      return NextResponse.json(
+        {
+          error: "Falha ao processar o relatório. Tente novamente.",
+          code: "JOB_NOT_PROCESSED",
+          jobId: queued.id,
+        },
+        { status: 500 }
+      );
+    }
 
     const processedJob = summary.jobs[0];
     if (processedJob?.status === "failed") {

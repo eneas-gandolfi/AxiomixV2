@@ -472,6 +472,17 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       req.on("end", () => {
         client.close();
 
+        if (statusCode === 429) {
+          let retryMessage = "Limite de requisições excedido. Tente novamente em alguns minutos.";
+          try {
+             const parsed = JSON.parse(responseBody);
+             if (parsed.error) retryMessage = parsed.error;
+          } catch {}
+          return reject(
+            new Error(`Sofia CRM Rate Limit (429): ${retryMessage}`)
+          );
+        }
+
         if (statusCode >= 400) {
           return reject(
             new Error(`Sofia CRM ${method} ${path} falhou: ${statusCode} ${responseBody.slice(0, 180)}`)

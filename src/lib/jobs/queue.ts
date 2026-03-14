@@ -64,7 +64,8 @@ export async function enqueueJob(
   type: JobType,
   payload: unknown,
   companyId: string,
-  scheduledFor?: string
+  scheduledFor?: string,
+  maxAttempts?: number
 ): Promise<EnqueueJobResult> {
   const supabase = createSupabaseAdminClient();
   const { data: row, error } = await supabase
@@ -75,6 +76,7 @@ export async function enqueueJob(
       payload: toJsonValue(payload),
       status: "pending",
       scheduled_for: scheduledFor ?? nowIso(),
+      ...(maxAttempts !== undefined ? { max_attempts: maxAttempts } : {}),
     })
     .select("id, company_id, job_type, scheduled_for, status")
     .single();

@@ -75,7 +75,7 @@ export default async function ConversasPage() {
     <>
       {/* Ações */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <AutoSyncIndicator companyId={companyId} intervalSeconds={60} />
+        <AutoSyncIndicator companyId={companyId} intervalSeconds={300} />
         <div className="flex flex-wrap gap-2">
           <StartConversationButton companyId={companyId} />
           <ExportButton companyId={companyId} />

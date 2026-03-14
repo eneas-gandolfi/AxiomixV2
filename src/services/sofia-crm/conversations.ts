@@ -188,6 +188,7 @@ export async function syncConversations(companyId: string): Promise<SyncConversa
 
   let syncedMessages = 0;
   const syncedList: Array<{ id: string; externalId: string }> = [];
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   for (const row of rows ?? []) {
     if (!row.external_id) {
@@ -199,8 +200,20 @@ export async function syncConversations(companyId: string): Promise<SyncConversa
       externalId: row.external_id,
     });
 
-    const messagesResult = await syncMessages(companyId, row.id);
-    syncedMessages += messagesResult.syncedMessages;
+    try {
+      const messagesResult = await syncMessages(companyId, row.id);
+      syncedMessages += messagesResult.syncedMessages;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("429") || msg.includes("Rate Limit")) {
+        console.warn(`[SYNC] Rate limit atingido na conversa ${row.external_id}. Interrompendo sincronização de mensagens.`);
+        break; // Stop fetching messages for this batch to allow token bucket to refill
+      }
+      console.error(`[SYNC] Falha ao sincronizar mensagens da conversa ${row.id}:`, msg);
+    }
+    
+    // Pequeno delay para proteger contra rate limit do Sofia CRM (max 60 a cada 1 min geralmente)
+    await sleep(400);
   }
 
   return {
