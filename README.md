@@ -77,3 +77,4 @@ As migrations SQL ficam em `database/migrations/`.
 ## Deploy
 
 O projeto inclui `vercel.json` para deploy na Vercel.
+O deploy de producao e acionado automaticamente pela Vercel a cada push na branch `main`.
