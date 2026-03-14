@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   Building2,
@@ -99,10 +99,21 @@ type ReportData = {
 type SettingsLayoutProps = {
   initialStats?: Partial<SettingsStats>;
   reportData?: ReportData;
+  initialTab?: TabKey;
 };
 
-export function SettingsLayout({ initialStats, reportData }: SettingsLayoutProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+const VALID_TABS: TabKey[] = ["overview", "company", "integrations", "social", "reports", "alerts"];
+
+export function SettingsLayout({ initialStats, reportData, initialTab }: SettingsLayoutProps) {
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    initialTab && VALID_TABS.includes(initialTab) ? initialTab : "overview"
+  );
+
+  useEffect(() => {
+    if (initialTab && VALID_TABS.includes(initialTab)) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Default stats (can be populated from props)
   const stats: SettingsStats = {

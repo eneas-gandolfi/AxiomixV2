@@ -75,6 +75,31 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
     const config = parseIntegrationConfig(integrationType, payload);
     const encryptedConfig = encodeIntegrationConfig(integrationType, config);
 
+    // Identify if it's a Sofia CRM configuration change that requires clearing old data
+    let shouldClearConversations = false;
+    if (integrationType === "sofia_crm") {
+      const { data: currentIntegration } = await supabase
+        .from("integrations")
+        .select("config")
+        .eq("company_id", membership.company_id)
+        .eq("type", "sofia_crm")
+        .maybeSingle();
+
+      if (currentIntegration?.config) {
+        try {
+          // If the config string changed, we assume it's a different client/inbox
+          // and we should clear the old sync data to avoid mixing conversations
+          if (JSON.stringify(currentIntegration.config) !== JSON.stringify(encryptedConfig)) {
+            shouldClearConversations = true;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      } else {
+        // New integration, nothing to clear yet
+      }
+    }
+
     const { data: integration, error } = await supabase
       .from("integrations")
       .upsert(
@@ -92,6 +117,27 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
       )
       .select("id, type, config, is_active, test_status, last_tested_at, created_at, company_id")
       .single();
+
+    if (error || !integration) {
+      return NextResponse.json(
+        { error: "Não foi possível salvar integração.", code: "INTEGRATION_SAVE_ERROR" },
+        { status: 500 }
+      );
+    }
+
+    if (shouldClearConversations) {
+      console.log(`[Integration] Sofia CRM config changed for company ${membership.company_id}. Clearing old sync data.`);
+      // We perform deletions in order to respect potential foreign key constraints
+      // Insights, Notes, Messages, then Conversations
+      try {
+        await supabase.from("conversation_insights").delete().eq("company_id", membership.company_id);
+        await supabase.from("conversation_notes").delete().eq("company_id", membership.company_id);
+        await supabase.from("messages").delete().eq("company_id", membership.company_id);
+        await supabase.from("conversations").delete().eq("company_id", membership.company_id);
+      } catch (clearError) {
+        console.error("[Integration] Erro ao limpar conversas antigas:", clearError);
+      }
+    }
 
     if (error || !integration) {
       return NextResponse.json(

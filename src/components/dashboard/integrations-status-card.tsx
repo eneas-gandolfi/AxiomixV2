@@ -98,7 +98,7 @@ export function IntegrationsStatusCard({ integrations }: IntegrationsStatusCardP
 
       <div className="mt-5 border-t border-border pt-4 text-right">
         <Link
-          href="/settings/integrations"
+          href="/settings?tab=integrations"
           className="inline-flex h-10 items-center rounded-lg border border-border bg-card px-4 text-sm text-text hover:bg-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           Gerenciar integrações

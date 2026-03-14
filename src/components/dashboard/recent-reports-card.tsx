@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, FileText, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, X } from "lucide-react";
 
 export type RecentReportItem = {
   id: string;
   completedAt: string | null;
   reportText: string;
+  status?: "done" | "failed";
+  errorMessage?: string | null;
 };
 
 type RecentReportsCardProps = {
@@ -96,10 +98,17 @@ export function RecentReportsCard({ reports, hasRunningJob }: RecentReportsCardP
             <article key={report.id} className="py-4 first:pt-0 last:pb-0">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-sm font-medium text-text">{formatDateLabel(report.completedAt)}</p>
-                <span className="inline-flex items-center gap-1 rounded bg-success-light px-2.5 py-1 text-xs text-success">
-                  <CheckCircle2 className="h-3.5 w-3.5" aria-label="Enviado" />
-                  Enviado
-                </span>
+                {report.status === "failed" ? (
+                  <span className="inline-flex items-center gap-1 rounded bg-destructive/10 px-2.5 py-1 text-xs text-destructive">
+                    <AlertCircle className="h-3.5 w-3.5" aria-label="Falhou" />
+                    Falhou
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded bg-success-light px-2.5 py-1 text-xs text-success">
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-label="Enviado" />
+                    Enviado
+                  </span>
+                )}
               </div>
               <p className="text-sm text-muted">{truncatePreview(report.reportText, 80)}</p>
               <button

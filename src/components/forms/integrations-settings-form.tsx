@@ -12,7 +12,7 @@ import { useCallback, useEffect, useState, type ChangeEvent, type ReactNode } fr
 import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle2, Link2, QrCode, Smartphone, UsersRound, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const sofiaSchema = z.object({
@@ -22,7 +22,7 @@ const sofiaSchema = z.object({
 });
 
 const evolutionConnectSchema = z.object({
-  vendorName: z.string().trim().min(2, "Nome do vendedor invalido."),
+  vendorName: z.string().trim().min(2, "Nome da conexão inválido."),
   managerPhone: z.string().trim().min(8, "WhatsApp do gestor invalido."),
 });
 
@@ -271,7 +271,7 @@ export function IntegrationsSettingsForm() {
       }
 
       if (!vendorsRequest.ok) {
-        setGlobalError(vendorsResponse.error ?? "Nao foi possivel carregar vendedores da Evolution.");
+        setGlobalError(vendorsResponse.error ?? "Não foi possível carregar conexões da Evolution.");
         setIsLoading(false);
         return;
       }
@@ -349,7 +349,7 @@ export function IntegrationsSettingsForm() {
     setActiveModal({
       key,
       title: "Conectar Evolution API",
-      subtitle: "A API base e chave ja estao no servidor. Conecte vendedores por QR Code.",
+      subtitle: "Conecte o WhatsApp do gestor para receber relatórios e alertas.",
     });
   };
 
@@ -440,7 +440,7 @@ export function IntegrationsSettingsForm() {
         ...previous,
         evolution: {
           ...previous.evolution,
-          form: response.error ?? "Falha ao gerar QR Code para este vendedor.",
+          form: response.error ?? "Falha ao gerar QR Code.",
         },
       }));
       return;
@@ -461,7 +461,7 @@ export function IntegrationsSettingsForm() {
     setErrors((previous) => ({ ...previous, evolution: {} }));
     setEvolutionFeedback(
       response.testDetail ??
-        "QR Code gerado. Escaneie no WhatsApp do vendedor para concluir a conexao."
+        "QR Code gerado. Escaneie no WhatsApp do gestor para concluir a conexão."
     );
   };
 
@@ -475,7 +475,7 @@ export function IntegrationsSettingsForm() {
       if (!options?.silent) {
         setErrors((previous) => ({
           ...previous,
-          evolution: { ...previous.evolution, form: response.error ?? "Falha ao atualizar vendedores." },
+          evolution: { ...previous.evolution, form: response.error ?? "Falha ao atualizar conexões." },
         }));
       }
       return null;
@@ -607,7 +607,7 @@ export function IntegrationsSettingsForm() {
   const renderEvolutionModal = () => (
     <div className="grid gap-4">
       <p className="text-sm text-muted">
-        Credenciais da Evolution estao no servidor. Basta cadastrar o vendedor e escanear o QR Code.
+        Credenciais da Evolution estão no servidor. Informe o WhatsApp do gestor e escaneie o QR Code para conectar.
       </p>
 
       <div className="space-y-1">
@@ -634,7 +634,7 @@ export function IntegrationsSettingsForm() {
 
       <div className="space-y-1">
         <label htmlFor="evolution-vendor-name" className="text-sm font-medium text-text">
-          Nome do vendedor
+          Nome da conexão
         </label>
         <input
           id="evolution-vendor-name"
@@ -646,7 +646,7 @@ export function IntegrationsSettingsForm() {
               evolution: { ...previous.evolution, vendorName: undefined, form: undefined },
             }));
           }}
-          placeholder="Ex.: Camila Comercial"
+          placeholder="Ex.: Gestor Principal"
           className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm placeholder:text-muted-light hover:border-border-strong focus:outline-none focus:border-transparent focus:ring-2 focus:ring-primary"
         />
         {errors.evolution.vendorName ? (
@@ -660,7 +660,7 @@ export function IntegrationsSettingsForm() {
           {isConnectingEvolution ? "Gerando..." : "Gerar QR Code"}
         </Button>
         <Button type="button" variant="secondary" onClick={() => void refreshEvolutionVendors()}>
-          Atualizar status dos vendedores
+          Atualizar status
         </Button>
       </div>
 
@@ -676,7 +676,7 @@ export function IntegrationsSettingsForm() {
               className="h-56 w-56 rounded-lg border border-border bg-card p-2"
             />
             <p className="text-xs text-muted">
-              Abra o WhatsApp do vendedor no celular e escaneie este QR Code.
+              Abra o WhatsApp do gestor no celular e escaneie este QR Code.
             </p>
           </div>
         </div>
@@ -684,13 +684,13 @@ export function IntegrationsSettingsForm() {
 
       <div className="rounded-lg border border-border bg-background p-3">
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-medium text-text">Vendedores conectados</p>
+          <p className="text-sm font-medium text-text">Conexões ativas</p>
           <p className="text-xs text-muted">
             {connectedVendorsCount}/{evolutionVendors.length} conectados
           </p>
         </div>
         {evolutionVendors.length === 0 ? (
-          <p className="text-xs text-muted-light">Nenhum vendedor cadastrado ainda.</p>
+          <p className="text-xs text-muted-light">Nenhuma conexão cadastrada ainda.</p>
         ) : (
           <div className="space-y-2">
             {evolutionVendors.map((vendor) => (
@@ -743,13 +743,13 @@ export function IntegrationsSettingsForm() {
 
         <IntegrationOverviewCard
           title="Evolution API"
-          description="Conecta multiplos vendedores via QR Code sem expor API key ao usuario."
+          description="Envia relatórios e alertas via WhatsApp para o gestor."
           status={evolutionStatus}
           icon={<Smartphone className="h-5 w-5" />}
           onConnect={() => openModal("evolution")}
           extra={
             <div className="rounded-lg border border-border bg-background p-3">
-              <p className="text-xs text-muted">Vendedores cadastrados: {evolutionVendors.length}</p>
+              <p className="text-xs text-muted">Conexões cadastradas:{evolutionVendors.length}</p>
               <p className="text-xs text-muted">Conectados: {connectedVendorsCount}</p>
             </div>
           }
@@ -769,10 +769,8 @@ export function IntegrationsSettingsForm() {
                 Cada empresa possui seu proprio perfil de redes sociais.
               </p>
             </div>
-            <Link href="/settings">
-              <Button type="button" variant="secondary">
-                Ir para Settings de redes sociais
-              </Button>
+            <Link href="/settings?tab=social" className={buttonVariants({ variant: "secondary" })}>
+              Ir para Settings de redes sociais
             </Link>
           </div>
         </CardContent>

@@ -51,17 +51,17 @@ export function SendReportButton({
 
       if (!response.ok) {
         toast({
-          title: "Erro ao enviar relatório",
+          title: "Falha no envio",
           description:
-            payload.error ?? "Verifique a integração com a Evolution API.",
+            payload.error ?? "Erro ao processar o relatório.",
           variant: "destructive",
         });
         return;
       }
 
       toast({
-        title: "Relatório em processamento",
-        description: "Você receberá no WhatsApp em alguns minutos.",
+        title: "Relatório enviado!",
+        description: "O relatório foi enviado para o WhatsApp do gestor.",
         variant: "success",
       });
       router.refresh();
@@ -93,7 +93,7 @@ export function SendReportButton({
       {iconPosition === "left" ? (
         <Send className="h-4 w-4" aria-label="Enviar relatório" />
       ) : null}
-      {isSending ? "Enviando..." : "Enviar relatório agora"}
+      {isSending ? "Gerando e enviando..." : "Enviar relatório agora"}
       {iconPosition === "right" ? (
         <ArrowRight className="h-4 w-4" aria-label="Abrir envio de relatório" />
       ) : null}

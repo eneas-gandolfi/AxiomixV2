@@ -389,6 +389,71 @@ export function buildIntegrationPublicItem(
   };
 }
 
+function isTlsError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  
+  const mainMsg = (error.message || "").toUpperCase();
+  const cause = (error as Error & { cause?: Error & { code?: string } }).cause;
+  const causeMsg = cause ? ((cause.message || "") + (cause.code || "")).toUpperCase() : "";
+  
+  const combined = `${mainMsg} | ${causeMsg}`;
+
+  // Catch standard node TLS errors and OpenSSL internal alerts (like EPROTO with SSL alert)
+  return combined.includes("ERR_SSL") || combined.includes("ERR_TLS") || 
+         combined.includes("EPROTO") || combined.includes("SSL") ||
+         combined.includes("UNABLE_TO_VERIFY_LEAF_SIGNATURE") ||
+         combined.includes("CERT_HAS_EXPIRED") ||
+         combined.includes("DEPTH_ZERO_SELF_SIGNED_CERT") ||
+         combined.includes("SELF_SIGNED_CERT_IN_CHAIN");
+}
+
+/**
+ * Fallback to Node's native https module instead of fetch (undici).
+ * Bypasses undici's strict TLS/ALPN negotiation that causes "SSL alert 80" errors
+ * with some servers (e.g. crm.getlead.capital). Uses rejectUnauthorized: false
+ * because these are external third-party integration endpoints that may use
+ * self-signed or incompatible certificates.
+ */
+function fetchWithHttps(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const https = require("node:https") as typeof import("node:https");
+
+  const parsed = new URL(url);
+  const headers = init.headers as Record<string, string> | undefined;
+
+  return new Promise<Response>((resolve, reject) => {
+    const req = https.request(
+      parsed,
+      {
+        method: init.method ?? "GET",
+        headers,
+        timeout: timeoutMs,
+        // Allow servers with self-signed or incompatible TLS certs (external integrations)
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => {
+          const body = Buffer.concat(chunks).toString("utf-8");
+          resolve(new Response(body, {
+            status: res.statusCode ?? 500,
+            statusText: res.statusMessage ?? "",
+            headers: res.headers as Record<string, string>,
+          }));
+        });
+      }
+    );
+
+    req.on("timeout", () => { req.destroy(); reject(new Error("Timeout")); });
+    req.on("error", reject);
+
+    if (init.body && typeof init.body === "string") {
+      req.write(init.body);
+    }
+    req.end();
+  });
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 8000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -398,9 +463,29 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 8000
       ...init,
       signal: controller.signal,
     });
-    return response;
-  } finally {
     clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (isTlsError(error)) {
+      console.warn("[fetchWithTimeout] TLS/SSL error via fetch, retentando com https nativo (rejectUnauthorized:false)…");
+
+      try {
+        return await fetchWithHttps(url, init, timeoutMs);
+      } catch (httpsError) {
+        // If the native https also fails with an SSL/protocol error,
+        // try downgrading to plain HTTP (some servers only accept http://)
+        if (url.startsWith("https://") && isTlsError(httpsError)) {
+          const httpUrl = url.replace(/^https:\/\//, "http://");
+          console.warn(`[fetchWithTimeout] HTTPS completamente bloqueado, tentando HTTP: ${httpUrl}`);
+          return await fetchWithTimeout(httpUrl, init, timeoutMs);
+        }
+        throw httpsError;
+      }
+    }
+
+    throw error;
   }
 }
 
@@ -411,6 +496,60 @@ async function readFailureDetail(response: Response) {
   }
 
   return `${response.status}: ${text.slice(0, 160)}`;
+}
+
+function extractNetworkErrorDetail(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "Erro inesperado";
+  }
+
+  // Node.js fetch wraps network errors as TypeError with a `.cause`
+  const cause = (error as Error & { cause?: unknown }).cause;
+
+  if (cause instanceof Error) {
+    const code = (cause as Error & { code?: string }).code;
+
+    // SSL/TLS errors
+    if (code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" || code === "CERT_HAS_EXPIRED" ||
+        code === "DEPTH_ZERO_SELF_SIGNED_CERT" || code === "SELF_SIGNED_CERT_IN_CHAIN" ||
+        code === "ERR_TLS_CERT_ALTNAME_INVALID" || code?.startsWith("ERR_TLS")) {
+      return `Certificado SSL invalido (${code}). Verifique o certificado do servidor.`;
+    }
+
+    if (code === "EPROTO" || cause.message?.includes("SSL") || code === "ECONNRESET") {
+      if (code === "EPROTO" || cause.message?.includes("SSL")) {
+        return `Erro de protocolo SSL/TLS (${code || "SSL"}). O servidor pode nao suportar a conexao exigida.`;
+      }
+    }
+
+    // DNS errors
+    if (code === "ENOTFOUND") {
+      return `DNS nao resolvido — o host nao foi encontrado. Verifique a URL.`;
+    }
+
+    // Connection refused / reset
+    if (code === "ECONNREFUSED") {
+      return `Conexao recusada pelo servidor. Verifique se o servico esta ativo.`;
+    }
+    if (code === "ECONNRESET" || code === "EPIPE") {
+      return `Conexao interrompida (${code}). Tente novamente.`;
+    }
+
+    // Timeout via AbortController
+    if (cause.name === "AbortError" || code === "UND_ERR_CONNECT_TIMEOUT") {
+      return `Timeout — o servidor nao respondeu a tempo.`;
+    }
+
+    // Fallback: use cause message + code when available
+    return code ? `${cause.message} (${code})` : cause.message;
+  }
+
+  // AbortError directly on the error (timeout from our AbortController)
+  if (error.name === "AbortError") {
+    return "Timeout — o servidor nao respondeu a tempo.";
+  }
+
+  return error.message;
 }
 
 export async function testIntegrationConnection<T extends IntegrationType>(
@@ -535,7 +674,8 @@ export async function testIntegrationConnection<T extends IntegrationType>(
         return { ok: false, detail: "Tipo de integracao nao suportado." };
     }
   } catch (error) {
-    const detail = error instanceof Error ? error.message : "Erro inesperado";
+    console.error("[testIntegrationConnection] Erro de rede:", error);
+    const detail = extractNetworkErrorDetail(error);
     return { ok: false, detail: `Falha ao testar integracao: ${detail}` };
   }
 }

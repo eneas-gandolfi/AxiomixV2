@@ -180,7 +180,13 @@ function resolveEvolutionDisplayStatus(row: IntegrationRowForStatus | undefined)
   return { state: "missing" as const, label: "Não configurado" };
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const tabParam = typeof params.tab === "string" ? params.tab : undefined;
   const companyId = await getUserCompanyId();
 
   if (!companyId) {
@@ -229,13 +235,13 @@ export default async function SettingsPage() {
       .from("integrations")
       .select("type, is_active, test_status, last_tested_at, config")
       .eq("company_id", companyId),
-    // Recent completed reports
+    // Recent completed reports (including failed)
     supabase
       .from("async_jobs")
-      .select("id, completed_at, payload, result")
+      .select("id, completed_at, payload, result, status, error_message")
       .eq("company_id", companyId)
       .eq("job_type", "weekly_report")
-      .eq("status", "done")
+      .in("status", ["done", "failed"])
       .order("completed_at", { ascending: false })
       .limit(4),
     // Report queue status (ignorar jobs travados com mais de 30 min)
@@ -323,6 +329,8 @@ export default async function SettingsPage() {
     id: row.id,
     completedAt: row.completed_at,
     reportText: parseReportText(row.payload, row.result),
+    status: row.status as "done" | "failed",
+    errorMessage: row.error_message,
   }));
 
   const now = new Date();
@@ -347,7 +355,7 @@ export default async function SettingsPage() {
       title=""
       description=""
     >
-      <SettingsLayout initialStats={initialStats} reportData={reportData} />
+      <SettingsLayout initialStats={initialStats} reportData={reportData} initialTab={tabParam as "overview" | "company" | "integrations" | "social" | "reports" | "alerts" | undefined} />
     </PageContainer>
     </div>
   );

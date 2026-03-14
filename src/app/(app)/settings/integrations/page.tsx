@@ -8,6 +8,6 @@
 import { redirect } from "next/navigation";
 
 export default function IntegrationsPage() {
-  // Redirect to main settings page with unified tabs
-  redirect("/settings");
+  // Redirect to main settings page with integrations tab active
+  redirect("/settings?tab=integrations");
 }

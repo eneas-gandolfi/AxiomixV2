@@ -68,7 +68,7 @@ export function NextReportCard({
         </div>
 
         {canManageReports && (
-          <div className="mt-5">
+          <div className="mt-5 space-y-2">
             <SendReportButton
               disabled={!canSendNow}
               disabledReason={sendDisabledReason}
@@ -76,6 +76,9 @@ export function NextReportCard({
               className="ml-auto bg-primary text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
               iconPosition="right"
             />
+            {!canSendNow && sendDisabledReason && (
+              <p className="text-xs text-warning">{sendDisabledReason}</p>
+            )}
           </div>
         )}
       </div>
@@ -88,7 +91,7 @@ export function NextReportCard({
             <>
               <span>—</span>
               <Link
-                href="/settings/integrations"
+                href="/settings?tab=integrations"
                 className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 Configurar
