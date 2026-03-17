@@ -5,6 +5,18 @@
     {
       "path": "/api/report/send",
       "schedule": "0 11 * * 1"
+    },
+    {
+      "path": "/api/jobs/process",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/whatsapp-sync",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/whatsapp-analyze",
+      "schedule": "*/2 * * * *"
     }
   ]
 }
