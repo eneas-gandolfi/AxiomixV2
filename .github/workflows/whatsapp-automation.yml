@@ -1,0 +1,47 @@
+name: WhatsApp Automation
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: whatsapp-automation
+  cancel-in-progress: false
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      AXIOMIX_BASE_URL: https://axiomix-v2.vercel.app
+    steps:
+      - name: Trigger Sofia CRM sync every 15 minutes
+        shell: bash
+        run: |
+          minute="$(date -u +%M)"
+          if (( 10#$minute % 15 == 0 )); then
+            curl --fail --silent --show-error \
+              --header "x-vercel-cron: github-actions" \
+              "$AXIOMIX_BASE_URL/api/cron/whatsapp-sync"
+          else
+            echo "Skipping sync trigger outside 15-minute window."
+          fi
+
+      - name: Process global async jobs
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            echo "Processing async job batch $attempt"
+            curl --fail --silent --show-error \
+              --header "x-vercel-cron: github-actions" \
+              "$AXIOMIX_BASE_URL/api/jobs/process"
+            sleep 5
+          done
+
+      - name: Process WhatsApp analyses
+        shell: bash
+        run: |
+          curl --fail --silent --show-error \
+            --header "x-vercel-cron: github-actions" \
+            "$AXIOMIX_BASE_URL/api/cron/whatsapp-analyze"
