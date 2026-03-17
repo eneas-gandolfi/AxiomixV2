@@ -37,16 +37,27 @@ export async function GET(request: NextRequest) {
     const supabase = createSupabaseAdminClient();
     const recentSyncCutoff = new Date(Date.now() - MIN_SYNC_INTERVAL_MINUTES * 60_000).toISOString();
 
-    const { data: companies, error: companiesError } = await supabase
-      .from("companies")
-      .select("id")
-      .eq("status", "active");
+    const { data: integrations, error: integrationsError } = await supabase
+      .from("integrations")
+      .select("company_id")
+      .eq("type", "sofia_crm")
+      .eq("is_active", true)
+      .eq("test_status", "ok")
+      .not("company_id", "is", null);
 
-    if (companiesError) {
-      throw new Error(`Falha ao buscar empresas: ${companiesError.message}`);
+    if (integrationsError) {
+      throw new Error(`Falha ao buscar integracoes do Sofia CRM: ${integrationsError.message}`);
     }
 
-    if (!companies || companies.length === 0) {
+    const companyIds = Array.from(
+      new Set(
+        (integrations ?? [])
+          .map((integration) => integration.company_id)
+          .filter((companyId): companyId is string => typeof companyId === "string")
+      )
+    );
+
+    if (companyIds.length === 0) {
       return NextResponse.json({
         message: "Nenhuma empresa ativa para sincronizar.",
         enqueued: 0,
@@ -57,22 +68,11 @@ export async function GET(request: NextRequest) {
     const enqueued: string[] = [];
     let skippedRecent = 0;
 
-    for (const company of companies) {
-      const { data: integration } = await supabase
-        .from("integrations")
-        .select("is_active, test_status")
-        .eq("company_id", company.id)
-        .eq("type", "sofia_crm")
-        .maybeSingle();
-
-      if (!integration?.is_active || integration.test_status !== "ok") {
-        continue;
-      }
-
+    for (const companyId of companyIds) {
       const { data: existingJobs } = await supabase
         .from("async_jobs")
         .select("id")
-        .eq("company_id", company.id)
+        .eq("company_id", companyId)
         .eq("job_type", "sofia_crm_sync")
         .in("status", ["pending", "running"])
         .limit(1);
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       const { data: recentCompletedJobs } = await supabase
         .from("async_jobs")
         .select("id")
-        .eq("company_id", company.id)
+        .eq("company_id", companyId)
         .eq("job_type", "sofia_crm_sync")
         .eq("status", "done")
         .gte("created_at", recentSyncCutoff)
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const job = await enqueueJob("sofia_crm_sync", {}, company.id, undefined, 1);
+      const job = await enqueueJob("sofia_crm_sync", {}, companyId, undefined, 1);
       enqueued.push(job.id);
     }
 
