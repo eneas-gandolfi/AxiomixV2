@@ -15,33 +15,33 @@ jobs:
     timeout-minutes: 15
     env:
       AXIOMIX_BASE_URL: https://axiomix-v2.vercel.app
+      AXIOMIX_CRON_SECRET: ${{ secrets.AXIOMIX_CRON_SECRET }}
     steps:
-      - name: Trigger Sofia CRM sync every 15 minutes
+      - name: Validate cron secret
         shell: bash
         run: |
-          minute="$(date -u +%M)"
-          if (( 10#$minute % 15 == 0 )); then
-            curl --fail --silent --show-error \
-              --header "x-vercel-cron: github-actions" \
-              "$AXIOMIX_BASE_URL/api/cron/whatsapp-sync"
-          else
-            echo "Skipping sync trigger outside 15-minute window."
-          fi
+          test -n "$AXIOMIX_CRON_SECRET"
+
+      - name: Trigger Sofia CRM sync
+        shell: bash
+        run: |
+          curl --fail --silent --show-error \
+            --header "x-cron-secret: $AXIOMIX_CRON_SECRET" \
+            "$AXIOMIX_BASE_URL/api/cron/whatsapp-sync"
 
       - name: Process global async jobs
         shell: bash
         run: |
-          for attempt in 1 2 3; do
-            echo "Processing async job batch $attempt"
-            curl --fail --silent --show-error \
-              --header "x-vercel-cron: github-actions" \
-              "$AXIOMIX_BASE_URL/api/jobs/process"
-            sleep 5
-          done
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --header "x-cron-secret: $AXIOMIX_CRON_SECRET" \
+            --data '{"maxJobs":3}' \
+            "$AXIOMIX_BASE_URL/api/jobs/process"
 
       - name: Process WhatsApp analyses
         shell: bash
         run: |
           curl --fail --silent --show-error \
-            --header "x-vercel-cron: github-actions" \
+            --header "x-cron-secret: $AXIOMIX_CRON_SECRET" \
             "$AXIOMIX_BASE_URL/api/cron/whatsapp-analyze"

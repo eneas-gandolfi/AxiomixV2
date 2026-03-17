@@ -12,6 +12,7 @@ import { processJobs } from "@/lib/jobs/processor";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 const processSchema = z.object({
   companyId: z.string().uuid("companyId invalido.").optional(),
@@ -22,7 +23,10 @@ function isCronCall(request: NextRequest) {
   const vercelCronHeader = request.headers.get("x-vercel-cron");
   const cronSecretHeader = request.headers.get("x-cron-secret");
   const cronSecret = process.env.CRON_SECRET;
-  return Boolean(vercelCronHeader) || (Boolean(cronSecret) && cronSecretHeader === cronSecret);
+  if (cronSecret) {
+    return cronSecretHeader === cronSecret;
+  }
+  return Boolean(vercelCronHeader);
 }
 
 export async function GET(request: NextRequest) {
@@ -61,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     if (isCronCall(request)) {
       const summary = await processJobs({
-        maxJobs: 1,
+        maxJobs: parsed.data.maxJobs ?? 1,
       });
 
       return NextResponse.json({

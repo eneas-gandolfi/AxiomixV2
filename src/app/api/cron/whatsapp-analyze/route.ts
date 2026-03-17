@@ -26,7 +26,10 @@ function isCronCall(request: NextRequest) {
   const vercelCronHeader = request.headers.get("x-vercel-cron");
   const cronSecretHeader = request.headers.get("x-cron-secret");
   const cronSecret = process.env.CRON_SECRET;
-  return Boolean(vercelCronHeader) || (Boolean(cronSecret) && cronSecretHeader === cronSecret);
+  if (cronSecret) {
+    return cronSecretHeader === cronSecret;
+  }
+  return Boolean(vercelCronHeader);
 }
 
 function parseConversationId(payload: AsyncJobRow["payload"]) {

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/cron/whatsapp-sync/route.ts
- * Proposito: Cron job para sincronizar conversas do Sofia CRM a cada 15 minutos.
+ * Proposito: Cron job para sincronizar conversas do Sofia CRM em background.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -11,11 +11,18 @@ import { enqueueJob } from "@/lib/jobs/queue";
 
 export const dynamic = "force-dynamic";
 
+const MIN_SYNC_INTERVAL_MINUTES = 15;
+
 function isCronCall(request: NextRequest) {
   const vercelCronHeader = request.headers.get("x-vercel-cron");
   const cronSecretHeader = request.headers.get("x-cron-secret");
   const cronSecret = process.env.CRON_SECRET;
-  return Boolean(vercelCronHeader) || (Boolean(cronSecret) && cronSecretHeader === cronSecret);
+
+  if (cronSecret) {
+    return cronSecretHeader === cronSecret;
+  }
+
+  return Boolean(vercelCronHeader);
 }
 
 export async function GET(request: NextRequest) {
@@ -28,8 +35,8 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createSupabaseAdminClient();
+    const recentSyncCutoff = new Date(Date.now() - MIN_SYNC_INTERVAL_MINUTES * 60_000).toISOString();
 
-    // Buscar todas as empresas ativas com integração Sofia CRM configurada
     const { data: companies, error: companiesError } = await supabase
       .from("companies")
       .select("id")
@@ -43,13 +50,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         message: "Nenhuma empresa ativa para sincronizar.",
         enqueued: 0,
+        skippedRecent: 0,
       });
     }
 
     const enqueued: string[] = [];
+    let skippedRecent = 0;
 
     for (const company of companies) {
-      // Verificar se a integração Sofia CRM está ativa
       const { data: integration } = await supabase
         .from("integrations")
         .select("is_active, test_status")
@@ -61,7 +69,6 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // Verificar se já não há um job pendente/running para esta empresa
       const { data: existingJobs } = await supabase
         .from("async_jobs")
         .select("id")
@@ -71,17 +78,32 @@ export async function GET(request: NextRequest) {
         .limit(1);
 
       if (existingJobs && existingJobs.length > 0) {
-        continue; // Já tem um job em andamento, não criar duplicado
+        continue;
       }
 
-      // Enfileirar job de sincronização
-      const job = await enqueueJob("sofia_crm_sync", {}, company.id);
+      const { data: recentCompletedJobs } = await supabase
+        .from("async_jobs")
+        .select("id")
+        .eq("company_id", company.id)
+        .eq("job_type", "sofia_crm_sync")
+        .eq("status", "done")
+        .gte("created_at", recentSyncCutoff)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (recentCompletedJobs && recentCompletedJobs.length > 0) {
+        skippedRecent += 1;
+        continue;
+      }
+
+      const job = await enqueueJob("sofia_crm_sync", {}, company.id, undefined, 1);
       enqueued.push(job.id);
     }
 
     return NextResponse.json({
-      message: `Sincronização agendada para ${enqueued.length} empresa(s).`,
+      message: `Sincronizacao agendada para ${enqueued.length} empresa(s).`,
       enqueued: enqueued.length,
+      skippedRecent,
       jobIds: enqueued,
     });
   } catch (error) {
