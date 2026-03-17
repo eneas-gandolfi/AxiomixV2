@@ -94,9 +94,12 @@ export async function enqueueJob(
   };
 }
 
-export async function getNextPendingJob(companyId?: string): Promise<AsyncJobRow | null> {
+export async function getNextPendingJob(
+  companyId?: string,
+  allowedTypes?: JobType[]
+): Promise<AsyncJobRow | null> {
   const supabase = createSupabaseAdminClient();
-  const query = supabase
+  let query = supabase
     .from("async_jobs")
     .select(JOB_SELECT_FIELDS)
     .eq("status", "pending")
@@ -104,6 +107,10 @@ export async function getNextPendingJob(companyId?: string): Promise<AsyncJobRow
     .order("scheduled_for", { ascending: true })
     .order("created_at", { ascending: true })
     .limit(1);
+
+  if (allowedTypes && allowedTypes.length > 0) {
+    query = query.in("job_type", allowedTypes);
+  }
 
   const { data: row, error } = companyId
     ? await query.eq("company_id", companyId).maybeSingle()

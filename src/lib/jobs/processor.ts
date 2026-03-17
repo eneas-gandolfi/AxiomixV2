@@ -32,6 +32,7 @@ export type JobsProcessingSummary = {
 type ProcessJobsOptions = {
   companyId?: string;
   maxJobs?: number;
+  allowedTypes?: AsyncJobRow["job_type"][];
 };
 
 const whatsappAnalyzePayloadSchema = z.object({
@@ -97,8 +98,11 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
   }
 }
 
-export async function processNextJob(companyId?: string): Promise<ProcessedJobResult | null> {
-  const pending = await getNextPendingJob(companyId);
+export async function processNextJob(
+  companyId?: string,
+  allowedTypes?: AsyncJobRow["job_type"][]
+): Promise<ProcessedJobResult | null> {
+  const pending = await getNextPendingJob(companyId, allowedTypes);
   if (!pending) {
     return null;
   }
@@ -134,10 +138,11 @@ export async function processNextJob(companyId?: string): Promise<ProcessedJobRe
 export async function processJobs(options?: ProcessJobsOptions): Promise<JobsProcessingSummary> {
   const companyId = options?.companyId;
   const maxJobs = Math.min(Math.max(options?.maxJobs ?? 1, 1), 10);
+  const allowedTypes = options?.allowedTypes;
   const jobs: ProcessedJobResult[] = [];
 
   for (let index = 0; index < maxJobs; index += 1) {
-    const processed = await processNextJob(companyId);
+    const processed = await processNextJob(companyId, allowedTypes);
     if (!processed) {
       break;
     }
