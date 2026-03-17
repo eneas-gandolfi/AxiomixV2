@@ -36,7 +36,7 @@ jobs:
             --request POST \
             --header "Content-Type: application/json" \
             --header "x-cron-secret: $AXIOMIX_CRON_SECRET" \
-            --data '{"maxJobs":3}' \
+            --data '{"maxJobs":3,"allowedTypes":["sofia_crm_sync"]}' \
             "$AXIOMIX_BASE_URL/api/jobs/process"
 
       - name: Process WhatsApp analyses

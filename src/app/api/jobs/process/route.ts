@@ -14,9 +14,19 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
+const allowedJobTypes = [
+  "sofia_crm_sync",
+  "whatsapp_analyze",
+  "weekly_report",
+  "competitor_scrape",
+  "radar_collect",
+  "rag_process",
+] as const;
+
 const processSchema = z.object({
   companyId: z.string().uuid("companyId invalido.").optional(),
   maxJobs: z.number().int().min(1).max(10).optional(),
+  allowedTypes: z.array(z.enum(allowedJobTypes)).min(1).max(allowedJobTypes.length).optional(),
 });
 
 function isCronCall(request: NextRequest) {
@@ -66,6 +76,7 @@ export async function POST(request: NextRequest) {
     if (isCronCall(request)) {
       const summary = await processJobs({
         maxJobs: parsed.data.maxJobs ?? 1,
+        allowedTypes: parsed.data.allowedTypes,
       });
 
       return NextResponse.json({
@@ -80,6 +91,7 @@ export async function POST(request: NextRequest) {
     const summary = await processJobs({
       companyId: access.companyId,
       maxJobs: parsed.data.maxJobs ?? 1,
+      allowedTypes: parsed.data.allowedTypes,
     });
 
     return NextResponse.json({
