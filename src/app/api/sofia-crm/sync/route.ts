@@ -12,7 +12,6 @@ import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-com
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { processJobById } from "@/lib/jobs/processor";
-import { syncMessages, syncRecentMessages } from "@/services/sofia-crm/conversations";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -76,6 +75,7 @@ export async function POST(request: NextRequest) {
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
 
     if (parsed.data.conversationId) {
+      const { syncMessages } = await import("@/services/sofia-crm/conversations");
       const messageResult = await syncMessages(access.companyId, parsed.data.conversationId);
       return NextResponse.json({
         companyId: access.companyId,
@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (parsed.data.mode === "messages_only") {
+      const { syncRecentMessages } = await import("@/services/sofia-crm/conversations");
       const result = await syncRecentMessages(access.companyId, {
         conversationLimit: 5,
         messageLimit: 80,

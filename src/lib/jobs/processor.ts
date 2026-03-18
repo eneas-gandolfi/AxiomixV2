@@ -8,13 +8,8 @@
 import { z } from "zod";
 import type { AsyncJobRow } from "@/lib/jobs/queue";
 import { getNextPendingJob, markJobDone, markJobFailed, markJobRunning, updateJobProgress } from "@/lib/jobs/queue";
-import { parseCompetitorJobPayload, runCompetitorWorker } from "@/services/intelligence/competitor";
-import { parseRadarJobPayload, runRadarWorkerEnhanced } from "@/services/intelligence/radar-enhanced";
-import { runWeeklyReportJob } from "@/services/report/weekly-job";
-import { syncConversations } from "@/services/sofia-crm/conversations";
-import { runRagProcessWorker } from "@/services/rag/processor";
-import { analyzeConversation } from "@/services/whatsapp/analyzer";
-import { enqueueAutoAnalyses } from "@/services/whatsapp/auto-analyze";
+// Service modules são importados dinamicamente em dispatchJob() para evitar
+// que falha de carregamento de um módulo (ex: pdf-parse) quebre todas as rotas.
 
 type ProcessedJobResult = {
   jobId: string;
@@ -71,6 +66,7 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
   const payload = parseObjectPayload(job.payload);
   switch (job.job_type) {
     case "sofia_crm_sync": {
+      const { syncConversations } = await import("@/services/sofia-crm/conversations");
       const syncResult = await syncConversations(job.company_id, (progress) => {
         void updateJobProgress(job.id, {
           phase: progress.phase,
@@ -79,23 +75,29 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
           syncedMessages: progress.syncedMessages,
         });
       });
-      // Após sync bem-sucedido, enfileirar análises automáticas para conversas sem insight
+      const { enqueueAutoAnalyses } = await import("@/services/whatsapp/auto-analyze");
       const analyzeResult = await enqueueAutoAnalyses(job.company_id);
       return {
         ...syncResult,
         autoAnalyze: analyzeResult,
       };
     }
-    case "competitor_scrape":
+    case "competitor_scrape": {
+      const { parseCompetitorJobPayload, runCompetitorWorker } = await import("@/services/intelligence/competitor");
       return runCompetitorWorker(job.company_id, parseCompetitorJobPayload(payload));
-    case "radar_collect":
+    }
+    case "radar_collect": {
+      const { parseRadarJobPayload, runRadarWorkerEnhanced } = await import("@/services/intelligence/radar-enhanced");
       return runRadarWorkerEnhanced(job.company_id, parseRadarJobPayload(payload));
+    }
     case "whatsapp_analyze": {
       const parsed = whatsappAnalyzePayloadSchema.parse(payload);
+      const { analyzeConversation } = await import("@/services/whatsapp/analyzer");
       return analyzeConversation(job.company_id, parsed.conversationId);
     }
     case "weekly_report": {
       const parsed = weeklyReportPayloadSchema.parse(payload);
+      const { runWeeklyReportJob } = await import("@/services/report/weekly-job");
       return runWeeklyReportJob({
         companyId: job.company_id,
         jobId: job.id,
@@ -118,6 +120,7 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
     }
     case "rag_process": {
       const parsed = ragProcessPayloadSchema.parse(payload);
+      const { runRagProcessWorker } = await import("@/services/rag/processor");
       return runRagProcessWorker(job.company_id, { documentId: parsed.documentId });
     }
     default:
