@@ -144,27 +144,6 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function kickoffSofiaSyncProcessing(companyId: string, jobId: string) {
-  const response = await fetch("/api/sofia-crm/process", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      companyId,
-      jobId,
-    }),
-  });
-
-  const { payload, rawText } = await parseSyncResponse(response);
-
-  if (!response.ok) {
-    throw new Error(payload.error ?? (rawText.slice(0, 180) || "Falha ao processar sincronização do Sofia CRM."));
-  }
-
-  return payload;
-}
-
 async function fetchSyncJobStatus(companyId: string, jobId: string): Promise<SofiaSyncResponse> {
   const params = new URLSearchParams({
     companyId,
@@ -259,8 +238,6 @@ export async function requestSofiaSync(input: SyncRequest): Promise<SofiaSyncRes
           errorMessage: null,
           lastResult: payload,
         });
-
-        kickoffSofiaSyncProcessing(input.companyId, payload.jobId).catch(() => {});
 
         const completedPayload = await waitForSyncCompletion(input.companyId, payload.jobId);
         updateStatus(input.companyId, {
