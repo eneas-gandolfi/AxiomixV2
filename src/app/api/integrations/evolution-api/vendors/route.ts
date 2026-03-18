@@ -15,8 +15,11 @@ import {
 } from "@/lib/integrations/service";
 import type { EvolutionApiConfig, EvolutionVendor } from "@/lib/integrations/types";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 import {
   createEvolutionVendor,
+  deleteEvolutionInstance,
+  EvolutionApiRequestError,
   fetchEvolutionInstanceStatuses,
   generateEvolutionQrCode,
   mergeVendorStatuses,
@@ -35,6 +38,15 @@ const createVendorSchema = z.object({
     .max(64)
     .regex(/^[a-zA-Z0-9_-]+$/, "instanceName invalido.")
     .optional(),
+});
+
+const deleteVendorSchema = z.object({
+  instanceName: z
+    .string()
+    .trim()
+    .min(3)
+    .max(64)
+    .regex(/^[a-zA-Z0-9_-]+$/, "instanceName invalido."),
 });
 
 function toEvolutionConfig(payload: unknown): EvolutionApiConfig | null {
@@ -70,7 +82,7 @@ export async function GET(request: NextRequest) {
 
     const decoded = integration?.config ? toEvolutionConfig(integration.config) : null;
     const vendors = decoded?.vendors ?? [];
-    const managerPhone = decoded?.managerPhone ?? "";
+    const managerPhone = normalizeWhatsAppPhone(decoded?.managerPhone ?? "");
 
     if (vendors.length === 0) {
       return NextResponse.json({
@@ -164,7 +176,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     const decoded = existingIntegration?.config ? toEvolutionConfig(existingIntegration.config) : null;
-    const managerPhone = parsed.data.managerPhone ?? decoded?.managerPhone ?? "";
+    const managerPhone = normalizeWhatsAppPhone(parsed.data.managerPhone ?? decoded?.managerPhone ?? "");
 
     if (managerPhone.trim().length < 8) {
       return NextResponse.json(
@@ -244,5 +256,107 @@ export async function POST(request: NextRequest) {
 
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
     return NextResponse.json({ error: detail, code: "EVOLUTION_VENDORS_POST_ERROR" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const response = NextResponse.json({ ok: true });
+    const supabase = createSupabaseRouteHandlerClient(request, response);
+    const access = await resolveCompanyAccess(supabase);
+
+    if (access.role !== "owner" && access.role !== "admin") {
+      return NextResponse.json(
+        { error: "Apenas owner/admin podem excluir conexoes.", code: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    const rawBody: unknown = await request.json().catch(() => ({}));
+    const parsed = deleteVendorSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { status: 400 }
+      );
+    }
+
+    const { data: existingIntegration } = await supabase
+      .from("integrations")
+      .select("id, config")
+      .eq("company_id", access.companyId)
+      .eq("type", "evolution_api")
+      .maybeSingle();
+
+    const decoded = existingIntegration?.config ? toEvolutionConfig(existingIntegration.config) : null;
+    const vendors = decoded?.vendors ?? [];
+    const targetVendor = vendors.find((vendor) => vendor.instanceName === parsed.data.instanceName);
+
+    if (!existingIntegration?.id || !decoded || !targetVendor) {
+      return NextResponse.json(
+        { error: "Instancia nao encontrada.", code: "EVOLUTION_VENDOR_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const credentials = resolveEvolutionCredentials({
+      baseUrl: decoded.baseUrl,
+      apiKey: decoded.apiKey,
+    });
+
+    let instanceAlreadyMissing = false;
+
+    try {
+      await deleteEvolutionInstance({
+        credentials,
+        instanceName: targetVendor.instanceName,
+      });
+    } catch (error) {
+      if (error instanceof EvolutionApiRequestError && error.status === 404) {
+        instanceAlreadyMissing = true;
+      } else {
+        throw error;
+      }
+    }
+
+    const nextVendors = vendors.filter((vendor) => vendor.instanceName !== targetVendor.instanceName);
+    const nextConfig: EvolutionApiConfig = {
+      managerPhone: decoded.managerPhone,
+      baseUrl: decoded.baseUrl,
+      apiKey: decoded.apiKey,
+      vendors: nextVendors,
+    };
+
+    const { error: updateError } = await supabase
+      .from("integrations")
+      .update({
+        config: encodeIntegrationConfig("evolution_api", nextConfig),
+      })
+      .eq("id", existingIntegration.id)
+      .eq("company_id", access.companyId);
+
+    if (updateError) {
+      return NextResponse.json(
+        { error: "Falha ao remover conexao da Evolution API.", code: "EVOLUTION_VENDOR_DELETE_ERROR" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      deletedInstanceName: targetVendor.instanceName,
+      managerPhone: nextConfig.managerPhone,
+      vendors: nextVendors,
+      message: instanceAlreadyMissing
+        ? `${targetVendor.vendorName} nao existia mais na Evolution API e foi removido da lista.`
+        : `${targetVendor.vendorName} removido com sucesso.`,
+    });
+  } catch (error) {
+    if (error instanceof CompanyAccessError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+
+    const detail = error instanceof Error ? error.message : "Erro inesperado.";
+    return NextResponse.json({ error: detail, code: "EVOLUTION_VENDORS_DELETE_ERROR" }, { status: 500 });
   }
 }

@@ -26,10 +26,15 @@ function serializePosts(posts: CollectedPostDraft[]) {
 
 export function buildCompetitorInsightPrompt(
   competitorName: string,
-  posts: CollectedPostDraft[]
+  posts: CollectedPostDraft[],
+  knowledgeBaseContext?: string
 ) {
+  const kbBlock = knowledgeBaseContext
+    ? `\n\nContexto da base de conhecimento da empresa (use para enriquecer a analise):\n${knowledgeBaseContext}\n`
+    : "";
+
   return `
-Voce e um analista de marketing competitivo.
+Voce e um analista de marketing competitivo.${kbBlock}
 Analise os posts do concorrente "${competitorName}" e responda APENAS JSON valido:
 {
   "summary": "resumo curto em portugues",
@@ -51,10 +56,15 @@ ${serializePosts(posts)}
 export function buildRadarInsightPrompt(
   niche: string,
   subNiche: string | null,
-  posts: CollectedPostDraft[]
+  posts: CollectedPostDraft[],
+  knowledgeBaseContext?: string
 ) {
+  const kbBlock = knowledgeBaseContext
+    ? `\n\nContexto da base de conhecimento da empresa (use para enriquecer a analise):\n${knowledgeBaseContext}\n`
+    : "";
+
   return `
-Voce e um estrategista de conteudo para pequenas e medias empresas.
+Voce e um estrategista de conteudo para pequenas e medias empresas.${kbBlock}
 Contexto de nicho: ${niche}${subNiche ? ` / ${subNiche}` : ""}.
 Com base no radar abaixo, responda APENAS JSON valido:
 {

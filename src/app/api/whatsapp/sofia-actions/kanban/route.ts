@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
       boardId: parsed.data.boardId,
       title: parsed.data.title,
       description,
+      conversation_id: conversation.external_id ?? undefined,
     });
 
     return NextResponse.json({

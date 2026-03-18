@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { normalizeOptionalWhatsAppPhone } from "@/lib/whatsapp/phone";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
     const result = ALERT_TYPES.map((type) => ({
       alertType: type,
       isEnabled: prefMap.get(type)?.is_enabled ?? false,
-      recipientPhone: prefMap.get(type)?.recipient_phone ?? null,
+      recipientPhone: normalizeOptionalWhatsAppPhone(prefMap.get(type)?.recipient_phone ?? null),
       cooldownMinutes: prefMap.get(type)?.cooldown_minutes ?? 60,
       updatedAt: prefMap.get(type)?.updated_at ?? null,
     }));
@@ -54,7 +55,13 @@ export async function GET(request: NextRequest) {
 const alertPrefSchema = z.object({
   alertType: z.enum(ALERT_TYPES),
   isEnabled: z.boolean(),
-  recipientPhone: z.string().trim().min(8).nullable().optional(),
+  recipientPhone: z
+    .string()
+    .trim()
+    .min(8)
+    .transform((value) => normalizeOptionalWhatsAppPhone(value))
+    .nullable()
+    .optional(),
   cooldownMinutes: z.number().int().min(5).max(1440).optional(),
 });
 
@@ -87,7 +94,7 @@ export async function PUT(request: NextRequest) {
           company_id: access.companyId,
           alert_type: parsed.data.alertType,
           is_enabled: parsed.data.isEnabled,
-          recipient_phone: parsed.data.recipientPhone ?? null,
+          recipient_phone: normalizeOptionalWhatsAppPhone(parsed.data.recipientPhone ?? null),
           cooldown_minutes: parsed.data.cooldownMinutes ?? 60,
           updated_at: new Date().toISOString(),
         },
@@ -107,7 +114,7 @@ export async function PUT(request: NextRequest) {
       preference: {
         alertType: upserted.alert_type,
         isEnabled: upserted.is_enabled,
-        recipientPhone: upserted.recipient_phone,
+        recipientPhone: normalizeOptionalWhatsAppPhone(upserted.recipient_phone),
         cooldownMinutes: upserted.cooldown_minutes,
         updatedAt: upserted.updated_at,
       },

@@ -31,7 +31,20 @@ type OpenRouterResponse = {
 type OpenRouterOptions = {
   responseFormat?: "json" | "text";
   temperature?: number;
+  model?: string;
 };
+
+function resolveOpenRouterEnvConfig(): OpenRouterConfig | null {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
+    return null;
+  }
+
+  return {
+    apiKey,
+    model: process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-4o",
+  };
+}
 
 async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterConfig> {
   const supabase = createSupabaseAdminClient();
@@ -52,6 +65,11 @@ async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterCon
     }
   }
 
+  const envFallback = resolveOpenRouterEnvConfig();
+  if (envFallback) {
+    return envFallback;
+  }
+
   throw new Error("Integracao OpenRouter nao configurada para esta empresa.");
 }
 
@@ -64,7 +82,7 @@ export async function openRouterChatCompletion(
   const responseFormat = options?.responseFormat ?? "json";
   const temperature = options?.temperature ?? 0.2;
   const body: Record<string, unknown> = {
-    model: config.model,
+    model: options?.model || config.model,
     temperature,
     messages,
   };
@@ -75,14 +93,28 @@ export async function openRouterChatCompletion(
     };
   }
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
+
+  let response: Response;
+  try {
+    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("OpenRouter timeout: requisicao excedeu 60s.");
+    }
+    throw error;
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const detail = await response.text();

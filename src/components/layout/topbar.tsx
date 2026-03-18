@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/layout/topbar.tsx
- * Propósito: Barra superior com ThemeToggle switch, notificações e logout.
+ * Proposito: Barra superior com ThemeToggle switch, notificacoes e logout.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -8,10 +8,11 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, LogOut, Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { TopbarClock } from "@/components/layout/topbar-clock";
+import { TopbarNotifications } from "@/components/layout/topbar-notifications";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type TopbarProps = {
@@ -44,14 +45,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-
-          <button
-            type="button"
-            aria-label="Notificações"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
-          >
-            <Bell size={18} aria-hidden="true" />
-          </button>
+          <TopbarNotifications />
 
           <div className="hidden h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary-dim)] text-xs font-bold text-[var(--color-primary)] sm:flex">
             AX

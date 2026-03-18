@@ -8,6 +8,7 @@
 import "server-only";
 
 import type { EvolutionVendor, EvolutionVendorStatus } from "@/lib/integrations/types";
+import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 
 type EvolutionCredentials = {
   baseUrl: string;
@@ -16,7 +17,7 @@ type EvolutionCredentials = {
 
 type EvolutionAttempt = {
   source: string;
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "DELETE";
   url: string;
   body?: Record<string, unknown>;
 };
@@ -35,11 +36,29 @@ type EvolutionQrResult = {
   qrCodeDataUrl: string;
 };
 
+type EvolutionSendTextResult = {
+  providerStatus: number;
+  providerBody: string;
+  source: string;
+};
+
 type EvolutionInstanceStatus = {
   instanceName: string;
   connected: boolean;
   rawStatus: string | null;
 };
+
+export class EvolutionApiRequestError extends Error {
+  status: number;
+  source: string;
+
+  constructor(message: string, status: number, source: string) {
+    super(message);
+    this.name = "EvolutionApiRequestError";
+    this.status = status;
+    this.source = source;
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -223,14 +242,28 @@ async function readResponsePayload(response: Response): Promise<{ payload: unkno
 }
 
 async function callEvolution(credentials: EvolutionCredentials, attempt: EvolutionAttempt): Promise<FetchResult> {
-  const response = await fetch(attempt.url, {
-    method: attempt.method,
-    headers: {
-      apikey: credentials.apiKey,
-      "Content-Type": "application/json",
-    },
-    body: attempt.body ? JSON.stringify(attempt.body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+  let response: Response;
+  try {
+    response = await fetch(attempt.url, {
+      method: attempt.method,
+      headers: {
+        apikey: credentials.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: attempt.body ? JSON.stringify(attempt.body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new EvolutionApiRequestError("Evolution API timeout: requisicao excedeu 30s.", 408, attempt.source);
+    }
+    throw error;
+  }
+  clearTimeout(timeoutId);
 
   const parsed = await readResponsePayload(response);
   return {
@@ -240,6 +273,11 @@ async function callEvolution(credentials: EvolutionCredentials, attempt: Evoluti
     payload: parsed.payload,
     text: parsed.text,
   };
+}
+
+function formatEvolutionFailure(result: FetchResult) {
+  const detail = result.text.slice(0, 180);
+  return detail ? `Falha no envio WhatsApp: ${result.status} ${detail}` : `Falha no envio WhatsApp: HTTP ${result.status}`;
 }
 
 function normalizeInstanceName(vendorName: string, companyId: string) {
@@ -376,6 +414,152 @@ export async function fetchEvolutionInstanceStatuses(input: {
   }
 
   return statuses;
+}
+
+export async function deleteEvolutionInstance(input: {
+  credentials: EvolutionCredentials;
+  instanceName: string;
+}): Promise<{ instanceName: string; source: string }> {
+  const result = await callEvolution(input.credentials, {
+    source: "delete_instance",
+    method: "DELETE",
+    url: `${input.credentials.baseUrl}/instance/delete/${encodeURIComponent(input.instanceName)}`,
+  });
+
+  if (!result.ok) {
+    throw new EvolutionApiRequestError(
+      `Falha ao excluir instancia na Evolution API: HTTP ${result.status}`,
+      result.status,
+      result.source
+    );
+  }
+
+  return {
+    instanceName: input.instanceName,
+    source: result.source,
+  };
+}
+
+export async function sendEvolutionTextMessage(input: {
+  credentials: EvolutionCredentials;
+  instanceName: string;
+  number: string;
+  text: string;
+}): Promise<EvolutionSendTextResult> {
+  const instanceName = input.instanceName.trim();
+  if (!instanceName) {
+    throw new Error("Nenhuma instancia conectada na Evolution API.");
+  }
+
+  const normalizedNumber = normalizeWhatsAppPhone(input.number);
+  if (normalizedNumber.replace(/\D/g, "").length < 8) {
+    throw new Error("Numero de destino invalido para envio WhatsApp.");
+  }
+
+  const attempts: EvolutionAttempt[] = [
+    {
+      source: "message_send_text_instance",
+      method: "POST",
+      url: `${input.credentials.baseUrl}/message/sendText/${encodeURIComponent(instanceName)}`,
+      body: {
+        number: normalizedNumber,
+        text: input.text,
+      },
+    },
+    {
+      source: "message_send_text_instance_name_body",
+      method: "POST",
+      url: `${input.credentials.baseUrl}/message/sendText`,
+      body: {
+        instanceName,
+        number: normalizedNumber,
+        text: input.text,
+      },
+    },
+    {
+      source: "message_send_text_instance_body",
+      method: "POST",
+      url: `${input.credentials.baseUrl}/message/sendText`,
+      body: {
+        instance: instanceName,
+        number: normalizedNumber,
+        text: input.text,
+      },
+    },
+  ];
+
+  const firstAttempt = await callEvolution(input.credentials, attempts[0]);
+  if (firstAttempt.ok) {
+    return {
+      providerStatus: firstAttempt.status,
+      providerBody: firstAttempt.text.slice(0, 500),
+      source: firstAttempt.source,
+    };
+  }
+
+  if (firstAttempt.status !== 404) {
+    throw new Error(formatEvolutionFailure(firstAttempt));
+  }
+
+  const statuses = await fetchEvolutionInstanceStatuses({
+    credentials: input.credentials,
+  }).catch(() => null);
+
+  if (statuses && !statuses.some((status) => status.instanceName === instanceName)) {
+    throw new Error(`Instancia ${instanceName} nao encontrada na Evolution API.`);
+  }
+
+  let lastFailure = firstAttempt;
+  for (const attempt of attempts.slice(1)) {
+    const result = await callEvolution(input.credentials, attempt);
+    if (result.ok) {
+      return {
+        providerStatus: result.status,
+        providerBody: result.text.slice(0, 500),
+        source: result.source,
+      };
+    }
+    lastFailure = result;
+  }
+
+  throw new Error(formatEvolutionFailure(lastFailure));
+}
+
+function toIsoDateOrZero(value?: string | null) {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+export function resolvePreferredEvolutionInstance(vendors?: EvolutionVendor[]): string | null {
+  if (!Array.isArray(vendors) || vendors.length === 0) {
+    return null;
+  }
+
+  const validVendors = vendors.filter(
+    (vendor) => typeof vendor.instanceName === "string" && vendor.instanceName.trim().length > 0
+  );
+
+  if (validVendors.length === 0) {
+    return null;
+  }
+
+  const connectedVendors = validVendors
+    .filter((vendor) => vendor.status === "connected")
+    .sort((left, right) => {
+      const rightScore = toIsoDateOrZero(right.connectedAt) || toIsoDateOrZero(right.lastQrAt);
+      const leftScore = toIsoDateOrZero(left.connectedAt) || toIsoDateOrZero(left.lastQrAt);
+      return rightScore - leftScore;
+    });
+
+  if (connectedVendors.length > 0) {
+    return connectedVendors[0]?.instanceName.trim() ?? null;
+  }
+
+  return validVendors[0]?.instanceName.trim() ?? null;
 }
 
 export function mergeVendorStatuses(input: {

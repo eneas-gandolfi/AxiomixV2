@@ -12,6 +12,7 @@ import { enqueueJob } from "@/lib/jobs/queue";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { runWeeklyReportJob } from "@/services/report/weekly-job";
+import { isCronAuthorized } from "@/lib/auth/cron-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +22,6 @@ const reportSendSchema = z.object({
   weekEndIso: z.string().datetime("weekEndIso invalido.").optional(),
   mode: z.enum(["send_now", "enqueue"]).default("send_now"),
 });
-
-function isCronRequest(request: NextRequest) {
-  const vercelCronHeader = request.headers.get("x-vercel-cron");
-  const cronSecretHeader = request.headers.get("x-cron-secret");
-  const cronSecret = process.env.CRON_SECRET;
-  return Boolean(vercelCronHeader) || (Boolean(cronSecret) && cronSecretHeader === cronSecret);
-}
 
 async function enqueueForAllCompanies(period: { weekStartIso?: string; weekEndIso?: string }) {
   const supabase = createSupabaseAdminClient();
@@ -69,7 +63,7 @@ async function enqueueForAllCompanies(period: { weekStartIso?: string; weekEndIs
 
 export async function GET(request: NextRequest) {
   try {
-    if (!isCronRequest(request)) {
+    if (!isCronAuthorized(request)) {
       return NextResponse.json(
         { error: "Metodo GET reservado para cron.", code: "METHOD_NOT_ALLOWED" },
         { status: 405 }
@@ -105,7 +99,7 @@ export async function POST(request: NextRequest) {
       weekEndIso: parsed.data.weekEndIso,
     };
 
-    if (isCronRequest(request)) {
+    if (isCronAuthorized(request)) {
       const result = await enqueueForAllCompanies(period);
       return NextResponse.json({
         mode: "cron_enqueue",

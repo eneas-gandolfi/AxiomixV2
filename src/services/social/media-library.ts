@@ -14,9 +14,26 @@ import type { MediaLibraryItem } from "@/types/modules/cloudinary.types";
 import { SocialPublisherError } from "@/services/social/publisher";
 
 type MediaFileRow = Database["public"]["Tables"]["media_files"]["Row"];
+type MediaUsageRow = Pick<
+  Database["public"]["Tables"]["scheduled_posts"]["Row"],
+  "media_file_ids"
+>;
 
 const MEDIA_FILE_COLUMNS =
   "id, company_id, file_name, file_type, file_size, public_url, storage_path, cloudinary_public_id, cloudinary_format, width, height, duration, resource_type, thumbnail_url, tags, created_at" as const;
+const MEDIA_BUCKET = "Axiomix - v2";
+
+export type MediaDeleteBlockedReason = "scheduled_post" | "content_demand";
+
+export type DeleteMediaFilesResult = {
+  deletedIds: string[];
+  blocked: Array<{
+    id: string;
+    fileName: string;
+    reason: MediaDeleteBlockedReason;
+  }>;
+  missingIds: string[];
+};
 
 type ListMediaFilesInput = {
   companyId: string;
@@ -55,6 +72,57 @@ function toMediaLibraryItem(
     tags: row.tags ?? [],
     createdAt: row.created_at ?? new Date().toISOString(),
   };
+}
+
+function collectBlockedIds(
+  rows: MediaUsageRow[] | null,
+  requestedIds: Set<string>,
+  blocked: Map<string, MediaDeleteBlockedReason>,
+  reason: MediaDeleteBlockedReason
+) {
+  for (const row of rows ?? []) {
+    for (const mediaId of row.media_file_ids ?? []) {
+      if (requestedIds.has(mediaId) && !blocked.has(mediaId)) {
+        blocked.set(mediaId, reason);
+      }
+    }
+  }
+}
+
+async function getBlockedMediaIds(
+  companyId: string,
+  ids: string[]
+): Promise<Map<string, MediaDeleteBlockedReason>> {
+  const supabase = createSupabaseAdminClient();
+  const requestedIds = new Set(ids);
+
+  const [{ data: scheduledRows, error: scheduledError }, { data: demandRows, error: demandError }] =
+    await Promise.all([
+      supabase
+        .from("scheduled_posts")
+        .select("media_file_ids")
+        .eq("company_id", companyId)
+        .overlaps("media_file_ids", ids),
+      supabase
+        .from("content_demands")
+        .select("media_file_ids")
+        .eq("company_id", companyId)
+        .overlaps("media_file_ids", ids),
+    ]);
+
+  if (scheduledError || demandError) {
+    throw new SocialPublisherError(
+      "Falha ao verificar uso dos arquivos de midia.",
+      "MEDIA_USAGE_CHECK_ERROR",
+      500
+    );
+  }
+
+  const blocked = new Map<string, MediaDeleteBlockedReason>();
+  collectBlockedIds(scheduledRows, requestedIds, blocked, "scheduled_post");
+  collectBlockedIds(demandRows, requestedIds, blocked, "content_demand");
+
+  return blocked;
 }
 
 export async function listMediaFiles(
@@ -157,17 +225,9 @@ export async function deleteMediaFile(
   companyId: string,
   id: string
 ): Promise<void> {
-  const supabase = createSupabaseAdminClient();
+  const result = await deleteMediaFiles(companyId, [id]);
 
-  // Verificar se existe
-  const { data: row, error: fetchError } = await supabase
-    .from("media_files")
-    .select("id, cloudinary_public_id, resource_type")
-    .eq("id", id)
-    .eq("company_id", companyId)
-    .maybeSingle();
-
-  if (fetchError || !row) {
+  if (result.missingIds.includes(id)) {
     throw new SocialPublisherError(
       "Arquivo de midia nao encontrado.",
       "MEDIA_NOT_FOUND",
@@ -175,31 +235,12 @@ export async function deleteMediaFile(
     );
   }
 
-  // Verificar se esta em uso em scheduled_posts
-  const { data: usedInPosts } = await supabase
-    .from("scheduled_posts")
-    .select("id")
-    .eq("company_id", companyId)
-    .contains("media_file_ids", [id])
-    .limit(1);
-
-  if (usedInPosts && usedInPosts.length > 0) {
-    throw new SocialPublisherError(
-      "Arquivo em uso em posts agendados. Remova-o dos posts antes de deletar.",
-      "MEDIA_IN_USE",
-      409
-    );
+  const blockedItem = result.blocked.find((item) => item.id === id);
+  if (!blockedItem) {
+    return;
   }
 
-  // Verificar se esta em uso em content_demands
-  const { data: usedInDemands } = await supabase
-    .from("content_demands")
-    .select("id")
-    .eq("company_id", companyId)
-    .contains("media_file_ids", [id])
-    .limit(1);
-
-  if (usedInDemands && usedInDemands.length > 0) {
+  if (blockedItem.reason === "content_demand") {
     throw new SocialPublisherError(
       "Arquivo em uso em demandas de conteudo. Remova-o das demandas antes de deletar.",
       "MEDIA_IN_USE",
@@ -207,21 +248,108 @@ export async function deleteMediaFile(
     );
   }
 
-  // Deletar do Cloudinary
-  if (row.cloudinary_public_id) {
-    try {
-      await deleteFromCloudinary(row.cloudinary_public_id, row.resource_type ?? "image");
-    } catch (error) {
-      console.error("[MediaLibrary] Falha ao deletar do Cloudinary:", error);
+  throw new SocialPublisherError(
+    "Arquivo em uso em posts agendados. Remova-o dos posts antes de deletar.",
+    "MEDIA_IN_USE",
+    409
+  );
+}
+
+export async function deleteMediaFiles(
+  companyId: string,
+  ids: string[]
+): Promise<DeleteMediaFilesResult> {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+
+  if (uniqueIds.length === 0) {
+    return {
+      deletedIds: [],
+      blocked: [],
+      missingIds: [],
+    };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: rows, error: fetchError } = await supabase
+    .from("media_files")
+    .select("id, file_name, storage_path, cloudinary_public_id, resource_type")
+    .eq("company_id", companyId)
+    .in("id", uniqueIds);
+
+  if (fetchError) {
+    throw new SocialPublisherError(
+      "Falha ao carregar arquivos de midia para exclusao.",
+      "MEDIA_DELETE_FETCH_ERROR",
+      500
+    );
+  }
+
+  const rowMap = new Map((rows ?? []).map((row) => [row.id, row]));
+  const missingIds = uniqueIds.filter((id) => !rowMap.has(id));
+  const blockedMap = await getBlockedMediaIds(companyId, uniqueIds);
+
+  const blocked = uniqueIds
+    .map((id) => {
+      const row = rowMap.get(id);
+      const reason = blockedMap.get(id);
+
+      if (!row || !reason) {
+        return null;
+      }
+
+      return {
+        id,
+        fileName: row.file_name,
+        reason,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+
+  const deletableRows = (rows ?? []).filter((row) => !blockedMap.has(row.id));
+  if (deletableRows.length === 0) {
+    return {
+      deletedIds: [],
+      blocked,
+      missingIds,
+    };
+  }
+
+  const storagePaths = deletableRows
+    .map((row) => row.storage_path)
+    .filter((path): path is string => typeof path === "string" && path.length > 0);
+
+  if (storagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage.from(MEDIA_BUCKET).remove(storagePaths);
+
+    if (storageError) {
+      throw new SocialPublisherError(
+        "Falha ao remover arquivos do bucket de armazenamento.",
+        "MEDIA_STORAGE_DELETE_ERROR",
+        500
+      );
     }
   }
 
-  // Deletar do banco
+  const cloudinaryResults = await Promise.allSettled(
+    deletableRows
+      .filter((row) => Boolean(row.cloudinary_public_id))
+      .map((row) =>
+        deleteFromCloudinary(row.cloudinary_public_id ?? "", row.resource_type ?? "image")
+      )
+  );
+
+  for (const result of cloudinaryResults) {
+    if (result.status === "rejected") {
+      console.error("[MediaLibrary] Falha ao deletar do Cloudinary:", result.reason);
+    }
+  }
+
+  const deletableIds = deletableRows.map((row) => row.id);
   const { error: deleteError } = await supabase
     .from("media_files")
     .delete()
-    .eq("id", id)
-    .eq("company_id", companyId);
+    .eq("company_id", companyId)
+    .in("id", deletableIds);
 
   if (deleteError) {
     throw new SocialPublisherError(
@@ -230,6 +358,12 @@ export async function deleteMediaFile(
       500
     );
   }
+
+  return {
+    deletedIds: deletableIds,
+    blocked,
+    missingIds,
+  };
 }
 
 export async function updateMediaFileTags(

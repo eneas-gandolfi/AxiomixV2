@@ -29,6 +29,7 @@ type ConversationData = {
   id: string;
   external_id: string | null;
   contact_name: string | null;
+  contact_avatar_url: string | null;
   remote_jid: string;
   status: string | null;
   last_message_at: string | null;
@@ -165,7 +166,7 @@ export function ConversationsTable({
 
         return (
           <div className="flex items-center gap-3">
-            <ContactAvatar name={record.contact_name} size="md" />
+            <ContactAvatar name={record.contact_name} avatarUrl={record.contact_avatar_url} size="md" />
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex items-center gap-2">
                 {record.intent && (

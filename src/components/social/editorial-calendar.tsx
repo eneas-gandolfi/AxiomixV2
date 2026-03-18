@@ -8,7 +8,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Calendar, Loader2 } from "lucide-react";
+import { AlertCircle, ChevronLeft, ChevronRight, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CalendarDayCell } from "./calendar-day-cell";
@@ -71,6 +71,7 @@ export function EditorialCalendar({
   const [platformFilter, setPlatformFilter] = useState<SocialPlatform[]>([]);
   const [draggedPostId, setDraggedPostId] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<CalendarPostItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
   const [weekStart, setWeekStart] = useState<Date>(() => {
     const d = new Date();
@@ -81,6 +82,7 @@ export function EditorialCalendar({
 
   const fetchPosts = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams({
         companyId,
@@ -93,9 +95,11 @@ export function EditorialCalendar({
       if (res.ok) {
         const data = await res.json();
         setPosts(data.posts ?? []);
+      } else {
+        setError("Falha ao carregar posts do calendário.");
       }
     } catch {
-      // silently fail
+      setError("Erro de conexão ao carregar posts.");
     } finally {
       setIsLoading(false);
     }
@@ -200,6 +204,7 @@ export function EditorialCalendar({
 
   const handleDropPost = async (postId: string, newDate: Date) => {
     setDraggedPostId(null);
+    setError(null);
     try {
       const res = await fetch(`/api/social/schedule/${postId}/reschedule`, {
         method: "PATCH",
@@ -212,9 +217,12 @@ export function EditorialCalendar({
 
       if (res.ok) {
         await fetchPosts();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError((data as { error?: string }).error ?? "Falha ao reagendar post.");
       }
     } catch {
-      // silently fail
+      setError("Erro de conexão ao reagendar post.");
     }
   };
 
@@ -358,6 +366,13 @@ export function EditorialCalendar({
       </CardHeader>
 
       <CardContent>
+        {error ? (
+          <div className="mb-4 flex items-start gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-bg)] px-4 py-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-danger)]" />
+            <p className="text-sm text-[var(--color-danger)]">{error}</p>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-[#FA5E24]" />

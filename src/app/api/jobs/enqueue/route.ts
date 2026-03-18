@@ -2,7 +2,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { enqueueJob } from "@/lib/jobs/queue";
+import { enqueueJob, markStaleJobsFailed } from "@/lib/jobs/queue";
 import { processJobs } from "@/lib/jobs/processor";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
@@ -65,25 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Limpar jobs travados (pending > 10min ou running > 30min)
-    const admin = createSupabaseAdminClient();
-    const stalePendingCutoff = new Date(Date.now() - 10 * 60_000).toISOString();
-    const staleRunningCutoff = new Date(Date.now() - 30 * 60_000).toISOString();
-
-    await admin
-      .from("async_jobs")
-      .update({ status: "failed", error_message: "Job expirou (stale).", completed_at: new Date().toISOString() })
-      .eq("company_id", access.companyId)
-      .eq("job_type", "weekly_report")
-      .eq("status", "pending")
-      .lt("created_at", stalePendingCutoff);
-
-    await admin
-      .from("async_jobs")
-      .update({ status: "failed", error_message: "Job expirou (stale).", completed_at: new Date().toISOString() })
-      .eq("company_id", access.companyId)
-      .eq("job_type", "weekly_report")
-      .eq("status", "running")
-      .lt("started_at", staleRunningCutoff);
+    await markStaleJobsFailed(access.companyId);
 
     const { count: queuedJobsCount, error: jobsCountError } = await supabase
       .from("async_jobs")
@@ -115,6 +97,7 @@ export async function POST(request: NextRequest) {
 
     if (summary.processed === 0) {
       // Job criado mas nao processado — forcar falha
+      const admin = createSupabaseAdminClient();
       await admin
         .from("async_jobs")
         .update({

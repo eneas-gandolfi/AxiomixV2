@@ -24,9 +24,10 @@ type TeamMember = {
 
 type TeamMembersTableProps = {
   members: TeamMember[];
+  onMemberClick?: (member: TeamMember) => void;
 };
 
-function roleLabel(role?: string | null) {
+export function roleLabel(role?: string | null) {
   switch (role) {
     case "admin":
       return "Admin";
@@ -39,7 +40,7 @@ function roleLabel(role?: string | null) {
   }
 }
 
-export function TeamMembersTable({ members }: TeamMembersTableProps) {
+export function TeamMembersTable({ members, onMemberClick }: TeamMembersTableProps) {
   const columns: ColumnsType<TeamMember> = [
     {
       title: "Membro",
@@ -89,6 +90,10 @@ export function TeamMembersTable({ members }: TeamMembersTableProps) {
       dataSource={members}
       rowKey="id"
       pagination={axiomixPagination()}
+      onRow={(record) => ({
+        onClick: () => onMemberClick?.(record),
+        style: { cursor: onMemberClick ? "pointer" : undefined },
+      })}
       locale={{
         emptyText: (
           <p className="py-8 text-sm text-muted">

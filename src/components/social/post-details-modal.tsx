@@ -7,76 +7,46 @@
 
 "use client";
 
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { formatDate, postTypeLabel, progressStateLabel } from "@/lib/social/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type {
-  PlatformProgressState,
-  SocialPlatform,
-  SocialPostType,
-  SocialPublishStatus,
-  PublishProgressMap,
-  PublishResultMap,
-  PublishErrorMap,
+import {
+  STATUS_COLORS,
+  STATUS_LABELS,
+  type ScheduledHistoryItem,
 } from "@/types/modules/social-publisher.types";
-
-type ScheduledHistoryItem = {
-  id: string;
-  postType: SocialPostType;
-  caption: string | null;
-  platforms: SocialPlatform[];
-  scheduledAt: string;
-  status: SocialPublishStatus;
-  progress: PublishProgressMap;
-  externalPostIds: PublishResultMap;
-  errorDetails: PublishErrorMap;
-  publishedAt: string | null;
-  createdAt: string;
-  qstashMessageId: string | null;
-  mediaFileIds: string[];
-  thumbnailUrl: string | null;
-  thumbnailType: string | null;
-};
 
 type PostDetailsModalProps = {
   details: ScheduledHistoryItem | null;
   onClose: () => void;
 };
 
-const STATUS_COLORS: Record<SocialPublishStatus, string> = {
-  scheduled: "bg-warning-light text-warning",
-  processing: "bg-primary-light text-primary",
-  published: "bg-success-light text-success",
-  partial: "bg-warning-light text-warning",
-  failed: "bg-danger-light text-danger",
-  cancelled: "bg-background text-muted",
-};
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Sem data";
-  }
-  return new Date(value).toLocaleString("pt-BR");
-}
-
-function postTypeLabel(postType: SocialPostType) {
-  if (postType === "photo") return "Foto";
-  if (postType === "video") return "Vídeo";
-  return "Carrossel";
-}
-
-function progressStateLabel(status: PlatformProgressState) {
-  if (status === "pending") return "pendente";
-  if (status === "processing") return "processando";
-  if (status === "ok") return "ok";
-  return "erro";
-}
-
 export function PostDetailsModal({ details, onClose }: PostDetailsModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!details) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [details, onClose]);
+
   if (!details) return null;
 
   return (
     <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Detalhes da publicação"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
       onClick={onClose}
     >
@@ -132,7 +102,7 @@ export function PostDetailsModal({ details, onClose }: PostDetailsModalProps) {
             <span
               className={`px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[details.status]}`}
             >
-              {details.status}
+              {STATUS_LABELS[details.status]}
             </span>
           </div>
 

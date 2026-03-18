@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/bulk-analyze/route.ts
- * Proposito: Enfileirar análise em lote para conversas pendentes.
+ * Proposito: Enfileirar analise em lote para conversas pendentes e processar imediatamente.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -9,6 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { processJobs } from "@/lib/jobs/processor";
 import { enqueueAutoAnalyses } from "@/services/whatsapp/auto-analyze";
 
 export const dynamic = "force-dynamic";
@@ -32,19 +33,38 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
+    const queued = await enqueueAutoAnalyses(access.companyId);
+    const processLimit = Math.min(queued.enqueuedAnalyses, 10);
+    const processingSummary =
+      processLimit > 0
+        ? await processJobs({
+            companyId: access.companyId,
+            maxJobs: processLimit,
+          })
+        : { processed: 0, jobs: [] as Array<{ jobType: string; status: string }> };
 
-    // Enfileirar análises automáticas
-    const result = await enqueueAutoAnalyses(access.companyId);
+    const processedNow = processingSummary.jobs.filter(
+      (job) => job.jobType === "whatsapp_analyze" && job.status === "done"
+    ).length;
+    const failedNow = processingSummary.jobs.filter(
+      (job) => job.jobType === "whatsapp_analyze" && job.status === "failed"
+    ).length;
+
+    const message =
+      queued.enqueuedAnalyses === 0
+        ? "Todas as conversas ja foram analisadas."
+        : failedNow > 0
+          ? `${processedNow} analise(s) concluida(s) e ${failedNow} falha(s).`
+          : `${processedNow} analise(s) concluida(s) agora.`;
 
     return NextResponse.json({
       companyId: access.companyId,
-      scannedConversations: result.scannedConversations,
-      enqueuedAnalyses: result.enqueuedAnalyses,
-      jobIds: result.jobIds,
-      message:
-        result.enqueuedAnalyses > 0
-          ? `${result.enqueuedAnalyses} análise(s) enfileirada(s). Aguarde o processamento.`
-          : "Todas as conversas já foram analisadas.",
+      scannedConversations: queued.scannedConversations,
+      enqueuedAnalyses: queued.enqueuedAnalyses,
+      jobIds: queued.jobIds,
+      processedNow,
+      failedNow,
+      message,
     });
   } catch (error) {
     if (error instanceof CompanyAccessError) {

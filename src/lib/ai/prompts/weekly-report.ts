@@ -19,6 +19,7 @@ type WeeklyReportPromptInput = {
     content: string;
   }>;
   competitorSummary: string;
+  knowledgeBaseContext?: string;
 };
 
 export function buildWeeklyReportPrompt(input: WeeklyReportPromptInput) {
@@ -29,8 +30,12 @@ export function buildWeeklyReportPrompt(input: WeeklyReportPromptInput) {
     )
     .join("\n");
 
+  const kbBlock = input.knowledgeBaseContext
+    ? `\n\nContexto da base de conhecimento da empresa (use para enriquecer o relatorio):\n${input.knowledgeBaseContext}\n`
+    : "";
+
   return `
-Voce e um analista de marketing que faz resumos executivos diretos e praticos.
+Voce e um analista de marketing que faz resumos executivos diretos e praticos.${kbBlock}
 Gere um resumo da semana em portugues simples, sem jargoes.
 Maximo de 400 palavras. Estrutura:
 

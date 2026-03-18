@@ -9,7 +9,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConversationFiltersCompact, type ConversationFilters } from "./conversation-filters-compact";
@@ -21,6 +21,7 @@ type ConversationData = {
   id: string;
   external_id: string | null;
   contact_name: string | null;
+  contact_avatar_url: string | null;
   remote_jid: string;
   status: string | null;
   last_message_at: string | null;
@@ -45,8 +46,10 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   const handleToggleSelection = (conversationId: string) => {
     setSelectedIds((prev) => {
@@ -117,8 +120,64 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) {
+      setError("Selecione pelo menos uma conversa para excluir.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Excluir ${selectedIds.size} conversa(s) do Axiomix? Elas nao serao removidas do Sofia CRM e nao voltarao nas proximas sincronizacoes.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setError(null);
+    setFeedback(null);
+
+    try {
+      const ids = Array.from(selectedIds);
+      const response = await fetch("/api/whatsapp/conversations/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId, conversationIds: ids }),
+      });
+
+      const payload = (await response.json()) as {
+        error?: string;
+        message?: string;
+        deletedCount?: number;
+      };
+
+      if (!response.ok) {
+        setError(payload.error ?? "Falha ao excluir conversas.");
+        return;
+      }
+
+      setDeletedIds((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) {
+          next.add(id);
+        }
+        return next;
+      });
+      setFeedback(payload.message ?? `${payload.deletedCount ?? ids.length} conversa(s) excluida(s).`);
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      router.refresh();
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "Erro ao excluir conversas.";
+      setError(detail);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const filteredConversations = useMemo(() => {
-    let filtered = [...conversations];
+    let filtered = conversations.filter((conversation) => !deletedIds.has(conversation.id));
 
     // Filtro de sentimento
     if (filters.sentiment === "not_analyzed") {
@@ -162,7 +221,7 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
     }
 
     return filtered;
-  }, [conversations, filters]);
+  }, [conversations, deletedIds, filters]);
 
   return (
     <>
@@ -211,10 +270,20 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
                   </Button>
                   <Button
                     type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteSelected}
+                    disabled={isDeleting || isAnalyzing || selectedIds.size === 0}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {isDeleting ? "Excluindo..." : `Excluir (${selectedIds.size})`}
+                  </Button>
+                  <Button
+                    type="button"
                     variant="default"
                     size="sm"
                     onClick={handleAnalyzeSelected}
-                    disabled={isAnalyzing || selectedIds.size === 0}
+                    disabled={isAnalyzing || isDeleting || selectedIds.size === 0}
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                     {isAnalyzing

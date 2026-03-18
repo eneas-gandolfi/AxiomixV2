@@ -9,8 +9,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { App } from "antd";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  requestSofiaSync,
+  useSofiaSyncStatus,
+  type SofiaSyncResponse,
+} from "@/components/whatsapp/sofia-sync-client";
 
 type SyncConversationsButtonProps = {
   companyId: string;
@@ -18,61 +24,85 @@ type SyncConversationsButtonProps = {
 
 export function SyncConversationsButton({ companyId }: SyncConversationsButtonProps) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const { message } = App.useApp();
+  const { syncing, activeMode, progress } = useSofiaSyncStatus(companyId);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isFullSyncing = syncing && activeMode !== "messages_only";
+  const isAutoRefreshing = syncing && activeMode === "messages_only";
+
+  const formatFeedback = (payload: SofiaSyncResponse) => {
+    const totalConversations = payload.result?.syncedConversations ?? 0;
+    const totalMessages = payload.result?.syncedMessages ?? 0;
+    const processedAnalyses = payload.analysis?.processedAnalyses ?? 0;
+    const failedAnalyses = payload.analysis?.failedAnalyses ?? 0;
+    const analysisSummary =
+      processedAnalyses > 0 || failedAnalyses > 0
+        ? ` ${processedAnalyses} analise(s) concluida(s), ${failedAnalyses} falha(s).`
+        : "";
+
+    return `Sync concluido: ${totalConversations} conversas e ${totalMessages} mensagens.${analysisSummary}`;
+  };
 
   const handleSync = async () => {
-    setIsLoading(true);
     setFeedback(null);
     setError(null);
 
     try {
-      const response = await fetch("/api/sofia-crm/sync", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ companyId }),
-      });
-
-      const rawText = await response.text();
-      let payload: {
-        error?: string;
-        result?: { syncedConversations?: number; syncedMessages?: number };
-      } = {};
-
-      if (rawText) {
-        try {
-          payload = JSON.parse(rawText) as typeof payload;
-        } catch {
-          payload = {};
-        }
-      }
-
-      if (!response.ok) {
-        setError(payload.error ?? (rawText.slice(0, 180) || "Falha ao sincronizar conversas."));
-        return;
-      }
-
-      const totalConversations = payload.result?.syncedConversations ?? 0;
-      const totalMessages = payload.result?.syncedMessages ?? 0;
-      setFeedback(`Sync concluido: ${totalConversations} conversas e ${totalMessages} mensagens.`);
+      const payload = await requestSofiaSync({ companyId });
+      const summary = formatFeedback(payload);
+      setFeedback(summary);
+      message.success(summary);
       router.refresh();
     } catch (requestError) {
       const detail = requestError instanceof Error ? requestError.message : "Erro inesperado ao sincronizar.";
       setError(detail);
-    } finally {
-      setIsLoading(false);
+      message.error(detail);
     }
   };
 
+  const progressLabel = (() => {
+    if (!isFullSyncing) {
+      return "Sincronizar com Sofia CRM";
+    }
+    if (!progress) {
+      return "Sincronizando...";
+    }
+    const { processedConversations, totalConversations, syncedMessages, phase } = progress;
+    if (phase === "conversations") {
+      return `Carregando conversas... (${totalConversations})`;
+    }
+    const pct = totalConversations > 0 ? Math.round((processedConversations / totalConversations) * 100) : 0;
+    return `Sincronizando... ${processedConversations}/${totalConversations} conversas (${pct}%) — ${syncedMessages} msgs`;
+  })();
+
+  const progressPct =
+    isFullSyncing && progress && progress.totalConversations > 0
+      ? Math.round((progress.processedConversations / progress.totalConversations) * 100)
+      : null;
+
   return (
     <div className="flex flex-col items-end gap-2">
-      <Button type="button" onClick={handleSync} disabled={isLoading}>
-        <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-        {isLoading ? "Sincronizando..." : "Sincronizar com Sofia CRM"}
+      <Button
+        type="button"
+        onClick={handleSync}
+        disabled={syncing}
+        title={isAutoRefreshing ? "Atualizacao automatica de mensagens em andamento." : undefined}
+      >
+        <RefreshCw className={`h-4 w-4 ${isFullSyncing ? "animate-spin" : ""}`} />
+        {progressLabel}
       </Button>
+      {isAutoRefreshing ? (
+        <p className="text-xs text-muted">Atualizacao automatica de mensagens em andamento.</p>
+      ) : null}
+      {isFullSyncing && progressPct !== null ? (
+        <div className="h-1.5 w-full max-w-[240px] overflow-hidden rounded-full bg-muted/30">
+          <div
+            className="h-full rounded-full bg-[#2EC4B6] transition-all duration-300"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      ) : null}
       {feedback ? <p className="text-xs text-success">{feedback}</p> : null}
       {error ? <p className="text-xs text-danger">{error}</p> : null}
     </div>

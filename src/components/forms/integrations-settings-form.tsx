@@ -11,14 +11,13 @@ import { z } from "zod";
 import { useCallback, useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CheckCircle2, Link2, QrCode, Smartphone, UsersRound, X } from "lucide-react";
+import { CheckCircle2, Link2, Loader2, QrCode, Smartphone, Trash2, UsersRound, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const sofiaSchema = z.object({
   baseUrl: z.string().trim().url("URL base invalida."),
   apiToken: z.string().trim().min(1, "API token e obrigatorio."),
-  inboxId: z.string().trim().min(1, "Inbox ID e obrigatorio."),
 });
 
 const evolutionConnectSchema = z.object({
@@ -35,7 +34,6 @@ type IntegrationStatus = {
 type SofiaForm = {
   baseUrl: string;
   apiToken: string;
-  inboxId: string;
 };
 
 type FormErrors = {
@@ -80,6 +78,14 @@ type EvolutionConnectResponse = {
   managerPhone?: string;
   qrCodeDataUrl?: string;
   testDetail?: string;
+  error?: string;
+};
+
+type EvolutionDeleteResponse = {
+  deletedInstanceName?: string;
+  managerPhone?: string;
+  vendors?: EvolutionVendor[];
+  message?: string;
   error?: string;
 };
 
@@ -221,6 +227,28 @@ function vendorStatusClass(status: EvolutionVendor["status"]) {
   return "text-warning";
 }
 
+function resolveEvolutionUiStatus(vendors: EvolutionVendor[], fallback: IntegrationStatus): IntegrationStatus {
+  const hasConnectedVendor = vendors.some((vendor) => vendor.status === "connected");
+
+  if (hasConnectedVendor) {
+    return {
+      isActive: true,
+      testStatus: "ok",
+      lastTestedAt: fallback.lastTestedAt ?? new Date().toISOString(),
+    };
+  }
+
+  if (fallback.testStatus === "error") {
+    return fallback;
+  }
+
+  return {
+    isActive: false,
+    testStatus: null,
+    lastTestedAt: fallback.lastTestedAt,
+  };
+}
+
 export function IntegrationsSettingsForm() {
   const [isLoading, setIsLoading] = useState(true);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -229,7 +257,6 @@ export function IntegrationsSettingsForm() {
   const [sofiaForm, setSofiaForm] = useState<SofiaForm>({
     baseUrl: "",
     apiToken: "",
-    inboxId: "",
   });
   const [evolutionManagerPhone, setEvolutionManagerPhone] = useState("");
   const [evolutionVendorName, setEvolutionVendorName] = useState("");
@@ -244,6 +271,8 @@ export function IntegrationsSettingsForm() {
   const [evolutionFeedback, setEvolutionFeedback] = useState<string | null>(null);
   const [isConnectingSofia, setIsConnectingSofia] = useState(false);
   const [isConnectingEvolution, setIsConnectingEvolution] = useState(false);
+  const [deletingEvolutionInstance, setDeletingEvolutionInstance] = useState<string | null>(null);
+  const [isResettingSofia, setIsResettingSofia] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -289,20 +318,19 @@ export function IntegrationsSettingsForm() {
         setSofiaForm((previous) => ({
           ...previous,
           baseUrl: typeof sofia.config.baseUrl === "string" ? sofia.config.baseUrl : "",
-          inboxId: typeof sofia.config.inboxId === "string" ? sofia.config.inboxId : "",
         }));
       }
 
-      if (evolution) {
-        setEvolutionStatus({
-          isActive: evolution.isActive,
-          testStatus: evolution.testStatus,
-          lastTestedAt: evolution.lastTestedAt,
-        });
-      }
+      const nextEvolutionStatus: IntegrationStatus = {
+        isActive: evolution?.isActive ?? false,
+        testStatus: evolution?.testStatus ?? null,
+        lastTestedAt: evolution?.lastTestedAt ?? null,
+      };
+      const nextVendors = vendorsResponse.vendors ?? [];
 
+      setEvolutionStatus(resolveEvolutionUiStatus(nextVendors, nextEvolutionStatus));
       setEvolutionManagerPhone(vendorsResponse.managerPhone ?? "");
-      setEvolutionVendors(vendorsResponse.vendors ?? []);
+      setEvolutionVendors(nextVendors);
       setIsLoading(false);
     }
 
@@ -366,7 +394,7 @@ export function IntegrationsSettingsForm() {
       const nextError: FormErrors["sofia"] = {};
       for (const issue of parsed.error.issues) {
         const field = issue.path[0];
-        if (field === "baseUrl" || field === "apiToken" || field === "inboxId") {
+        if (field === "baseUrl" || field === "apiToken") {
           nextError[field] = issue.message;
         }
       }
@@ -404,6 +432,51 @@ export function IntegrationsSettingsForm() {
     setErrors((previous) => ({ ...previous, sofia: {} }));
     setSofiaFeedback(response.testDetail ?? "Conexao validada com sucesso.");
     closeActiveModal();
+  };
+
+  const resetSofiaSyncData = async () => {
+    const confirmed = window.confirm(
+      "Isso vai remover as conversas e jobs sincronizados do Sofia CRM nesta empresa. Deseja continuar?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsResettingSofia(true);
+    setErrors((previous) => ({ ...previous, sofia: { ...previous.sofia, form: undefined } }));
+
+    try {
+      const request = await fetch("/api/sofia-crm/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const response = (await request.json()) as { message?: string; error?: string };
+
+      if (!request.ok) {
+        setErrors((previous) => ({
+          ...previous,
+          sofia: { ...previous.sofia, form: response.error ?? "Falha ao limpar dados do Sofia CRM." },
+        }));
+        return;
+      }
+
+      setSofiaFeedback(
+        response.message ??
+          "Dados sincronizados removidos. A proxima sincronizacao vai trazer apenas a conta atual do Sofia CRM."
+      );
+    } catch (resetError) {
+      const detail =
+        resetError instanceof Error ? resetError.message : "Erro inesperado ao limpar dados do Sofia CRM.";
+      setErrors((previous) => ({
+        ...previous,
+        sofia: { ...previous.sofia, form: detail },
+      }));
+    } finally {
+      setIsResettingSofia(false);
+    }
   };
 
   const connectEvolutionVendor = async () => {
@@ -487,12 +560,12 @@ export function IntegrationsSettingsForm() {
 
     setEvolutionManagerPhone(nextManagerPhone);
     setEvolutionVendors(nextVendors);
-    setEvolutionStatus((previous) => ({
-      ...previous,
-      isActive: nextVendors.some((vendor) => vendor.status === "connected"),
-      testStatus: nextVendors.some((vendor) => vendor.status === "connected") ? "ok" : previous.testStatus,
-      lastTestedAt: nowIso,
-    }));
+    setEvolutionStatus((previous) =>
+      resolveEvolutionUiStatus(nextVendors, {
+        ...previous,
+        lastTestedAt: nowIso,
+      })
+    );
     setErrors((previous) => ({ ...previous, evolution: { ...previous.evolution, form: undefined } }));
 
     const targetInstance = options?.closeOnConnectedInstance?.trim();
@@ -515,6 +588,76 @@ export function IntegrationsSettingsForm() {
 
     return nextVendors;
   }, [evolutionManagerPhone]);
+
+  const deleteEvolutionVendor = async (vendor: EvolutionVendor) => {
+    const confirmed = window.confirm(
+      `Isso vai excluir a instancia ${vendor.instanceName} da Evolution API. Deseja continuar?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingEvolutionInstance(vendor.instanceName);
+    setEvolutionFeedback(null);
+    setErrors((previous) => ({ ...previous, evolution: { ...previous.evolution, form: undefined } }));
+
+    try {
+      const request = await fetch("/api/integrations/evolution-api/vendors", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          instanceName: vendor.instanceName,
+        }),
+      });
+      const response = (await request.json()) as EvolutionDeleteResponse;
+
+      if (!request.ok) {
+        setErrors((previous) => ({
+          ...previous,
+          evolution: {
+            ...previous.evolution,
+            form: response.error ?? "Falha ao excluir conexao.",
+          },
+        }));
+        return;
+      }
+
+      const nextVendors =
+        response.vendors ?? evolutionVendors.filter((item) => item.instanceName !== vendor.instanceName);
+      const nowIso = new Date().toISOString();
+
+      setEvolutionManagerPhone(response.managerPhone ?? evolutionManagerPhone);
+      setEvolutionVendors(nextVendors);
+      setEvolutionStatus((previous) =>
+        resolveEvolutionUiStatus(nextVendors, {
+          ...previous,
+          lastTestedAt: nowIso,
+        })
+      );
+
+      if (pendingEvolutionInstance === vendor.instanceName) {
+        setPendingEvolutionInstance(null);
+        setEvolutionQrCode(null);
+      }
+
+      setEvolutionFeedback(response.message ?? `${vendor.vendorName} removido com sucesso.`);
+    } catch (deleteError) {
+      const detail =
+        deleteError instanceof Error ? deleteError.message : "Erro inesperado ao excluir conexao.";
+      setErrors((previous) => ({
+        ...previous,
+        evolution: {
+          ...previous.evolution,
+          form: detail,
+        },
+      }));
+    } finally {
+      setDeletingEvolutionInstance(null);
+    }
+  };
 
   useEffect(() => {
     if (activeModal?.key !== "evolution" || !pendingEvolutionInstance) {
@@ -573,20 +716,6 @@ export function IntegrationsSettingsForm() {
           className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm placeholder:text-muted-light hover:border-border-strong focus:outline-none focus:border-transparent focus:ring-2 focus:ring-primary"
         />
         {errors.sofia.apiToken ? <p className="text-xs text-danger">{errors.sofia.apiToken}</p> : null}
-      </div>
-
-      <div className="space-y-1">
-        <label htmlFor="sofia-inbox-id" className="text-sm font-medium text-text">
-          Inbox ID
-        </label>
-        <input
-          id="sofia-inbox-id"
-          value={sofiaForm.inboxId}
-          onChange={handleSofiaChange("inboxId")}
-          placeholder="Ex.: 5"
-          className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm placeholder:text-muted-light hover:border-border-strong focus:outline-none focus:border-transparent focus:ring-2 focus:ring-primary"
-        />
-        {errors.sofia.inboxId ? <p className="text-xs text-danger">{errors.sofia.inboxId}</p> : null}
       </div>
 
       {errors.sofia.form ? <p className="text-sm text-danger">{errors.sofia.form}</p> : null}
@@ -694,12 +823,32 @@ export function IntegrationsSettingsForm() {
         ) : (
           <div className="space-y-2">
             {evolutionVendors.map((vendor) => (
-              <div key={vendor.id} className="rounded-xl border border-border bg-card p-2">
-                <p className="text-sm font-medium text-text">{vendor.vendorName}</p>
-                <p className="text-xs text-muted">Instancia: {vendor.instanceName}</p>
-                <p className={`text-xs font-medium ${vendorStatusClass(vendor.status)}`}>
-                  Status: {vendor.status}
-                </p>
+              <div key={vendor.id} className="rounded-xl border border-border bg-card p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-text">{vendor.vendorName}</p>
+                    <p className="text-xs text-muted">Instancia: {vendor.instanceName}</p>
+                    <p className={`text-xs font-medium ${vendorStatusClass(vendor.status)}`}>
+                      Status: {vendor.status}
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void deleteEvolutionVendor(vendor)}
+                    disabled={deletingEvolutionInstance === vendor.instanceName}
+                    className="shrink-0 text-danger hover:bg-danger-light hover:text-danger"
+                  >
+                    {deletingEvolutionInstance === vendor.instanceName ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    Excluir
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -735,9 +884,24 @@ export function IntegrationsSettingsForm() {
           icon={<Link2 className="h-5 w-5" />}
           onConnect={() => openModal("sofia")}
           extra={
-            sofiaFeedback ? (
-              <p className="text-xs text-success">{sofiaFeedback}</p>
-            ) : null
+            <div className="space-y-3">
+              {sofiaFeedback ? (
+                <p className="text-xs text-success">{sofiaFeedback}</p>
+              ) : null}
+              {errors.sofia.form ? (
+                <p className="text-xs text-danger">{errors.sofia.form}</p>
+              ) : null}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={resetSofiaSyncData}
+                disabled={isResettingSofia}
+                className="w-full"
+              >
+                {isResettingSofia ? "Limpando dados..." : "Limpar dados sincronizados"}
+              </Button>
+            </div>
           }
         />
 

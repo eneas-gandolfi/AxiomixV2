@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/integrations/test/[type]/route.ts
- * Propósito: Testar conexão real de integração e persistir resultado no banco.
+ * Proposito: Testar conexao real de integracao e persistir resultado no banco.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -15,6 +15,11 @@ import {
   parseIntegrationType,
   testIntegrationConnection,
 } from "@/lib/integrations/service";
+import {
+  clearSofiaCrmCompanyData,
+  hasSofiaCrmConfigChanged,
+} from "@/lib/integrations/sofia-crm-maintenance";
+import type { SofiaCrmConfig } from "@/lib/integrations/types";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +48,7 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: "Usuário não autenticado.", code: "AUTH_REQUIRED" },
+        { error: "Usuario nao autenticado.", code: "AUTH_REQUIRED" },
         { status: 401 }
       );
     }
@@ -58,14 +63,14 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (!membership?.company_id) {
       return NextResponse.json(
-        { error: "Empresa não encontrada para este usuário.", code: "COMPANY_NOT_FOUND" },
+        { error: "Empresa nao encontrada para este usuario.", code: "COMPANY_NOT_FOUND" },
         { status: 404 }
       );
     }
 
     if (membership.role !== "owner" && membership.role !== "admin") {
       return NextResponse.json(
-        { error: "Apenas owner/admin podem testar integrações.", code: "FORBIDDEN" },
+        { error: "Apenas owner/admin podem testar integracoes.", code: "FORBIDDEN" },
         { status: 403 }
       );
     }
@@ -75,8 +80,31 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
     const payload: unknown = await request.json().catch(() => ({}));
     const config = parseIntegrationConfig(integrationType, payload);
     const testResult = await testIntegrationConnection(integrationType, config);
+
+    // Merge auto-detected fields (e.g. Sofia CRM inboxId) into config before saving
+    if (testResult.detectedConfig) {
+      Object.assign(config, testResult.detectedConfig);
+    }
+
     const encryptedConfig = encodeIntegrationConfig(integrationType, config);
     const nowIso = new Date().toISOString();
+
+    let shouldClearConversations = false;
+    if (integrationType === "sofia_crm") {
+      const { data: currentIntegration } = await supabase
+        .from("integrations")
+        .select("config")
+        .eq("company_id", membership.company_id)
+        .eq("type", "sofia_crm")
+        .maybeSingle();
+
+      if (currentIntegration?.config) {
+        shouldClearConversations = hasSofiaCrmConfigChanged(
+          currentIntegration.config,
+          config as SofiaCrmConfig
+        );
+      }
+    }
 
     const { data: integration, error } = await supabase
       .from("integrations")
@@ -98,9 +126,21 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (error || !integration) {
       return NextResponse.json(
-        { error: "Não foi possível salvar resultado do teste.", code: "INTEGRATION_TEST_SAVE_ERROR" },
+        { error: "Nao foi possivel salvar resultado do teste.", code: "INTEGRATION_TEST_SAVE_ERROR" },
         { status: 500 }
       );
+    }
+
+    if (shouldClearConversations) {
+      console.log(
+        `[Integration Test] Sofia CRM config changed for company ${membership.company_id}. Clearing old sync data.`
+      );
+
+      try {
+        await clearSofiaCrmCompanyData(membership.company_id);
+      } catch (clearError) {
+        console.error("[Integration Test] Erro ao limpar conversas antigas:", clearError);
+      }
     }
 
     return NextResponse.json({
@@ -111,7 +151,7 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
+        { error: error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -120,7 +160,7 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
       return NextResponse.json(
         {
           error:
-            "Não foi possível testar no momento por configuração interna pendente. Tente novamente em instantes.",
+            "Nao foi possivel testar no momento por configuracao interna pendente. Tente novamente em instantes.",
           code: "INTERNAL_CONFIG_ERROR",
         },
         { status: 500 }

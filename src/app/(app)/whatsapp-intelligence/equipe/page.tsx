@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/(app)/whatsapp-intelligence/equipe/page.tsx
- * Propósito: Visão de equipe com membros, times e distribuição de workload.
+ * Propósito: Visão de equipe com membros, times expandidos e drawer de detalhes.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -8,10 +8,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, UserCog, Inbox, Loader2 } from "lucide-react";
+import { Users, UserCog, Inbox, Loader2, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TeamMembersTable } from "@/components/whatsapp/team-members-table";
+import { roleLabel } from "@/components/whatsapp/team-members-table";
 import { WorkloadChart } from "@/components/whatsapp/workload-chart";
+import { ContactAvatar } from "@/components/whatsapp/contact-avatar";
+import { MemberDetailDrawer } from "@/components/whatsapp/member-detail-drawer";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +46,13 @@ export default function EquipePage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [inboxes, setInboxes] = useState<InboxInfo[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Drawer state
+  const [selectedMember, setSelectedMember] = useState<User | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Expandable teams
+  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
 
   // Get companyId
   useEffect(() => {
@@ -106,6 +116,20 @@ export default function EquipePage() {
 
     fetchData();
   }, [companyId]);
+
+  const toggleTeam = (teamId: string) => {
+    setExpandedTeams((prev) => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  };
+
+  const openMemberDrawer = (member: User) => {
+    setSelectedMember(member);
+    setDrawerOpen(true);
+  };
 
   if (!companyId || loading) {
     return (
@@ -177,7 +201,10 @@ export default function EquipePage() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="antd-scope">
-                <TeamMembersTable members={users} />
+                <TeamMembersTable
+                  members={users}
+                  onMemberClick={openMemberDrawer}
+                />
               </div>
             </CardContent>
           </Card>
@@ -187,7 +214,7 @@ export default function EquipePage() {
         <div className="space-y-6">
           <WorkloadChart data={workloadData} />
 
-          {/* Times */}
+          {/* Times expandidos */}
           {teams.length > 0 && (
             <Card className="rounded-xl border border-border bg-card">
               <CardHeader>
@@ -195,11 +222,49 @@ export default function EquipePage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {teams.map((team) => (
-                  <div key={team.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                    <span className="text-sm text-text">{team.name ?? "Sem nome"}</span>
-                    <span className="text-xs text-muted">
-                      {team.members?.length ?? 0} membro(s)
-                    </span>
+                  <div key={team.id} className="rounded-lg border border-border overflow-hidden">
+                    {/* Team header - clickable */}
+                    <button
+                      onClick={() => toggleTeam(team.id)}
+                      className="flex w-full items-center justify-between px-3 py-2 hover:bg-sidebar transition-colors"
+                    >
+                      <span className="text-sm text-text">{team.name ?? "Sem nome"}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted">
+                          {team.members?.length ?? 0} membro(s)
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 text-muted transition-transform ${
+                            expandedTeams.has(team.id) ? "rotate-180" : ""
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {/* Expanded member list */}
+                    {expandedTeams.has(team.id) && team.members && team.members.length > 0 && (
+                      <div className="border-t border-border bg-background px-3 py-2 space-y-1.5">
+                        {team.members.map((member) => (
+                          <button
+                            key={member.id}
+                            onClick={() => {
+                              const fullUser = users.find((u) => u.id === member.id) ?? {
+                                ...member,
+                                conversationCount: 0,
+                              };
+                              openMemberDrawer(fullUser);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-sidebar transition-colors"
+                          >
+                            <ContactAvatar name={member.name} size="sm" />
+                            <div className="text-left">
+                              <p className="text-sm text-text">{member.name ?? "Sem nome"}</p>
+                              <p className="text-xs text-muted">{roleLabel(member.role)}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </CardContent>
@@ -233,6 +298,18 @@ export default function EquipePage() {
           )}
         </div>
       </div>
+
+      {/* Member Detail Drawer */}
+      <MemberDetailDrawer
+        open={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedMember(null);
+        }}
+        companyId={companyId}
+        member={selectedMember}
+        teams={teams}
+      />
     </div>
   );
 }

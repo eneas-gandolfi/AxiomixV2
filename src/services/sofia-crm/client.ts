@@ -15,8 +15,11 @@ type SofiaConversationApi = {
   phone_e164?: string | null;
   remote_jid?: string | null;
   status?: string | null;
+  last_message_at?: string | null;
+  last_customer_message_at?: string | null;
   updated_at?: string | null;
   created_at?: string | null;
+  profile_picture?: string | null;
   contact?: {
     id?: string | null;
     name?: string | null;
@@ -80,6 +83,13 @@ type SofiaKanbanCard = {
   contact_id?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  assigned_to?: string | null;
+  assignee?: string | null;
+  value_amount?: number | null;
+  phone?: string | null;
+  priority?: string | null;
+  tags?: string[] | null;
+  conversation_id?: string | null;
 };
 
 type SofiaUserApi = {
@@ -109,9 +119,11 @@ type SofiaRequestOptions = {
   searchParams?: Record<string, string | number | boolean | undefined>;
 };
 
+const SOFIA_HTTP2_TIMEOUT_MS = 15_000;
+
 type SofiaCrmClient = {
   baseUrl: string;
-  inboxId: string;
+  inboxId?: string;
   buildConversationUrl: (externalConversationId: string) => string;
   // Conversas
   listConversations: (limit?: number) => Promise<SofiaConversationApi[]>;
@@ -134,12 +146,24 @@ type SofiaCrmClient = {
   updateLabel: (labelId: string, payload: { name?: string; color?: string }) => Promise<void>;
   deleteLabel: (labelId: string) => Promise<void>;
   // Kanban
-  createKanbanCard: (payload: { boardId: string; title: string; description: string }) => Promise<void>;
+  createKanbanCard: (payload: {
+    boardId: string;
+    title: string;
+    description: string;
+    stage_id?: string;
+    contact_id?: string;
+    value_amount?: number;
+    phone?: string;
+    assigned_to?: string;
+    priority?: string;
+    tags?: string[];
+    conversation_id?: string;
+  }) => Promise<void>;
   addContactLabel: (payload: { contactId: string; label: string }) => Promise<void>;
   listBoards: () => Promise<SofiaKanbanBoard[]>;
   getBoard: (boardId: string) => Promise<SofiaKanbanBoard>;
   getCard: (cardId: string) => Promise<SofiaKanbanCard>;
-  updateCard: (cardId: string, data: Partial<Pick<SofiaKanbanCard, "title" | "description" | "stage_id">>) => Promise<void>;
+  updateCard: (cardId: string, data: Partial<Pick<SofiaKanbanCard, "title" | "description" | "stage_id" | "assigned_to" | "value_amount" | "phone" | "priority" | "tags" | "contact_id" | "conversation_id">>) => Promise<void>;
   deleteCard: (cardId: string) => Promise<void>;
   moveCard: (cardId: string, boardId: string, stageId: string) => Promise<void>;
   // Equipe
@@ -267,13 +291,35 @@ function parseConversationsResponse(payload: unknown): SofiaConversationApi[] {
             ? contactRaw.phone
             : null;
 
+    const profilePicture =
+      typeof row.profile_picture === "string" && row.profile_picture.trim().length > 0
+        ? row.profile_picture
+        : typeof row.profilePicture === "string" && row.profilePicture.trim().length > 0
+          ? row.profilePicture
+          : contactRaw && typeof contactRaw.profile_picture === "string" && contactRaw.profile_picture.trim().length > 0
+            ? contactRaw.profile_picture
+            : null;
+
     parsed.push({
       id,
       phone_e164: typeof row.phone_e164 === "string" ? row.phone_e164 : null,
       remote_jid: typeof row.remote_jid === "string" ? row.remote_jid : null,
       status: typeof row.status === "string" ? row.status : null,
+      last_message_at:
+        typeof row.last_message_at === "string"
+          ? row.last_message_at
+          : typeof row.lastMessageAt === "string"
+            ? row.lastMessageAt
+            : null,
+      last_customer_message_at:
+        typeof row.last_customer_message_at === "string"
+          ? row.last_customer_message_at
+          : typeof row.lastCustomerMessageAt === "string"
+            ? row.lastCustomerMessageAt
+            : null,
       updated_at: typeof row.updated_at === "string" ? row.updated_at : null,
       created_at: typeof row.created_at === "string" ? row.created_at : null,
+      profile_picture: profilePicture,
       contact:
         contactName || contactId || contactPhone
           ? {
@@ -287,6 +333,26 @@ function parseConversationsResponse(payload: unknown): SofiaConversationApi[] {
   }
 
   return parsed;
+}
+
+function parseConversationsPagination(payload: unknown) {
+  const record = typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {};
+  const rawPagination =
+    typeof record.pagination === "object" && record.pagination !== null
+      ? (record.pagination as Record<string, unknown>)
+      : null;
+
+  const nextCursor =
+    rawPagination && (typeof rawPagination.nextCursor === "string" || typeof rawPagination.nextCursor === "number")
+      ? rawPagination.nextCursor
+      : undefined;
+
+  const hasMore = rawPagination?.hasMore === true;
+
+  return {
+    nextCursor,
+    hasMore,
+  };
 }
 
 function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
@@ -386,6 +452,70 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
   return parsed;
 }
 
+function readSessionBoolean(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "open", "opened", "active"].includes(normalized)) {
+      return true;
+    }
+    if (["false", "0", "closed", "expired", "inactive"].includes(normalized)) {
+      return false;
+    }
+  }
+
+  return null;
+}
+
+function parseSessionStatusResponse(payload: unknown): SofiaSessionStatus | null {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const conversationRecord =
+    typeof record.conversation === "object" && record.conversation !== null && !Array.isArray(record.conversation)
+      ? (record.conversation as Record<string, unknown>)
+      : null;
+  const sessionRecord =
+    typeof record.session === "object" && record.session !== null && !Array.isArray(record.session)
+      ? (record.session as Record<string, unknown>)
+      : null;
+
+  const candidates = [record, conversationRecord, sessionRecord].filter(
+    (candidate): candidate is Record<string, unknown> => Boolean(candidate)
+  );
+
+  for (const candidate of candidates) {
+    const active =
+      readSessionBoolean(candidate.session_open) ??
+      readSessionBoolean(candidate.active) ??
+      readSessionBoolean(candidate.sessionOpen) ??
+      readSessionBoolean(candidate.is_active);
+
+    const expiresAt =
+      typeof candidate.session_expires_at === "string"
+        ? candidate.session_expires_at
+        : typeof candidate.expires_at === "string"
+          ? candidate.expires_at
+          : typeof candidate.sessionExpiresAt === "string"
+            ? candidate.sessionExpiresAt
+            : null;
+
+    if (active !== null || expiresAt !== null) {
+      return {
+        active: active ?? false,
+        expires_at: expiresAt,
+      };
+    }
+  }
+
+  return null;
+}
+
 export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClient> {
   const supabase = createSupabaseAdminClient();
   const { data: integration, error } = await supabase
@@ -405,7 +535,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
 
   const config = decodeIntegrationConfig("sofia_crm", integration.config);
 
-  if (!config.baseUrl || !config.apiToken || !config.inboxId) {
+  if (!config.baseUrl || !config.apiToken) {
     throw new Error("Credenciais do Sofia CRM incompletas para esta empresa.");
   }
 
@@ -426,14 +556,6 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       }
     }
 
-    // O Sofia CRM v1.5.6 pode exigir api_token nos query params
-    if (!url.searchParams.has("api_token")) {
-      url.searchParams.set("api_token", config.apiToken);
-    }
-    if (!url.searchParams.has("inbox_id") && config.inboxId) {
-      url.searchParams.set("inbox_id", config.inboxId);
-    }
-
     const hostOverride = url.hostname === "crm.getlead.capital" ? "82.25.68.119" : url.hostname;
 
     return new Promise((resolve, reject) => {
@@ -442,17 +564,44 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         servername: url.hostname,
         rejectUnauthorized: false,
       });
+      let settled = false;
+
+      const succeed = (payload: T) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        try {
+          client.close();
+        } catch {}
+        resolve(payload);
+      };
+
+      const fail = (error: Error) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        try {
+          client.destroy();
+        } catch {}
+        reject(error);
+      };
 
       client.on("error", (err) => {
         const detail = describeFetchError(err);
-        reject(new Error(`Falha ao conectar via HTTP/2 no Sofia CRM (${url.origin}): ${detail}`));
+        fail(new Error(`Falha ao conectar via HTTP/2 no Sofia CRM (${url.origin}): ${detail}`));
+      });
+      client.setTimeout(SOFIA_HTTP2_TIMEOUT_MS, () => {
+        fail(new Error(`Timeout HTTP/2 ao conectar com o Sofia CRM (${url.origin}).`));
       });
 
       const reqHeaders: http2.OutgoingHttpHeaders = {
         ":method": method,
         ":path": `${url.pathname}${url.search}`,
         "authorization": `Bearer ${config.apiToken}`,
-        "x-inbox-id": config.inboxId || "",
         "content-type": "application/json",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       };
@@ -470,7 +619,6 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       });
 
       req.on("end", () => {
-        client.close();
 
         if (statusCode === 429) {
           let retryMessage = "Limite de requisições excedido. Tente novamente em alguns minutos.";
@@ -478,45 +626,49 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
              const parsed = JSON.parse(responseBody);
              if (parsed.error) retryMessage = parsed.error;
           } catch {}
-          return reject(
+          return fail(
             new Error(`Sofia CRM Rate Limit (429): ${retryMessage}`)
           );
         }
 
         if (statusCode >= 400) {
-          return reject(
+          return fail(
             new Error(`Sofia CRM ${method} ${path} falhou: ${statusCode} ${responseBody.slice(0, 180)}`)
           );
         }
 
         if (statusCode === 204 || !responseBody.trim()) {
-          return resolve({} as T);
+          return succeed({} as T);
         }
 
         const bodyLower = responseBody.toLowerCase();
         if (bodyLower.includes("parked domain") || bodyLower.includes("hostinger dns")) {
-          return reject(
+          return fail(
             new Error(`URL base do Sofia CRM invalida (${url.origin}): dominio estacionado detectado.`)
           );
         }
 
         if (responseBody.trim().startsWith("<")) {
-          return reject(
+          return fail(
             new Error(`Sofia CRM retornou HTML em vez de JSON (${url.origin}). Verifique a URL base da API.`)
           );
         }
 
         try {
-          resolve(JSON.parse(responseBody) as T);
+          succeed(JSON.parse(responseBody) as T);
         } catch {
-          reject(new Error(`Resposta invalida do Sofia CRM (${url.origin}): JSON malformado.`));
+          fail(new Error(`Resposta invalida do Sofia CRM (${url.origin}). JSON malformado.`));
         }
       });
 
+      req.on("error", (error) => {
+        fail(new Error(`Falha na requisicao HTTP/2 para o Sofia CRM (${url.origin}): ${describeFetchError(error)}`));
+      });
+      req.setTimeout(SOFIA_HTTP2_TIMEOUT_MS, () => {
+        fail(new Error(`Timeout HTTP/2 ao conectar com o Sofia CRM (${url.origin}).`));
+      });
       req.on("timeout", () => {
-        req.destroy();
-        client.destroy();
-        reject(new Error(`Timeout HTTP/2 ao conectar com o Sofia CRM (${url.origin}).`));
+        fail(new Error(`Timeout HTTP/2 ao conectar com o Sofia CRM (${url.origin}).`));
       });
 
       if (options?.body) {
@@ -529,7 +681,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
 
   return {
     baseUrl,
-    inboxId: config.inboxId,
+    inboxId: config.inboxId || undefined,
     buildConversationUrl(externalConversationId: string) {
       return `${baseUrl}/conversations/${encodeURIComponent(externalConversationId)}`;
     },
@@ -537,7 +689,10 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       const targetTotal = Math.max(limit, 1);
       const pageSize = Math.min(50, targetTotal);
       const collected: SofiaConversationApi[] = [];
+      const seenConversationIds = new Set<string>();
+      const seenCursors = new Set<string>();
       let page = 1;
+      let cursor: string | number | undefined;
 
       while (collected.length < targetTotal) {
         const remaining = targetTotal - collected.length;
@@ -545,18 +700,42 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         const payload = await requestJson<unknown>("/api/conversations", {
           searchParams: {
             limit: requestLimit,
-            page,
             status: "all",
             filter: "all",
+            ...(typeof cursor !== "undefined" ? { cursor } : { page }),
           },
         });
         const pageRows = parseConversationsResponse(payload);
+        const pagination = parseConversationsPagination(payload);
 
         if (pageRows.length === 0) {
           break;
         }
 
-        collected.push(...pageRows);
+        for (const row of pageRows) {
+          if (seenConversationIds.has(row.id)) {
+            continue;
+          }
+
+          seenConversationIds.add(row.id);
+          collected.push(row);
+
+          if (collected.length >= targetTotal) {
+            break;
+          }
+        }
+
+        if (typeof pagination.nextCursor !== "undefined") {
+          const nextCursorKey = String(pagination.nextCursor);
+          if (!pagination.hasMore || seenCursors.has(nextCursorKey)) {
+            break;
+          }
+
+          seenCursors.add(nextCursorKey);
+          cursor = pagination.nextCursor;
+          continue;
+        }
+
         if (pageRows.length < requestLimit) {
           break;
         }
@@ -569,29 +748,40 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     async listMessages(externalConversationId: string, limit = 200) {
       const encodedConversationId = encodeURIComponent(externalConversationId);
       try {
-        const payload = await requestJson<unknown>(`/api/conversations/${encodedConversationId}/messages`, {
+        const payload = await requestJson<unknown>(`/api/conversations/${encodedConversationId}`, {
           searchParams: { limit },
         });
-        return parseMessagesResponse(payload).slice(0, limit);
+        const messages = parseMessagesResponse(payload).slice(0, limit);
+        if (messages.length > 0) {
+          return messages;
+        }
       } catch (error) {
         const isRouteNotFound =
           error instanceof Error &&
-          error.message.includes(`/api/conversations/${encodedConversationId}/messages`) &&
+          error.message.includes(`/api/conversations/${encodedConversationId}`) &&
           error.message.includes("404");
 
         if (!isRouteNotFound) {
           throw error;
         }
+      }
 
-        const fallbackPayload = await requestJson<unknown>(`/api/conversations/${encodedConversationId}`, {
-          searchParams: {
-            limit,
-            include_messages: true,
-            includeMessages: true,
-            with_messages: true,
-          },
+      try {
+        const legacyPayload = await requestJson<unknown>(`/api/conversations/${encodedConversationId}/messages`, {
+          searchParams: { limit },
         });
-        return parseMessagesResponse(fallbackPayload).slice(0, limit);
+        return parseMessagesResponse(legacyPayload).slice(0, limit);
+      } catch (error) {
+        const isLegacyRouteNotFound =
+          error instanceof Error &&
+          error.message.includes(`/api/conversations/${encodedConversationId}/messages`) &&
+          error.message.includes("404");
+
+        if (isLegacyRouteNotFound) {
+          return [];
+        }
+
+        throw error;
       }
     },
     async createKanbanCard(payload) {
@@ -601,6 +791,14 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
           title: payload.title,
           description: payload.description,
           source: "axiomix",
+          ...(payload.stage_id ? { stage_id: payload.stage_id } : {}),
+          ...(payload.contact_id ? { contact_id: payload.contact_id } : {}),
+          ...(typeof payload.value_amount === "number" ? { value_amount: payload.value_amount } : {}),
+          ...(payload.phone ? { phone: payload.phone } : {}),
+          ...(payload.assigned_to ? { assigned_to: payload.assigned_to } : {}),
+          ...(payload.priority ? { priority: payload.priority } : {}),
+          ...(payload.tags && payload.tags.length > 0 ? { tags: payload.tags } : {}),
+          ...(payload.conversation_id ? { conversation_id: payload.conversation_id } : {}),
         },
       });
     },
@@ -623,6 +821,9 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     },
 
     async sendTemplate(payload) {
+      if (!config.inboxId) {
+        throw new Error("Inbox ID nao configurado. Nao e possivel enviar template.");
+      }
       await requestJson<unknown>(`/api/whatsapp-cloud/inboxes/${encodeURIComponent(config.inboxId)}/send-template`, {
         method: "POST",
         body: {
@@ -635,10 +836,48 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     },
 
     async getSessionStatus(conversationId: string) {
-      const result = await requestJson<Record<string, unknown>>(`/api/conversations/${encodeURIComponent(conversationId)}/session`);
+      const encodedConversationId = encodeURIComponent(conversationId);
+
+      try {
+        const result = await requestJson<Record<string, unknown>>(`/api/conversations/${encodedConversationId}/session`);
+        const parsed = parseSessionStatusResponse(result);
+        if (parsed) {
+          return parsed;
+        }
+      } catch (error) {
+        const isUnsupportedRoute =
+          error instanceof Error &&
+          error.message.includes(`/api/conversations/${encodedConversationId}/session`) &&
+          (error.message.includes("404") || error.message.includes("405"));
+
+        if (!isUnsupportedRoute) {
+          try {
+            const fallbackResult = await requestJson<Record<string, unknown>>(`/api/conversations/${encodedConversationId}`);
+            const parsedFallback = parseSessionStatusResponse(fallbackResult);
+            if (parsedFallback) {
+              return parsedFallback;
+            }
+          } catch {
+            throw error;
+          }
+
+          throw error;
+        }
+      }
+
+      try {
+        const fallbackResult = await requestJson<Record<string, unknown>>(`/api/conversations/${encodedConversationId}`);
+        const parsedFallback = parseSessionStatusResponse(fallbackResult);
+        if (parsedFallback) {
+          return parsedFallback;
+        }
+      } catch {
+        // Session status is optional in some Sofia CRM deployments.
+      }
+
       return {
-        active: result.active === true,
-        expires_at: typeof result.expires_at === "string" ? result.expires_at : null,
+        active: false,
+        expires_at: null,
       };
     },
 
@@ -653,6 +892,9 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     },
 
     async startConversation(phone: string) {
+      if (!config.inboxId) {
+        throw new Error("Inbox ID nao configurado. Nao e possivel iniciar conversa.");
+      }
       const result = await requestJson<Record<string, unknown>>("/api/conversations/start", {
         method: "POST",
         body: {
@@ -869,6 +1111,13 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         contact_id: typeof c.contact_id === "string" ? c.contact_id : null,
         created_at: typeof c.created_at === "string" ? c.created_at : null,
         updated_at: typeof c.updated_at === "string" ? c.updated_at : null,
+        assigned_to: typeof c.assigned_to === "string" ? c.assigned_to : null,
+        assignee: typeof c.assignee === "string" ? c.assignee : null,
+        value_amount: typeof c.value_amount === "number" ? c.value_amount : null,
+        phone: typeof c.phone === "string" ? c.phone : null,
+        priority: typeof c.priority === "string" ? c.priority : null,
+        tags: Array.isArray(c.tags) ? c.tags.filter((t): t is string => typeof t === "string") : null,
+        conversation_id: typeof c.conversation_id === "string" ? c.conversation_id : null,
       });
 
       return {
@@ -902,6 +1151,13 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         contact_id: typeof item.contact_id === "string" ? item.contact_id : null,
         created_at: typeof item.created_at === "string" ? item.created_at : null,
         updated_at: typeof item.updated_at === "string" ? item.updated_at : null,
+        assigned_to: typeof item.assigned_to === "string" ? item.assigned_to : null,
+        assignee: typeof item.assignee === "string" ? item.assignee : null,
+        value_amount: typeof item.value_amount === "number" ? item.value_amount : null,
+        phone: typeof item.phone === "string" ? item.phone : null,
+        priority: typeof item.priority === "string" ? item.priority : null,
+        tags: Array.isArray(item.tags) ? item.tags.filter((t: unknown): t is string => typeof t === "string") : null,
+        conversation_id: typeof item.conversation_id === "string" ? item.conversation_id : null,
       } as SofiaKanbanCard;
     },
 

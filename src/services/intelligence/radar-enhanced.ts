@@ -23,6 +23,7 @@ import type {
   RadarWorkerResult,
 } from "@/types/modules/intelligence.types";
 import { triggerViralContentAlert } from "@/services/alerts/alert-triggers";
+import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 
 const radarJobPayloadSchema: z.ZodType<RadarCollectionJobPayload> = z.object({
   nicheOverride: z.string().trim().min(2).optional(),
@@ -195,7 +196,11 @@ async function generateRadarInsight(
   posts: CollectedPostDraft[]
 ): Promise<InsightGenerationResult> {
   try {
-    const prompt = buildRadarInsightPrompt(niche, subNiche, posts);
+    const kbContext = await getKnowledgeBaseContext(
+      companyId,
+      `diretrizes marca tom de voz conteudo ${niche}`
+    );
+    const prompt = buildRadarInsightPrompt(niche, subNiche, posts, kbContext || undefined);
     const rawJson = await openRouterChatCompletion(companyId, [
       {
         role: "system",
@@ -205,7 +210,9 @@ async function generateRadarInsight(
         role: "user",
         content: prompt,
       },
-    ]);
+    ], {
+      model: process.env.OPENROUTER_MODEL_LIGHT,
+    });
 
     const parsedUnknown: unknown = JSON.parse(rawJson);
     const parsed = radarInsightSchema.parse(parsedUnknown);

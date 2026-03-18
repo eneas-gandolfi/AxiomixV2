@@ -12,16 +12,12 @@ const PAYLOAD_PREFIX = "enc:v1";
 
 function getEncryptionKey() {
   const integrationKey = process.env.INTEGRATIONS_ENCRYPTION_KEY?.trim();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  const source = integrationKey || serviceRoleKey;
 
-  if (!source) {
-    throw new Error(
-      "INTEGRATIONS_ENCRYPTION_KEY (ou SUPABASE_SERVICE_ROLE_KEY) nao esta configurada."
-    );
+  if (!integrationKey) {
+    throw new Error("INTEGRATIONS_ENCRYPTION_KEY nao esta configurada.");
   }
 
-  return createHash("sha256").update(source).digest();
+  return createHash("sha256").update(integrationKey).digest();
 }
 
 export function encryptSecret(secret: string) {

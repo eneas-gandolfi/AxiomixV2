@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/integrations/[type]/route.ts
- * Propósito: Salvar configuração de uma integração com credenciais criptografadas.
+ * Proposito: Salvar configuracao de uma integracao com credenciais criptografadas.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -14,6 +14,11 @@ import {
   parseIntegrationConfig,
   parseIntegrationType,
 } from "@/lib/integrations/service";
+import {
+  clearSofiaCrmCompanyData,
+  hasSofiaCrmConfigChanged,
+} from "@/lib/integrations/sofia-crm-maintenance";
+import type { SofiaCrmConfig } from "@/lib/integrations/types";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +47,7 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: "Usuário não autenticado.", code: "AUTH_REQUIRED" },
+        { error: "Usuario nao autenticado.", code: "AUTH_REQUIRED" },
         { status: 401 }
       );
     }
@@ -57,14 +62,14 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (!membership?.company_id) {
       return NextResponse.json(
-        { error: "Empresa não encontrada para este usuário.", code: "COMPANY_NOT_FOUND" },
+        { error: "Empresa nao encontrada para este usuario.", code: "COMPANY_NOT_FOUND" },
         { status: 404 }
       );
     }
 
     if (membership.role !== "owner" && membership.role !== "admin") {
       return NextResponse.json(
-        { error: "Apenas owner/admin podem alterar integrações.", code: "FORBIDDEN" },
+        { error: "Apenas owner/admin podem alterar integracoes.", code: "FORBIDDEN" },
         { status: 403 }
       );
     }
@@ -75,7 +80,6 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
     const config = parseIntegrationConfig(integrationType, payload);
     const encryptedConfig = encodeIntegrationConfig(integrationType, config);
 
-    // Identify if it's a Sofia CRM configuration change that requires clearing old data
     let shouldClearConversations = false;
     if (integrationType === "sofia_crm") {
       const { data: currentIntegration } = await supabase
@@ -86,17 +90,10 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
         .maybeSingle();
 
       if (currentIntegration?.config) {
-        try {
-          // If the config string changed, we assume it's a different client/inbox
-          // and we should clear the old sync data to avoid mixing conversations
-          if (JSON.stringify(currentIntegration.config) !== JSON.stringify(encryptedConfig)) {
-            shouldClearConversations = true;
-          }
-        } catch {
-          // Ignore parse errors
-        }
-      } else {
-        // New integration, nothing to clear yet
+        shouldClearConversations = hasSofiaCrmConfigChanged(
+          currentIntegration.config,
+          config as SofiaCrmConfig
+        );
       }
     }
 
@@ -120,40 +117,31 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (error || !integration) {
       return NextResponse.json(
-        { error: "Não foi possível salvar integração.", code: "INTEGRATION_SAVE_ERROR" },
+        { error: "Nao foi possivel salvar integracao.", code: "INTEGRATION_SAVE_ERROR" },
         { status: 500 }
       );
     }
 
     if (shouldClearConversations) {
-      console.log(`[Integration] Sofia CRM config changed for company ${membership.company_id}. Clearing old sync data.`);
-      // We perform deletions in order to respect potential foreign key constraints
-      // Insights, Notes, Messages, then Conversations
+      console.log(
+        `[Integration] Sofia CRM config changed for company ${membership.company_id}. Clearing old sync data.`
+      );
+
       try {
-        await supabase.from("conversation_insights").delete().eq("company_id", membership.company_id);
-        await supabase.from("conversation_notes").delete().eq("company_id", membership.company_id);
-        await supabase.from("messages").delete().eq("company_id", membership.company_id);
-        await supabase.from("conversations").delete().eq("company_id", membership.company_id);
+        await clearSofiaCrmCompanyData(membership.company_id);
       } catch (clearError) {
         console.error("[Integration] Erro ao limpar conversas antigas:", clearError);
       }
     }
 
-    if (error || !integration) {
-      return NextResponse.json(
-        { error: "Não foi possível salvar integração.", code: "INTEGRATION_SAVE_ERROR" },
-        { status: 500 }
-      );
-    }
-
     return NextResponse.json({
       integration: buildIntegrationPublicItem(integration),
-      message: "Configuração salva com sucesso.",
+      message: "Configuracao salva com sucesso.",
     });
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
+        { error: error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -162,7 +150,7 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
       return NextResponse.json(
         {
           error:
-            "Não foi possível salvar no momento por configuração interna pendente. Tente novamente em instantes.",
+            "Nao foi possivel salvar no momento por configuracao interna pendente. Tente novamente em instantes.",
           code: "INTERNAL_CONFIG_ERROR",
         },
         { status: 500 }

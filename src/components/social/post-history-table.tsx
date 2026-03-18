@@ -9,37 +9,17 @@
 
 import { Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Eye, Trash2, RefreshCw, Image as ImageIcon, Video } from "lucide-react";
+import { Eye, Trash2, RefreshCw, Image as ImageIcon, Video, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { axiomixPagination, axiomixTableProps, AXIOMIX_PAGE_SIZE } from "@/lib/ant-table-defaults";
-import { History } from "lucide-react";
-import type {
-  PlatformProgressState,
-  SocialPostType,
-  SocialPublishStatus,
-  PublishProgressMap,
-  PublishResultMap,
-  PublishErrorMap,
-  SocialPlatform,
+import { formatDate, postTypeLabel, progressStateLabel } from "@/lib/social/utils";
+import {
+  STATUS_COLORS,
+  STATUS_LABELS,
+  type ScheduledHistoryItem,
+  type SocialPostType,
+  type SocialPublishStatus,
 } from "@/types/modules/social-publisher.types";
-
-type ScheduledHistoryItem = {
-  id: string;
-  postType: SocialPostType;
-  caption: string | null;
-  platforms: SocialPlatform[];
-  scheduledAt: string;
-  status: SocialPublishStatus;
-  progress: PublishProgressMap;
-  externalPostIds: PublishResultMap;
-  errorDetails: PublishErrorMap;
-  publishedAt: string | null;
-  createdAt: string;
-  qstashMessageId: string | null;
-  mediaFileIds: string[];
-  thumbnailUrl: string | null;
-  thumbnailType: string | null;
-};
 
 type PostHistoryTableProps = {
   history: ScheduledHistoryItem[];
@@ -52,33 +32,6 @@ type PostHistoryTableProps = {
   onViewDetails: (item: ScheduledHistoryItem) => void;
   onCancelScheduled: (id: string) => void;
 };
-
-const STATUS_COLORS: Record<SocialPublishStatus, string> = {
-  scheduled: "bg-warning-light text-warning",
-  processing: "bg-primary-light text-primary",
-  published: "bg-success-light text-success",
-  partial: "bg-warning-light text-warning",
-  failed: "bg-danger-light text-danger",
-  cancelled: "bg-background text-muted",
-};
-
-function formatDate(value: string | null) {
-  if (!value) return "Sem data";
-  return new Date(value).toLocaleString("pt-BR");
-}
-
-function postTypeLabel(postType: SocialPostType) {
-  if (postType === "photo") return "Foto";
-  if (postType === "video") return "Vídeo";
-  return "Carrossel";
-}
-
-function progressStateLabel(status: PlatformProgressState) {
-  if (status === "pending") return "pendente";
-  if (status === "processing") return "processando";
-  if (status === "ok") return "ok";
-  return "erro";
-}
 
 export function PostHistoryTable({
   history,
@@ -140,7 +93,7 @@ export function PostHistoryTable({
         <span
           className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${STATUS_COLORS[status]}`}
         >
-          {status}
+          {STATUS_LABELS[status]}
         </span>
       ),
     },

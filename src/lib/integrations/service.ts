@@ -8,6 +8,7 @@
 import { z } from "zod";
 import type { Json, Database } from "@/database/types/database.types";
 import { decryptSecret, encryptSecret } from "@/lib/integrations/crypto";
+import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 import type {
   EvolutionApiConfig,
   EvolutionVendor,
@@ -30,7 +31,7 @@ const requiredSecretSchema = z.string().trim().min(1, "Campo obrigatorio.");
 const sofiaCrmSchema: z.ZodType<SofiaCrmConfig> = z.object({
   baseUrl: baseUrlSchema,
   apiToken: requiredSecretSchema,
-  inboxId: z.string().trim().min(1, "Inbox ID e obrigatorio."),
+  inboxId: z.string().trim().min(1).optional(),
 });
 
 const evolutionVendorSchema: z.ZodType<EvolutionVendor> = z.object({
@@ -45,7 +46,11 @@ const evolutionVendorSchema: z.ZodType<EvolutionVendor> = z.object({
 });
 
 const evolutionApiSchema: z.ZodType<EvolutionApiConfig> = z.object({
-  managerPhone: z.string().trim().min(8, "Numero do gestor invalido."),
+  managerPhone: z
+    .string()
+    .trim()
+    .min(8, "Numero do gestor invalido.")
+    .transform((value) => normalizeWhatsAppPhone(value)),
   baseUrl: baseUrlSchema.optional(),
   apiKey: requiredSecretSchema.optional(),
   vendors: z.array(evolutionVendorSchema).optional(),
@@ -91,6 +96,7 @@ type IntegrationPublicConfig = {
 type IntegrationTestResult = {
   ok: boolean;
   detail: string;
+  detectedConfig?: Partial<Record<string, string>>;
 };
 
 function parseVendors(raw: unknown): EvolutionVendor[] {
@@ -189,16 +195,19 @@ export function encodeIntegrationConfig<T extends IntegrationType>(
   switch (type) {
     case "sofia_crm": {
       const data = config as SofiaCrmConfig;
-      return {
+      const encoded: Record<string, Json> = {
         base_url: data.baseUrl,
-        inbox_id: data.inboxId,
         api_token_encrypted: encryptSecret(data.apiToken),
       };
+      if (data.inboxId) {
+        encoded.inbox_id = data.inboxId;
+      }
+      return encoded;
     }
     case "evolution_api": {
       const data = config as EvolutionApiConfig;
       const payload: Record<string, Json> = {
-        manager_phone: data.managerPhone,
+        manager_phone: normalizeWhatsAppPhone(data.managerPhone),
       };
 
       if (data.baseUrl) {
@@ -259,12 +268,14 @@ export function decodeIntegrationConfig<T extends IntegrationType>(
   const config = assertObjectPayload(payload ?? {});
 
   switch (type) {
-    case "sofia_crm":
+    case "sofia_crm": {
+      const inboxId = typeof config.inbox_id === "string" ? config.inbox_id : undefined;
       return {
         baseUrl: String(config.base_url ?? ""),
-        inboxId: String(config.inbox_id ?? ""),
         apiToken: decryptIfEncrypted(config.api_token_encrypted ?? config.api_token),
+        inboxId: inboxId || undefined,
       } as IntegrationConfigByType[T];
+    }
     case "evolution_api": {
       const decrypted = decryptIfEncrypted(config.api_key_encrypted ?? config.api_key);
       const apiKey = resolveEvolutionApiKey(decrypted);
@@ -274,7 +285,7 @@ export function decodeIntegrationConfig<T extends IntegrationType>(
 
       return {
         baseUrl: baseUrl || undefined,
-        managerPhone: String(config.manager_phone ?? ""),
+        managerPhone: normalizeWhatsAppPhone(String(config.manager_phone ?? "")),
         apiKey: apiKey || undefined,
         vendors: parseVendors(config.vendors),
       } as IntegrationConfigByType[T];
@@ -330,7 +341,10 @@ export function sanitizeIntegrationConfig(type: IntegrationType, payload: Json |
           typeof config.base_url === "string"
             ? config.base_url
             : resolveEvolutionBaseUrl() || null,
-        managerPhone: typeof config.manager_phone === "string" ? config.manager_phone : null,
+        managerPhone:
+          typeof config.manager_phone === "string"
+            ? normalizeWhatsAppPhone(config.manager_phone)
+            : null,
         apiKey:
           typeof config.api_key_encrypted === "string" ||
           typeof config.api_key === "string" ||
@@ -474,13 +488,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 8000
       try {
         return await fetchWithHttps(url, init, timeoutMs);
       } catch (httpsError) {
-        // If the native https also fails with an SSL/protocol error,
-        // try downgrading to plain HTTP (some servers only accept http://)
-        if (url.startsWith("https://") && isTlsError(httpsError)) {
-          const httpUrl = url.replace(/^https:\/\//, "http://");
-          console.warn(`[fetchWithTimeout] HTTPS completamente bloqueado, tentando HTTP: ${httpUrl}`);
-          return await fetchWithTimeout(httpUrl, init, timeoutMs);
-        }
+        // HTTP downgrade removido por seguranca — credenciais nao devem trafegar em texto plano.
         throw httpsError;
       }
     }
@@ -566,20 +574,50 @@ export async function testIntegrationConnection<T extends IntegrationType>(
           return { ok: false, detail: "URL base do Sofia CRM nao configurada." };
         }
 
+        const authHeaders = {
+          Authorization: `Bearer ${sofia.apiToken}`,
+          "Content-Type": "application/json",
+        };
+
         const response = await fetchWithTimeout(`${baseUrl}/api/conversations?limit=1`, {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${sofia.apiToken}`,
-            "x-inbox-id": sofia.inboxId,
-            "Content-Type": "application/json",
-          },
+          headers: authHeaders,
         });
 
         if (!response.ok) {
           return { ok: false, detail: `Sofia CRM falhou: ${await readFailureDetail(response)}` };
         }
 
-        return { ok: true, detail: "Conexao com Sofia CRM validada." };
+        // Auto-detectar inbox WhatsApp
+        let detectedInboxId: string | undefined;
+        try {
+          const inboxesResponse = await fetchWithTimeout(`${baseUrl}/api/inboxes`, {
+            method: "GET",
+            headers: authHeaders,
+          });
+
+          if (inboxesResponse.ok) {
+            const inboxesPayload = await inboxesResponse.json() as unknown;
+            const inboxes = Array.isArray(inboxesPayload) ? inboxesPayload : [];
+            const whatsappInbox = inboxes.find(
+              (inbox: Record<string, unknown>) =>
+                typeof inbox.type === "string" && inbox.type.startsWith("whatsapp")
+            );
+            if (whatsappInbox && typeof whatsappInbox.id !== "undefined") {
+              detectedInboxId = String(whatsappInbox.id);
+            }
+          }
+        } catch {
+          // Inbox auto-detection is optional — sync still works without it.
+        }
+
+        return {
+          ok: true,
+          detail: detectedInboxId
+            ? `Conexao validada. Inbox WhatsApp detectado: ${detectedInboxId}.`
+            : "Conexao validada. Nenhum inbox WhatsApp detectado.",
+          detectedConfig: detectedInboxId ? { inboxId: detectedInboxId } : undefined,
+        };
       }
       case "evolution_api": {
         const evolution = config as EvolutionApiConfig;

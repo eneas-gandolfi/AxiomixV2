@@ -9,6 +9,12 @@ import "server-only";
 
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
+import {
+  resolvePreferredEvolutionInstance,
+  resolveEvolutionCredentials,
+  sendEvolutionTextMessage,
+} from "@/services/integrations/evolution";
 
 type AlertType = "purchase_intent" | "negative_sentiment" | "failed_post" | "viral_content";
 
@@ -29,6 +35,11 @@ type DispatchResult = {
   status: "sent" | "skipped" | "failed";
   reason?: string;
 };
+
+function normalizeRecipientPhone(phone: string) {
+  const normalized = normalizeWhatsAppPhone(phone);
+  return normalized || phone.trim();
+}
 
 async function getAlertPreference(
   companyId: string,
@@ -74,7 +85,7 @@ async function resolveRecipientPhone(
   }
 
   const decoded = decodeIntegrationConfig("evolution_api", integration.config);
-  return decoded.managerPhone?.trim() || null;
+  return normalizeRecipientPhone(decoded.managerPhone);
 }
 
 async function resolveEvolutionConfig(companyId: string) {
@@ -91,14 +102,18 @@ async function resolveEvolutionConfig(companyId: string) {
   }
 
   const decoded = decodeIntegrationConfig("evolution_api", integration.config);
-  const baseUrl = decoded.baseUrl?.replace(/\/+$/, "");
-  const apiKey = decoded.apiKey;
+  const instanceName = resolvePreferredEvolutionInstance(decoded.vendors);
 
-  if (!baseUrl || !apiKey) {
-    return null;
+  if (!instanceName) {
+    throw new Error("Nenhuma instancia conectada na Evolution API.");
   }
 
-  return { baseUrl, apiKey };
+  const credentials = resolveEvolutionCredentials({
+    baseUrl: decoded.baseUrl,
+    apiKey: decoded.apiKey,
+  });
+
+  return { credentials, instanceName };
 }
 
 async function isWithinCooldown(
@@ -163,26 +178,16 @@ async function sendWhatsAppAlert(
     throw new Error("Evolution API nao configurada.");
   }
 
-  const response = await fetch(`${config.baseUrl}/message/sendText`, {
-    method: "POST",
-    headers: {
-      apikey: config.apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      number: recipientPhone,
-      text: messageText,
-    }),
+  const result = await sendEvolutionTextMessage({
+    credentials: config.credentials,
+    instanceName: config.instanceName,
+    number: recipientPhone,
+    text: messageText,
   });
 
-  const responseBody = await response.text();
-  if (!response.ok) {
-    throw new Error(`Falha no envio WhatsApp: ${response.status} ${responseBody.slice(0, 180)}`);
-  }
-
   return {
-    providerStatus: response.status,
-    providerBody: responseBody.slice(0, 500),
+    providerStatus: result.providerStatus,
+    providerBody: result.providerBody,
   };
 }
 
@@ -208,11 +213,15 @@ async function logAlert(
 }
 
 export async function dispatchAlert(payload: AlertPayload): Promise<DispatchResult> {
+  let attemptedRecipientPhone = "unknown";
+  let preferencePhone: string | null = null;
+
   try {
     const preference = await getAlertPreference(payload.companyId, payload.alertType);
     if (!preference || !preference.isEnabled) {
       return { status: "skipped", reason: "alert_disabled" };
     }
+    preferencePhone = preference.recipientPhone;
 
     const recipientPhone = await resolveRecipientPhone(
       payload.companyId,
@@ -221,6 +230,8 @@ export async function dispatchAlert(payload: AlertPayload): Promise<DispatchResu
     if (!recipientPhone) {
       return { status: "skipped", reason: "no_recipient" };
     }
+
+    attemptedRecipientPhone = normalizeRecipientPhone(recipientPhone);
 
     const cooldown = await isWithinCooldown(
       payload.companyId,
@@ -245,6 +256,17 @@ export async function dispatchAlert(payload: AlertPayload): Promise<DispatchResu
 
     return { status: "sent" };
   } catch (error) {
+    if (attemptedRecipientPhone === "unknown") {
+      try {
+        const fallbackPhone = await resolveRecipientPhone(payload.companyId, preferencePhone);
+        if (fallbackPhone) {
+          attemptedRecipientPhone = normalizeRecipientPhone(fallbackPhone);
+        }
+      } catch {
+        // Preserve "unknown" when fallback lookup also fails
+      }
+    }
+
     const detail = error instanceof Error ? error.message : "Erro inesperado no despacho de alerta.";
 
     try {
@@ -252,7 +274,7 @@ export async function dispatchAlert(payload: AlertPayload): Promise<DispatchResu
         payload.companyId,
         payload.alertType,
         payload.sourceId,
-        "unknown",
+        attemptedRecipientPhone,
         payload.messageText,
         "failed",
         detail

@@ -6,36 +6,33 @@
  */
 
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
-import { GeistMono } from "geist/font/mono";
+import localFont from "next/font/local";
 import Script from "next/script";
 import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
+const bricolage = localFont({
+  src: "./fonts/GeistVF.woff",
   variable: "--font-bricolage",
   display: "swap",
 });
 
-const instrument = Instrument_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  style: ["normal", "italic"],
+const instrument = localFont({
+  src: "./fonts/GeistVF.woff",
   variable: "--font-instrument",
+  display: "swap",
+});
+
+const geistMono = localFont({
+  src: "./fonts/GeistMonoVF.woff",
+  variable: "--font-geist-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "AXIOMIX",
   description: "Marketing e Inteligência Competitiva",
-  icons: {
-    icon: "/axiomix-favicon.png",
-    shortcut: "/axiomix-favicon.png",
-    apple: "/axiomix-favicon.png",
-  },
 };
 
 type RootLayoutProps = {
@@ -45,11 +42,8 @@ type RootLayoutProps = {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/axiomix-favicon.png" type="image/png" />
-      </head>
       <body
-        className={`${bricolage.variable} ${instrument.variable} ${GeistMono.variable} min-h-screen font-sans`}
+        className={`${bricolage.variable} ${instrument.variable} ${geistMono.variable} min-h-screen font-sans`}
         suppressHydrationWarning
       >
         <Script id="axiomix-theme-init" strategy="beforeInteractive">

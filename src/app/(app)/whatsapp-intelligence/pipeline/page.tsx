@@ -8,27 +8,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Kanban, Loader2, ChevronDown } from "lucide-react";
+import { Kanban, Loader2 } from "lucide-react";
 import { KanbanBoard } from "@/components/whatsapp/kanban-board";
+import type { RichKanbanCard, KanbanStage, TeamMember } from "@/components/whatsapp/kanban-types";
 
 export const dynamic = "force-dynamic";
 
 type Board = {
   id: string;
   name: string | null;
-  stages: Array<{
-    id: string;
-    name: string | null;
-    position: number | null;
-    cards: Array<{
-      id: string;
-      title: string | null;
-      description: string | null;
-      stage_id: string | null;
-      source: string | null;
-      created_at: string | null;
-    }> | null;
-  }> | null;
+  stages: KanbanStage[] | null;
 };
 
 export default function PipelinePage() {
@@ -36,6 +25,7 @@ export default function PipelinePage() {
   const [boards, setBoards] = useState<Board[]>([]);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [selectedBoard, setSelectedBoard] = useState<Board | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingBoard, setLoadingBoard] = useState(false);
 
@@ -55,25 +45,45 @@ export default function PipelinePage() {
     getCompany();
   }, []);
 
-  // Fetch boards list
+  // Fetch boards list + team members
   useEffect(() => {
     if (!companyId) return;
 
-    async function fetchBoards() {
+    async function fetchInitialData() {
       setLoading(true);
       try {
-        const response = await fetch("/api/whatsapp/kanban/boards", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyId }),
-        });
-        if (response.ok) {
-          const data = await response.json();
+        const [boardsRes, teamRes] = await Promise.all([
+          fetch("/api/whatsapp/kanban/boards", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ companyId }),
+          }),
+          fetch("/api/whatsapp/team", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ companyId, action: "listUsers" }),
+          }),
+        ]);
+
+        if (boardsRes.ok) {
+          const data = await boardsRes.json();
           const boardsList = data.boards ?? [];
           setBoards(boardsList);
           if (boardsList.length > 0 && !selectedBoardId) {
             setSelectedBoardId(boardsList[0].id);
           }
+        }
+
+        if (teamRes.ok) {
+          const data = await teamRes.json();
+          const users = (data.users ?? []) as Array<{ id: string; name?: string | null; email?: string | null }>;
+          setTeamMembers(
+            users.map((u) => ({
+              id: u.id,
+              name: u.name ?? null,
+              email: u.email ?? null,
+            }))
+          );
         }
       } catch {
         // Silently fail
@@ -82,7 +92,7 @@ export default function PipelinePage() {
       }
     }
 
-    fetchBoards();
+    fetchInitialData();
   }, [companyId]);
 
   const fetchBoard = useCallback(async () => {
@@ -160,6 +170,7 @@ export default function PipelinePage() {
           boardName={selectedBoard.name}
           stages={selectedBoard.stages}
           companyId={companyId}
+          teamMembers={teamMembers}
           onRefresh={fetchBoard}
         />
       ) : (

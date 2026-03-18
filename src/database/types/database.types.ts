@@ -160,6 +160,7 @@ export type Database = {
         Row: {
           assigned_to: string | null;
           company_id: string | null;
+          contact_avatar_url: string | null;
           contact_name: string | null;
           contact_phone: string | null;
           created_at: string | null;
@@ -173,6 +174,7 @@ export type Database = {
         Insert: {
           assigned_to?: string | null;
           company_id?: string | null;
+          contact_avatar_url?: string | null;
           contact_name?: string | null;
           contact_phone?: string | null;
           created_at?: string | null;
@@ -186,6 +188,7 @@ export type Database = {
         Update: {
           assigned_to?: string | null;
           company_id?: string | null;
+          contact_avatar_url?: string | null;
           contact_name?: string | null;
           contact_phone?: string | null;
           created_at?: string | null;
@@ -202,6 +205,51 @@ export type Database = {
             columns: ["company_id"];
             isOneToOne: false;
             referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      conversation_exclusions: {
+        Row: {
+          company_id: string;
+          contact_name: string | null;
+          created_at: string | null;
+          created_by: string | null;
+          external_id: string;
+          id: string;
+          remote_jid: string | null;
+        };
+        Insert: {
+          company_id: string;
+          contact_name?: string | null;
+          created_at?: string | null;
+          created_by?: string | null;
+          external_id: string;
+          id?: string;
+          remote_jid?: string | null;
+        };
+        Update: {
+          company_id?: string;
+          contact_name?: string | null;
+          created_at?: string | null;
+          created_by?: string | null;
+          external_id?: string;
+          id?: string;
+          remote_jid?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conversation_exclusions_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversation_exclusions_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -304,31 +352,88 @@ export type Database = {
         Row: {
           action_items: Json | null;
           company_id: string | null;
+          confidence_score: number | null;
           conversation_id: string | null;
+          explicit_need: string | null;
+          feedback_at: string | null;
+          feedback_by: string | null;
+          feedback_note: string | null;
+          feedback_status: "helpful" | "needs_review" | "incorrect" | null;
           generated_at: string | null;
           id: string;
+          implicit_need: string | null;
           intent: string | null;
+          next_commitment: string | null;
+          objections: Json | null;
+          sales_stage:
+            | "discovery"
+            | "qualification"
+            | "proposal"
+            | "negotiation"
+            | "closing"
+            | "post_sale"
+            | "unknown"
+            | null;
           sentiment: "positivo" | "neutro" | "negativo" | null;
+          stall_reason: string | null;
           summary: string | null;
         };
         Insert: {
           action_items?: Json | null;
           company_id?: string | null;
+          confidence_score?: number | null;
           conversation_id?: string | null;
+          explicit_need?: string | null;
+          feedback_at?: string | null;
+          feedback_by?: string | null;
+          feedback_note?: string | null;
+          feedback_status?: "helpful" | "needs_review" | "incorrect" | null;
           generated_at?: string | null;
           id?: string;
+          implicit_need?: string | null;
           intent?: string | null;
+          next_commitment?: string | null;
+          objections?: Json | null;
+          sales_stage?:
+            | "discovery"
+            | "qualification"
+            | "proposal"
+            | "negotiation"
+            | "closing"
+            | "post_sale"
+            | "unknown"
+            | null;
           sentiment?: "positivo" | "neutro" | "negativo" | null;
+          stall_reason?: string | null;
           summary?: string | null;
         };
         Update: {
           action_items?: Json | null;
           company_id?: string | null;
+          confidence_score?: number | null;
           conversation_id?: string | null;
+          explicit_need?: string | null;
+          feedback_at?: string | null;
+          feedback_by?: string | null;
+          feedback_note?: string | null;
+          feedback_status?: "helpful" | "needs_review" | "incorrect" | null;
           generated_at?: string | null;
           id?: string;
+          implicit_need?: string | null;
           intent?: string | null;
+          next_commitment?: string | null;
+          objections?: Json | null;
+          sales_stage?:
+            | "discovery"
+            | "qualification"
+            | "proposal"
+            | "negotiation"
+            | "closing"
+            | "post_sale"
+            | "unknown"
+            | null;
           sentiment?: "positivo" | "neutro" | "negativo" | null;
+          stall_reason?: string | null;
           summary?: string | null;
         };
         Relationships: [
@@ -344,6 +449,57 @@ export type Database = {
             columns: ["conversation_id"];
             isOneToOne: false;
             referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversation_insights_feedback_by_fkey";
+            columns: ["feedback_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      conversation_digests: {
+        Row: {
+          company_id: string | null;
+          conversations_analyzed: number;
+          created_at: string | null;
+          id: string;
+          negative_sentiments: number;
+          period_end: string;
+          period_start: string;
+          purchase_intents: number;
+          summary_text: string;
+        };
+        Insert: {
+          company_id?: string | null;
+          conversations_analyzed?: number;
+          created_at?: string | null;
+          id?: string;
+          negative_sentiments?: number;
+          period_end: string;
+          period_start: string;
+          purchase_intents?: number;
+          summary_text: string;
+        };
+        Update: {
+          company_id?: string | null;
+          conversations_analyzed?: number;
+          created_at?: string | null;
+          id?: string;
+          negative_sentiments?: number;
+          period_end?: string;
+          period_start?: string;
+          purchase_intents?: number;
+          summary_text?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conversation_digests_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
             referencedColumns: ["id"];
           },
         ];
@@ -513,7 +669,9 @@ export type Database = {
             | "competitor_scrape"
             | "radar_collect"
             | "weekly_report"
-            | "whatsapp_analyze";
+            | "whatsapp_analyze"
+            | "rag_process"
+            | "daily_report";
           max_attempts: number | null;
           payload: Json | null;
           result: Json | null;
@@ -533,7 +691,9 @@ export type Database = {
             | "competitor_scrape"
             | "radar_collect"
             | "weekly_report"
-            | "whatsapp_analyze";
+            | "whatsapp_analyze"
+            | "rag_process"
+            | "daily_report";
           max_attempts?: number | null;
           payload?: Json | null;
           result?: Json | null;
@@ -553,7 +713,9 @@ export type Database = {
             | "competitor_scrape"
             | "radar_collect"
             | "weekly_report"
-            | "whatsapp_analyze";
+            | "whatsapp_analyze"
+            | "rag_process"
+            | "daily_report";
           max_attempts?: number | null;
           payload?: Json | null;
           result?: Json | null;
@@ -936,6 +1098,60 @@ export type Database = {
           },
         ];
       };
+      daily_reports: {
+        Row: {
+          company_id: string | null;
+          created_at: string | null;
+          delivery_response: Json | null;
+          delivery_status: "sent" | "failed";
+          id: string;
+          job_id: string | null;
+          report_date: string;
+          report_text: string;
+          sent_at: string | null;
+          sent_to: string | null;
+        };
+        Insert: {
+          company_id?: string | null;
+          created_at?: string | null;
+          delivery_response?: Json | null;
+          delivery_status?: "sent" | "failed";
+          id?: string;
+          job_id?: string | null;
+          report_date: string;
+          report_text: string;
+          sent_at?: string | null;
+          sent_to?: string | null;
+        };
+        Update: {
+          company_id?: string | null;
+          created_at?: string | null;
+          delivery_response?: Json | null;
+          delivery_status?: "sent" | "failed";
+          id?: string;
+          job_id?: string | null;
+          report_date?: string;
+          report_text?: string;
+          sent_at?: string | null;
+          sent_to?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_reports_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "daily_reports_job_id_fkey";
+            columns: ["job_id"];
+            isOneToOne: false;
+            referencedRelation: "async_jobs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       alert_preferences: {
         Row: {
           id: string;
@@ -1021,9 +1237,133 @@ export type Database = {
           },
         ];
       };
+      rag_documents: {
+        Row: {
+          id: string;
+          company_id: string | null;
+          scope: "company" | "global";
+          file_name: string;
+          file_size: number;
+          file_type: string;
+          storage_path: string;
+          source_key: string | null;
+          status: "pending" | "processing" | "ready" | "failed";
+          total_chunks: number | null;
+          error_message: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          company_id?: string | null;
+          scope?: "company" | "global";
+          file_name: string;
+          file_size: number;
+          file_type?: string;
+          storage_path: string;
+          source_key?: string | null;
+          status?: "pending" | "processing" | "ready" | "failed";
+          total_chunks?: number | null;
+          error_message?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          company_id?: string | null;
+          scope?: "company" | "global";
+          file_name?: string;
+          file_size?: number;
+          file_type?: string;
+          storage_path?: string;
+          source_key?: string | null;
+          status?: "pending" | "processing" | "ready" | "failed";
+          total_chunks?: number | null;
+          error_message?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rag_documents_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      rag_document_chunks: {
+        Row: {
+          id: string;
+          document_id: string;
+          company_id: string | null;
+          scope: "company" | "global";
+          chunk_index: number;
+          content: string;
+          token_count: number | null;
+          embedding: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          document_id: string;
+          company_id?: string | null;
+          scope?: "company" | "global";
+          chunk_index: number;
+          content: string;
+          token_count?: number | null;
+          embedding?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          document_id?: string;
+          company_id?: string | null;
+          scope?: "company" | "global";
+          chunk_index?: number;
+          content?: string;
+          token_count?: number | null;
+          embedding?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rag_document_chunks_document_id_fkey";
+            columns: ["document_id"];
+            isOneToOne: false;
+            referencedRelation: "rag_documents";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rag_document_chunks_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      match_rag_chunks: {
+        Args: {
+          query_embedding: string;
+          match_company_id: string;
+          include_global?: boolean;
+          match_threshold?: number;
+          match_count?: number;
+        };
+        Returns: Array<{
+          id: string;
+          document_id: string;
+          content: string;
+          chunk_index: number;
+          similarity: number;
+        }>;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

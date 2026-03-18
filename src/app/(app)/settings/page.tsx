@@ -16,6 +16,7 @@ import type { UploadPostConfig } from "@/lib/integrations/types";
 import type { IntegrationStatusItem } from "@/components/dashboard/integrations-status-card";
 import type { RecentReportItem } from "@/components/dashboard/recent-reports-card";
 import type { Json } from "@/database/types/database.types";
+import { markStaleJobsFailed } from "@/lib/jobs/queue";
 
 function decodeUploadPostFallback(config: unknown): UploadPostConfig {
   if (typeof config !== "object" || config === null || Array.isArray(config)) {
@@ -136,7 +137,8 @@ type IntegrationRowForStatus = {
 };
 
 function toIntegrationStatusItems(
-  rows: IntegrationRowForStatus[]
+  rows: IntegrationRowForStatus[],
+  options?: { openRouterEnvEnabled?: boolean }
 ): IntegrationStatusItem[] {
   const byType = new Map(rows.map((row) => [row.type, row]));
   const allTypes: IntegrationStatusItem["type"][] = [
@@ -149,6 +151,10 @@ function toIntegrationStatusItems(
   return allTypes.map((type) => {
     const row = byType.get(type);
     if (!row) {
+      if (type === "openrouter" && options?.openRouterEnvEnabled) {
+        return { type, status: "connected", lastTestedAt: null };
+      }
+
       return { type, status: "missing", lastTestedAt: null };
     }
 
@@ -213,6 +219,9 @@ export default async function SettingsPage({
 
   const isOwnerOrAdmin = userRole === "owner" || userRole === "admin";
 
+  // Limpar jobs stale antes de consultar a fila (libera o botão se job travou)
+  await markStaleJobsFailed(companyId);
+
   const [
     companyResult,
     integrationsResult,
@@ -257,6 +266,7 @@ export default async function SettingsPage({
   const company = companyResult.data;
   const integrations = integrationsResult.data;
   const integrationsFull = integrationsFullResult.data ?? [];
+  const openRouterEnvEnabled = Boolean(process.env.OPENROUTER_API_KEY?.trim());
 
   // Count active integrations
   const activeIntegrations = integrations?.filter((i) => i.is_active).length ?? 0;
@@ -287,7 +297,9 @@ export default async function SettingsPage({
 
   // ── Reports tab data ──
 
-  const integrationStatusItems = toIntegrationStatusItems(integrationsFull);
+  const integrationStatusItems = toIntegrationStatusItems(integrationsFull, {
+    openRouterEnvEnabled,
+  });
   const evolutionIntegration = integrationsFull.find((i) => i.type === "evolution_api");
   const evolutionStatus = resolveEvolutionDisplayStatus(evolutionIntegration);
 
@@ -309,6 +321,8 @@ export default async function SettingsPage({
   const reportQueue = reportsQueueResult.data ?? [];
   const hasReportQueued = reportQueue.length > 0;
   const hasRunningReport = reportQueue.some((job) => job.status === "running");
+  const firstQueuedJob = reportQueue[0] ?? null;
+  const runningJobCreatedAt = firstQueuedJob?.created_at ?? null;
 
   const canSendNow =
     isOwnerOrAdmin &&
@@ -319,19 +333,40 @@ export default async function SettingsPage({
   if (!isOwnerOrAdmin) {
     sendDisabledReason = "Apenas owner/admin podem enviar relatórios.";
   } else if (evolutionStatus.state !== "active") {
-    sendDisabledReason = "Configure a integração antes de enviar";
-  } else if (hasReportQueued) {
-    sendDisabledReason = "Já existe um relatório em processamento.";
+    sendDisabledReason = "Configure a integração antes de enviar.";
+  } else if (hasReportQueued && firstQueuedJob?.created_at) {
+    const elapsedMs = Date.now() - new Date(firstQueuedJob.created_at).getTime();
+    const elapsedMin = Math.max(1, Math.round(elapsedMs / 60_000));
+    if (firstQueuedJob.status === "running") {
+      sendDisabledReason = `Relatório em processamento há ${elapsedMin} min.`;
+    } else {
+      sendDisabledReason = `Relatório na fila há ${elapsedMin} min.`;
+    }
   }
 
   const doneReportsRows = reportsDoneResult.data ?? [];
-  const recentReports: RecentReportItem[] = doneReportsRows.map((row) => ({
-    id: row.id,
-    completedAt: row.completed_at,
-    reportText: parseReportText(row.payload, row.result),
-    status: row.status as "done" | "failed",
-    errorMessage: row.error_message,
-  }));
+  const recentReports: RecentReportItem[] = doneReportsRows.map((row) => {
+    const resultObj =
+      typeof row.result === "object" && row.result !== null && !Array.isArray(row.result)
+        ? (row.result as Record<string, unknown>)
+        : null;
+    const deliveryFailed = resultObj?.deliveryStatus === "failed";
+    const deliveryError =
+      typeof resultObj?.deliveryError === "string" ? resultObj.deliveryError : null;
+
+    let displayStatus: "done" | "failed" | "delivery_failed" = row.status as "done" | "failed";
+    if (row.status === "done" && deliveryFailed) {
+      displayStatus = "delivery_failed";
+    }
+
+    return {
+      id: row.id,
+      completedAt: row.completed_at,
+      reportText: parseReportText(row.payload, row.result),
+      status: displayStatus,
+      errorMessage: row.error_message ?? deliveryError,
+    };
+  });
 
   const now = new Date();
   const nextMonday = nextMondayAtEight(now);
@@ -347,6 +382,7 @@ export default async function SettingsPage({
     sendDisabledReason,
     recentReports,
     hasRunningJob: hasRunningReport,
+    runningJobCreatedAt,
   };
 
   return (

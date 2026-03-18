@@ -234,7 +234,8 @@ async function DashboardContent() {
         .select("sentiment, generated_at")
         .eq("company_id", companyId)
         .gte("generated_at", thirtyDaysAgoIso)
-        .lte("generated_at", nowIso),
+        .lte("generated_at", nowIso)
+        .limit(5000),
       // Alert: negative insights (48h)
       supabase
         .from("conversation_insights")

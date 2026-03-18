@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { processJobs } from "@/lib/jobs/processor";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { isCronAuthorized } from "@/lib/auth/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -28,19 +29,9 @@ const processSchema = z.object({
   allowedTypes: z.array(z.enum(allowedJobTypes)).min(1).max(allowedJobTypes.length).optional(),
 });
 
-function isCronCall(request: NextRequest) {
-  const vercelCronHeader = request.headers.get("x-vercel-cron");
-  const cronSecretHeader = request.headers.get("x-cron-secret");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    return cronSecretHeader === cronSecret;
-  }
-  return Boolean(vercelCronHeader);
-}
-
 export async function GET(request: NextRequest) {
   try {
-    if (!isCronCall(request)) {
+    if (!isCronAuthorized(request)) {
       return NextResponse.json(
         { error: "Metodo GET reservado para cron.", code: "METHOD_NOT_ALLOWED" },
         { status: 405 }
@@ -72,7 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (isCronCall(request)) {
+    if (isCronAuthorized(request)) {
       const summary = await processJobs({
         maxJobs: parsed.data.maxJobs ?? 1,
         allowedTypes: parsed.data.allowedTypes,

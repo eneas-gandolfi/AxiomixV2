@@ -12,6 +12,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
+  BookOpen,
   LayoutDashboard,
   MessageSquare,
   PanelLeftClose,
@@ -39,6 +40,7 @@ const MODULE_COLORS: Record<string, ModuleColors> = {
   "/whatsapp-intelligence": { color: "#2EC4B6", bgLight: "#E0FAF7", bgDark: "#164E4A" },
   "/intelligence": { color: "#D4A853", bgLight: "#FDF6E3", bgDark: "#6B5429" },
   "/social-publisher": { color: "#FA5E24", bgLight: "#FFF0EB", bgDark: "#7A2D11" },
+  "/base-conhecimento": { color: "#7C3AED", bgLight: "#F3EEFF", bgDark: "#3B1D72" },
   "/settings": { color: "#8A8A8A", bgLight: "#F1F5F9", bgDark: "#222222" },
 };
 
@@ -51,6 +53,7 @@ export const NAV_ITEMS = [
   },
   { label: "Intelligence", href: "/intelligence", icon: TrendingUp },
   { label: "Social Publisher", href: "/social-publisher", icon: Share2 },
+  { label: "Base de Conhecimento", href: "/base-conhecimento", icon: BookOpen },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

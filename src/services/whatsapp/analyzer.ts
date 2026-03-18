@@ -14,6 +14,7 @@ import {
   triggerPurchaseIntentAlert,
   triggerNegativeSentimentAlert,
 } from "@/services/alerts/alert-triggers";
+import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 
 const insightSchema = z.object({
   sentiment: z.enum(["positivo", "neutro", "negativo"]),
@@ -26,11 +27,24 @@ const insightSchema = z.object({
       return value;
     }),
   urgency: z.number().int().min(1).max(5).optional().default(3),
+  sales_stage: z
+    .enum(["discovery", "qualification", "proposal", "negotiation", "closing", "post_sale", "unknown"])
+    .optional()
+    .default("unknown"),
   summary: z.string().trim().min(5),
+  implicit_need: z.string().trim().optional().default(""),
+  explicit_need: z.string().trim().optional().default(""),
+  objections: z.array(z.string().trim().min(2)).max(5).optional().default([]),
   key_topics: z.array(z.string().trim().min(1)).max(5).optional().default([]),
+  next_commitment: z.string().trim().optional().default(""),
+  stall_reason: z.string().trim().optional().default(""),
+  confidence_score: z.number().int().min(0).max(100).optional().default(65),
   suggested_response: z.string().trim().optional().default(""),
   action_items: z.array(z.string().trim().min(2)).min(1).max(6),
 });
+
+type InsightPayload = z.infer<typeof insightSchema>;
+type InsightSalesStage = InsightPayload["sales_stage"];
 
 type ConversationMessage = {
   direction: "inbound" | "outbound";
@@ -44,12 +58,25 @@ type AnalyzeConversationResult = {
   sentiment: "positivo" | "neutro" | "negativo";
   intent: string;
   urgency: number;
+  salesStage: "discovery" | "qualification" | "proposal" | "negotiation" | "closing" | "post_sale" | "unknown";
   summary: string;
+  implicitNeed: string;
+  explicitNeed: string;
+  objections: string[];
   actionItems: string[];
   keyTopics: string[];
+  nextCommitment: string;
+  stallReason: string;
+  confidenceScore: number;
   suggestedResponse: string;
   generatedAt: string;
 };
+
+const KB_SEARCH_MESSAGE_LIMIT = 8;
+const KB_SEARCH_MAX_CHARS = 1200;
+const KB_CONTEXT_MATCH_THRESHOLD = 0.3;
+const KB_CONTEXT_MATCH_COUNT = 4;
+const KB_CONTEXT_MAX_CHARS = 3600;
 
 function normalizeText(text: string) {
   return text
@@ -58,7 +85,49 @@ function normalizeText(text: string) {
     .toLowerCase();
 }
 
-function fallbackInsight(messages: ConversationMessage[]) {
+function compactMessageContent(content: string | null) {
+  return (content ?? "").replace(/\s+/g, " ").trim();
+}
+
+function buildKnowledgeBaseSearchQuery(messages: ConversationMessage[]) {
+  const recentMessages = messages
+    .map((message) => ({
+      direction: message.direction,
+      content: compactMessageContent(message.content),
+    }))
+    .filter((message) => message.content.length > 0)
+    .slice(-KB_SEARCH_MESSAGE_LIMIT);
+
+  if (recentMessages.length === 0) {
+    return "";
+  }
+
+  const lastInboundMessage = [...recentMessages]
+    .reverse()
+    .find((message) => message.direction === "inbound");
+
+  const conversationExcerpt = recentMessages
+    .map((message) => {
+      const speaker = message.direction === "inbound" ? "CLIENTE" : "ATENDIMENTO";
+      return `${speaker}: ${message.content}`;
+    })
+    .join("\n");
+
+  return [
+    "Contexto para analisar conversa de WhatsApp com base na documentacao da empresa.",
+    "Diagnosticar etapa da venda, necessidades implicitas/explicitas, gargalos do atendimento, perguntas que faltam e proximo compromisso.",
+    lastInboundMessage
+      ? `Necessidade mais recente do cliente: ${lastInboundMessage.content}`
+      : null,
+    "Trecho recente da conversa:",
+    conversationExcerpt,
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, KB_SEARCH_MAX_CHARS);
+}
+
+function fallbackInsight(messages: ConversationMessage[]): InsightPayload {
   const combined = normalizeText(
     messages
       .map((message) => message.content ?? "")
@@ -75,7 +144,8 @@ function fallbackInsight(messages: ConversationMessage[]) {
   const hasSupport = supportWords.some((word) => combined.includes(word));
 
   const sentiment: "positivo" | "neutro" | "negativo" = hasNegative ? "negativo" : "neutro";
-  let intent = "outro";
+  let intent: InsightPayload["intent"] = "outro";
+  const salesStage: InsightSalesStage = hasPurchase ? "qualification" : "unknown";
 
   if (hasPurchase) {
     intent = "compra";
@@ -89,9 +159,16 @@ function fallbackInsight(messages: ConversationMessage[]) {
     sentiment,
     intent,
     urgency: hasNegative ? 4 : 3,
+    sales_stage: salesStage,
     summary:
       "Analise gerada em modo de fallback. Recomenda-se revisar a conversa para confirmar detalhes comerciais e proximos passos.",
+    implicit_need: "",
+    explicit_need: "",
+    objections: [] as string[],
     key_topics: [] as string[],
+    next_commitment: "",
+    stall_reason: hasNegative ? "Cliente demonstra atrito ou insatisfacao." : "",
+    confidence_score: 35,
     suggested_response: "",
     action_items: [
       "Revisar a conversa e confirmar necessidade principal do cliente.",
@@ -108,13 +185,24 @@ function parseAiResponse(rawContent: string) {
 }
 
 async function generateConversationInsight(companyId: string, messages: ConversationMessage[]) {
-  const prompt = buildWhatsAppAnalysisPrompt(
-    messages.map((message) => ({
+  const kbSearchQuery = buildKnowledgeBaseSearchQuery(messages);
+  const kbContext = kbSearchQuery
+    ? await getKnowledgeBaseContext(companyId, kbSearchQuery, {
+        includeGlobal: true,
+        matchThreshold: KB_CONTEXT_MATCH_THRESHOLD,
+        matchCount: KB_CONTEXT_MATCH_COUNT,
+        maxChars: KB_CONTEXT_MAX_CHARS,
+      })
+    : "";
+
+  const prompt = buildWhatsAppAnalysisPrompt({
+    messages: messages.map((message) => ({
       direction: message.direction,
       content: message.content,
       sentAt: message.sent_at ?? new Date().toISOString(),
-    }))
-  );
+    })),
+    knowledgeBaseContext: kbContext || undefined,
+  });
 
   try {
     const rawJson = await openRouterChatCompletion(companyId, [
@@ -126,7 +214,9 @@ async function generateConversationInsight(companyId: string, messages: Conversa
         role: "user",
         content: prompt,
       },
-    ]);
+    ], {
+      model: process.env.OPENROUTER_MODEL_LIGHT,
+    });
 
     return parseAiResponse(rawJson);
   } catch {
@@ -152,12 +242,18 @@ async function executeAutomaticActions(
 
   if (insight.intent === "compra" && conversation.external_id) {
     try {
-      await client.createKanbanCard({
-        boardId: client.inboxId,
-        title: `Oportunidade: ${conversation.remote_jid}`,
-        description: insight.summary,
-      });
-      actions.push("kanban_card_created");
+      const boards = await client.listBoards();
+      const board = boards[0];
+      if (board) {
+        await client.createKanbanCard({
+          boardId: String(board.id),
+          title: `Oportunidade: ${conversation.remote_jid}`,
+          description: insight.summary,
+        });
+        actions.push("kanban_card_created");
+      } else {
+        actions.push("kanban_card_skipped_no_board");
+      }
     } catch {
       actions.push("kanban_card_failed");
     }
@@ -231,7 +327,14 @@ export async function analyzeConversation(
       conversation_id: conversationId,
       sentiment: insight.sentiment,
       intent: insight.intent,
+      sales_stage: insight.sales_stage,
       summary: insight.summary,
+      implicit_need: insight.implicit_need || null,
+      explicit_need: insight.explicit_need || null,
+      objections: insight.objections,
+      next_commitment: insight.next_commitment || null,
+      stall_reason: insight.stall_reason || null,
+      confidence_score: insight.confidence_score,
       action_items: enrichedActionItems,
       generated_at: generatedAt,
     },
@@ -272,9 +375,16 @@ export async function analyzeConversation(
     sentiment: insight.sentiment,
     intent: insight.intent,
     urgency: insight.urgency,
+    salesStage: insight.sales_stage,
     summary: insight.summary,
+    implicitNeed: insight.implicit_need,
+    explicitNeed: insight.explicit_need,
+    objections: insight.objections,
     actionItems: insight.action_items,
     keyTopics: insight.key_topics,
+    nextCommitment: insight.next_commitment,
+    stallReason: insight.stall_reason,
+    confidenceScore: insight.confidence_score,
     suggestedResponse: insight.suggested_response,
     generatedAt,
   };

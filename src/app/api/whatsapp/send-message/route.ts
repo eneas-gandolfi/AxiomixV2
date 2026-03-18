@@ -5,37 +5,53 @@
  * Data: 2026-03-13
  */
 
-import { NextResponse } from "next/server";
+import { z } from "zod";
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { getSofiaCrmClient } from "@/services/sofia-crm/client";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function POST(request: Request) {
+export const dynamic = "force-dynamic";
+
+const sendMessageSchema = z.object({
+  companyId: z.string().uuid("companyId invalido."),
+  conversationExternalId: z.string().min(1, "conversationExternalId é obrigatório."),
+  content: z.string().min(1, "content é obrigatório."),
+});
+
+export async function POST(request: NextRequest) {
   try {
-    const { companyId, conversationExternalId, content } = await request.json();
+    const response = NextResponse.json({ ok: true });
+    const supabase = createSupabaseRouteHandlerClient(request, response);
+    const rawBody: unknown = await request.json();
+    const parsed = sendMessageSchema.safeParse(rawBody);
 
-    if (!companyId || !conversationExternalId || !content) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "companyId, conversationExternalId e content são obrigatórios." },
+        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
 
-    const sofiaClient = await getSofiaCrmClient(companyId);
-    await sofiaClient.sendMessage(conversationExternalId, content);
+    const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
+    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    await sofiaClient.sendMessage(parsed.data.conversationExternalId, parsed.data.content);
 
     // Salvar a mensagem localmente também
-    const supabase = await createSupabaseServerClient();
     await supabase.from("messages").insert({
-      company_id: companyId,
-      conversation_id: conversationExternalId,
-      content,
+      company_id: access.companyId,
+      conversation_id: parsed.data.conversationExternalId,
+      content: parsed.data.content,
       direction: "outbound",
       sent_at: new Date().toISOString(),
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof CompanyAccessError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Erro ao enviar mensagem.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message, code: "SEND_MESSAGE_ERROR" }, { status: 500 });
   }
 }

@@ -9,6 +9,11 @@ import "server-only";
 
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  resolvePreferredEvolutionInstance,
+  resolveEvolutionCredentials,
+  sendEvolutionTextMessage,
+} from "@/services/integrations/evolution";
 
 type SendWeeklyReportResult = {
   managerPhone: string;
@@ -37,15 +42,20 @@ async function resolveEvolutionConfig(companyId: string) {
     throw new Error("Numero do gestor nao configurado para esta empresa.");
   }
 
-  const baseUrl = decoded.baseUrl?.replace(/\/+$/, "");
-  const apiKey = decoded.apiKey;
-  if (!baseUrl || !apiKey) {
-    throw new Error("Credenciais da Evolution API nao configuradas no servidor.");
+  const instanceName = resolvePreferredEvolutionInstance(decoded.vendors);
+
+  if (!instanceName) {
+    throw new Error("Nenhuma instancia conectada na Evolution API.");
   }
 
+  const credentials = resolveEvolutionCredentials({
+    baseUrl: decoded.baseUrl,
+    apiKey: decoded.apiKey,
+  });
+
   return {
-    baseUrl,
-    apiKey,
+    credentials,
+    instanceName,
     managerPhone: decoded.managerPhone,
   };
 }
@@ -55,27 +65,17 @@ export async function sendWeeklyReport(
   reportText: string
 ): Promise<SendWeeklyReportResult> {
   const config = await resolveEvolutionConfig(companyId);
-  const response = await fetch(`${config.baseUrl}/message/sendText`, {
-    method: "POST",
-    headers: {
-      apikey: config.apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      number: config.managerPhone,
-      text: reportText,
-    }),
+  const result = await sendEvolutionTextMessage({
+    credentials: config.credentials,
+    instanceName: config.instanceName,
+    number: config.managerPhone,
+    text: reportText,
   });
-
-  const responseBody = await response.text();
-  if (!response.ok) {
-    throw new Error(`Falha no envio WhatsApp: ${response.status} ${responseBody.slice(0, 180)}`);
-  }
 
   return {
     managerPhone: config.managerPhone,
-    providerStatus: response.status,
-    providerBody: responseBody.slice(0, 500),
+    providerStatus: result.providerStatus,
+    providerBody: result.providerBody,
   };
 }
 

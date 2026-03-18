@@ -5,26 +5,43 @@
  * Data: 2026-03-13
  */
 
-import { NextResponse } from "next/server";
+import { z } from "zod";
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { getSofiaCrmClient } from "@/services/sofia-crm/client";
 
-export async function POST(request: Request) {
-  try {
-    const { companyId, phone } = await request.json();
+export const dynamic = "force-dynamic";
 
-    if (!companyId || !phone) {
+const startConversationSchema = z.object({
+  companyId: z.string().uuid("companyId invalido."),
+  phone: z.string().min(1, "phone é obrigatório."),
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    const response = NextResponse.json({ ok: true });
+    const supabase = createSupabaseRouteHandlerClient(request, response);
+    const rawBody: unknown = await request.json();
+    const parsed = startConversationSchema.safeParse(rawBody);
+
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "companyId e phone são obrigatórios." },
+        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
 
-    const sofiaClient = await getSofiaCrmClient(companyId);
-    const result = await sofiaClient.startConversation(phone);
+    const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
+    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    const result = await sofiaClient.startConversation(parsed.data.phone);
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof CompanyAccessError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Erro ao iniciar conversa.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message, code: "START_CONVERSATION_ERROR" }, { status: 500 });
   }
 }

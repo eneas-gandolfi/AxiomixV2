@@ -30,7 +30,7 @@ export default async function ConversasPage() {
   // Buscar conversas
   const { data: conversations } = await supabase
     .from("conversations")
-    .select("id, external_id, contact_name, remote_jid, status, last_message_at")
+    .select("id, external_id, contact_name, contact_avatar_url, remote_jid, status, last_message_at")
     .eq("company_id", companyId)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
@@ -75,7 +75,7 @@ export default async function ConversasPage() {
     <>
       {/* Ações */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <AutoSyncIndicator companyId={companyId} intervalSeconds={300} />
+        <AutoSyncIndicator companyId={companyId} intervalSeconds={600} />
         <div className="flex flex-wrap gap-2">
           <StartConversationButton companyId={companyId} />
           <ExportButton companyId={companyId} />

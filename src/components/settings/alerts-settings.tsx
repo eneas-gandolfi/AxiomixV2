@@ -19,6 +19,10 @@ import {
   AlertCircle,
   Clock,
 } from "lucide-react";
+import {
+  formatAlertErrorDetail,
+  formatAlertRecipientPhone,
+} from "@/lib/alerts/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
@@ -354,7 +358,7 @@ export function AlertsSettings() {
                         {ALERT_TYPE_LABELS[log.alertType] ?? log.alertType}
                       </td>
                       <td className="py-2.5 pr-4 text-xs text-muted font-mono">
-                        {log.recipientPhone.slice(-4).padStart(log.recipientPhone.length, "*")}
+                        {formatAlertRecipientPhone(log.recipientPhone)}
                       </td>
                       <td className="py-2.5">
                         {log.status === "sent" ? (
@@ -362,7 +366,10 @@ export function AlertsSettings() {
                             <CheckCircle2 className="h-3 w-3" /> Enviado
                           </span>
                         ) : log.status === "failed" ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-danger" title={log.errorDetail ?? ""}>
+                          <span
+                            className="inline-flex items-center gap-1 text-xs text-danger"
+                            title={formatAlertErrorDetail(log.errorDetail) ?? ""}
+                          >
                             <AlertCircle className="h-3 w-3" /> Falhou
                           </span>
                         ) : (

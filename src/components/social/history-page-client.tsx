@@ -9,48 +9,17 @@ import {
 } from "react";
 import { AlertCircle, Filter, History, Loader2 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { normalizeProgress, normalizeStringMap } from "@/lib/social/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PostDetailsModal } from "./post-details-modal";
 import { PostHistoryTable } from "./post-history-table";
 import type {
-  PublishErrorMap,
-  PublishProgressMap,
-  PublishResultMap,
-  SocialPlatform,
-  SocialPostType,
+  ScheduledHistoryItem,
+  HistoryResponse,
+  ApiErrorPayload,
   SocialPublishStatus,
 } from "@/types/modules/social-publisher.types";
-
-type ScheduledHistoryItem = {
-  id: string;
-  postType: SocialPostType;
-  caption: string | null;
-  platforms: SocialPlatform[];
-  scheduledAt: string;
-  status: SocialPublishStatus;
-  progress: PublishProgressMap;
-  externalPostIds: PublishResultMap;
-  errorDetails: PublishErrorMap;
-  publishedAt: string | null;
-  createdAt: string;
-  qstashMessageId: string | null;
-  mediaFileIds: string[];
-  thumbnailUrl: string | null;
-  thumbnailType: string | null;
-};
-
-type HistoryResponse = {
-  items: ScheduledHistoryItem[];
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-};
-
-type ApiErrorPayload = {
-  error?: string;
-};
 
 type StatusFilter = "all" | SocialPublishStatus;
 
@@ -58,58 +27,6 @@ type HistoryPageClientProps = {
   companyId: string;
   initialHistory: HistoryResponse;
 };
-
-function normalizeStringMap(raw: unknown): Record<string, string> {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    return {};
-  }
-
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    if (typeof value === "string") {
-      result[key] = value;
-    }
-  }
-
-  return result;
-}
-
-function normalizeProgress(raw: unknown): PublishProgressMap {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    return {};
-  }
-
-  const result: PublishProgressMap = {};
-  for (const [key, value] of Object.entries(raw)) {
-    if (key !== "instagram" && key !== "linkedin" && key !== "tiktok" && key !== "facebook") {
-      continue;
-    }
-
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-      continue;
-    }
-
-    const item = value as Record<string, unknown>;
-    const status = item.status;
-    if (
-      status !== "pending" &&
-      status !== "processing" &&
-      status !== "ok" &&
-      status !== "error"
-    ) {
-      continue;
-    }
-
-    result[key as SocialPlatform] = {
-      status,
-      externalPostId: typeof item.externalPostId === "string" ? item.externalPostId : undefined,
-      error: typeof item.error === "string" ? item.error : undefined,
-      updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : new Date().toISOString(),
-    };
-  }
-
-  return result;
-}
 
 export function HistoryPageClient({
   companyId,

@@ -23,49 +23,55 @@
    ANT DESIGN SCOPE
    ═══════════════════════════════════════════════════════════ */
 
-.antd-scope {
-  *, *::before, *::after {
-    box-sizing: border-box;
-  }
+.antd-scope *,
+.antd-scope *::before,
+.antd-scope *::after {
+  box-sizing: border-box;
+}
 
-  input, button, select, textarea {
-    font-family: inherit;
-    font-size: inherit;
-    line-height: inherit;
-  }
+.antd-scope input,
+.antd-scope button,
+.antd-scope select,
+.antd-scope textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
 
-  /* Header uppercase */
-  .ant-table-thead > tr > th {
-    font-family: 'Geist Mono', monospace !important;
-    font-size: 12px !important;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
+/* Header uppercase */
+.antd-scope .ant-table-thead > tr > th {
+  font-family: 'Geist Mono', monospace !important;
+  font-size: 12px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 
-  /* Row highlights customizados */
-  .ant-table-row-negative-recent > td {
-    background-color: var(--color-danger-bg) !important;
-  }
-  .ant-table-row-negative-recent:hover > td {
-    background-color: var(--color-danger-bg) !important;
-  }
-  .ant-table-row-selected-axiomix > td {
-    background-color: var(--color-primary-dim) !important;
-    border-left: 2px solid var(--color-primary);
-  }
-  .ant-table-row-selected-axiomix:hover > td {
-    background-color: var(--color-primary-dim) !important;
-  }
+/* Row highlights customizados */
+.antd-scope .ant-table-row-negative-recent > td {
+  background-color: var(--color-danger-bg) !important;
+}
 
-  /* Override default Ant selection blue */
-  .ant-table-row-selected > td {
-    background-color: var(--color-primary-dim) !important;
-  }
+.antd-scope .ant-table-row-negative-recent:hover > td {
+  background-color: var(--color-danger-bg) !important;
+}
 
-  /* Quick actions visíveis no hover da row */
-  .ant-table-row:hover .quick-actions {
-    opacity: 1;
-  }
+.antd-scope .ant-table-row-selected-axiomix > td {
+  background-color: var(--color-primary-dim) !important;
+  border-left: 2px solid var(--color-primary);
+}
+
+.antd-scope .ant-table-row-selected-axiomix:hover > td {
+  background-color: var(--color-primary-dim) !important;
+}
+
+/* Override default Ant selection blue */
+.antd-scope .ant-table-row-selected > td {
+  background-color: var(--color-primary-dim) !important;
+}
+
+/* Quick actions visíveis no hover da row */
+.antd-scope .ant-table-row:hover .quick-actions {
+  opacity: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════

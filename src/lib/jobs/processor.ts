@@ -7,11 +7,12 @@
 
 import { z } from "zod";
 import type { AsyncJobRow } from "@/lib/jobs/queue";
-import { getNextPendingJob, markJobDone, markJobFailed, markJobRunning } from "@/lib/jobs/queue";
+import { getNextPendingJob, markJobDone, markJobFailed, markJobRunning, updateJobProgress } from "@/lib/jobs/queue";
 import { parseCompetitorJobPayload, runCompetitorWorker } from "@/services/intelligence/competitor";
 import { parseRadarJobPayload, runRadarWorkerEnhanced } from "@/services/intelligence/radar-enhanced";
 import { runWeeklyReportJob } from "@/services/report/weekly-job";
 import { syncConversations } from "@/services/sofia-crm/conversations";
+import { runRagProcessWorker } from "@/services/rag/processor";
 import { analyzeConversation } from "@/services/whatsapp/analyzer";
 import { enqueueAutoAnalyses } from "@/services/whatsapp/auto-analyze";
 
@@ -44,6 +45,10 @@ const weeklyReportPayloadSchema = z.object({
   weekEndIso: z.string().datetime().optional(),
 });
 
+const ragProcessPayloadSchema = z.object({
+  documentId: z.string().uuid("documentId invalido."),
+});
+
 function normalizeError(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -66,7 +71,14 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
   const payload = parseObjectPayload(job.payload);
   switch (job.job_type) {
     case "sofia_crm_sync": {
-      const syncResult = await syncConversations(job.company_id);
+      const syncResult = await syncConversations(job.company_id, (progress) => {
+        void updateJobProgress(job.id, {
+          phase: progress.phase,
+          totalConversations: progress.totalConversations,
+          syncedConversations: progress.processedConversations,
+          syncedMessages: progress.syncedMessages,
+        });
+      });
       // Após sync bem-sucedido, enfileirar análises automáticas para conversas sem insight
       const analyzeResult = await enqueueAutoAnalyses(job.company_id);
       return {
@@ -93,25 +105,27 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
         },
       });
     }
+    case "daily_report": {
+      const parsed = z.object({
+        reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      }).parse(payload);
+      const { runDailyReportJob } = await import("@/services/report/daily-job");
+      return runDailyReportJob({
+        companyId: job.company_id,
+        jobId: job.id,
+        reportDate: parsed.reportDate,
+      });
+    }
+    case "rag_process": {
+      const parsed = ragProcessPayloadSchema.parse(payload);
+      return runRagProcessWorker(job.company_id, { documentId: parsed.documentId });
+    }
     default:
       throw new Error(`job_type nao suportado: ${job.job_type}`);
   }
 }
 
-export async function processNextJob(
-  companyId?: string,
-  allowedTypes?: AsyncJobRow["job_type"][]
-): Promise<ProcessedJobResult | null> {
-  const pending = await getNextPendingJob(companyId, allowedTypes);
-  if (!pending) {
-    return null;
-  }
-
-  const running = await markJobRunning(pending.id);
-  if (!running) {
-    return null;
-  }
-
+async function finalizeJobProcessing(running: AsyncJobRow): Promise<ProcessedJobResult> {
   try {
     const result = await dispatchJob(running);
     await markJobDone(running.id, result);
@@ -133,6 +147,32 @@ export async function processNextJob(
       error: detail,
     };
   }
+}
+
+export async function processJobById(jobId: string): Promise<ProcessedJobResult | null> {
+  const running = await markJobRunning(jobId);
+  if (!running) {
+    return null;
+  }
+
+  return finalizeJobProcessing(running);
+}
+
+export async function processNextJob(
+  companyId?: string,
+  allowedTypes?: AsyncJobRow["job_type"][]
+): Promise<ProcessedJobResult | null> {
+  const pending = await getNextPendingJob(companyId, allowedTypes);
+  if (!pending) {
+    return null;
+  }
+
+  const running = await markJobRunning(pending.id);
+  if (!running) {
+    return null;
+  }
+
+  return finalizeJobProcessing(running);
 }
 
 export async function processJobs(options?: ProcessJobsOptions): Promise<JobsProcessingSummary> {

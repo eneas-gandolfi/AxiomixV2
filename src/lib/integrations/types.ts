@@ -13,7 +13,7 @@ export type IntegrationTestStatus = "ok" | "error";
 export type SofiaCrmConfig = {
   baseUrl: string;
   apiToken: string;
-  inboxId: string;
+  inboxId?: string;
 };
 
 export type EvolutionVendorStatus = "pending" | "connected" | "error";

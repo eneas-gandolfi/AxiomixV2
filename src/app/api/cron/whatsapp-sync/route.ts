@@ -8,26 +8,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { enqueueJob } from "@/lib/jobs/queue";
+import { isCronAuthorized } from "@/lib/auth/cron-auth";
 
 export const dynamic = "force-dynamic";
 
 const MIN_SYNC_INTERVAL_MINUTES = 15;
 
-function isCronCall(request: NextRequest) {
-  const vercelCronHeader = request.headers.get("x-vercel-cron");
-  const cronSecretHeader = request.headers.get("x-cron-secret");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret) {
-    return cronSecretHeader === cronSecret;
-  }
-
-  return Boolean(vercelCronHeader);
-}
-
 export async function GET(request: NextRequest) {
   try {
-    if (!isCronCall(request)) {
+    if (!isCronAuthorized(request)) {
       return NextResponse.json(
         { error: "Endpoint reservado para cron.", code: "UNAUTHORIZED" },
         { status: 401 }

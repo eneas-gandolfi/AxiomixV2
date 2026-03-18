@@ -9,14 +9,53 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { syncConversations, syncMessages } from "@/services/sofia-crm/conversations";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { enqueueJob } from "@/lib/jobs/queue";
+import { syncMessages, syncRecentMessages } from "@/services/sofia-crm/conversations";
 
 export const dynamic = "force-dynamic";
+
+const STALE_PENDING_MINUTES = 2;
+const STALE_RUNNING_MINUTES = 5;
 
 const syncRequestSchema = z.object({
   companyId: z.string().uuid("companyId invalido.").optional(),
   conversationId: z.string().uuid("conversationId invalido.").optional(),
+  mode: z.enum(["full", "messages_only"]).optional(),
+  processAnalyses: z.boolean().optional().default(true),
+  maxAnalyses: z.number().int().min(1).max(10).optional(),
 });
+
+async function clearStaleSofiaSyncJobs(companyId: string) {
+  const adminSupabase = createSupabaseAdminClient();
+  const nowIso = new Date().toISOString();
+  const stalePendingCutoff = new Date(Date.now() - STALE_PENDING_MINUTES * 60_000).toISOString();
+  const staleRunningCutoff = new Date(Date.now() - STALE_RUNNING_MINUTES * 60_000).toISOString();
+
+  await adminSupabase
+    .from("async_jobs")
+    .update({
+      status: "failed",
+      error_message: "Job expirou em pending e foi encerrado automaticamente.",
+      completed_at: nowIso,
+    })
+    .eq("company_id", companyId)
+    .eq("job_type", "sofia_crm_sync")
+    .eq("status", "pending")
+    .lt("created_at", stalePendingCutoff);
+
+  await adminSupabase
+    .from("async_jobs")
+    .update({
+      status: "failed",
+      error_message: "Job expirou em running e foi encerrado automaticamente.",
+      completed_at: nowIso,
+    })
+    .eq("company_id", companyId)
+    .eq("job_type", "sofia_crm_sync")
+    .eq("status", "running")
+    .lt("started_at", staleRunningCutoff);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,11 +82,49 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const syncResult = await syncConversations(access.companyId);
+    if (parsed.data.mode === "messages_only") {
+      const result = await syncRecentMessages(access.companyId, {
+        conversationLimit: 5,
+        messageLimit: 80,
+      });
+      return NextResponse.json({
+        companyId: access.companyId,
+        mode: "messages_only",
+        result,
+      });
+    }
+
+    await clearStaleSofiaSyncJobs(access.companyId);
+
+    const adminSupabase = createSupabaseAdminClient();
+    const { data: existingJob } = await adminSupabase
+      .from("async_jobs")
+      .select("id, status")
+      .eq("company_id", access.companyId)
+      .eq("job_type", "sofia_crm_sync")
+      .in("status", ["pending", "running"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingJob?.id) {
+      return NextResponse.json({
+        companyId: access.companyId,
+        mode: "conversations",
+        jobId: existingJob.id,
+        jobStatus: existingJob.status,
+        message: "Sincronizacao ja esta em andamento.",
+      });
+    }
+
+    const queuedJob = await enqueueJob("sofia_crm_sync", {}, access.companyId, undefined, 1);
+
     return NextResponse.json({
       companyId: access.companyId,
       mode: "conversations",
-      result: syncResult,
+      jobId: queuedJob.id,
+      jobStatus: queuedJob.status,
+      message: "Sincronizacao iniciada em background.",
     });
   } catch (error) {
     if (error instanceof CompanyAccessError) {

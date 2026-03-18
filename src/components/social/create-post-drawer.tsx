@@ -24,6 +24,17 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  buildUploadMediaFiles,
+  IMAGE_TYPES,
+  inferPostTypeFromFiles,
+  inferPostTypeFromLibraryItems,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+  postTypeLabel,
+  validateClientMedia,
+  VIDEO_TYPES,
+} from "@/lib/social/utils";
 import { Button } from "@/components/ui/button";
 import { CalendarScheduler } from "./calendar-scheduler";
 import { HashtagGroupPicker } from "./hashtag-group-picker";
@@ -33,16 +44,13 @@ import { MockupPreviews } from "./mockup-previews";
 import { PlatformIcon, PLATFORM_BRAND_COLORS, PLATFORM_LABELS } from "./platform-icons";
 import type { MediaLibraryItem } from "@/types/modules/cloudinary.types";
 import type {
+  ApiErrorPayload,
   BestTimeSlot,
   BestTimesData,
+  ConnectedPlatform,
   SocialPlatform,
   SocialPostType,
 } from "@/types/modules/social-publisher.types";
-
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
-const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const VIDEO_TYPES = new Set(["video/mp4", "video/quicktime"]);
 
 const PLATFORM_LIMITS: Record<SocialPlatform, number> = {
   instagram: 2200,
@@ -63,30 +71,13 @@ const POST_TYPE_OPTIONS: Array<{
   { type: "carousel", label: "Carrossel", icon: GalleryHorizontal },
 ];
 
-type ConnectedPlatform = {
-  platform: SocialPlatform;
-  accountName: string | null;
-};
-
-type ApiErrorPayload = {
-  error?: string;
-};
-
 type BestTimesPayload = ApiErrorPayload &
   BestTimesData & {
     companyId?: string;
   };
 
-export type MediaFile = {
-  id: string;
-  file: File;
-  previewUrl: string;
-  editedBlob?: Blob;
-  editedBlobUrl?: string;
-  source: "upload" | "library";
-  libraryItemId?: string;
-  revokePreviewOnDispose?: boolean;
-};
+import type { MediaFile } from "@/lib/social/utils";
+export type { MediaFile };
 
 export type CreatePostDrawerProps = {
   open: boolean;
@@ -96,12 +87,6 @@ export type CreatePostDrawerProps = {
   initialMediaFiles?: MediaFile[];
   onSuccess: () => void;
 };
-
-function postTypeLabel(postType: SocialPostType) {
-  if (postType === "photo") return "Foto";
-  if (postType === "video") return "Video";
-  return "Carrossel";
-}
 
 function getNextAvailableDate() {
   const next = new Date();
@@ -127,16 +112,6 @@ function cleanupMediaFile(mediaFile: MediaFile) {
   }
 }
 
-function buildUploadMediaFiles(files: File[]) {
-  return files.map((file) => ({
-    id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
-    file,
-    previewUrl: URL.createObjectURL(file),
-    source: "upload" as const,
-    revokePreviewOnDispose: true,
-  }));
-}
-
 function buildLibraryMediaFiles(items: MediaLibraryItem[]) {
   return items.map((item) => ({
     id: `library-${item.id}`,
@@ -145,60 +120,6 @@ function buildLibraryMediaFiles(items: MediaLibraryItem[]) {
     source: "library" as const,
     libraryItemId: item.id,
   }));
-}
-
-function validateClientMedia(postType: SocialPostType, files: MediaFile[]) {
-  if (files.length === 0) {
-    return null;
-  }
-
-  if (postType === "photo") {
-    if (files.length !== 1) {
-      return "Foto exige exatamente 1 imagem.";
-    }
-    if (!IMAGE_TYPES.has(files[0].file.type)) {
-      return "Foto aceita jpg, png ou webp.";
-    }
-    return null;
-  }
-
-  if (postType === "video") {
-    if (files.length !== 1) {
-      return "Video exige exatamente 1 arquivo.";
-    }
-    if (!VIDEO_TYPES.has(files[0].file.type)) {
-      return "Video aceita mp4 ou mov.";
-    }
-    return null;
-  }
-
-  if (files.length < 2 || files.length > 10) {
-    return "Carrossel exige entre 2 e 10 imagens.";
-  }
-  if (files.some((mediaFile) => !IMAGE_TYPES.has(mediaFile.file.type))) {
-    return "Carrossel aceita apenas jpg, png ou webp.";
-  }
-  return null;
-}
-
-function inferPostTypeFromFiles(files: File[]): SocialPostType | null {
-  if (files.length === 0) return null;
-  if (files.length === 1) {
-    if (IMAGE_TYPES.has(files[0].type)) return "photo";
-    if (VIDEO_TYPES.has(files[0].type)) return "video";
-    return null;
-  }
-  return files.every((file) => IMAGE_TYPES.has(file.type)) ? "carousel" : null;
-}
-
-function inferPostTypeFromLibraryItems(items: MediaLibraryItem[]): SocialPostType | null {
-  if (items.length === 0) return null;
-  if (items.length === 1) {
-    if (IMAGE_TYPES.has(items[0].fileType)) return "photo";
-    if (VIDEO_TYPES.has(items[0].fileType)) return "video";
-    return null;
-  }
-  return items.every((item) => IMAGE_TYPES.has(item.fileType)) ? "carousel" : null;
 }
 
 function canReuseLibraryIds(files: MediaFile[]) {

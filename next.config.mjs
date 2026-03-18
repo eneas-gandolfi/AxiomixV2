@@ -8,6 +8,12 @@ const nextConfig = {
       },
     ],
   },
+  serverExternalPackages: ["pdf-parse"],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "25mb",
+    },
+  },
 };
 
 export default nextConfig;

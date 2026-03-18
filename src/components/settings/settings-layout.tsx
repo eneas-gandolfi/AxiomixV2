@@ -94,6 +94,7 @@ type ReportData = {
   sendDisabledReason?: string;
   recentReports: RecentReportItem[];
   hasRunningJob: boolean;
+  runningJobCreatedAt?: string | null;
 };
 
 type SettingsLayoutProps = {
@@ -460,6 +461,7 @@ function ReportsTab({ data }: { data: ReportData }) {
         <RecentReportsCard
           reports={data.recentReports}
           hasRunningJob={data.hasRunningJob}
+          runningJobCreatedAt={data.runningJobCreatedAt}
         />
       </div>
     </div>

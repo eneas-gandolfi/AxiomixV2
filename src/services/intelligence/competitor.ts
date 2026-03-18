@@ -17,6 +17,7 @@ import type {
   InsightGenerationResult,
   IntelligencePlatform,
 } from "@/types/modules/intelligence.types";
+import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 
 const competitorJobPayloadSchema: z.ZodType<CompetitorCollectionJobPayload> = z.object({
   competitorId: z.string().uuid("competitorId invalido.").optional(),
@@ -117,7 +118,11 @@ async function generateCompetitorInsight(
   posts: CollectedPostDraft[]
 ): Promise<InsightGenerationResult> {
   try {
-    const prompt = buildCompetitorInsightPrompt(competitor.name, posts);
+    const kbContext = await getKnowledgeBaseContext(
+      companyId,
+      `estrategia posicionamento marca ${competitor.name}`
+    );
+    const prompt = buildCompetitorInsightPrompt(competitor.name, posts, kbContext || undefined);
     const rawJson = await openRouterChatCompletion(companyId, [
       {
         role: "system",
@@ -127,7 +132,9 @@ async function generateCompetitorInsight(
         role: "user",
         content: prompt,
       },
-    ]);
+    ], {
+      model: process.env.OPENROUTER_MODEL_LIGHT,
+    });
 
     const parsedUnknown: unknown = JSON.parse(rawJson);
     const parsed = competitorInsightSchema.parse(parsedUnknown);

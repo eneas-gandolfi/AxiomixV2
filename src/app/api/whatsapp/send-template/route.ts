@@ -5,31 +5,52 @@
  * Data: 2026-03-13
  */
 
-import { NextResponse } from "next/server";
+import { z } from "zod";
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import type { Json } from "@/database/types/database.types";
 
-export async function POST(request: Request) {
+export const dynamic = "force-dynamic";
+
+const sendTemplateSchema = z.object({
+  companyId: z.string().uuid("companyId invalido."),
+  to: z.string().min(1, "to é obrigatório."),
+  templateName: z.string().min(1, "templateName é obrigatório."),
+  language: z.string().optional(),
+  components: z.unknown().optional(),
+});
+
+export async function POST(request: NextRequest) {
   try {
-    const { companyId, to, templateName, language, components } = await request.json();
+    const response = NextResponse.json({ ok: true });
+    const supabase = createSupabaseRouteHandlerClient(request, response);
+    const rawBody: unknown = await request.json();
+    const parsed = sendTemplateSchema.safeParse(rawBody);
 
-    if (!companyId || !to || !templateName) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "companyId, to e templateName são obrigatórios." },
+        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
 
-    const sofiaClient = await getSofiaCrmClient(companyId);
+    const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
+    const sofiaClient = await getSofiaCrmClient(access.companyId);
     await sofiaClient.sendTemplate({
-      to,
-      templateName,
-      language: language ?? "pt_BR",
-      components,
+      to: parsed.data.to,
+      templateName: parsed.data.templateName,
+      language: parsed.data.language ?? "pt_BR",
+      components: parsed.data.components as Json | undefined,
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof CompanyAccessError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Erro ao enviar template.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message, code: "SEND_TEMPLATE_ERROR" }, { status: 500 });
   }
 }

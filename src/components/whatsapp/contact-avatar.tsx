@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 
 type ContactAvatarProps = {
   name: string | null;
+  avatarUrl?: string | null;
   size?: "sm" | "md" | "lg";
   className?: string;
 };
@@ -88,16 +89,25 @@ function getSizeClasses(size?: "sm" | "md" | "lg") {
   }
 }
 
-export function ContactAvatar({ name, size = "md", className = "" }: ContactAvatarProps) {
+export function ContactAvatar({ name, avatarUrl, size = "md", className = "" }: ContactAvatarProps) {
   const [mounted, setMounted] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl]);
+
   const initials = getInitials(name);
   const colors = getColorForName(name);
   const sizeClasses = getSizeClasses(size);
+  const proxiedUrl = avatarUrl
+    ? `/api/whatsapp/avatar-proxy?url=${encodeURIComponent(avatarUrl)}`
+    : null;
+  const showImage = mounted && !!proxiedUrl && !imgError;
 
   // Durante SSR e hydration inicial, usa uma versão simplificada
   if (!mounted) {
@@ -108,6 +118,18 @@ export function ContactAvatar({ name, size = "md", className = "" }: ContactAvat
       >
         {initials}
       </div>
+    );
+  }
+
+  if (showImage) {
+    return (
+      <img
+        src={proxiedUrl!}
+        alt={name ?? "Contato sem nome"}
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
+        className={`shrink-0 rounded-full object-cover ${sizeClasses} ${className}`}
+      />
     );
   }
 

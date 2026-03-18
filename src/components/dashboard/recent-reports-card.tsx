@@ -2,18 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, FileText, X } from "lucide-react";
+import { LoadingSpinner } from "@/components/shared/loading-spinner";
 
 export type RecentReportItem = {
   id: string;
   completedAt: string | null;
   reportText: string;
-  status?: "done" | "failed";
+  status?: "done" | "failed" | "delivery_failed";
   errorMessage?: string | null;
 };
 
 type RecentReportsCardProps = {
   reports: RecentReportItem[];
   hasRunningJob: boolean;
+  runningJobCreatedAt?: string | null;
 };
 
 function formatDateLabel(value: string | null) {
@@ -38,7 +40,13 @@ function truncatePreview(text: string, maxChars: number) {
   return `${text.slice(0, maxChars).trim()}...`;
 }
 
-export function RecentReportsCard({ reports, hasRunningJob }: RecentReportsCardProps) {
+function formatElapsedMinutes(createdAt: string) {
+  const elapsedMs = Date.now() - new Date(createdAt).getTime();
+  const minutes = Math.max(1, Math.round(elapsedMs / 60_000));
+  return `Iniciado há ${minutes} min`;
+}
+
+export function RecentReportsCard({ reports, hasRunningJob, runningJobCreatedAt }: RecentReportsCardProps) {
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
   const selectedReport = useMemo(
@@ -78,10 +86,14 @@ export function RecentReportsCard({ reports, hasRunningJob }: RecentReportsCardP
       </header>
 
       {hasRunningJob ? (
-        <div className="mb-4 rounded-lg border border-border p-4" aria-busy="true">
-          <div className="mb-2 h-4 w-1/3 animate-pulse rounded bg-border" />
-          <div className="h-3 w-1/2 animate-pulse rounded bg-border" />
-          <p className="mt-3 text-sm text-muted">Gerando relatório...</p>
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4" aria-busy="true">
+          <LoadingSpinner size="sm" />
+          <div>
+            <p className="text-sm font-medium text-blue-900">Relatório em processamento</p>
+            {runningJobCreatedAt ? (
+              <p className="text-xs text-blue-700">{formatElapsedMinutes(runningJobCreatedAt)}</p>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -102,6 +114,11 @@ export function RecentReportsCard({ reports, hasRunningJob }: RecentReportsCardP
                   <span className="inline-flex items-center gap-1 rounded bg-destructive/10 px-2.5 py-1 text-xs text-destructive">
                     <AlertCircle className="h-3.5 w-3.5" aria-label="Falhou" />
                     Falhou
+                  </span>
+                ) : report.status === "delivery_failed" ? (
+                  <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2.5 py-1 text-xs text-amber-700">
+                    <AlertCircle className="h-3.5 w-3.5" aria-label="Envio falhou" />
+                    Envio falhou
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded bg-success-light px-2.5 py-1 text-xs text-success">

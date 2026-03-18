@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Info } from "lucide-react";
 import { SendReportButton } from "@/components/dashboard/send-report-button";
 import { cn } from "@/lib/utils";
 
@@ -77,7 +77,10 @@ export function NextReportCard({
               iconPosition="right"
             />
             {!canSendNow && sendDisabledReason && (
-              <p className="text-xs text-warning">{sendDisabledReason}</p>
+              <div className="flex items-center gap-1.5 text-xs text-warning">
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                <p>{sendDisabledReason}</p>
+              </div>
             )}
           </div>
         )}

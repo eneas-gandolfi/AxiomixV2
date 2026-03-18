@@ -223,3 +223,58 @@ export async function markJobFailed(jobId: string, error: unknown): Promise<void
     throw new Error("Falha ao marcar job como failed.");
   }
 }
+
+export async function updateJobProgress(jobId: string, progress: unknown): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("async_jobs")
+    .update({ result: toJsonValue(progress) })
+    .eq("id", jobId)
+    .eq("status", "running");
+
+  if (error) {
+    console.error("[JOB] Falha ao atualizar progresso do job:", error.message);
+  }
+}
+
+export async function markStaleJobsFailed(companyId: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const stalePendingCutoff = new Date(Date.now() - 10 * 60_000).toISOString();
+  const staleRunningCutoff = new Date(Date.now() - 30 * 60_000).toISOString();
+  const now = new Date().toISOString();
+
+  await supabase
+    .from("async_jobs")
+    .update({ status: "failed", error_message: "Job expirou (stale).", completed_at: now })
+    .eq("company_id", companyId)
+    .eq("job_type", "weekly_report")
+    .eq("status", "pending")
+    .lt("created_at", stalePendingCutoff);
+
+  await supabase
+    .from("async_jobs")
+    .update({ status: "failed", error_message: "Job expirou (stale).", completed_at: now })
+    .eq("company_id", companyId)
+    .eq("job_type", "weekly_report")
+    .eq("status", "running")
+    .lt("started_at", staleRunningCutoff);
+}
+
+export async function recoverStaleJobs(companyId: string, staleMinutes = 5): Promise<number> {
+  const supabase = createSupabaseAdminClient();
+  const staleThreshold = new Date(Date.now() - staleMinutes * 60_000).toISOString();
+
+  const { data } = await supabase
+    .from("async_jobs")
+    .update({
+      status: "pending" as const,
+      error_message: "Job preso em running. Resetado automaticamente.",
+      started_at: null,
+    })
+    .eq("company_id", companyId)
+    .eq("status", "running")
+    .lt("started_at", staleThreshold)
+    .select("id");
+
+  return data?.length ?? 0;
+}

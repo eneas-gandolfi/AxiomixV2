@@ -14,6 +14,7 @@ import {
 } from "@/lib/jobs/queue";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { analyzeConversation } from "@/services/whatsapp/analyzer";
+import { isCronAuthorized } from "@/lib/auth/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -21,16 +22,6 @@ export const maxDuration = 120;
 const CRON_MAX_ANALYSES = 3;
 const JOB_SELECT_FIELDS =
   "id, company_id, job_type, payload, status, attempts, max_attempts, error_message, result, scheduled_for, started_at, completed_at, created_at";
-
-function isCronCall(request: NextRequest) {
-  const vercelCronHeader = request.headers.get("x-vercel-cron");
-  const cronSecretHeader = request.headers.get("x-cron-secret");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    return cronSecretHeader === cronSecret;
-  }
-  return Boolean(vercelCronHeader);
-}
 
 function parseConversationId(payload: AsyncJobRow["payload"]) {
   if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
@@ -67,7 +58,7 @@ async function getPendingAnalyzeJobs(limit: number): Promise<AsyncJobRow[]> {
 
 export async function GET(request: NextRequest) {
   try {
-    if (!isCronCall(request)) {
+    if (!isCronAuthorized(request)) {
       return NextResponse.json(
         { error: "Endpoint reservado para cron.", code: "UNAUTHORIZED" },
         { status: 401 }

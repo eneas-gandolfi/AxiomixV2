@@ -25,6 +25,7 @@ type RunWeeklyReportJobResult = {
   reportText: string;
   managerPhone?: string;
   deliveryStatus: "sent" | "failed";
+  deliveryError?: string;
 };
 
 async function upsertWeeklyReportRecord(input: {
@@ -98,7 +99,15 @@ export async function runWeeklyReportJob(
         error: detail,
       },
     });
-    throw error;
+
+    return {
+      companyId: input.companyId,
+      weekStart: generated.period.weekStartIso,
+      weekEnd: generated.period.weekEndIso,
+      reportText: generated.reportText,
+      deliveryStatus: "failed",
+      deliveryError: detail,
+    };
   }
 }
 

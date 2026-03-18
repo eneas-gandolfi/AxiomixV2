@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/(app)/whatsapp-intelligence/conversas/[id]/page.tsx
- * Propósito: Exibir histórico da conversa e insight de IA com ações recomendadas.
+ * Proposito: Exibir historico da conversa e insight de IA com acoes recomendadas.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -8,22 +8,23 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
-  ExternalLink,
-  ShoppingCart,
-  Headphones,
   AlertTriangle,
-  HelpCircle,
-  XCircle,
-  MoreHorizontal,
   ArrowLeft,
+  ExternalLink,
+  Headphones,
+  HelpCircle,
+  MoreHorizontal,
+  ShoppingCart,
+  XCircle,
 } from "lucide-react";
 import { PageContainer } from "@/components/layouts/page-container";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { AnalyzeConversationButton } from "@/components/whatsapp/analyze-conversation-button";
-import { ConversationChat } from "@/components/whatsapp/conversation-chat";
-import { SessionStatusBadge } from "@/components/whatsapp/session-status-badge";
 import { AssignSofiaAgentSelect } from "@/components/whatsapp/assign-sofia-agent-select";
+import { ConversationChat } from "@/components/whatsapp/conversation-chat";
+import { InsightFeedbackPanel } from "@/components/whatsapp/insight-feedback-panel";
+import { SessionStatusBadge } from "@/components/whatsapp/session-status-badge";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSofiaCrmClient } from "@/services/sofia-crm/client";
@@ -32,6 +33,13 @@ type ConversationDetailsPageProps = {
   params: Promise<{
     id: string;
   }>;
+};
+
+type ParsedInsightData = {
+  actionItems: string[];
+  urgency: number | null;
+  suggestedResponse: string | null;
+  keyTopics: string[];
 };
 
 function sentimentBadgeClass(sentiment?: string | null) {
@@ -88,13 +96,6 @@ function getIntentColor(intent?: string | null) {
   }
 }
 
-type ParsedInsightData = {
-  actionItems: string[];
-  urgency: number | null;
-  suggestedResponse: string | null;
-  keyTopics: string[];
-};
-
 function parseInsightData(raw: unknown): ParsedInsightData {
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
     const obj = raw as Record<string, unknown>;
@@ -107,38 +108,84 @@ function parseInsightData(raw: unknown): ParsedInsightData {
           ? obj.urgency
           : null,
       suggestedResponse:
-        typeof obj.suggested_response === "string" &&
-        obj.suggested_response.trim().length > 0
+        typeof obj.suggested_response === "string" && obj.suggested_response.trim().length > 0
           ? obj.suggested_response
           : null,
       keyTopics: Array.isArray(obj.key_topics)
-        ? obj.key_topics.filter((t): t is string => typeof t === "string")
+        ? obj.key_topics.filter((topic): topic is string => typeof topic === "string")
         : [],
     };
   }
+
   if (Array.isArray(raw)) {
     return {
-      actionItems: raw.filter((i): i is string => typeof i === "string"),
+      actionItems: raw.filter((item): item is string => typeof item === "string"),
       urgency: null,
       suggestedResponse: null,
       keyTopics: [],
     };
   }
+
   return { actionItems: [], urgency: null, suggestedResponse: null, keyTopics: [] };
 }
 
 function getUrgencyConfig(urgency: number | null) {
   if (!urgency) return null;
-  if (urgency <= 2)
-    return { label: "Baixa", color: "text-[var(--color-success)]", bg: "bg-[var(--color-success-bg)]" };
-  if (urgency === 3)
-    return { label: "Média", color: "text-[var(--color-warning)]", bg: "bg-[var(--color-warning-bg)]" };
-  if (urgency === 4)
-    return { label: "Alta", color: "text-[var(--color-primary)]", bg: "bg-[var(--color-primary-dim)]" };
-  return { label: "Crítica", color: "text-[var(--color-danger)]", bg: "bg-[var(--color-danger-bg)]" };
+  if (urgency <= 2) {
+    return {
+      label: "Baixa",
+      color: "text-[var(--color-success)]",
+      bg: "bg-[var(--color-success-bg)]",
+    };
+  }
+  if (urgency === 3) {
+    return {
+      label: "Media",
+      color: "text-[var(--color-warning)]",
+      bg: "bg-[var(--color-warning-bg)]",
+    };
+  }
+  if (urgency === 4) {
+    return {
+      label: "Alta",
+      color: "text-[var(--color-primary)]",
+      bg: "bg-[var(--color-primary-dim)]",
+    };
+  }
+  return {
+    label: "Critica",
+    color: "text-[var(--color-danger)]",
+    bg: "bg-[var(--color-danger-bg)]",
+  };
 }
 
-function formatContactDisplay(contactName: string | null, remoteJid: string): string {
+function getStageLabel(stage?: string | null) {
+  switch (stage) {
+    case "discovery":
+      return "Discovery";
+    case "qualification":
+      return "Qualificacao";
+    case "proposal":
+      return "Proposta";
+    case "negotiation":
+      return "Negociacao";
+    case "closing":
+      return "Fechamento";
+    case "post_sale":
+      return "Pos-venda";
+    default:
+      return "Indefinido";
+  }
+}
+
+function parseStringArray(raw: unknown) {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function formatContactDisplay(contactName: string | null, remoteJid: string) {
   if (contactName && contactName.trim().length > 0) {
     return contactName.trim();
   }
@@ -151,7 +198,8 @@ function formatContactDisplay(contactName: string | null, remoteJid: string): st
 
     if (numero.length === 9) {
       return `(${ddd}) ${numero.substring(0, 5)}-${numero.substring(5)}`;
-    } else if (numero.length === 8) {
+    }
+    if (numero.length === 8) {
       return `(${ddd}) ${numero.substring(0, 4)}-${numero.substring(4)}`;
     }
   }
@@ -162,6 +210,7 @@ function formatContactDisplay(contactName: string | null, remoteJid: string): st
 export default async function ConversationDetailsPage({ params }: ConversationDetailsPageProps) {
   const { id } = await params;
   const companyId = await getUserCompanyId();
+
   if (!companyId) {
     redirect("/onboarding");
   }
@@ -185,18 +234,19 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
     .eq("conversation_id", id)
     .order("sent_at", { ascending: true });
 
-  // Deduplicar mensagens
   const seenFingerprints = new Set<string>();
-  const messages = (rawMessages ?? []).filter((msg) => {
-    const fp = `${msg.sent_at}::${msg.direction}::${msg.content ?? ""}`;
-    if (seenFingerprints.has(fp)) return false;
-    seenFingerprints.add(fp);
+  const messages = (rawMessages ?? []).filter((message) => {
+    const fingerprint = `${message.sent_at}::${message.direction}::${message.content ?? ""}`;
+    if (seenFingerprints.has(fingerprint)) {
+      return false;
+    }
+    seenFingerprints.add(fingerprint);
     return true;
   });
 
   const { data: insight } = await supabase
     .from("conversation_insights")
-    .select("sentiment, intent, summary, action_items, generated_at")
+    .select("sentiment, intent, sales_stage, summary, implicit_need, explicit_need, objections, next_commitment, stall_reason, confidence_score, feedback_status, feedback_note, feedback_at, action_items, generated_at")
     .eq("company_id", companyId)
     .eq("conversation_id", id)
     .maybeSingle();
@@ -213,17 +263,15 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
 
   const insightData = parseInsightData(insight?.action_items);
   const urgencyConfig = getUrgencyConfig(insightData.urgency);
+  const objections = parseStringArray(insight?.objections);
 
   return (
     <PageContainer
       title={formatContactDisplay(conversation.contact_name, conversation.remote_jid)}
-      description={`Última mensagem: ${formatDate(conversation.last_message_at)}`}
+      description={`Ultima mensagem: ${formatDate(conversation.last_message_at)}`}
       actions={
         <div className="flex gap-2">
-          <Link
-            href="/whatsapp-intelligence/conversas"
-            className={buttonVariants({ variant: "ghost" })}
-          >
+          <Link href="/whatsapp-intelligence/conversas" className={buttonVariants({ variant: "ghost" })}>
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Link>
@@ -232,12 +280,12 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
             conversationId={conversation.id}
             hasInsight={Boolean(insight)}
           />
-          {conversation.external_id && (
+          {conversation.external_id ? (
             <AssignSofiaAgentSelect
               companyId={companyId}
               conversationExternalId={conversation.external_id}
             />
-          )}
+          ) : null}
           {sofiaConversationUrl ? (
             <Link
               href={sofiaConversationUrl}
@@ -253,19 +301,21 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
       }
     >
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2 flex flex-col">
+        <Card className="flex flex-col lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-sm font-semibold text-text">Histórico da conversa</CardTitle>
-                <CardDescription className="text-xs text-muted">Status atual: {conversation.status ?? "open"}</CardDescription>
+                <CardTitle className="text-sm font-semibold text-text">Historico da conversa</CardTitle>
+                <CardDescription className="text-xs text-muted">
+                  Status atual: {conversation.status ?? "open"}
+                </CardDescription>
               </div>
-              {conversation.external_id && (
+              {conversation.external_id ? (
                 <SessionStatusBadge
                   companyId={companyId}
                   conversationExternalId={conversation.external_id}
                 />
-              )}
+              ) : null}
             </div>
           </CardHeader>
           <ConversationChat
@@ -276,21 +326,18 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
           />
         </Card>
 
-        <Card className="rounded-xl border border-border bg-card">
-          <CardHeader className="p-6">
+        <Card className="flex flex-col rounded-xl border border-border bg-card lg:sticky lg:top-8 lg:max-h-[calc(100vh-12rem)]">
+          <CardHeader className="shrink-0 p-6">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-text">Análise de IA</span>
+              <span className="text-sm font-semibold text-text">Analise de IA</span>
             </div>
             <CardDescription className="text-xs text-muted">
-              {insight?.generated_at
-                ? `Gerado em ${formatDate(insight.generated_at)}`
-                : "Ainda não analisado"}
+              {insight?.generated_at ? `Gerado em ${formatDate(insight.generated_at)}` : "Ainda nao analisado"}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 p-6 pt-0">
+          <CardContent className="flex-1 space-y-4 overflow-y-auto p-6 pt-0">
             {insight ? (
               <>
-                {/* Sentimento + Urgência */}
                 <div className="border-b border-border pb-3">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -305,24 +352,23 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                         </span>
                       </div>
                     </div>
-                    {urgencyConfig && (
+                    {urgencyConfig ? (
                       <div className="text-right">
-                        <span className="text-xs uppercase tracking-wide text-muted-light">Urgência</span>
+                        <span className="text-xs uppercase tracking-wide text-muted-light">Urgencia</span>
                         <div className="mt-1">
                           <span
                             className={`inline-block rounded px-2.5 py-1 text-sm font-medium ${urgencyConfig.bg} ${urgencyConfig.color}`}
                           >
-                            {insightData.urgency}/5 — {urgencyConfig.label}
+                            {insightData.urgency}/5 - {urgencyConfig.label}
                           </span>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
 
-                {/* Intenção + Tópicos */}
                 <div className="border-b border-border pb-3">
-                  <span className="text-xs uppercase tracking-wide text-muted-light">Intenção</span>
+                  <span className="text-xs uppercase tracking-wide text-muted-light">Intencao</span>
                   <div className="mt-1 flex items-center gap-2">
                     {(() => {
                       const IntentIcon = getIntentIcon(insight.intent);
@@ -330,14 +376,14 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                       return (
                         <>
                           <IntentIcon className={`h-4 w-4 ${intentColor}`} />
-                          <p className={`text-sm font-medium capitalize ${getIntentColor(insight.intent)}`}>
-                            {insight.intent || "sem intenção"}
+                          <p className={`text-sm font-medium capitalize ${intentColor}`}>
+                            {insight.intent || "sem intencao"}
                           </p>
                         </>
                       );
                     })()}
                   </div>
-                  {insightData.keyTopics.length > 0 && (
+                  {insightData.keyTopics.length > 0 ? (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {insightData.keyTopics.map((topic) => (
                         <span
@@ -348,10 +394,71 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                         </span>
                       ))}
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
-                {/* Resumo */}
+                <div className="border-b border-border pb-3">
+                  <span className="text-xs uppercase tracking-wide text-muted-light">Leitura estruturada</span>
+                  <div className="mt-3 grid gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-lg border border-border bg-background p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-light">Estagio da venda</p>
+                        <p className="mt-1 text-sm font-medium text-text">{getStageLabel(insight.sales_stage)}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-background p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-light">Confianca da analise</p>
+                        <p className="mt-1 text-sm font-medium text-text">
+                          {typeof insight.confidence_score === "number"
+                            ? `${insight.confidence_score}%`
+                            : "Nao informado"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {insight.implicit_need || insight.explicit_need ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-border bg-background p-3">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Necessidade implicita</p>
+                          <p className="mt-1 text-sm text-text">{insight.implicit_need || "Nao identificada"}</p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-background p-3">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Necessidade explicita</p>
+                          <p className="mt-1 text-sm text-text">{insight.explicit_need || "Nao identificada"}</p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {insight.next_commitment || insight.stall_reason ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-border bg-background p-3">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Proximo compromisso</p>
+                          <p className="mt-1 text-sm text-text">{insight.next_commitment || "Nao definido"}</p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-background p-3">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Motivo do travamento</p>
+                          <p className="mt-1 text-sm text-text">{insight.stall_reason || "Nao identificado"}</p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {objections.length > 0 ? (
+                      <div className="rounded-lg border border-border bg-background p-3">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-light">Objecoes percebidas</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {objections.map((item) => (
+                            <span
+                              key={item}
+                              className="rounded-full bg-[var(--color-warning-bg)] px-2 py-0.5 text-xs text-[var(--color-warning)]"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
                 <div className="border-b border-border pb-3">
                   <span className="text-xs uppercase tracking-wide text-muted-light">Resumo</span>
                   <div className="mt-2 rounded-lg bg-sidebar p-3">
@@ -359,25 +466,20 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                   </div>
                 </div>
 
-                {/* Resposta sugerida */}
-                {insightData.suggestedResponse && (
+                {insightData.suggestedResponse ? (
                   <div className="border-b border-border pb-3">
                     <span className="text-xs uppercase tracking-wide text-muted-light">Resposta sugerida</span>
                     <div className="mt-2 rounded-lg border border-[var(--color-primary-dim)] bg-[var(--color-primary-dim)] p-3">
                       <p className="text-sm italic text-text">{insightData.suggestedResponse}</p>
                     </div>
                   </div>
-                )}
+                ) : null}
 
-                {/* Ações sugeridas */}
-                <div>
-                  <span className="text-xs uppercase tracking-wide text-muted-light">Ações sugeridas</span>
+                <div className="pb-1">
+                  <span className="text-xs uppercase tracking-wide text-muted-light">Acoes sugeridas</span>
                   <ul className="mt-2 space-y-2">
                     {insightData.actionItems.map((item, index) => (
-                      <li
-                        key={item}
-                        className="flex items-start gap-2 text-sm text-muted"
-                      >
+                      <li key={item} className="flex items-start gap-2 text-sm text-muted">
                         <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
                           {index + 1}
                         </span>
@@ -386,13 +488,26 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                     ))}
                   </ul>
                 </div>
+
               </>
             ) : (
               <p className="text-sm text-muted">
-                Clique em &quot;Analisar com IA&quot; para gerar sentimento, intenção, resumo e próximas ações.
+                Clique em &quot;Analisar com IA&quot; para gerar sentimento, intencao, resumo e proximas acoes.
               </p>
             )}
           </CardContent>
+          {insight ? (
+            <div className="shrink-0 border-t border-border bg-card p-4">
+              <InsightFeedbackPanel
+                companyId={companyId}
+                conversationId={conversation.id}
+                initialStatus={insight.feedback_status}
+                initialNote={insight.feedback_note}
+                initialFeedbackAt={insight.feedback_at}
+                compact
+              />
+            </div>
+          ) : null}
         </Card>
       </div>
     </PageContainer>

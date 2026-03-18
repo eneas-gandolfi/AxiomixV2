@@ -10,6 +10,7 @@ import "server-only";
 import { buildWeeklyReportPrompt } from "@/lib/ai/prompts/weekly-report";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 
 type WeeklyPeriod = {
   weekStartIso: string;
@@ -204,6 +205,10 @@ export async function generateWeeklyReport(
   };
 
   const metrics = await collectWeeklyMetrics(companyId, period);
+  const kbContext = await getKnowledgeBaseContext(
+    companyId,
+    `objetivos metas estrategia ${metrics.companyName}`
+  );
   const prompt = buildWeeklyReportPrompt({
     companyName: metrics.companyName,
     weekStartIso: period.weekStartIso,
@@ -214,6 +219,7 @@ export async function generateWeeklyReport(
     socialPerformanceSummary: metrics.socialPerformanceSummary,
     topRadarPosts: metrics.topRadarPosts,
     competitorSummary: metrics.competitorSummary,
+    knowledgeBaseContext: kbContext || undefined,
   });
 
   try {

@@ -4,7 +4,9 @@ import type { ComponentProps } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Send } from "lucide-react";
+import { Tooltip } from "antd";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -76,27 +78,42 @@ export function SendReportButton({
     }
   };
 
-  return (
+  const isDisabled = disabled || isSending;
+
+  const button = (
     <Button
       type="button"
       onClick={handleSend}
-      disabled={disabled || isSending}
-      title={disabledReason}
+      disabled={isDisabled}
       variant={variant}
       className={cn(
         "h-10 rounded-md px-4 text-sm font-medium focus-visible:ring-primary",
-        disabled || isSending ? "cursor-not-allowed opacity-50" : "",
+        isDisabled ? "cursor-not-allowed opacity-50" : "",
         className
       )}
       aria-label="Enviar relatório agora"
     >
-      {iconPosition === "left" ? (
+      {isSending ? (
+        <LoadingSpinner size="sm" />
+      ) : iconPosition === "left" ? (
         <Send className="h-4 w-4" aria-label="Enviar relatório" />
       ) : null}
       {isSending ? "Gerando e enviando..." : "Enviar relatório agora"}
-      {iconPosition === "right" ? (
+      {!isSending && iconPosition === "right" ? (
         <ArrowRight className="h-4 w-4" aria-label="Abrir envio de relatório" />
       ) : null}
     </Button>
   );
+
+  if (disabledReason && disabled) {
+    return (
+      <div className="antd-scope">
+        <Tooltip title={disabledReason}>
+          <span className="inline-block">{button}</span>
+        </Tooltip>
+      </div>
+    );
+  }
+
+  return button;
 }

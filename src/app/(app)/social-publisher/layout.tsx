@@ -21,7 +21,7 @@ export default function SocialPublisherLayout({
             Social Publisher
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            Crie, edite e agende posts profissionais para Instagram, LinkedIn e TikTok.
+            Crie, edite e agende posts profissionais para Instagram, LinkedIn, TikTok e Facebook.
           </p>
         </header>
 
