@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { after, NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { processJobById } from "@/lib/jobs/processor";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -104,13 +104,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    after(() => processJobById(job.id));
+    const processed = await processJobById(job.id);
 
     return NextResponse.json({
       companyId: access.companyId,
       jobId: job.id,
-      jobStatus: "running",
-      message: "Processamento iniciado em background.",
+      jobStatus: processed?.status ?? "running",
+      completedAt: processed?.status === "done" ? new Date().toISOString() : null,
+      error: processed?.error ?? null,
+      result: processed?.result ?? null,
     });
   } catch (error) {
     if (error instanceof CompanyAccessError) {

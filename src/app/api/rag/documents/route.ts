@@ -6,7 +6,6 @@
  */
 
 import { z } from "zod";
-import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
@@ -79,48 +78,31 @@ export async function GET(request: NextRequest) {
       throw new Error(`Falha ao listar documentos: ${listError.message}`);
     }
 
-    // Recuperar documentos/jobs presos e disparar processamento em background
-    after(async () => {
-      try {
-        // Recuperar documentos presos em "processing" por mais de 5 minutos
-        const STALE_MINUTES = 5;
-        const staleThreshold = new Date(Date.now() - STALE_MINUTES * 60_000).toISOString();
+    // Recuperar documentos/jobs presos
+    const STALE_MINUTES = 5;
+    const staleThreshold = new Date(Date.now() - STALE_MINUTES * 60_000).toISOString();
 
-        const { data: resetDocs } = await adminSupabase
-          .from("rag_documents")
-          .update({
-            status: "pending" as const,
-            error_message: "Processamento interrompido. Tentando novamente.",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("company_id", access.companyId)
-          .eq("status", "processing")
-          .lt("updated_at", staleThreshold)
-          .select("id");
+    const { data: resetDocs } = await adminSupabase
+      .from("rag_documents")
+      .update({
+        status: "pending" as const,
+        error_message: "Processamento interrompido. Tentando novamente.",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("company_id", access.companyId)
+      .eq("status", "processing")
+      .lt("updated_at", staleThreshold)
+      .select("id");
 
-        if (resetDocs && resetDocs.length > 0) {
-          console.log(`[RAG] ${resetDocs.length} documento(s) preso(s) resetado(s) para pending.`);
-        }
+    const recoveredJobs = await recoverStaleJobs(access.companyId);
 
-        // Recuperar jobs presos
-        const recoveredJobs = await recoverStaleJobs(access.companyId);
-        if (recoveredJobs > 0) {
-          console.log(`[RAG] ${recoveredJobs} job(s) preso(s) resetado(s) para pending.`);
-        }
-
-        // Disparar processamento se houve recovery
-        if ((resetDocs && resetDocs.length > 0) || recoveredJobs > 0) {
-          const summary = await processJobs({
-            companyId: access.companyId,
-            maxJobs: 1,
-            allowedTypes: ["rag_process"],
-          });
-          console.log("[RAG] Processamento após recovery:", JSON.stringify(summary));
-        }
-      } catch (err) {
-        console.error("[RAG] Falha no processamento após recovery:", err);
-      }
-    });
+    if ((resetDocs && resetDocs.length > 0) || recoveredJobs > 0) {
+      await processJobs({
+        companyId: access.companyId,
+        maxJobs: 1,
+        allowedTypes: ["rag_process"],
+      });
+    }
 
     return NextResponse.json({
       companyId: access.companyId,
@@ -213,15 +195,7 @@ export async function POST(request: NextRequest) {
     // 3. Enfileirar job (tracking/retry) e disparar processamento
     const job = await enqueueJob("rag_process", { documentId: doc.id }, access.companyId);
 
-    // Processar o job recem-criado evita starvation por backlog antigo da fila.
-    after(async () => {
-      try {
-        const processed = await processJobById(job.id);
-        console.log("[RAG] Processamento do upload:", JSON.stringify(processed));
-      } catch (err) {
-        console.error("[RAG] Falha no processamento:", err);
-      }
-    });
+    await processJobById(job.id);
 
     return NextResponse.json({
       companyId: access.companyId,

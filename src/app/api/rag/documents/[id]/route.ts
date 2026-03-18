@@ -6,7 +6,6 @@
  */
 
 import { z } from "zod";
-import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
@@ -184,15 +183,7 @@ export async function PATCH(
     // Enfileirar job e disparar processamento
     const job = await enqueueJob("rag_process", { documentId: id }, access.companyId);
 
-    // Processar o job recem-criado evita starvation por backlog antigo da fila.
-    after(async () => {
-      try {
-        const processed = await processJobById(job.id);
-        console.log("[RAG] Reprocessamento do documento:", JSON.stringify(processed));
-      } catch (err) {
-        console.error("[RAG] Falha no reprocessamento:", err);
-      }
-    });
+    await processJobById(job.id);
 
     return NextResponse.json({
       companyId: access.companyId,

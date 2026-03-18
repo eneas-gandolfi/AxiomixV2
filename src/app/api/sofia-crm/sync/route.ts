@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { after, NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -121,14 +121,16 @@ export async function POST(request: NextRequest) {
 
     const queuedJob = await enqueueJob("sofia_crm_sync", {}, access.companyId, undefined, 1);
 
-    after(() => processJobById(queuedJob.id));
+    const processed = await processJobById(queuedJob.id);
 
     return NextResponse.json({
       companyId: access.companyId,
       mode: "conversations",
       jobId: queuedJob.id,
-      jobStatus: queuedJob.status,
-      message: "Sincronização iniciada em background.",
+      jobStatus: processed?.status === "done" ? "done" : processed?.status === "failed" ? "failed" : "pending",
+      completedAt: processed?.status === "done" ? new Date().toISOString() : null,
+      error: processed?.error ?? null,
+      result: processed?.result ?? null,
     });
   } catch (error) {
     if (error instanceof CompanyAccessError) {
