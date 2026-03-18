@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/rag/knowledge-base-module.tsx
- * Proposito: Modulo client que orquestra upload, lista e chat da Base de Conhecimento.
+ * Propósito: Módulo client que orquestra upload, lista e chat da Base de Conhecimento.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -27,17 +27,17 @@ export function KnowledgeBaseModule({ companyId }: KnowledgeBaseModuleProps) {
     <div className="space-y-8">
       <section className="rounded-2xl border border-border bg-card px-5 py-4">
         <p className="text-sm text-foreground">
-          Esta area alimenta o cerebro da IA com contexto do seu negocio. A IA consulta os
-          documentos enviados pela sua empresa e tambem os playbooks padrao da Axiomix para
-          melhorar a analise de conversas, diagnosticar gargalos e sugerir proximos passos mais
-          aplicaveis ao dia a dia da operacao.
+          Esta área alimenta o cérebro da IA com contexto do seu negócio. A IA consulta os
+          documentos enviados pela sua empresa e também os playbooks padrão da Axiomix para
+          melhorar a análise de conversas, diagnosticar gargalos e sugerir próximos passos mais
+          aplicáveis ao dia a dia da operação.
         </p>
       </section>
 
       {/* Upload */}
       <section>
         <h2 className="text-sm font-semibold text-[var(--color-text)] mb-3">
-          Treinar a IA com documentos do negocio
+          Treinar a IA com documentos do negócio
         </h2>
         <DocumentUpload companyId={companyId} onUploadComplete={handleUploadComplete} />
       </section>
@@ -45,7 +45,7 @@ export function KnowledgeBaseModule({ companyId }: KnowledgeBaseModuleProps) {
       {/* Lista de documentos */}
       <section>
         <h2 className="text-sm font-semibold text-[var(--color-text)] mb-3">
-          Documentos disponiveis
+          Documentos disponíveis
         </h2>
         <DocumentList companyId={companyId} refreshKey={refreshKey} />
       </section>

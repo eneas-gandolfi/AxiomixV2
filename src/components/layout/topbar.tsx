@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/layout/topbar.tsx
- * Proposito: Barra superior com ThemeToggle switch, notificacoes e logout.
+ * Propósito: Barra superior com ThemeToggle switch, notificações e logout.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -31,7 +31,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b bg-[var(--color-surface)]">
-      <div className="flex h-16 items-center justify-between px-6">
+      <div className="flex h-16 items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-4">
           <button
             onClick={onMobileMenuOpen}
@@ -58,7 +58,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
             disabled={isLoggingOut}
           >
             <LogOut className="h-4 w-4" />
-            {isLoggingOut ? "Saindo..." : "Sair"}
+            <span className="hidden sm:inline">{isLoggingOut ? "Saindo..." : "Sair"}</span>
           </Button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/report/whatsapp-sender.ts
- * Proposito: Enviar relatorio semanal para o WhatsApp do gestor via Evolution API.
+ * Propósito: Enviar relatório semanal para o WhatsApp do gestor via Evolution API.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -31,21 +31,21 @@ async function resolveEvolutionConfig(companyId: string) {
     .maybeSingle();
 
   if (error) {
-    throw new Error("Falha ao carregar integracao Evolution API.");
+    throw new Error("Falha ao carregar integração Evolution API.");
   }
   if (!integration?.config) {
-    throw new Error("Integracao Evolution API nao configurada para esta empresa.");
+    throw new Error("Integração Evolution API não configurada para esta empresa.");
   }
 
   const decoded = decodeIntegrationConfig("evolution_api", integration.config);
   if (!decoded.managerPhone) {
-    throw new Error("Numero do gestor nao configurado para esta empresa.");
+    throw new Error("Número do gestor não configurado para esta empresa.");
   }
 
   const instanceName = resolvePreferredEvolutionInstance(decoded.vendors);
 
   if (!instanceName) {
-    throw new Error("Nenhuma instancia conectada na Evolution API.");
+    throw new Error("Nenhuma instância conectada na Evolution API.");
   }
 
   const credentials = resolveEvolutionCredentials({

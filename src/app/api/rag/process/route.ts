@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/rag/process/route.ts
- * Proposito: Callback endpoint do QStash para processar documentos RAG em background.
+ * Propósito: Callback endpoint do QStash para processar documentos RAG em background.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -14,8 +14,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const ragProcessPayloadSchema = z.object({
-  documentId: z.string().uuid("documentId invalido."),
-  companyId: z.string().uuid("companyId invalido."),
+  documentId: z.string().uuid("documentId inválido."),
+  companyId: z.string().uuid("companyId inválido."),
 });
 
 async function processHandler(request: NextRequest) {
@@ -25,7 +25,7 @@ async function processHandler(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

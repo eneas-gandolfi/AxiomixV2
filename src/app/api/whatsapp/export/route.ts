@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/export/route.ts
- * Proposito: Exportar conversas filtradas para CSV.
+ * Propósito: Exportar conversas filtradas para CSV.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

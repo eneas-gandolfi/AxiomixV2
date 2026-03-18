@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/social/publish/route.ts
- * Proposito: Receber callback assinado do QStash e publicar posts nas plataformas.
+ * Propósito: Receber callback assinado do QStash e publicar posts nas plataformas.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -13,8 +13,8 @@ import { publishScheduledPost, SocialPublisherError } from "@/services/social/pu
 export const dynamic = "force-dynamic";
 
 const publishPayloadSchema = z.object({
-  scheduledPostId: z.string().uuid("scheduledPostId invalido."),
-  companyId: z.string().uuid("companyId invalido."),
+  scheduledPostId: z.string().uuid("scheduledPostId inválido."),
+  companyId: z.string().uuid("companyId inválido."),
 });
 
 async function publishHandler(request: NextRequest) {
@@ -23,7 +23,7 @@ async function publishHandler(request: NextRequest) {
     const parsed = publishPayloadSchema.safeParse(rawBody);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

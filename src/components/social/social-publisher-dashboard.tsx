@@ -546,13 +546,13 @@ export function SocialPublisherDashboard({
         </div>
 
         {upcomingScheduled.length > 0 ? (
-          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1">
+          <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
             {upcomingScheduled.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setDetails(item)}
-                className="group flex min-w-[200px] max-w-[200px] snap-start flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-left shadow-card transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover"
+                className="group flex min-w-[180px] max-w-[200px] snap-start flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-left shadow-card transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover"
               >
                 <div className="aspect-video bg-[var(--color-surface-2)]">
                   {item.thumbnailUrl ? (

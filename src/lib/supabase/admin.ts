@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/supabase/admin.ts
- * Proposito: Criar cliente Supabase com service role para rotas internas (webhooks/jobs).
+ * Propósito: Criar cliente Supabase com service role para rotas internas (webhooks/jobs).
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -22,11 +22,11 @@ export function createSupabaseAdminClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl) {
-    throw new Error("NEXT_PUBLIC_SUPABASE_URL nao configurada.");
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL não configurada.");
   }
 
   if (!serviceRoleKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY nao configurada.");
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY não configurada.");
   }
 
   adminClient = createClient<Database>(supabaseUrl, serviceRoleKey, {

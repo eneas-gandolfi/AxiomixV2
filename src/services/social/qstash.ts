@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/social/qstash.ts
- * Proposito: Integrar agendamento e cancelamento de mensagens com QStash.
+ * Propósito: Integrar agendamento e cancelamento de mensagens com QStash.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -18,7 +18,7 @@ type SchedulePublishPayload = {
 function getQStashClient() {
   const token = process.env.QSTASH_TOKEN;
   if (!token) {
-    throw new Error("QSTASH_TOKEN nao configurado.");
+    throw new Error("QSTASH_TOKEN não configurado.");
   }
 
   return new Client({
@@ -29,7 +29,7 @@ function getQStashClient() {
 function resolveAppUrl() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (!appUrl) {
-    throw new Error("NEXT_PUBLIC_APP_URL nao configurada.");
+    throw new Error("NEXT_PUBLIC_APP_URL não configurada.");
   }
 
   return appUrl.replace(/\/+$/, "");

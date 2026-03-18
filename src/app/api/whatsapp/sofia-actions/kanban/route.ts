@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/sofia-actions/kanban/route.ts
- * Proposito: Criar card no kanban do Sofia CRM a partir de uma conversa.
+ * Propósito: Criar card no kanban do Sofia CRM a partir de uma conversa.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

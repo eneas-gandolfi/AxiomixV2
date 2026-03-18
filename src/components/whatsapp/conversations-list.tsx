@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/conversations-list.tsx
- * Proposito: Lista de conversas com filtros aplicados (client-side).
+ * Propósito: Lista de conversas com filtros aplicados (client-side).
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -127,7 +127,7 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
     }
 
     const confirmed = window.confirm(
-      `Excluir ${selectedIds.size} conversa(s) do Axiomix? Elas nao serao removidas do Sofia CRM e nao voltarao nas proximas sincronizacoes.`
+      `Excluir ${selectedIds.size} conversa(s) do Axiomix? Elas não serão removidas do Sofia CRM e não voltarão nas próximas sincronizações.`
     );
 
     if (!confirmed) {
@@ -164,7 +164,7 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
         }
         return next;
       });
-      setFeedback(payload.message ?? `${payload.deletedCount ?? ids.length} conversa(s) excluida(s).`);
+      setFeedback(payload.message ?? `${payload.deletedCount ?? ids.length} conversa(s) excluída(s).`);
       setSelectedIds(new Set());
       setSelectionMode(false);
       router.refresh();

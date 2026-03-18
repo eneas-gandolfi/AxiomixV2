@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/onboarding/company/route.ts
- * Proposito: Criar empresa inicial no onboarding e vincular usuario como owner.
+ * Propósito: Criar empresa inicial no onboarding e vincular usuário como owner.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -14,10 +14,10 @@ import { slugify } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 const onboardingSchema = z.object({
-  name: z.string().trim().min(2, "Nome da empresa e obrigatorio."),
-  niche: z.string().trim().min(2, "Nicho e obrigatorio."),
+  name: z.string().trim().min(2, "Nome da empresa é obrigatório."),
+  niche: z.string().trim().min(2, "Nicho é obrigatório."),
   subNiche: z.string().trim().optional(),
-  websiteUrl: z.string().trim().url("URL do site invalida.").optional().or(z.literal("")),
+  websiteUrl: z.string().trim().url("URL do site inválida.").optional().or(z.literal("")),
 });
 
 type DatabaseError = {
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: "Usuario nao autenticado.", code: "AUTH_REQUIRED" },
+        { error: "Usuário não autenticado.", code: "AUTH_REQUIRED" },
         { status: 401 }
       );
     }
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -96,12 +96,12 @@ export async function POST(request: NextRequest) {
 
     if (existingMembership?.company_id) {
       return NextResponse.json(
-        { error: "Usuario ja possui empresa vinculada.", code: "COMPANY_ALREADY_EXISTS" },
+        { error: "Usuário já possui empresa vinculada.", code: "COMPANY_ALREADY_EXISTS" },
         { status: 409 }
       );
     }
 
-    // Backfill defensivo para usuarios criados antes do trigger handle_new_user.
+    // Backfill defensivo para usuários criados antes do trigger handle_new_user.
     const { error: userProfileError } = await admin.from("users").upsert(
       {
         id: user.id,
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     if (userProfileError) {
       return NextResponse.json(
-        { error: "Nao foi possivel preparar perfil do usuario.", code: "USER_PROFILE_ERROR" },
+        { error: "Não foi possível preparar perfil do usuário.", code: "USER_PROFILE_ERROR" },
         { status: 500 }
       );
     }
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
           .maybeSingle();
 
         if (slugLookupError) {
-          throw new Error("Falha ao verificar slug disponivel.");
+          throw new Error("Falha ao verificar slug disponível.");
         }
 
         return Boolean(slugRow?.id);
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         {
-          error: "Nao foi possivel criar a empresa.",
+          error: "Não foi possível criar a empresa.",
           code: "COMPANY_CREATE_ERROR",
           detail:
             process.env.NODE_ENV === "production"
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
       const membershipStatus = membershipCreateError.code === "23505" ? 409 : 500;
       return NextResponse.json(
         {
-          error: "Nao foi possivel criar o vinculo de acesso.",
+          error: "Não foi possível criar o vínculo de acesso.",
           code: "MEMBERSHIP_CREATE_ERROR",
           detail:
             process.env.NODE_ENV === "production"

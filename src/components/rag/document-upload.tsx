@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/rag/document-upload.tsx
- * Proposito: Componente de upload de PDFs para a base de conhecimento RAG.
+ * Propósito: Componente de upload de PDFs para a base de conhecimento RAG.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

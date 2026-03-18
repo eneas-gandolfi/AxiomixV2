@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/sofia-crm/reset/route.ts
- * Proposito: Limpar dados sincronizados do Sofia CRM para a empresa autenticada.
+ * Propósito: Limpar dados sincronizados do Sofia CRM para a empresa autenticada.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -15,7 +15,7 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 const resetSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

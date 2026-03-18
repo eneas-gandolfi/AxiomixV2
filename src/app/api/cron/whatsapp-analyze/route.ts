@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/cron/whatsapp-analyze/route.ts
- * Proposito: Cron job dedicado para processar analises pendentes do WhatsApp Intelligence.
+ * Propósito: Cron job dedicado para processar análises pendentes do WhatsApp Intelligence.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -25,12 +25,12 @@ const JOB_SELECT_FIELDS =
 
 function parseConversationId(payload: AsyncJobRow["payload"]) {
   if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
-    throw new Error("Payload do job de analise invalido.");
+    throw new Error("Payload do job de análise inválido.");
   }
 
   const rawConversationId = payload.conversationId;
   if (typeof rawConversationId !== "string" || rawConversationId.trim().length === 0) {
-    throw new Error("conversationId ausente no job de analise.");
+    throw new Error("conversationId ausente no job de análise.");
   }
 
   return rawConversationId;
@@ -50,7 +50,7 @@ async function getPendingAnalyzeJobs(limit: number): Promise<AsyncJobRow[]> {
     .limit(limit);
 
   if (error) {
-    throw new Error("Falha ao carregar jobs pendentes de analise.");
+    throw new Error("Falha ao carregar jobs pendentes de análise.");
   }
 
   return data ?? [];
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 
       try {
         if (!runningJob.company_id) {
-          throw new Error("Job sem company_id nao pode ser processado.");
+          throw new Error("Job sem company_id não pode ser processado.");
         }
 
         const conversationId = parseConversationId(runningJob.payload);

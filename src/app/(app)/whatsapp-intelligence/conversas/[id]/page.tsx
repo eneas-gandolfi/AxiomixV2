@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/(app)/whatsapp-intelligence/conversas/[id]/page.tsx
- * Proposito: Exibir historico da conversa e insight de IA com acoes recomendadas.
+ * Propósito: Exibir histórico da conversa e insight de IA com ações recomendadas.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -68,9 +68,9 @@ function getIntentIcon(intent?: string | null) {
       return ShoppingCart;
     case "suporte":
       return Headphones;
-    case "reclamacao":
+    case "reclamação":
       return AlertTriangle;
-    case "duvida":
+    case "dúvida":
       return HelpCircle;
     case "cancelamento":
       return XCircle;
@@ -85,9 +85,9 @@ function getIntentColor(intent?: string | null) {
       return "text-success";
     case "suporte":
       return "text-primary";
-    case "reclamacao":
+    case "reclamação":
       return "text-danger";
-    case "duvida":
+    case "dúvida":
       return "text-warning";
     case "cancelamento":
       return "text-danger";
@@ -140,7 +140,7 @@ function getUrgencyConfig(urgency: number | null) {
   }
   if (urgency === 3) {
     return {
-      label: "Media",
+      label: "Média",
       color: "text-[var(--color-warning)]",
       bg: "bg-[var(--color-warning-bg)]",
     };
@@ -153,7 +153,7 @@ function getUrgencyConfig(urgency: number | null) {
     };
   }
   return {
-    label: "Critica",
+    label: "Crítica",
     color: "text-[var(--color-danger)]",
     bg: "bg-[var(--color-danger-bg)]",
   };
@@ -164,15 +164,15 @@ function getStageLabel(stage?: string | null) {
     case "discovery":
       return "Discovery";
     case "qualification":
-      return "Qualificacao";
+      return "Qualificação";
     case "proposal":
       return "Proposta";
     case "negotiation":
-      return "Negociacao";
+      return "Negociação";
     case "closing":
       return "Fechamento";
     case "post_sale":
-      return "Pos-venda";
+      return "Pós-venda";
     default:
       return "Indefinido";
   }
@@ -268,7 +268,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
   return (
     <PageContainer
       title={formatContactDisplay(conversation.contact_name, conversation.remote_jid)}
-      description={`Ultima mensagem: ${formatDate(conversation.last_message_at)}`}
+      description={`Última mensagem: ${formatDate(conversation.last_message_at)}`}
       actions={
         <div className="flex gap-2">
           <Link href="/whatsapp-intelligence/conversas" className={buttonVariants({ variant: "ghost" })}>
@@ -305,7 +305,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-sm font-semibold text-text">Historico da conversa</CardTitle>
+                <CardTitle className="text-sm font-semibold text-text">Histórico da conversa</CardTitle>
                 <CardDescription className="text-xs text-muted">
                   Status atual: {conversation.status ?? "open"}
                 </CardDescription>
@@ -329,10 +329,10 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
         <Card className="flex flex-col rounded-xl border border-border bg-card lg:sticky lg:top-8 lg:max-h-[calc(100vh-12rem)]">
           <CardHeader className="shrink-0 p-6">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-text">Analise de IA</span>
+              <span className="text-sm font-semibold text-text">Análise de IA</span>
             </div>
             <CardDescription className="text-xs text-muted">
-              {insight?.generated_at ? `Gerado em ${formatDate(insight.generated_at)}` : "Ainda nao analisado"}
+              {insight?.generated_at ? `Gerado em ${formatDate(insight.generated_at)}` : "Ainda não analisado"}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1 space-y-4 overflow-y-auto p-6 pt-0">
@@ -354,7 +354,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                     </div>
                     {urgencyConfig ? (
                       <div className="text-right">
-                        <span className="text-xs uppercase tracking-wide text-muted-light">Urgencia</span>
+                        <span className="text-xs uppercase tracking-wide text-muted-light">Urgência</span>
                         <div className="mt-1">
                           <span
                             className={`inline-block rounded px-2.5 py-1 text-sm font-medium ${urgencyConfig.bg} ${urgencyConfig.color}`}
@@ -368,7 +368,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                 </div>
 
                 <div className="border-b border-border pb-3">
-                  <span className="text-xs uppercase tracking-wide text-muted-light">Intencao</span>
+                  <span className="text-xs uppercase tracking-wide text-muted-light">Intenção</span>
                   <div className="mt-1 flex items-center gap-2">
                     {(() => {
                       const IntentIcon = getIntentIcon(insight.intent);
@@ -377,7 +377,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                         <>
                           <IntentIcon className={`h-4 w-4 ${intentColor}`} />
                           <p className={`text-sm font-medium capitalize ${intentColor}`}>
-                            {insight.intent || "sem intencao"}
+                            {insight.intent || "sem intenção"}
                           </p>
                         </>
                       );
@@ -402,15 +402,15 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                   <div className="mt-3 grid gap-3">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-lg border border-border bg-background p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-muted-light">Estagio da venda</p>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-light">Estágio da venda</p>
                         <p className="mt-1 text-sm font-medium text-text">{getStageLabel(insight.sales_stage)}</p>
                       </div>
                       <div className="rounded-lg border border-border bg-background p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-muted-light">Confianca da analise</p>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-light">Confiança da análise</p>
                         <p className="mt-1 text-sm font-medium text-text">
                           {typeof insight.confidence_score === "number"
                             ? `${insight.confidence_score}%`
-                            : "Nao informado"}
+                            : "Não informado"}
                         </p>
                       </div>
                     </div>
@@ -418,12 +418,12 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                     {insight.implicit_need || insight.explicit_need ? (
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="rounded-lg border border-border bg-background p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Necessidade implicita</p>
-                          <p className="mt-1 text-sm text-text">{insight.implicit_need || "Nao identificada"}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Necessidade implícita</p>
+                          <p className="mt-1 text-sm text-text">{insight.implicit_need || "Não identificada"}</p>
                         </div>
                         <div className="rounded-lg border border-border bg-background p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Necessidade explicita</p>
-                          <p className="mt-1 text-sm text-text">{insight.explicit_need || "Nao identificada"}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Necessidade explícita</p>
+                          <p className="mt-1 text-sm text-text">{insight.explicit_need || "Não identificada"}</p>
                         </div>
                       </div>
                     ) : null}
@@ -431,19 +431,19 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                     {insight.next_commitment || insight.stall_reason ? (
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="rounded-lg border border-border bg-background p-3">
-                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Proximo compromisso</p>
-                          <p className="mt-1 text-sm text-text">{insight.next_commitment || "Nao definido"}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-light">Próximo compromisso</p>
+                          <p className="mt-1 text-sm text-text">{insight.next_commitment || "Não definido"}</p>
                         </div>
                         <div className="rounded-lg border border-border bg-background p-3">
                           <p className="text-[11px] uppercase tracking-wide text-muted-light">Motivo do travamento</p>
-                          <p className="mt-1 text-sm text-text">{insight.stall_reason || "Nao identificado"}</p>
+                          <p className="mt-1 text-sm text-text">{insight.stall_reason || "Não identificado"}</p>
                         </div>
                       </div>
                     ) : null}
 
                     {objections.length > 0 ? (
                       <div className="rounded-lg border border-border bg-background p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-muted-light">Objecoes percebidas</p>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-light">Objeções percebidas</p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {objections.map((item) => (
                             <span
@@ -476,7 +476,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
                 ) : null}
 
                 <div className="pb-1">
-                  <span className="text-xs uppercase tracking-wide text-muted-light">Acoes sugeridas</span>
+                  <span className="text-xs uppercase tracking-wide text-muted-light">Ações sugeridas</span>
                   <ul className="mt-2 space-y-2">
                     {insightData.actionItems.map((item, index) => (
                       <li key={item} className="flex items-start gap-2 text-sm text-muted">
@@ -492,7 +492,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
               </>
             ) : (
               <p className="text-sm text-muted">
-                Clique em &quot;Analisar com IA&quot; para gerar sentimento, intencao, resumo e proximas acoes.
+                Clique em &quot;Analisar com IA&quot; para gerar sentimento, intenção, resumo e próximas ações.
               </p>
             )}
           </CardContent>

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/social/media-library.tsx
- * Proposito: Componente de biblioteca de midia com grid, busca, upload e limpeza em lote.
+ * Propósito: Componente de biblioteca de mídia com grid, busca, upload e limpeza em lote.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -71,7 +71,7 @@ function isImageType(fileType: string) {
 }
 
 function describeBlockedReason(reason: BulkDeleteBlockedReason) {
-  return reason === "content_demand" ? "demanda de conteudo" : "post agendado";
+  return reason === "content_demand" ? "demanda de conteúdo" : "post agendado";
 }
 
 function buildBulkDeleteWarning(payload: BulkDeletePayload) {
@@ -87,12 +87,12 @@ function buildBulkDeleteWarning(payload: BulkDeletePayload) {
     const suffix = remainingCount > 0 ? ` e mais ${remainingCount}` : "";
 
     messages.push(
-      `${blocked.length} arquivo(s) nao puderam ser removidos porque ainda estao em uso${preview ? `: ${preview}${suffix}` : "."}`
+      `${blocked.length} arquivo(s) não puderam ser removidos porque ainda estão em uso${preview ? `: ${preview}${suffix}` : "."}`
     );
   }
 
   if ((payload.missingCount ?? 0) > 0) {
-    messages.push(`${payload.missingCount} arquivo(s) nao foram encontrados na biblioteca.`);
+    messages.push(`${payload.missingCount} arquivo(s) não foram encontrados na biblioteca.`);
   }
 
   return messages.join(" ");
@@ -275,7 +275,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
     }
 
     const confirmed = window.confirm(
-      `Remover ${selectedIds.size} arquivo(s) do bucket e da biblioteca? Arquivos em uso em posts ou demandas serao preservados.`
+      `Remover ${selectedIds.size} arquivo(s) do bucket e da biblioteca? Arquivos em uso em posts ou demandas serão preservados.`
     );
 
     if (!confirmed) {
@@ -342,10 +342,10 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FolderOpen className="h-5 w-5 text-[#FA5E24]" />
-                Biblioteca de Midia
+                Biblioteca de Mídia
               </CardTitle>
               <CardDescription>
-                {total} arquivo(s) - controle o que fica salvo no bucket e reutilize suas midias
+                {total} arquivo(s) - controle o que fica salvo no bucket e reutilize suas mídias
               </CardDescription>
             </div>
 
@@ -363,8 +363,8 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
                     disabled={items.length === 0 || isBulkDeleting}
                   >
                     {selectedIds.size === items.length && items.length > 0
-                      ? "Desmarcar pagina"
-                      : "Selecionar pagina"}
+                      ? "Desmarcar página"
+                      : "Selecionar página"}
                   </Button>
                   <Button
                     type="button"
@@ -452,7 +452,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
                       : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]"
                   }`}
                 >
-                  {type === "all" ? "Todos" : type === "image" ? "Imagens" : "Videos"}
+                  {type === "all" ? "Todos" : type === "image" ? "Imagens" : "Vídeos"}
                 </button>
               ))}
             </div>
@@ -518,7 +518,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
             <Upload className="h-8 w-8 text-[#FA5E24]" />
           </div>
           <p className="text-sm font-medium text-[var(--color-text)] mb-1">
-            Sua biblioteca esta vazia
+            Sua biblioteca está vazia
           </p>
           <p className="text-xs text-[var(--color-text-secondary)]">
             Arraste arquivos aqui ou <span className="text-[#FA5E24] font-medium">clique para enviar</span>
@@ -573,7 +573,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
                   {!isImage && (
                     <div className="absolute top-1.5 left-1.5 bg-black/60 text-white px-1.5 py-0.5 rounded text-[10px] font-medium flex items-center gap-0.5">
                       <Video className="h-2.5 w-2.5" />
-                      Video
+                      Vídeo
                     </div>
                   )}
 
@@ -653,7 +653,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
             Anterior
           </Button>
           <span className="text-sm text-[var(--color-text-secondary)] tabular-nums">
-            Pagina {page} de {totalPages}
+            Página {page} de {totalPages}
           </span>
           <Button
             type="button"
@@ -662,7 +662,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
             onClick={() => handlePageChange(page + 1)}
             disabled={page >= totalPages || isLoading}
           >
-            Proxima
+            Próxima
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

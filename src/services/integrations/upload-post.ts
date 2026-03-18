@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/integrations/upload-post.ts
- * Proposito: Criar perfil por empresa e iniciar conexao social na Upload-Post API.
+ * Propósito: Criar perfil por empresa e iniciar conexao social na Upload-Post API.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -68,7 +68,7 @@ export function resolveUploadPostServerConfig(input?: { apiKey?: string }): Uplo
 
   if (!baseUrl || !apiKey) {
     throw new Error(
-      "UPLOAD_POST_API_URL (ou UPLOAD_POST_API_BASE_URL) / UPLOAD_POST_API_KEY nao configuradas no servidor."
+      "UPLOAD_POST_API_URL (ou UPLOAD_POST_API_BASE_URL) / UPLOAD_POST_API_KEY não configuradas no servidor."
     );
   }
 
@@ -539,7 +539,7 @@ export async function startUploadPostSocialConnection(input: {
     ]);
 
     if (!connectUrl) {
-      throw new Error("Upload-Post nao retornou access_url para autorizacao da rede social.");
+      throw new Error("Upload-Post não retornou access_url para autorização da rede social.");
     }
 
     return {
@@ -586,7 +586,7 @@ export async function startUploadPostSocialConnection(input: {
       ]);
 
       if (!connectUrl) {
-        throw new Error("Upload-Post nao retornou access_url para autorizacao da rede social.");
+        throw new Error("Upload-Post não retornou access_url para autorização da rede social.");
       }
 
       return {
@@ -672,7 +672,7 @@ export async function startUploadPostSocialConnection(input: {
 
   const diagnosticText = diagnostics.length > 0 ? ` Tentativas: ${diagnostics.join(", ")}.` : "";
   throw new Error(
-    `Nao foi possivel gerar URL de autorizacao na Upload-Post API.${diagnosticText}`
+    `Não foi possível gerar URL de autorização na Upload-Post API.${diagnosticText}`
   );
 }
 

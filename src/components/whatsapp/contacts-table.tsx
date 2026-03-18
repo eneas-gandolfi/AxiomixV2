@@ -43,7 +43,7 @@ export function ContactsTable({ contacts, onContactClick }: ContactsTableProps) 
     {
       title: "Nome",
       dataIndex: "name",
-      width: 220,
+      width: 160,
       render: (name: string | null) => (
         <span className="text-sm font-medium text-text">{name ?? "Sem nome"}</span>
       ),
@@ -51,7 +51,7 @@ export function ContactsTable({ contacts, onContactClick }: ContactsTableProps) 
     {
       title: "Telefone",
       dataIndex: "phone",
-      width: 180,
+      width: 140,
       render: (phone: string | null, record) => (
         <span className="flex items-center gap-1.5 text-sm text-muted">
           <Phone className="h-3 w-3" />

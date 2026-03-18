@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/sentiment-trend-chart.tsx
- * Proposito: Grafico de linha mostrando evolucao do sentimento ao longo do tempo.
+ * Propósito: Grafico de linha mostrando evolucao do sentimento ao longo do tempo.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

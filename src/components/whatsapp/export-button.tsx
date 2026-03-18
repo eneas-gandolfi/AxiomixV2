@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/export-button.tsx
- * Proposito: Botao para exportar conversas filtradas para CSV.
+ * Propósito: Botao para exportar conversas filtradas para CSV.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

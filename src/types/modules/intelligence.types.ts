@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/types/modules/intelligence.types.ts
- * Proposito: Tipos compartilhados do modulo Intelligence.
+ * Propósito: Tipos compartilhados do modulo Intelligence.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */

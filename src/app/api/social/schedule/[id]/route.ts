@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/social/schedule/[id]/route.ts
- * Proposito: Cancelar agendamentos do Social Publisher com status scheduled.
+ * Propósito: Cancelar agendamentos do Social Publisher com status scheduled.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -14,11 +14,11 @@ import { cancelScheduledPost, SocialPublisherError } from "@/services/social/pub
 export const dynamic = "force-dynamic";
 
 const routeParamsSchema = z.object({
-  id: z.string().uuid("id do agendamento invalido."),
+  id: z.string().uuid("id do agendamento inválido."),
 });
 
 const deleteSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
 });
 
 type RouteContext = {
@@ -49,7 +49,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     if (!parsedParams.success) {
       return NextResponse.json(
-        { error: parsedParams.error.issues[0]?.message ?? "Parametro invalido.", code: "VALIDATION_ERROR" },
+        { error: parsedParams.error.issues[0]?.message ?? "Parâmetro inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -58,7 +58,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const parsedBody = deleteSchema.safeParse(rawBody);
     if (!parsedBody.success) {
       return NextResponse.json(
-        { error: parsedBody.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsedBody.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

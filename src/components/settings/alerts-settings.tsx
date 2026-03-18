@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/settings/alerts-settings.tsx
- * Proposito: Configuracao de alertas WhatsApp em tempo real.
+ * Propósito: Configuração de alertas WhatsApp em tempo real.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -48,8 +48,8 @@ type AlertLogEntry = {
 const ALERT_CONFIG = [
   {
     type: "purchase_intent",
-    title: "Intencao de Compra",
-    description: "Quando a IA detecta intencao de compra em uma conversa WhatsApp.",
+    title: "Intenção de Compra",
+    description: "Quando a IA detecta intenção de compra em uma conversa WhatsApp.",
     icon: DollarSign,
     color: "text-success",
     bgColor: "bg-success/10",
@@ -57,14 +57,14 @@ const ALERT_CONFIG = [
   {
     type: "negative_sentiment",
     title: "Sentimento Negativo",
-    description: "Quando uma conversa tem sentimento negativo e urgencia alta (>= 4/5).",
+    description: "Quando uma conversa tem sentimento negativo e urgência alta (>= 4/5).",
     icon: Frown,
     color: "text-danger",
     bgColor: "bg-danger/10",
   },
   {
     type: "failed_post",
-    title: "Falha na Publicacao",
+    title: "Falha na Publicação",
     description: "Quando um post agendado falha parcial ou totalmente ao ser publicado.",
     icon: XCircle,
     color: "text-warning",
@@ -72,8 +72,8 @@ const ALERT_CONFIG = [
   },
   {
     type: "viral_content",
-    title: "Conteudo Viral",
-    description: "Quando o radar detecta conteudo com alto score de engajamento (>= 300).",
+    title: "Conteúdo Viral",
+    description: "Quando o radar detecta conteúdo com alto score de engajamento (>= 300).",
     icon: Flame,
     color: "text-info",
     bgColor: "bg-info/10",
@@ -88,10 +88,10 @@ const COOLDOWN_OPTIONS = [
 ];
 
 const ALERT_TYPE_LABELS: Record<string, string> = {
-  purchase_intent: "Intencao de Compra",
+  purchase_intent: "Intenção de Compra",
   negative_sentiment: "Sentimento Negativo",
-  failed_post: "Falha na Publicacao",
-  viral_content: "Conteudo Viral",
+  failed_post: "Falha na Publicação",
+  viral_content: "Conteúdo Viral",
 };
 
 export function AlertsSettings() {
@@ -150,7 +150,7 @@ export function AlertsSettings() {
         const data = await res.json().catch(() => ({}));
         toast({
           title: "Erro ao salvar",
-          description: data.error ?? "Falha ao atualizar preferencia.",
+          description: data.error ?? "Falha ao atualizar preferência.",
           variant: "destructive",
         });
         return;
@@ -201,7 +201,7 @@ export function AlertsSettings() {
       <div>
         <h2 className="text-lg font-semibold text-text">Alertas WhatsApp em Tempo Real</h2>
         <p className="mt-0.5 text-sm text-muted">
-          Configure quais eventos disparam notificacoes no WhatsApp do gestor.
+          Configure quais eventos disparam notificações no WhatsApp do gestor.
         </p>
       </div>
 
@@ -259,7 +259,7 @@ export function AlertsSettings() {
                           </label>
                           <input
                             type="text"
-                            placeholder="Padrao: telefone do gestor"
+                            placeholder="Padrão: telefone do gestor"
                             value={pref?.recipientPhone ?? ""}
                             onChange={(e) => {
                               const value = e.target.value || null;
@@ -317,10 +317,10 @@ export function AlertsSettings() {
         <CardHeader>
           <CardTitle className="text-text flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted" />
-            Historico de Alertas
+            Histórico de Alertas
           </CardTitle>
           <CardDescription className="text-muted">
-            Ultimos alertas enviados para esta empresa.
+            Últimos alertas enviados para esta empresa.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -329,7 +329,7 @@ export function AlertsSettings() {
               <Bell className="h-8 w-8 text-muted-light mb-2" />
               <p className="text-sm text-muted">Nenhum alerta enviado ainda.</p>
               <p className="text-xs text-muted-light mt-1">
-                Ative os alertas acima para comecar a receber notificacoes.
+                Ative os alertas acima para começar a receber notificações.
               </p>
             </div>
           ) : (

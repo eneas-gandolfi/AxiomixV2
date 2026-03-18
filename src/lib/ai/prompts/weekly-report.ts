@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/ai/prompts/weekly-report.ts
- * Proposito: Prompt de geracao de relatorio executivo semanal para WhatsApp.
+ * Propósito: Prompt de geracao de relatorio executivo semanal para WhatsApp.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */

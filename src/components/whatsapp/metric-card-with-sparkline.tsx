@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/metric-card-with-sparkline.tsx
- * Proposito: Card de metrica com sparkline mostrando tendencia.
+ * Propósito: Card de metrica com sparkline mostrando tendencia.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

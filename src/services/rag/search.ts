@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/rag/search.ts
- * Proposito: Busca vetorial na base de conhecimento RAG via pgvector.
+ * Propósito: Busca vetorial na base de conhecimento RAG via pgvector.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

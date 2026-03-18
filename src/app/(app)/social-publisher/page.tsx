@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/(app)/social-publisher/page.tsx
- * Proposito: Renderizar modulo Social Publisher com formulario e historico paginado.
+ * Propósito: Renderizar modulo Social Publisher com formulario e historico paginado.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */

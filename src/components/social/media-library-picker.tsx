@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/social/media-library-picker.tsx
- * Proposito: Modal para selecionar midias da biblioteca no wizard do Social Publisher.
+ * Propósito: Modal para selecionar midias da biblioteca no wizard do Social Publisher.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

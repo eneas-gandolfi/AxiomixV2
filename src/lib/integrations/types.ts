@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/integrations/types.ts
- * Proposito: Definir tipos das integracoes suportadas e seus metadados de conexao.
+ * Propósito: Definir tipos das integracoes suportadas e seus metadados de conexao.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */

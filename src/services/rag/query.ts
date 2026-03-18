@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/rag/query.ts
- * Proposito: Orquestrar query RAG — busca vetorial + LLM para responder perguntas.
+ * Propósito: Orquestrar query RAG — busca vetorial + LLM para responder perguntas.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -105,7 +105,7 @@ export async function queryKnowledgeBase(
 
   if (chunks.length === 0) {
     return {
-      answer: "Nao encontrei informacoes relevantes nos documentos disponíveis para responder essa pergunta.",
+      answer: "Não encontrei informações relevantes nos documentos disponíveis para responder essa pergunta.",
       sources: [],
     };
   }

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/whatsapp/analyzer.ts
- * Proposito: Analisar conversas com IA e aplicar acoes automaticas no Sofia CRM.
+ * Propósito: Analisar conversas com IA e aplicar ações automáticas no Sofia CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -114,8 +114,8 @@ function buildKnowledgeBaseSearchQuery(messages: ConversationMessage[]) {
     .join("\n");
 
   return [
-    "Contexto para analisar conversa de WhatsApp com base na documentacao da empresa.",
-    "Diagnosticar etapa da venda, necessidades implicitas/explicitas, gargalos do atendimento, perguntas que faltam e proximo compromisso.",
+    "Contexto para analisar conversa de WhatsApp com base na documentação da empresa.",
+    "Diagnosticar etapa da venda, necessidades implícitas/explícitas, gargalos do atendimento, perguntas que faltam e próximo compromisso.",
     lastInboundMessage
       ? `Necessidade mais recente do cliente: ${lastInboundMessage.content}`
       : null,
@@ -161,20 +161,20 @@ function fallbackInsight(messages: ConversationMessage[]): InsightPayload {
     urgency: hasNegative ? 4 : 3,
     sales_stage: salesStage,
     summary:
-      "Analise gerada em modo de fallback. Recomenda-se revisar a conversa para confirmar detalhes comerciais e proximos passos.",
+      "Análise gerada em modo de fallback. Recomenda-se revisar a conversa para confirmar detalhes comerciais e próximos passos.",
     implicit_need: "",
     explicit_need: "",
     objections: [] as string[],
     key_topics: [] as string[],
     next_commitment: "",
-    stall_reason: hasNegative ? "Cliente demonstra atrito ou insatisfacao." : "",
+    stall_reason: hasNegative ? "Cliente demonstra atrito ou insatisfação." : "",
     confidence_score: 35,
     suggested_response: "",
     action_items: [
       "Revisar a conversa e confirmar necessidade principal do cliente.",
       hasPurchase
         ? "Enviar proposta comercial com prazo claro."
-        : "Responder com orientacao objetiva e prazo de retorno.",
+        : "Responder com orientação objetiva e prazo de retorno.",
     ],
   };
 }
@@ -208,7 +208,7 @@ async function generateConversationInsight(companyId: string, messages: Conversa
     const rawJson = await openRouterChatCompletion(companyId, [
       {
         role: "system",
-        content: "Voce responde apenas JSON valido, sem markdown e sem texto extra.",
+        content: "Você responde apenas JSON válido, sem markdown e sem texto extra.",
       },
       {
         role: "user",
@@ -288,7 +288,7 @@ export async function analyzeConversation(
     .single();
 
   if (conversationError || !conversation?.id) {
-    throw new Error("Conversa nao encontrada para esta empresa.");
+    throw new Error("Conversa não encontrada para esta empresa.");
   }
 
   const { data: messages, error: messagesError } = await supabase
@@ -303,7 +303,7 @@ export async function analyzeConversation(
   }
 
   if (!messages || messages.length === 0) {
-    throw new Error("Conversa sem mensagens para analise.");
+    throw new Error("Conversa sem mensagens para análise.");
   }
 
   const insight = await generateConversationInsight(companyId, messages as ConversationMessage[]);

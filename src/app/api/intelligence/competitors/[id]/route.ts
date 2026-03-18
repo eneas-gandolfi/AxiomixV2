@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/intelligence/competitors/[id]/route.ts
- * Proposito: Remover concorrente de uma empresa no modulo Intelligence.
+ * Propósito: Remover concorrente de uma empresa no módulo Intelligence.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -13,11 +13,11 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 const paramsSchema = z.object({
-  id: z.string().uuid("id do concorrente invalido."),
+  id: z.string().uuid("id do concorrente inválido."),
 });
 
 const deleteSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
 });
 
 type RouteContext = {
@@ -35,7 +35,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     if (!parsedParams.success) {
       return NextResponse.json(
-        { error: parsedParams.error.issues[0]?.message ?? "Parametro invalido.", code: "VALIDATION_ERROR" },
+        { error: parsedParams.error.issues[0]?.message ?? "Parâmetro inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -44,7 +44,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const parsedBody = deleteSchema.safeParse(rawBody);
     if (!parsedBody.success) {
       return NextResponse.json(
-        { error: parsedBody.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsedBody.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -66,7 +66,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     if (!existing?.id) {
       return NextResponse.json(
-        { error: "Concorrente nao encontrado para esta empresa.", code: "COMPETITOR_NOT_FOUND" },
+        { error: "Concorrente não encontrado para esta empresa.", code: "COMPETITOR_NOT_FOUND" },
         { status: 404 }
       );
     }

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/integrations/evolution-api/qrcode/route.ts
- * Proposito: Gerar QR Code de conexao na Evolution API com credenciais do servidor.
+ * Propósito: Gerar QR Code de conexao na Evolution API com credenciais do servidor.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -18,13 +18,13 @@ import {
 export const dynamic = "force-dynamic";
 
 const payloadSchema = z.object({
-  vendorName: z.string().trim().min(2, "Nome do vendedor invalido.").optional(),
+  vendorName: z.string().trim().min(2, "Nome do vendedor inválido.").optional(),
   instanceName: z
     .string()
     .trim()
     .min(3)
     .max(64)
-    .regex(/^[a-zA-Z0-9_-]+$/, "instanceName invalido.")
+    .regex(/^[a-zA-Z0-9_-]+$/, "instanceName inválido.")
     .optional(),
 });
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const parsed = payloadSchema.safeParse(rawBody);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

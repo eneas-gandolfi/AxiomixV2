@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/bulk-analyze/route.ts
- * Proposito: Enfileirar analise em lote para conversas pendentes e processar imediatamente.
+ * Propósito: Enfileirar analise em lote para conversas pendentes e processar imediatamente.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -15,7 +15,7 @@ import { enqueueAutoAnalyses } from "@/services/whatsapp/auto-analyze";
 export const dynamic = "force-dynamic";
 
 const bulkAnalyzeSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/report/weekly-job.ts
- * Proposito: Executar ciclo completo do relatorio semanal (gerar, enviar e registrar).
+ * Propósito: Executar ciclo completo do relatorio semanal (gerar, enviar e registrar).
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */

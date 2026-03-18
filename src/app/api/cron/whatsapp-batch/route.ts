@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/cron/whatsapp-batch/route.ts
- * Proposito: Cron horario para analise batch de conversas WhatsApp (classificacao leve + resumo).
+ * Propósito: Cron horário para análise batch de conversas WhatsApp (classificação leve + resumo).
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const manualSchema = z.object({
-  companyId: z.string().uuid("companyId invalido."),
+  companyId: z.string().uuid("companyId inválido."),
 });
 
 async function getAllActiveCompanyIds(): Promise<string[]> {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     if (access.role !== "owner" && access.role !== "admin") {
       return NextResponse.json(
-        { error: "Apenas owner/admin podem executar analise batch.", code: "FORBIDDEN" },
+        { error: "Apenas owner/admin podem executar análise batch.", code: "FORBIDDEN" },
         { status: 403 }
       );
     }

@@ -10,7 +10,7 @@ const paramsSchema = z.object({
 });
 
 const bodySchema = z.object({
-  companyId: z.string().uuid("companyId invalido."),
+  companyId: z.string().uuid("companyId inválido."),
   feedbackStatus: z.enum(["helpful", "needs_review", "incorrect"]),
   feedbackNote: z.string().trim().max(1000).optional().default(""),
 });
@@ -29,7 +29,7 @@ export async function PATCH(
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -42,7 +42,7 @@ export async function PATCH(
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: "Usuario nao autenticado.", code: "AUTH_REQUIRED" },
+        { error: "Usuário não autenticado.", code: "AUTH_REQUIRED" },
         { status: 401 }
       );
     }
@@ -69,7 +69,7 @@ export async function PATCH(
 
     if (!insight?.conversation_id) {
       return NextResponse.json(
-        { error: "Insight nao encontrado para esta conversa.", code: "NOT_FOUND" },
+        { error: "Insight não encontrado para esta conversa.", code: "NOT_FOUND" },
         { status: 404 }
       );
     }

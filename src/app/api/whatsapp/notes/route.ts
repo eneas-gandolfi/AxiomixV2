@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/notes/route.ts
- * Proposito: API para criar e listar notas de conversas.
+ * Propósito: API para criar e listar notas de conversas.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

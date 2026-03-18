@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/rag/processor.ts
- * Proposito: Worker de processamento RAG — extrai texto do PDF, chunka e gera embeddings.
+ * Propósito: Worker de processamento RAG — extrai texto do PDF, chunka e gera embeddings.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -45,7 +45,7 @@ export async function runRagProcessWorker(
 
   console.log(`[RAG] Iniciando processamento: doc=${documentId} company=${companyId}`);
 
-  // Lock atomico: só processa se o documento estiver "pending" ou "failed".
+  // Lock atômico: só processa se o documento estiver "pending" ou "failed".
   // Previne processamento duplo.
   const { data: locked } = await supabase
     .from("rag_documents")
@@ -57,7 +57,7 @@ export async function runRagProcessWorker(
     .maybeSingle();
 
   if (!locked) {
-    console.log(`[RAG] Documento ${documentId} nao esta pending/failed, pulando.`);
+    console.log(`[RAG] Documento ${documentId} não está pending/failed, pulando.`);
     return { documentId, totalChunks: 0 };
   }
 
@@ -72,7 +72,7 @@ export async function runRagProcessWorker(
       .single();
 
     if (docError || !doc) {
-      throw new Error(`Documento ${documentId} nao encontrado.`);
+      throw new Error(`Documento ${documentId} não encontrado.`);
     }
 
     // 2. Baixar PDF do Storage
@@ -81,7 +81,7 @@ export async function runRagProcessWorker(
       .download(doc.storage_path);
 
     if (downloadError || !fileData) {
-      throw new Error(`Falha ao baixar PDF: ${downloadError?.message ?? "Arquivo nao encontrado."}`);
+      throw new Error(`Falha ao baixar PDF: ${downloadError?.message ?? "Arquivo não encontrado."}`);
     }
 
     // 3. Extrair texto com pdf-parse v2
@@ -92,10 +92,10 @@ export async function runRagProcessWorker(
     const extractedText = textResult.text;
     await parser.destroy();
 
-    console.log(`[RAG] Texto extraido: ${extractedText.length} chars`);
+    console.log(`[RAG] Texto extraído: ${extractedText.length} chars`);
 
     if (!extractedText || extractedText.trim().length === 0) {
-      throw new Error("PDF nao contem texto extraivel.");
+      throw new Error("PDF não contém texto extraível.");
     }
 
     // 4. Chunkar texto
@@ -106,13 +106,13 @@ export async function runRagProcessWorker(
       throw new Error("Nenhum chunk gerado a partir do texto do PDF.");
     }
 
-    // 5. Limpar chunks antigos (seguranca contra duplicatas em reprocessamento)
+    // 5. Limpar chunks antigos (segurança contra duplicatas em reprocessamento)
     await supabase
       .from("rag_document_chunks")
       .delete()
       .eq("document_id", documentId);
 
-    // 6. Gerar embeddings e inserir em batches (menor uso de memoria, INSERT menor)
+    // 6. Gerar embeddings e inserir em batches (menor uso de memória, INSERT menor)
     for (let i = 0; i < chunks.length; i += EMBEDDING_BATCH_SIZE) {
       const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
       const batchTexts = batch.map((c) => c.content);
@@ -121,7 +121,7 @@ export async function runRagProcessWorker(
       const insertRows = batch.map((chunk, j) => {
         const embedding = batchEmbeddings[j];
         if (!embedding || !Array.isArray(embedding)) {
-          throw new Error(`Batch ${i}, chunk ${j}: embedding invalido.`);
+          throw new Error(`Batch ${i}, chunk ${j}: embedding inválido.`);
         }
         return {
           document_id: documentId,

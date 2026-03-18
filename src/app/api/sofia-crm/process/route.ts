@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/sofia-crm/process/route.ts
- * Proposito: Processar job especifico de sincronizacao do Sofia CRM.
+ * Propósito: Processar job específico de sincronização do Sofia CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -18,8 +18,8 @@ export const maxDuration = 120;
 const STALE_RUNNING_MINUTES = 5;
 
 const processSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
-  jobId: z.string().uuid("jobId invalido."),
+  companyId: z.string().uuid("companyId inválido.").optional(),
+  jobId: z.string().uuid("jobId inválido."),
 });
 
 function isOlderThan(value: string | null, minutes: number) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     if (!job?.id) {
       return NextResponse.json(
-        { error: "Job de sincronizacao nao encontrado.", code: "SOFIA_SYNC_JOB_NOT_FOUND" },
+        { error: "Job de sincronização não encontrado.", code: "SOFIA_SYNC_JOB_NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         companyId: access.companyId,
         jobId: job.id,
         jobStatus: "running",
-        message: "Job ja esta em processamento.",
+        message: "Job já está em processamento.",
       });
     }
 

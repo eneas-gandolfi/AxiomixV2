@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/forms/integrations-settings-form.tsx
- * Proposito: Conectar Sofia CRM e Evolution API com fluxo simplificado por modal.
+ * Propósito: Conectar Sofia CRM e Evolution API com fluxo simplificado por modal.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -16,13 +16,13 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const sofiaSchema = z.object({
-  baseUrl: z.string().trim().url("URL base invalida."),
-  apiToken: z.string().trim().min(1, "API token e obrigatorio."),
+  baseUrl: z.string().trim().url("URL base inválida."),
+  apiToken: z.string().trim().min(1, "API token é obrigatório."),
 });
 
 const evolutionConnectSchema = z.object({
   vendorName: z.string().trim().min(2, "Nome da conexão inválido."),
-  managerPhone: z.string().trim().min(8, "WhatsApp do gestor invalido."),
+  managerPhone: z.string().trim().min(8, "WhatsApp do gestor inválido."),
 });
 
 type IntegrationStatus = {
@@ -119,7 +119,7 @@ function formatStatus(status: IntegrationStatus) {
   if (status.testStatus === "error") {
     return "Falha no teste";
   }
-  return "Nao testada";
+  return "Não testada";
 }
 
 function formatLastTestedAt(value: string | null) {
@@ -204,13 +204,13 @@ function IntegrationOverviewCard({
               <p className={`text-sm font-medium ${statusTextClass(status)}`}>{formatStatus(status)}</p>
             </div>
           )}
-          <p className="mt-2 text-xs text-muted-light">Ultimo teste: {formatLastTestedAt(status.lastTestedAt)}</p>
+          <p className="mt-2 text-xs text-muted-light">Último teste: {formatLastTestedAt(status.lastTestedAt)}</p>
         </div>
 
         {extra}
 
         <Button type="button" onClick={onConnect} className="w-full">
-          {status.testStatus === "ok" ? "Reconfigurar conexao" : "Conectar agora"}
+          {status.testStatus === "ok" ? "Reconfigurar conexão" : "Conectar agora"}
         </Button>
       </CardContent>
     </Card>
@@ -294,7 +294,7 @@ export function IntegrationsSettingsForm() {
       }
 
       if (!integrationsRequest.ok) {
-        setGlobalError(integrationsResponse.error ?? "Nao foi possivel carregar integracoes.");
+        setGlobalError(integrationsResponse.error ?? "Não foi possível carregar integrações.");
         setIsLoading(false);
         return;
       }
@@ -366,7 +366,7 @@ export function IntegrationsSettingsForm() {
       setActiveModal({
         key,
         title: "Conectar Sofia CRM",
-        subtitle: "Informe credenciais da conta para liberar sincronizacao de conversas.",
+        subtitle: "Informe credenciais da conta para liberar sincronização de conversas.",
       });
       return;
     }
@@ -430,7 +430,7 @@ export function IntegrationsSettingsForm() {
     }
 
     setErrors((previous) => ({ ...previous, sofia: {} }));
-    setSofiaFeedback(response.testDetail ?? "Conexao validada com sucesso.");
+    setSofiaFeedback(response.testDetail ?? "Conexão validada com sucesso.");
     closeActiveModal();
   };
 
@@ -465,7 +465,7 @@ export function IntegrationsSettingsForm() {
 
       setSofiaFeedback(
         response.message ??
-          "Dados sincronizados removidos. A proxima sincronizacao vai trazer apenas a conta atual do Sofia CRM."
+          "Dados sincronizados removidos. A próxima sincronização vai trazer apenas a conta atual do Sofia CRM."
       );
     } catch (resetError) {
       const detail =
@@ -591,7 +591,7 @@ export function IntegrationsSettingsForm() {
 
   const deleteEvolutionVendor = async (vendor: EvolutionVendor) => {
     const confirmed = window.confirm(
-      `Isso vai excluir a instancia ${vendor.instanceName} da Evolution API. Deseja continuar?`
+      `Isso vai excluir a instância ${vendor.instanceName} da Evolution API. Deseja continuar?`
     );
 
     if (!confirmed) {
@@ -619,7 +619,7 @@ export function IntegrationsSettingsForm() {
           ...previous,
           evolution: {
             ...previous.evolution,
-            form: response.error ?? "Falha ao excluir conexao.",
+            form: response.error ?? "Falha ao excluir conexão.",
           },
         }));
         return;
@@ -646,7 +646,7 @@ export function IntegrationsSettingsForm() {
       setEvolutionFeedback(response.message ?? `${vendor.vendorName} removido com sucesso.`);
     } catch (deleteError) {
       const detail =
-        deleteError instanceof Error ? deleteError.message : "Erro inesperado ao excluir conexao.";
+        deleteError instanceof Error ? deleteError.message : "Erro inesperado ao excluir conexão.";
       setErrors((previous) => ({
         ...previous,
         evolution: {
@@ -827,7 +827,7 @@ export function IntegrationsSettingsForm() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-text">{vendor.vendorName}</p>
-                    <p className="text-xs text-muted">Instancia: {vendor.instanceName}</p>
+                    <p className="text-xs text-muted">Instância: {vendor.instanceName}</p>
                     <p className={`text-xs font-medium ${vendorStatusClass(vendor.status)}`}>
                       Status: {vendor.status}
                     </p>
@@ -867,7 +867,7 @@ export function IntegrationsSettingsForm() {
   );
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Carregando integracoes...</p>;
+    return <p className="text-sm text-muted">Carregando integrações...</p>;
   }
 
   if (globalError) {
@@ -930,7 +930,7 @@ export function IntegrationsSettingsForm() {
               </p>
               <p className="inline-flex items-center gap-2 text-sm text-muted">
                 <UsersRound className="h-4 w-4 text-primary" />
-                Cada empresa possui seu proprio perfil de redes sociais.
+                Cada empresa possui seu próprio perfil de redes sociais.
               </p>
             </div>
             <Link href="/settings?tab=social" className={buttonVariants({ variant: "secondary" })}>

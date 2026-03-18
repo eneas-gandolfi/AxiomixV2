@@ -63,7 +63,7 @@ async function getCompanySettings(companyId: string) {
     .maybeSingle();
 
   if (error) {
-    throw new Error(`Falha ao carregar configuracoes da empresa: ${error.message}`);
+    throw new Error(`Falha ao carregar configurações da empresa: ${error.message}`);
   }
 
   return data?.settings ?? null;
@@ -85,7 +85,7 @@ async function saveExcludedConversationExternalIdsToSettings(companyId: string, 
     .eq("id", companyId);
 
   if (error) {
-    throw new Error(`Falha ao salvar exclusoes de conversas nas configuracoes: ${error.message}`);
+    throw new Error(`Falha ao salvar exclusões de conversas nas configurações: ${error.message}`);
   }
 }
 
@@ -117,7 +117,7 @@ export async function getExcludedConversationExternalIds(
       return new Set(requestedIds.filter((externalId) => excludedIds.has(externalId)));
     }
 
-    throw new Error(`Falha ao carregar exclusoes de conversas: ${error.message}`);
+    throw new Error(`Falha ao carregar exclusões de conversas: ${error.message}`);
   }
 
   return new Set((data ?? []).map((row) => row.external_id).filter(Boolean));
@@ -156,7 +156,7 @@ export async function createConversationExclusions(
       return externalIds.length;
     }
 
-    throw new Error(`Falha ao salvar exclusoes de conversas: ${error.message}`);
+    throw new Error(`Falha ao salvar exclusões de conversas: ${error.message}`);
   }
 
   return externalIds.length;

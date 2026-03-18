@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/integrations/service.ts
- * Proposito: Validar, serializar e testar integracoes por empresa.
+ * Propósito: Validar, serializar e testar integrações por empresa.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -23,10 +23,10 @@ import type {
 const baseUrlSchema = z
   .string()
   .trim()
-  .url("Informe uma URL valida.")
+  .url("Informe uma URL válida.")
   .transform((value) => value.replace(/\/+$/, ""));
 
-const requiredSecretSchema = z.string().trim().min(1, "Campo obrigatorio.");
+const requiredSecretSchema = z.string().trim().min(1, "Campo obrigatório.");
 
 const sofiaCrmSchema: z.ZodType<SofiaCrmConfig> = z.object({
   baseUrl: baseUrlSchema,
@@ -49,7 +49,7 @@ const evolutionApiSchema: z.ZodType<EvolutionApiConfig> = z.object({
   managerPhone: z
     .string()
     .trim()
-    .min(8, "Numero do gestor invalido.")
+    .min(8, "Número do gestor inválido.")
     .transform((value) => normalizeWhatsAppPhone(value)),
   baseUrl: baseUrlSchema.optional(),
   apiKey: requiredSecretSchema.optional(),
@@ -78,12 +78,12 @@ const uploadPostSchema: z.ZodType<UploadPostConfig> = z.object({
 
 const openRouterSchema: z.ZodType<OpenRouterConfig> = z.object({
   apiKey: requiredSecretSchema,
-  model: z.string().trim().min(3, "Modelo invalido.").default("openai/gpt-4o"),
+  model: z.string().trim().min(3, "Modelo inválido.").default("openai/gpt-4o"),
 });
 
 function assertObjectPayload(payload: unknown) {
   if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
-    throw new Error("Payload invalido para integracao.");
+    throw new Error("Payload inválido para integração.");
   }
 
   return payload as Record<string, unknown>;
@@ -184,7 +184,7 @@ export function parseIntegrationConfig<T extends IntegrationType>(
     case "openrouter":
       return openRouterSchema.parse(objectPayload) as IntegrationConfigByType[T];
     default:
-      throw new Error("Tipo de integracao nao suportado.");
+      throw new Error("Tipo de integração não suportado.");
   }
 }
 
@@ -257,7 +257,7 @@ export function encodeIntegrationConfig<T extends IntegrationType>(
       };
     }
     default:
-      throw new Error("Tipo de integracao nao suportado.");
+      throw new Error("Tipo de integração não suportado.");
   }
 }
 
@@ -315,7 +315,7 @@ export function decodeIntegrationConfig<T extends IntegrationType>(
         apiKey: decryptIfEncrypted(config.api_key_encrypted ?? config.api_key),
       } as IntegrationConfigByType[T];
     default:
-      throw new Error("Tipo de integracao nao suportado.");
+      throw new Error("Tipo de integração não suportado.");
   }
 }
 
@@ -488,7 +488,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 8000
       try {
         return await fetchWithHttps(url, init, timeoutMs);
       } catch (httpsError) {
-        // HTTP downgrade removido por seguranca — credenciais nao devem trafegar em texto plano.
+        // HTTP downgrade removido por segurança — credenciais não devem trafegar em texto plano.
         throw httpsError;
       }
     }
@@ -521,31 +521,31 @@ function extractNetworkErrorDetail(error: unknown): string {
     if (code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" || code === "CERT_HAS_EXPIRED" ||
         code === "DEPTH_ZERO_SELF_SIGNED_CERT" || code === "SELF_SIGNED_CERT_IN_CHAIN" ||
         code === "ERR_TLS_CERT_ALTNAME_INVALID" || code?.startsWith("ERR_TLS")) {
-      return `Certificado SSL invalido (${code}). Verifique o certificado do servidor.`;
+      return `Certificado SSL inválido (${code}). Verifique o certificado do servidor.`;
     }
 
     if (code === "EPROTO" || cause.message?.includes("SSL") || code === "ECONNRESET") {
       if (code === "EPROTO" || cause.message?.includes("SSL")) {
-        return `Erro de protocolo SSL/TLS (${code || "SSL"}). O servidor pode nao suportar a conexao exigida.`;
+        return `Erro de protocolo SSL/TLS (${code || "SSL"}). O servidor pode não suportar a conexão exigida.`;
       }
     }
 
     // DNS errors
     if (code === "ENOTFOUND") {
-      return `DNS nao resolvido — o host nao foi encontrado. Verifique a URL.`;
+      return `DNS não resolvido — o host não foi encontrado. Verifique a URL.`;
     }
 
     // Connection refused / reset
     if (code === "ECONNREFUSED") {
-      return `Conexao recusada pelo servidor. Verifique se o servico esta ativo.`;
+      return `Conexão recusada pelo servidor. Verifique se o serviço está ativo.`;
     }
     if (code === "ECONNRESET" || code === "EPIPE") {
-      return `Conexao interrompida (${code}). Tente novamente.`;
+      return `Conexão interrompida (${code}). Tente novamente.`;
     }
 
     // Timeout via AbortController
     if (cause.name === "AbortError" || code === "UND_ERR_CONNECT_TIMEOUT") {
-      return `Timeout — o servidor nao respondeu a tempo.`;
+      return `Timeout — o servidor não respondeu a tempo.`;
     }
 
     // Fallback: use cause message + code when available
@@ -554,7 +554,7 @@ function extractNetworkErrorDetail(error: unknown): string {
 
   // AbortError directly on the error (timeout from our AbortController)
   if (error.name === "AbortError") {
-    return "Timeout — o servidor nao respondeu a tempo.";
+    return "Timeout — o servidor não respondeu a tempo.";
   }
 
   return error.message;
@@ -571,7 +571,7 @@ export async function testIntegrationConnection<T extends IntegrationType>(
         const baseUrl = resolveSofiaBaseUrl(sofia.baseUrl);
 
         if (!baseUrl) {
-          return { ok: false, detail: "URL base do Sofia CRM nao configurada." };
+          return { ok: false, detail: "URL base do Sofia CRM não configurada." };
         }
 
         const authHeaders = {
@@ -614,8 +614,8 @@ export async function testIntegrationConnection<T extends IntegrationType>(
         return {
           ok: true,
           detail: detectedInboxId
-            ? `Conexao validada. Inbox WhatsApp detectado: ${detectedInboxId}.`
-            : "Conexao validada. Nenhum inbox WhatsApp detectado.",
+            ? `Conexão validada. Inbox WhatsApp detectado: ${detectedInboxId}.`
+            : "Conexão validada. Nenhum inbox WhatsApp detectado.",
           detectedConfig: detectedInboxId ? { inboxId: detectedInboxId } : undefined,
         };
       }
@@ -627,7 +627,7 @@ export async function testIntegrationConnection<T extends IntegrationType>(
         if (!baseUrl || !apiKey) {
           return {
             ok: false,
-            detail: "Credenciais da Evolution API nao encontradas no servidor.",
+            detail: "Credenciais da Evolution API não encontradas no servidor.",
           };
         }
 
@@ -646,7 +646,7 @@ export async function testIntegrationConnection<T extends IntegrationType>(
           };
         }
 
-        return { ok: true, detail: "Conexao com Evolution API validada." };
+        return { ok: true, detail: "Conexão com Evolution API validada." };
       }
       case "upload_post": {
         const uploadPost = config as UploadPostConfig;
@@ -657,14 +657,14 @@ export async function testIntegrationConnection<T extends IntegrationType>(
           return {
             ok: false,
             detail:
-              "UPLOAD_POST_API_URL (ou UPLOAD_POST_API_BASE_URL) nao configurada para teste de conexao.",
+              "UPLOAD_POST_API_URL (ou UPLOAD_POST_API_BASE_URL) não configurada para teste de conexão.",
           };
         }
 
         if (!apiKey) {
           return {
             ok: false,
-            detail: "UPLOAD_POST_API_KEY nao configurada para teste de conexao.",
+            detail: "UPLOAD_POST_API_KEY não configurada para teste de conexão.",
           };
         }
 
@@ -687,7 +687,7 @@ export async function testIntegrationConnection<T extends IntegrationType>(
           };
         }
 
-        return { ok: true, detail: "Conexao com Upload-Post API validada." };
+        return { ok: true, detail: "Conexão com Upload-Post API validada." };
       }
       case "openrouter": {
         const openrouter = config as OpenRouterConfig;
@@ -706,14 +706,14 @@ export async function testIntegrationConnection<T extends IntegrationType>(
           };
         }
 
-        return { ok: true, detail: "Conexao com OpenRouter validada." };
+        return { ok: true, detail: "Conexão com OpenRouter validada." };
       }
       default:
-        return { ok: false, detail: "Tipo de integracao nao suportado." };
+        return { ok: false, detail: "Tipo de integração não suportado." };
     }
   } catch (error) {
     console.error("[testIntegrationConnection] Erro de rede:", error);
     const detail = extractNetworkErrorDetail(error);
-    return { ok: false, detail: `Falha ao testar integracao: ${detail}` };
+    return { ok: false, detail: `Falha ao testar integração: ${detail}` };
   }
 }

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/whatsapp/auto-analyze.ts
- * Proposito: Enfileirar análises automáticas para conversas sem insight.
+ * Propósito: Enfileirar análises automáticas para conversas sem insight.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

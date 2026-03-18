@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/rag/knowledge-chat.tsx
- * Proposito: Interface de perguntas e respostas sobre a base de conhecimento RAG.
+ * Propósito: Interface de perguntas e respostas sobre a base de conhecimento RAG.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

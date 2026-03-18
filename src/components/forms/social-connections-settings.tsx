@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/forms/social-connections-settings.tsx
- * Proposito: Gerenciar conexao de redes sociais da empresa via Upload-Post.
+ * Propósito: Gerenciar conexão de redes sociais da empresa via Upload-Post.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -90,9 +90,9 @@ function profileStatusLabel(status: UploadPostProfile["status"]) {
     return "Perfil com erro";
   }
   if (status === "pending") {
-    return "Perfil criado (aguardando conexao)";
+    return "Perfil criado (aguardando conexão)";
   }
-  return "Nao criado";
+  return "Não criado";
 }
 
 function platformIcon(platform: SocialPlatform) {
@@ -166,7 +166,7 @@ export function SocialConnectionsSettings() {
 
     if (!request.ok) {
       if (!sync) {
-        setError(response.error ?? "Nao foi possivel carregar redes sociais.");
+        setError(response.error ?? "Não foi possível carregar redes sociais.");
       }
       return;
     }
@@ -292,7 +292,7 @@ export function SocialConnectionsSettings() {
     popupTimeoutRef.current = window.setTimeout(() => {
       stopPopupWatchers();
       setConnectingPlatform(null);
-      setFeedback("Finalize a autorizacao na janela aberta para concluir a conexao.");
+      setFeedback("Finalize a autorização na janela aberta para concluir a conexão.");
     }, 8 * 60 * 1000);
   };
 
@@ -311,13 +311,13 @@ export function SocialConnectionsSettings() {
 
     if (!popup) {
       setConnectingPlatform(null);
-      setError("Seu navegador bloqueou a janela de autorizacao. Libere pop-ups para continuar.");
+      setError("Seu navegador bloqueou a janela de autorização. Libere pop-ups para continuar.");
       return;
     }
 
     popup.document.title = "Conectar rede social";
     popup.document.body.innerHTML =
-      "<p style='font-family:system-ui;padding:20px'>Abrindo autorizacao...</p>";
+      "<p style='font-family:system-ui;padding:20px'>Abrindo autorização...</p>";
 
     const request = await fetch("/api/settings/social/connections", {
       method: "POST",
@@ -340,7 +340,7 @@ export function SocialConnectionsSettings() {
     if (!response.connectUrl) {
       popup.close();
       setConnectingPlatform(null);
-      setError("A Upload-Post nao retornou URL de autorizacao.");
+      setError("A Upload-Post não retornou URL de autorização.");
       return;
     }
 
@@ -365,7 +365,7 @@ export function SocialConnectionsSettings() {
     popup.location.href = response.connectUrl;
     setFeedback(
       response.testDetail ??
-        `Janela de autorizacao aberta para ${platformLabel(platform)}. Finalize a conexao nela.`
+        `Janela de autorização aberta para ${platformLabel(platform)}. Finalize a conexão nela.`
     );
     startPopupConnectionWatcher(platform, popup);
   };
@@ -374,7 +374,7 @@ export function SocialConnectionsSettings() {
   const isEditor = role === "owner" || role === "admin";
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Carregando conexoes sociais...</p>;
+    return <p className="text-sm text-muted">Carregando conexões sociais...</p>;
   }
 
   return (
@@ -390,7 +390,7 @@ export function SocialConnectionsSettings() {
           <div className="rounded-lg border border-border bg-background p-3">
             <p className="text-sm font-medium text-text">Perfil Upload-Post: {profileStatusLabel(profile.status)}</p>
             <p className="mt-1 text-xs text-muted">
-              {profile.id ? `Profile ID: ${profile.id}` : "Perfil sera criado automaticamente na primeira conexao."}
+              {profile.id ? `Profile ID: ${profile.id}` : "Perfil será criado automaticamente na primeira conexão."}
             </p>
             {uploadPostAccount?.email ? (
               <p className="mt-1 text-xs text-muted">
@@ -450,7 +450,7 @@ export function SocialConnectionsSettings() {
               <div>
                 <h3 className="text-lg font-semibold text-text">Conectar redes sociais</h3>
                 <p className="mt-1 text-sm text-muted">
-                  O AXIOMIX cria o perfil da empresa no Upload-Post e abre a autorizacao da rede.
+                  O AXIOMIX cria o perfil da empresa no Upload-Post e abre a autorização da rede.
                 </p>
               </div>
               <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-lg p-1.5 text-muted-light hover:text-text hover:bg-sidebar transition-colors">
@@ -468,7 +468,7 @@ export function SocialConnectionsSettings() {
                     </p>
                     <p className="text-xs text-muted">
                       {connections.find((item) => item.platform === platform)?.status === "connected"
-                        ? "Ja conectada"
+                        ? "Já conectada"
                         : "Conectar agora"}
                     </p>
                   </div>
@@ -485,7 +485,7 @@ export function SocialConnectionsSettings() {
 
               {connectingPlatform ? (
                 <p className="text-xs text-muted-light">
-                  A janela de autorizacao foi aberta. Assim que a rede conectar, ela fecha automaticamente.
+                  A janela de autorização foi aberta. Assim que a rede conectar, ela fecha automaticamente.
                 </p>
               ) : null}
             </div>

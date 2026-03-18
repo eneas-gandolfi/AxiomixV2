@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/intelligence/intelligence-module-enhanced.tsx
- * Proposito: Interface aprimorada do Intelligence com dashboard, analytics e funcionalidades avançadas
+ * Propósito: Interface aprimorada do Intelligence com dashboard, analytics e funcionalidades avançadas
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -102,9 +102,9 @@ type CollectResponse = {
 
 const competitorFormSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do concorrente."),
-  websiteUrl: z.string().trim().url("Website invalido.").optional().or(z.literal("")),
-  instagramUrl: z.string().trim().url("Instagram invalido.").optional().or(z.literal("")),
-  linkedinUrl: z.string().trim().url("LinkedIn invalido.").optional().or(z.literal("")),
+  websiteUrl: z.string().trim().url("Website inválido.").optional().or(z.literal("")),
+  instagramUrl: z.string().trim().url("Instagram inválido.").optional().or(z.literal("")),
+  linkedinUrl: z.string().trim().url("LinkedIn inválido.").optional().or(z.literal("")),
 });
 
 const PROMPT_TEMPLATES = [

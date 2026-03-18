@@ -39,10 +39,10 @@ type AlertLogsResponse = {
 };
 
 const ALERT_LABELS: Record<string, string> = {
-  purchase_intent: "Intencao de compra",
+  purchase_intent: "Intenção de compra",
   negative_sentiment: "Sentimento negativo",
-  failed_post: "Falha na publicacao",
-  viral_content: "Conteudo viral",
+  failed_post: "Falha na publicação",
+  viral_content: "Conteúdo viral",
 };
 
 const NOTIFICATIONS_PANEL_ID = "topbar-notifications-panel";
@@ -144,7 +144,7 @@ export function TopbarNotifications() {
     }
 
     if (!loadedAnyResource) {
-      setError("Nao foi possivel carregar as notificacoes.");
+      setError("Não foi possível carregar as notificações.");
     }
 
     setIsLoading(false);
@@ -215,7 +215,7 @@ export function TopbarNotifications() {
       <button
         ref={buttonRef}
         type="button"
-        aria-label="Notificacoes"
+        aria-label="Notificações"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         aria-controls={NOTIFICATIONS_PANEL_ID}
@@ -235,17 +235,17 @@ export function TopbarNotifications() {
           ref={panelRef}
           id={NOTIFICATIONS_PANEL_ID}
           role="dialog"
-          aria-label="Painel de notificacoes"
+          aria-label="Painel de notificações"
           className="absolute right-0 top-[calc(100%+0.75rem)] z-40 w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-modal"
         >
           <div className="border-b border-[var(--color-border)] px-4 py-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-text)]">
-                  Notificacoes
+                  Notificações
                 </p>
                 <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                  Alertas criticos e entregas recentes.
+                  Alertas críticos e entregas recentes.
                 </p>
               </div>
               {isLoading ? (
@@ -281,13 +281,13 @@ export function TopbarNotifications() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-[var(--color-text)]">
                   {criticalCount > 0
-                    ? `${badgeLabel} conversa${criticalCount === 1 ? "" : "s"} critica${criticalCount === 1 ? "" : "s"} nas ultimas 24h`
-                    : "Nenhuma conversa critica agora"}
+                    ? `${badgeLabel} conversa${criticalCount === 1 ? "" : "s"} crítica${criticalCount === 1 ? "" : "s"} nas últimas 24h`
+                    : "Nenhuma conversa crítica agora"}
                 </p>
                 <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                   {criticalCount > 0
-                    ? "Abra o modulo de WhatsApp e priorize os atendimentos mais sensiveis."
-                    : "O modulo de WhatsApp segue sem alertas criticos no momento."}
+                    ? "Abra o módulo de WhatsApp e priorize os atendimentos mais sensíveis."
+                    : "O módulo de WhatsApp segue sem alertas críticos no momento."}
                 </p>
               </div>
               <ChevronRight
@@ -299,7 +299,7 @@ export function TopbarNotifications() {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
-                  Ultimos alertas
+                  Últimos alertas
                 </p>
                 <Link
                   href="/settings?tab=alerts"
@@ -341,7 +341,7 @@ export function TopbarNotifications() {
                         Nenhum alerta enviado ainda
                       </p>
                       <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                        Ative os alertas no menu de configuracoes para acompanhar eventos aqui.
+                        Ative os alertas no menu de configurações para acompanhar eventos aqui.
                       </p>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/report/daily-generator.ts
- * Proposito: Agregar metricas diarias e gerar relatorio de gargalos com IA.
+ * Propósito: Agregar métricas diárias e gerar relatório de gargalos com IA.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -68,25 +68,25 @@ function fallbackReportText(reportDate: string, metrics: DailyMetrics) {
 
   const stuckLine =
     metrics.postsStuck > 0
-      ? `⚠️ ${metrics.postsStuck} posts travados precisam de atencao.`
+      ? `⚠️ ${metrics.postsStuck} posts travados precisam de atenção.`
       : "";
 
   const failedLine =
     metrics.postsFailed > 0
-      ? `⚠️ ${metrics.postsFailed} posts falharam na publicacao.`
+      ? `⚠️ ${metrics.postsFailed} posts falharam na publicação.`
       : "";
 
   const text = `
-📊 *Resumo diario — ${metrics.companyName}* (${reportDate})
+📊 *Resumo diário — ${metrics.companyName}* (${reportDate})
 
-WhatsApp: ${metrics.conversationsAnalyzed} conversas analisadas, ${metrics.purchaseIntents} intencoes de compra (${contactsLine}), ${metrics.negativeSentiments} sentimentos negativos.
+WhatsApp: ${metrics.conversationsAnalyzed} conversas analisadas, ${metrics.purchaseIntents} intenções de compra (${contactsLine}), ${metrics.negativeSentiments} sentimentos negativos.
 Redes sociais: ${metrics.postsPublished} publicados, ${metrics.postsFailed} falhados, ${metrics.postsStuck} travados.
 ${stuckLine}
 ${failedLine}
-Inteligencia: ${metrics.competitorInsightsCount} insights de concorrentes.
+Inteligência: ${metrics.competitorInsightsCount} insights de concorrentes.
 Alertas falhados: ${metrics.alertsFailed}.
 
-💡 Verifique os itens com ⚠️ e priorize contatos com intencao de compra.
+💡 Verifique os itens com ⚠️ e priorize contatos com intenção de compra.
 `.trim();
 
   return clampWords(text, 300);
@@ -120,7 +120,7 @@ async function collectDailyMetrics(companyId: string, reportDate: string): Promi
       .eq("company_id", companyId)
       .gte("generated_at", start)
       .lte("generated_at", end),
-    // 3. Intencoes de compra
+    // 3. Intenções de compra
     supabase
       .from("conversation_insights")
       .select("id", { count: "exact", head: true })
@@ -136,7 +136,7 @@ async function collectDailyMetrics(companyId: string, reportDate: string): Promi
       .eq("sentiment", "negativo")
       .gte("generated_at", start)
       .lte("generated_at", end),
-    // 5. Top 3 contatos com intencao de compra (join com conversations)
+    // 5. Top 3 contatos com intenção de compra (join com conversations)
     supabase
       .from("conversation_insights")
       .select("conversation_id, conversations!inner(contact_name)")
@@ -161,14 +161,14 @@ async function collectDailyMetrics(companyId: string, reportDate: string): Promi
       .eq("status", "failed")
       .gte("scheduled_at", start)
       .lte("scheduled_at", end),
-    // 8. Posts travados (scheduled ha mais de 1h)
+    // 8. Posts travados (scheduled há mais de 1h)
     supabase
       .from("scheduled_posts")
       .select("id", { count: "exact", head: true })
       .eq("company_id", companyId)
       .eq("status", "scheduled")
       .lt("scheduled_at", oneHourAgo),
-    // 9. Top 2 conteudo viral
+    // 9. Top 2 conteúdo viral
     supabase
       .from("collected_posts")
       .select("platform, engagement_score, content")
@@ -242,7 +242,7 @@ async function collectDailyMetrics(companyId: string, reportDate: string): Promi
   const topViralContent = (viralContentResult.data ?? []).map((post) => ({
     platform: post.platform ?? "desconhecida",
     engagementScore: post.engagement_score ?? 0,
-    content: post.content ?? "Sem conteudo",
+    content: post.content ?? "Sem conteúdo",
   }));
 
   return {
@@ -271,7 +271,7 @@ export async function generateDailyReport(
 
   const kbContext = await getKnowledgeBaseContext(
     companyId,
-    `gargalos operacionais gargalos comerciais perguntas de diagnostico objecoes compromisso proximo passo ${metrics.companyName}`,
+    `gargalos operacionais gargalos comerciais perguntas de diagnóstico objeções compromisso próximo passo ${metrics.companyName}`,
     {
       includeGlobal: true,
     }
@@ -303,7 +303,7 @@ export async function generateDailyReport(
       [
         {
           role: "system",
-          content: "Voce gera texto puro em portugues para WhatsApp. Use *bold* para destaques.",
+          content: "Você gera texto puro em português para WhatsApp. Use *bold* para destaques.",
         },
         {
           role: "user",

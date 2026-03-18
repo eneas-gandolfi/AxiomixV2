@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/auth/resolve-company-access.ts
- * Proposito: Validar company_id no servidor e garantir que pertence ao usuario autenticado.
+ * Propósito: Validar company_id no servidor e garantir que pertence ao usuário autenticado.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -40,7 +40,7 @@ export async function resolveCompanyAccess(
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    throw new CompanyAccessError("Usuario nao autenticado.", "AUTH_REQUIRED", 401);
+    throw new CompanyAccessError("Usuário não autenticado.", "AUTH_REQUIRED", 401);
   }
 
   const membershipsQuery = supabase
@@ -65,7 +65,7 @@ export async function resolveCompanyAccess(
 
     if (!membership?.company_id) {
       throw new CompanyAccessError(
-        "company_id invalido para o usuario autenticado.",
+        "company_id inválido para o usuário autenticado.",
         "COMPANY_FORBIDDEN",
         403
       );
@@ -84,7 +84,7 @@ export async function resolveCompanyAccess(
 
   if (error) {
     throw new CompanyAccessError(
-      "Falha ao carregar empresa do usuario autenticado.",
+      "Falha ao carregar empresa do usuário autenticado.",
       "COMPANY_FETCH_ERROR",
       500
     );
@@ -92,7 +92,7 @@ export async function resolveCompanyAccess(
 
   if (!firstMembership?.company_id) {
     throw new CompanyAccessError(
-      "Usuario autenticado nao possui empresa vinculada.",
+      "Usuário autenticado não possui empresa vinculada.",
       "COMPANY_NOT_FOUND",
       404
     );

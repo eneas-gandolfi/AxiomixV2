@@ -18,7 +18,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const updateSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
   name: z.string().min(1, "Nome é obrigatório.").max(100, "Nome excede 100 caracteres."),
   hashtags: z.array(z.string()).min(1, "Informe ao menos uma hashtag."),
 });
@@ -46,7 +46,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

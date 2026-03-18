@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/integrations/evolution.ts
- * Proposito: Operacoes de QR Code e status de instancias na Evolution API.
+ * Propósito: Operações de QR Code e status de instâncias na Evolution API.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -80,7 +80,7 @@ export function resolveEvolutionCredentials(input?: {
   const apiKey = input?.apiKey?.trim() || process.env.EVOLUTION_API_KEY?.trim() || "";
 
   if (!baseUrl || !apiKey) {
-    throw new Error("Credenciais da Evolution API nao configuradas no servidor.");
+    throw new Error("Credenciais da Evolution API não configuradas no servidor.");
   }
 
   return {
@@ -259,7 +259,7 @@ async function callEvolution(credentials: EvolutionCredentials, attempt: Evoluti
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === "AbortError") {
-      throw new EvolutionApiRequestError("Evolution API timeout: requisicao excedeu 30s.", 408, attempt.source);
+      throw new EvolutionApiRequestError("Evolution API timeout: requisição excedeu 30s.", 408, attempt.source);
     }
     throw error;
   }
@@ -375,7 +375,7 @@ export async function generateEvolutionQrCode(input: {
 
   throw new Error(
     lastFailure ??
-      "Nao foi possivel gerar QR Code automaticamente para esta instancia na Evolution API."
+      "Não foi possível gerar QR Code automaticamente para esta instância na Evolution API."
   );
 }
 
@@ -389,7 +389,7 @@ export async function fetchEvolutionInstanceStatuses(input: {
   });
 
   if (!result.ok) {
-    throw new Error(`Falha ao listar instancias na Evolution API: HTTP ${result.status}`);
+    throw new Error(`Falha ao listar instâncias na Evolution API: HTTP ${result.status}`);
   }
 
   const rows = Array.isArray(result.payload)
@@ -428,7 +428,7 @@ export async function deleteEvolutionInstance(input: {
 
   if (!result.ok) {
     throw new EvolutionApiRequestError(
-      `Falha ao excluir instancia na Evolution API: HTTP ${result.status}`,
+      `Falha ao excluir instância na Evolution API: HTTP ${result.status}`,
       result.status,
       result.source
     );
@@ -448,12 +448,12 @@ export async function sendEvolutionTextMessage(input: {
 }): Promise<EvolutionSendTextResult> {
   const instanceName = input.instanceName.trim();
   if (!instanceName) {
-    throw new Error("Nenhuma instancia conectada na Evolution API.");
+    throw new Error("Nenhuma instância conectada na Evolution API.");
   }
 
   const normalizedNumber = normalizeWhatsAppPhone(input.number);
   if (normalizedNumber.replace(/\D/g, "").length < 8) {
-    throw new Error("Numero de destino invalido para envio WhatsApp.");
+    throw new Error("Número de destino inválido para envio WhatsApp.");
   }
 
   const attempts: EvolutionAttempt[] = [
@@ -506,7 +506,7 @@ export async function sendEvolutionTextMessage(input: {
   }).catch(() => null);
 
   if (statuses && !statuses.some((status) => status.instanceName === instanceName)) {
-    throw new Error(`Instancia ${instanceName} nao encontrada na Evolution API.`);
+    throw new Error(`Instância ${instanceName} não encontrada na Evolution API.`);
   }
 
   let lastFailure = firstAttempt;

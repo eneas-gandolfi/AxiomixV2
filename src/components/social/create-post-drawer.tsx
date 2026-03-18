@@ -59,7 +59,7 @@ const PLATFORM_LIMITS: Record<SocialPlatform, number> = {
   facebook: 63206,
 };
 
-const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const POST_TYPE_OPTIONS: Array<{
   type: SocialPostType;
@@ -67,7 +67,7 @@ const POST_TYPE_OPTIONS: Array<{
   icon: typeof ImageIcon;
 }> = [
   { type: "photo", label: "Foto", icon: ImageIcon },
-  { type: "video", label: "Video", icon: Video },
+  { type: "video", label: "Vídeo", icon: Video },
   { type: "carousel", label: "Carrossel", icon: GalleryHorizontal },
 ];
 
@@ -416,7 +416,7 @@ export function CreatePostDrawer({
       const inferredType = inferPostTypeFromFiles(files);
 
       if (!inferredType) {
-        setError("Use uma imagem, um video ou entre 2 e 10 imagens para carrossel.");
+        setError("Use uma imagem, um vídeo ou entre 2 e 10 imagens para carrossel.");
         return;
       }
 
@@ -426,8 +426,8 @@ export function CreatePostDrawer({
           const sizeMB = (file.size / 1024 / 1024).toFixed(1);
           const maxMB = (maxSize / 1024 / 1024).toFixed(0);
           setError(
-            `${file.name} e muito grande (${sizeMB}MB). Limite: ${maxMB}MB para ${
-              file.type.startsWith("video/") ? "videos" : "imagens"
+            `${file.name} é muito grande (${sizeMB}MB). Limite: ${maxMB}MB para ${
+              file.type.startsWith("video/") ? "vídeos" : "imagens"
             }.`
           );
           return;
@@ -506,7 +506,7 @@ export function CreatePostDrawer({
     (selectedItems: MediaLibraryItem[]) => {
       const inferredType = inferPostTypeFromLibraryItems(selectedItems);
       if (!inferredType) {
-        setError("Selecione uma midia unica ou um conjunto de imagens valido.");
+        setError("Selecione uma mídia única ou um conjunto de imagens válido.");
         return;
       }
 
@@ -557,7 +557,7 @@ export function CreatePostDrawer({
     setError(null);
 
     if (connectedPlatforms.length === 0) {
-      setError("Nenhuma plataforma conectada. Configure em Configuracoes > Integracoes.");
+      setError("Nenhuma plataforma conectada. Configure em Configurações > Integrações.");
       return;
     }
 
@@ -574,12 +574,12 @@ export function CreatePostDrawer({
     const availablePlatforms = new Set(connectedPlatforms.map((item) => item.platform));
     const invalidPlatforms = platforms.filter((platform) => !availablePlatforms.has(platform));
     if (invalidPlatforms.length > 0) {
-      setError(`Plataforma nao conectada: ${invalidPlatforms.join(", ")}`);
+      setError(`Plataforma não conectada: ${invalidPlatforms.join(", ")}`);
       return;
     }
 
     if (!publishNow && !scheduledDate) {
-      setError("Defina data e horario para agendamento.");
+      setError("Defina data e horário para agendamento.");
       return;
     }
 
@@ -606,7 +606,7 @@ export function CreatePostDrawer({
         });
       }
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Falha ao preparar a midia.");
+      setError(uploadError instanceof Error ? uploadError.message : "Falha ao preparar a mídia.");
       return;
     }
 
@@ -727,7 +727,7 @@ export function CreatePostDrawer({
 
               <section>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[var(--color-text)]">Midia</p>
+                  <p className="text-sm font-semibold text-[var(--color-text)]">Mídia</p>
                   <div className="flex items-center gap-2">
                     <Button
                       type="button"
@@ -767,7 +767,7 @@ export function CreatePostDrawer({
                     >
                       <div className="flex items-center gap-3 text-sm text-[var(--color-text-secondary)]">
                         <Upload className="h-4 w-4 text-[#FA5E24]" />
-                        <span>Arraste midia ou clique</span>
+                        <span>Arraste mídia ou clique</span>
                       </div>
                     </div>
 
@@ -817,7 +817,7 @@ export function CreatePostDrawer({
                                 </div>
                               ) : (
                                 <div className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white">
-                                  Video
+                                  Vídeo
                                 </div>
                               )}
                             </div>
@@ -1011,7 +1011,7 @@ export function CreatePostDrawer({
                   {bestTimeLabel ? (
                     <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-dim)] px-3 py-1.5 text-xs font-medium text-[#FA5E24]">
                       <Calendar className="h-3.5 w-3.5" />
-                      Melhor horario: {bestTimeLabel}
+                      Melhor horário: {bestTimeLabel}
                     </div>
                   ) : null}
                 </div>
@@ -1027,7 +1027,7 @@ export function CreatePostDrawer({
                 >
                   <span>Preview {previewOpen ? "▾" : "▸"}</span>
                   <span className="text-xs text-[var(--color-text-tertiary)]">
-                    {platforms.length > 0 ? `${platforms.length} plataforma(s)` : "Sem selecao"}
+                    {platforms.length > 0 ? `${platforms.length} plataforma(s)` : "Sem seleção"}
                   </span>
                 </button>
 

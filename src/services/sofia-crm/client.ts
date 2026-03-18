@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/sofia-crm/client.ts
- * Proposito: Fornecer cliente tipado do Sofia CRM com credenciais por company_id.
+ * Propósito: Fornecer cliente tipado do Sofia CRM com credenciais por company_id.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -191,19 +191,19 @@ function describeFetchError(error: unknown) {
   const causeMessage = cause && typeof cause.message === "string" ? cause.message : null;
 
   if (code === "ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR" || code === "EPROTO") {
-    return "falha TLS no servidor (alert 80). Verifique se o SSL do Hostinger esta instalado corretamente ou se o BitNinja esta bloqueando o agente Axiomix.";
+    return "falha TLS no servidor (alert 80). Verifique se o SSL do Hostinger está instalado corretamente ou se o BitNinja está bloqueando o agente Axiomix.";
   }
 
   if (code === "ENOTFOUND") {
-    return "host nao encontrado (DNS).";
+    return "host não encontrado (DNS).";
   }
 
   if (code === "ECONNREFUSED") {
-    return "conexao recusada pelo servidor.";
+    return "conexão recusada pelo servidor.";
   }
 
   if (code === "UND_ERR_CONNECT_TIMEOUT") {
-    return "timeout de conexao com o servidor.";
+    return "timeout de conexão com o servidor.";
   }
 
   if (code && causeMessage) {
@@ -526,11 +526,11 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     .maybeSingle();
 
   if (error) {
-    throw new Error("Falha ao carregar configuracao do Sofia CRM.");
+    throw new Error("Falha ao carregar configuração do Sofia CRM.");
   }
 
   if (!integration?.config) {
-    throw new Error("Integracao Sofia CRM nao configurada para esta empresa.");
+    throw new Error("Integração Sofia CRM não configurada para esta empresa.");
   }
 
   const config = decodeIntegrationConfig("sofia_crm", integration.config);
@@ -541,7 +541,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
 
   const baseUrl = normalizeSofiaBaseUrl(config.baseUrl);
   if (!baseUrl) {
-    throw new Error("URL base do Sofia CRM invalida.");
+    throw new Error("URL base do Sofia CRM inválida.");
   }
 
   async function requestJson<T>(path: string, options?: SofiaRequestOptions): Promise<T> {
@@ -644,7 +644,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         const bodyLower = responseBody.toLowerCase();
         if (bodyLower.includes("parked domain") || bodyLower.includes("hostinger dns")) {
           return fail(
-            new Error(`URL base do Sofia CRM invalida (${url.origin}): dominio estacionado detectado.`)
+            new Error(`URL base do Sofia CRM inválida (${url.origin}): domínio estacionado detectado.`)
           );
         }
 
@@ -657,12 +657,12 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         try {
           succeed(JSON.parse(responseBody) as T);
         } catch {
-          fail(new Error(`Resposta invalida do Sofia CRM (${url.origin}). JSON malformado.`));
+          fail(new Error(`Resposta inválida do Sofia CRM (${url.origin}). JSON malformado.`));
         }
       });
 
       req.on("error", (error) => {
-        fail(new Error(`Falha na requisicao HTTP/2 para o Sofia CRM (${url.origin}): ${describeFetchError(error)}`));
+        fail(new Error(`Falha na requisição HTTP/2 para o Sofia CRM (${url.origin}): ${describeFetchError(error)}`));
       });
       req.setTimeout(SOFIA_HTTP2_TIMEOUT_MS, () => {
         fail(new Error(`Timeout HTTP/2 ao conectar com o Sofia CRM (${url.origin}).`));
@@ -822,7 +822,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
 
     async sendTemplate(payload) {
       if (!config.inboxId) {
-        throw new Error("Inbox ID nao configurado. Nao e possivel enviar template.");
+        throw new Error("Inbox ID não configurado. Não é possível enviar template.");
       }
       await requestJson<unknown>(`/api/whatsapp-cloud/inboxes/${encodeURIComponent(config.inboxId)}/send-template`, {
         method: "POST",
@@ -893,7 +893,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
 
     async startConversation(phone: string) {
       if (!config.inboxId) {
-        throw new Error("Inbox ID nao configurado. Nao e possivel iniciar conversa.");
+        throw new Error("Inbox ID não configurado. Não é possível iniciar conversa.");
       }
       const result = await requestJson<Record<string, unknown>>("/api/conversations/start", {
         method: "POST",

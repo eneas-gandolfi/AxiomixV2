@@ -547,7 +547,7 @@ async function DashboardContent() {
 
     return (
       <main
-        className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-6 md:p-8"
+        className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 sm:p-6 md:p-8"
         style={{ '--module-color': '#8A8A8A', '--module-color-bg': '#F1F5F9' } as React.CSSProperties}
       >
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -639,7 +639,7 @@ async function DashboardContent() {
     );
   } catch {
     return (
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 md:p-8">
+      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 md:p-8">
         <header className="flex flex-col gap-1">
           <h1 className="font-display text-xl font-bold text-[var(--color-text)]">Dashboard</h1>
           <p className="text-sm text-[var(--color-text-secondary)]">

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/report/daily-job.ts
- * Proposito: Executar ciclo completo do relatorio diario (gerar, enviar e registrar).
+ * Propósito: Executar ciclo completo do relatorio diario (gerar, enviar e registrar).
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */

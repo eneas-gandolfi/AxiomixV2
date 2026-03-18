@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/rag/kb-context.ts
- * Proposito: Helper compartilhado para buscar contexto da base de conhecimento RAG.
+ * Propósito: Helper compartilhado para buscar contexto da base de conhecimento RAG.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */

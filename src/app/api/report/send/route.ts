@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/report/send/route.ts
- * Proposito: Enfileirar ou enviar manualmente o relatorio semanal via WhatsApp.
+ * Propósito: Enfileirar ou enviar manualmente o relatório semanal via WhatsApp.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -17,9 +17,9 @@ import { isCronAuthorized } from "@/lib/auth/cron-auth";
 export const dynamic = "force-dynamic";
 
 const reportSendSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
-  weekStartIso: z.string().datetime("weekStartIso invalido.").optional(),
-  weekEndIso: z.string().datetime("weekEndIso invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
+  weekStartIso: z.string().datetime("weekStartIso inválido.").optional(),
+  weekEndIso: z.string().datetime("weekEndIso inválido.").optional(),
   mode: z.enum(["send_now", "enqueue"]).default("send_now"),
 });
 
@@ -31,7 +31,7 @@ async function enqueueForAllCompanies(period: { weekStartIso?: string; weekEndIs
     .not("company_id", "is", null);
 
   if (error) {
-    throw new Error("Falha ao carregar empresas ativas para enfileirar relatorio.");
+    throw new Error("Falha ao carregar empresas ativas para enfileirar relatório.");
   }
 
   const companyIds = Array.from(
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
   try {
     if (!isCronAuthorized(request)) {
       return NextResponse.json(
-        { error: "Metodo GET reservado para cron.", code: "METHOD_NOT_ALLOWED" },
+        { error: "Método GET reservado para cron.", code: "METHOD_NOT_ALLOWED" },
         { status: 405 }
       );
     }
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     if (access.role !== "owner" && access.role !== "admin") {
       return NextResponse.json(
-        { error: "Apenas owner/admin podem enviar relatorio manual.", code: "FORBIDDEN" },
+        { error: "Apenas owner/admin podem enviar relatório manual.", code: "FORBIDDEN" },
         { status: 403 }
       );
     }

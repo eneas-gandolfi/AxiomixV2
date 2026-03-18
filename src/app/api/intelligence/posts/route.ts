@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/intelligence/posts/route.ts
- * Proposito: API para adicionar posts manualmente ao Content Radar (curadoria manual)
+ * Propósito: API para adicionar posts manualmente ao Content Radar (curadoria manual)
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -13,12 +13,12 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 const addPostSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
   platform: z.enum(["instagram", "linkedin", "tiktok"], {
     message: "Plataforma deve ser instagram, linkedin ou tiktok.",
   }),
-  postUrl: z.string().url("URL invalida.").optional().or(z.literal("")),
-  content: z.string().trim().min(10, "Conteudo deve ter pelo menos 10 caracteres.").max(5000),
+  postUrl: z.string().url("URL inválida.").optional().or(z.literal("")),
+  content: z.string().trim().min(10, "Conteúdo deve ter pelo menos 10 caracteres.").max(5000),
   likesCount: z.number().int().min(0).default(0),
   commentsCount: z.number().int().min(0).default(0),
   sharesCount: z.number().int().min(0).default(0),
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/bulk-analyze-button.tsx
- * Proposito: Botão para disparar análise em lote de conversas pendentes.
+ * Propósito: Botão para disparar análise em lote de conversas pendentes.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

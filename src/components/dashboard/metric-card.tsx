@@ -29,7 +29,7 @@ function renderDelta(delta: number | null | undefined, emptyMessage?: string) {
   if (delta === null || delta === undefined) {
     return (
       <span className="text-xs italic text-muted-light">
-        {emptyMessage ?? "Sem historico comparativo"}
+        {emptyMessage ?? "Sem histórico comparativo"}
       </span>
     );
   }
@@ -37,7 +37,7 @@ function renderDelta(delta: number | null | undefined, emptyMessage?: string) {
   if (delta > 0) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-2 py-0.5 text-xs font-medium text-success">
-        <TrendingUp className="h-[12px] w-[12px]" aria-label="Variacao positiva" />
+        <TrendingUp className="h-[12px] w-[12px]" aria-label="Variação positiva" />
         +{delta}%
       </span>
     );
@@ -46,13 +46,13 @@ function renderDelta(delta: number | null | undefined, emptyMessage?: string) {
   if (delta < 0) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-danger-light px-2 py-0.5 text-xs font-medium text-danger">
-        <TrendingDown className="h-[12px] w-[12px]" aria-label="Variacao negativa" />
+        <TrendingDown className="h-[12px] w-[12px]" aria-label="Variação negativa" />
         {delta}%
       </span>
     );
   }
 
-  return <span className="text-xs text-muted">— sem variacao</span>;
+  return <span className="text-xs text-muted">— sem variação</span>;
 }
 
 function AlertBadge({ alert }: { alert: NonNullable<MetricCardProps["alert"]> }) {
@@ -87,7 +87,7 @@ export function MetricCard({
   if (loading) {
     return (
       <article
-        className="rounded-xl border border-border bg-card p-4 shadow-card"
+        className="rounded-xl border border-border bg-card p-3 shadow-card sm:p-4"
         aria-busy="true"
       >
         <div className="mb-3 flex items-start justify-between">
@@ -101,7 +101,7 @@ export function MetricCard({
   }
 
   return (
-    <article className="group rounded-xl border border-border bg-card p-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
+    <article className="group rounded-xl border border-border bg-card p-3 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover sm:p-4">
       <div className="mb-2 flex items-start justify-between gap-3">
         <p className="text-sm text-muted">{label}</p>
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary-light transition-colors duration-200 group-hover:bg-primary group-hover:shadow-sm">
@@ -109,7 +109,7 @@ export function MetricCard({
         </span>
       </div>
 
-      <p className="text-2xl font-bold tracking-tight tabular-nums text-text">{value}</p>
+      <p className="text-xl font-bold tracking-tight tabular-nums text-text sm:text-2xl">{value}</p>
 
       <div className="mt-1">{renderDelta(change, emptyMessage)}</div>
 

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/types/modules/rag.types.ts
- * Proposito: Tipos do modulo RAG (Retrieval-Augmented Generation).
+ * Propósito: Tipos do modulo RAG (Retrieval-Augmented Generation).
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

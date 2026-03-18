@@ -14,7 +14,7 @@ import { getSofiaCrmClient } from "@/services/sofia-crm/client";
 export const dynamic = "force-dynamic";
 
 const startConversationSchema = z.object({
-  companyId: z.string().uuid("companyId invalido."),
+  companyId: z.string().uuid("companyId inválido."),
   phone: z.string().min(1, "phone é obrigatório."),
 });
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

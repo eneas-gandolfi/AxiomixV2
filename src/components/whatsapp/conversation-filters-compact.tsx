@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/conversation-filters-compact.tsx
- * Proposito: Filtros horizontais compactos com chips para WhatsApp Intelligence.
+ * Propósito: Filtros horizontais compactos com chips para WhatsApp Intelligence.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

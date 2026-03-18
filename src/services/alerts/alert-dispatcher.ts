@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/alerts/alert-dispatcher.ts
- * Proposito: Despachar alertas WhatsApp em tempo real com rate limiting e deduplicacao.
+ * Propósito: Despachar alertas WhatsApp em tempo real com rate limiting e deduplicação.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -105,7 +105,7 @@ async function resolveEvolutionConfig(companyId: string) {
   const instanceName = resolvePreferredEvolutionInstance(decoded.vendors);
 
   if (!instanceName) {
-    throw new Error("Nenhuma instancia conectada na Evolution API.");
+    throw new Error("Nenhuma instância conectada na Evolution API.");
   }
 
   const credentials = resolveEvolutionCredentials({
@@ -175,7 +175,7 @@ async function sendWhatsAppAlert(
 ): Promise<{ providerStatus: number; providerBody: string }> {
   const config = await resolveEvolutionConfig(companyId);
   if (!config) {
-    throw new Error("Evolution API nao configurada.");
+    throw new Error("Evolution API não configurada.");
   }
 
   const result = await sendEvolutionTextMessage({

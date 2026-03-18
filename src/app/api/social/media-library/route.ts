@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/social/media-library/route.ts
- * Proposito: Listar e fazer upload de midias na biblioteca do Social Publisher.
+ * Propósito: Listar e fazer upload de midias na biblioteca do Social Publisher.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Query invalida.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Query inválida.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     for (const file of files) {
       if (!ALLOWED_MEDIA_TYPES.has(file.type)) {
         return NextResponse.json(
-          { error: `Tipo de arquivo nao permitido: ${file.type}. Aceitos: imagens (JPEG, PNG, WebP, GIF) e videos (MP4, MOV, WebM).`, code: "INVALID_FILE_TYPE" },
+          { error: `Tipo de arquivo não permitido: ${file.type}. Aceitos: imagens (JPEG, PNG, WebP, GIF) e vídeos (MP4, MOV, WebM).`, code: "INVALID_FILE_TYPE" },
           { status: 400 }
         );
       }
@@ -258,7 +258,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

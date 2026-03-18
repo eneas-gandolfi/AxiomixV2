@@ -159,7 +159,7 @@ async function kickoffSofiaSyncProcessing(companyId: string, jobId: string) {
   const { payload, rawText } = await parseSyncResponse(response);
 
   if (!response.ok) {
-    throw new Error(payload.error ?? (rawText.slice(0, 180) || "Falha ao processar sincronizacao do Sofia CRM."));
+    throw new Error(payload.error ?? (rawText.slice(0, 180) || "Falha ao processar sincronização do Sofia CRM."));
   }
 
   return payload;
@@ -176,7 +176,7 @@ async function fetchSyncJobStatus(companyId: string, jobId: string): Promise<Sof
   const { payload, rawText } = await parseSyncResponse(response);
 
   if (!response.ok) {
-    throw new Error(payload.error ?? (rawText.slice(0, 180) || "Falha ao consultar status da sincronizacao."));
+    throw new Error(payload.error ?? (rawText.slice(0, 180) || "Falha ao consultar status da sincronização."));
   }
 
   return payload;
@@ -214,7 +214,7 @@ async function waitForSyncCompletion(companyId: string, jobId: string): Promise<
   }
 
   updateStatus(companyId, { progress: null });
-  throw new Error("A sincronizacao demorou mais do que o esperado. Verifique novamente em instantes.");
+  throw new Error("A sincronização demorou mais do que o esperado. Verifique novamente em instantes.");
 }
 
 export async function requestSofiaSync(input: SyncRequest): Promise<SofiaSyncResponse> {

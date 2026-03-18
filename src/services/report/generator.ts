@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/report/generator.ts
- * Proposito: Agregar dados semanais dos modulos e gerar narrativa executiva com IA.
+ * Propósito: Agregar dados semanais dos módulos e gerar narrativa executiva com IA.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -100,16 +100,16 @@ function fallbackReportText(period: WeeklyPeriod, metrics: WeeklyMetrics) {
   const bestRadar = metrics.topRadarPosts[0];
   const bestRadarLine = bestRadar
     ? `No radar, destaque para ${bestRadar.platform} com score ${bestRadar.engagementScore}.`
-    : "No radar, nao houve posts virais relevantes no periodo.";
+    : "No radar, não houve posts virais relevantes no período.";
 
   const text = `
-Destaque da semana: ${metrics.companyName} manteve operacao ativa com foco em oportunidade comercial e consistencia de publicacao.
+Destaque da semana: ${metrics.companyName} manteve operação ativa com foco em oportunidade comercial e consistência de publicação.
 WhatsApp: ${metrics.conversationsAnalyzed} conversas analisadas e ${metrics.salesOpportunities} oportunidades de venda identificadas.
 Redes sociais: ${metrics.postsPublished} posts publicados. ${metrics.socialPerformanceSummary}
 Concorrentes: ${metrics.competitorSummary}
-Acao recomendada: repetir o formato com melhor tracao e reforcar CTA direto para WhatsApp em toda publicacao da semana.
+Ação recomendada: repetir o formato com melhor tração e reforçar CTA direto para WhatsApp em toda publicação da semana.
 ${bestRadarLine}
-Periodo: ${period.weekStartIso} ate ${period.weekEndIso}.
+Período: ${period.weekStartIso} até ${period.weekEndIso}.
 `.trim();
 
   return clampWords(text, 400);
@@ -167,13 +167,13 @@ async function collectWeeklyMetrics(companyId: string, period: WeeklyPeriod): Pr
   const avgOkPlatforms = postsPublished > 0 ? (totalOkPlatforms / postsPublished).toFixed(1) : "0.0";
   const socialPerformanceSummary =
     postsPublished > 0
-      ? `Media tecnica de ${avgOkPlatforms} plataformas com publicacao ok por post.`
-      : "Nao houve publicacoes concluidas no periodo.";
+      ? `Média técnica de ${avgOkPlatforms} plataformas com publicação ok por post.`
+      : "Não houve publicações concluídas no período.";
 
   const topRadarPosts = (radarPosts ?? []).map((post) => ({
     platform: post.platform ?? "desconhecida",
     engagementScore: post.engagement_score ?? 0,
-    content: post.content ?? "Sem conteudo",
+    content: post.content ?? "Sem conteúdo",
   }));
 
   const competitorSummary =
@@ -207,7 +207,7 @@ export async function generateWeeklyReport(
   const metrics = await collectWeeklyMetrics(companyId, period);
   const kbContext = await getKnowledgeBaseContext(
     companyId,
-    `objetivos metas estrategia ${metrics.companyName}`
+    `objetivos metas estratégia ${metrics.companyName}`
   );
   const prompt = buildWeeklyReportPrompt({
     companyName: metrics.companyName,
@@ -228,7 +228,7 @@ export async function generateWeeklyReport(
       [
         {
           role: "system",
-          content: "Voce gera texto puro em portugues, sem markdown.",
+          content: "Você gera texto puro em português, sem markdown.",
         },
         {
           role: "user",

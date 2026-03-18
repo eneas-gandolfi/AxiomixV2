@@ -20,7 +20,7 @@ export function isCronAuthorized(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET?.trim();
 
   if (!cronSecret) {
-    console.warn("[cron-auth] CRON_SECRET nao configurado. Rejeitando chamada de cron.");
+    console.warn("[cron-auth] CRON_SECRET não configurado. Rejeitando chamada de cron.");
     return false;
   }
 

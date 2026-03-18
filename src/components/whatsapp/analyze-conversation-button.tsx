@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/analyze-conversation-button.tsx
- * Proposito: Disparar analise de IA para uma conversa especifica.
+ * Propósito: Disparar analise de IA para uma conversa especifica.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */

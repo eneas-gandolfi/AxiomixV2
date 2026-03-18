@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/ai/openrouter.ts
- * Proposito: Integrar o AXIOMIX ao OpenRouter com credenciais por company_id.
+ * Propósito: Integrar o AXIOMIX ao OpenRouter com credenciais por company_id.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -70,7 +70,7 @@ async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterCon
     return envFallback;
   }
 
-  throw new Error("Integracao OpenRouter nao configurada para esta empresa.");
+  throw new Error("Integração OpenRouter não configurada para esta empresa.");
 }
 
 export async function openRouterChatCompletion(
@@ -110,7 +110,7 @@ export async function openRouterChatCompletion(
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("OpenRouter timeout: requisicao excedeu 60s.");
+      throw new Error("OpenRouter timeout: requisição excedeu 60s.");
     }
     throw error;
   }
@@ -125,7 +125,7 @@ export async function openRouterChatCompletion(
   const content = payload.choices?.[0]?.message?.content;
 
   if (!content) {
-    throw new Error("OpenRouter nao retornou conteudo da resposta.");
+    throw new Error("OpenRouter não retornou conteúdo da resposta.");
   }
 
   return content;

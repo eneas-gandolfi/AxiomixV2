@@ -18,7 +18,7 @@ type RouteContext = {
 };
 
 const boardDetailSchema = z.object({
-  companyId: z.string().uuid("companyId invalido."),
+  companyId: z.string().uuid("companyId inválido."),
 });
 
 export async function POST(request: NextRequest, context: RouteContext) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

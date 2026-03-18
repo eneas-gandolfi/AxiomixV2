@@ -18,7 +18,7 @@ type RouteContext = {
 };
 
 const contactDetailSchema = z.object({
-  companyId: z.string().uuid("companyId invalido."),
+  companyId: z.string().uuid("companyId inválido."),
   action: z.enum(["get", "listLabels", "addLabel", "removeLabel"]),
   label: z.string().optional(),
   labelId: z.string().optional(),
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

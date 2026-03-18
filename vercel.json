@@ -12,7 +12,7 @@
     },
     {
       "path": "/api/cron/whatsapp-batch",
-      "schedule": "0 * * * *"
+      "schedule": "0 23 * * *"
     }
   ]
 }

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/intelligence/competitor.ts
- * Proposito: Worker de coleta de concorrentes e geracao de insights do modulo Intelligence.
+ * Propósito: Worker de coleta de concorrentes e geração de insights do módulo Intelligence.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -20,7 +20,7 @@ import type {
 import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 
 const competitorJobPayloadSchema: z.ZodType<CompetitorCollectionJobPayload> = z.object({
-  competitorId: z.string().uuid("competitorId invalido.").optional(),
+  competitorId: z.string().uuid("competitorId inválido.").optional(),
 });
 
 const competitorInsightSchema = z.object({
@@ -63,10 +63,10 @@ function fallbackBaseUrl(competitor: CompetitorRow) {
 function generateCompetitorPosts(competitor: CompetitorRow): CollectedPostDraft[] {
   const baseUrl = fallbackBaseUrl(competitor).replace(/\/+$/, "");
   const titles = [
-    "Guia rapido de resultados da semana",
-    "Bastidores da operacao com foco em conversao",
+    "Guia rápido de resultados da semana",
+    "Bastidores da operação com foco em conversão",
     "Case curto com prova social do cliente",
-    "Checklist pratico para acelerar atendimento",
+    "Checklist prático para acelerar atendimento",
   ];
 
   return titles.map((title, index) => {
@@ -83,7 +83,7 @@ function generateCompetitorPosts(competitor: CompetitorRow): CollectedPostDraft[
       competitorId: competitor.id,
       platform,
       postUrl: `${baseUrl}/${postPath}`,
-      content: `${competitor.name}: ${title}. CTA direto para qualificacao de lead e follow-up comercial.`,
+      content: `${competitor.name}: ${title}. CTA direto para qualificação de lead e follow-up comercial.`,
       likesCount,
       commentsCount,
       sharesCount,
@@ -101,13 +101,13 @@ function buildFallbackInsight(
 
   return {
     content: bestPost
-      ? `${competitorName} ganhou mais tracao em ${bestPost.platform} com post educativo e CTA curto.`
-      : `${competitorName} foi monitorado sem posts suficientes para analise detalhada.`,
-    topThemes: ["conteudo educativo", "prova social", "chamada para acao"],
+      ? `${competitorName} ganhou mais tração em ${bestPost.platform} com post educativo e CTA curto.`
+      : `${competitorName} foi monitorado sem posts suficientes para análise detalhada.`,
+    topThemes: ["conteúdo educativo", "prova social", "chamada para ação"],
     recommendations: [
-      "Publicar um case curto com resultado numerico e CTA objetivo.",
-      "Repetir o tema mais forte em formato de serie semanal.",
-      "Testar variacao de abertura com promessa de ganho especifico.",
+      "Publicar um case curto com resultado numérico e CTA objetivo.",
+      "Repetir o tema mais forte em formato de série semanal.",
+      "Testar variação de abertura com promessa de ganho específico.",
     ],
   };
 }
@@ -120,13 +120,13 @@ async function generateCompetitorInsight(
   try {
     const kbContext = await getKnowledgeBaseContext(
       companyId,
-      `estrategia posicionamento marca ${competitor.name}`
+      `estratégia posicionamento marca ${competitor.name}`
     );
     const prompt = buildCompetitorInsightPrompt(competitor.name, posts, kbContext || undefined);
     const rawJson = await openRouterChatCompletion(companyId, [
       {
         role: "system",
-        content: "Responda somente JSON valido, sem markdown e sem texto adicional.",
+        content: "Responda somente JSON válido, sem markdown e sem texto adicional.",
       },
       {
         role: "user",

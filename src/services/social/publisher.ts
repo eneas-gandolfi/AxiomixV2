@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/social/publisher.ts
- * Proposito: Implementar validacao, agendamento, cancelamento e publicacao do Social Publisher.
+ * Propósito: Implementar validação, agendamento, cancelamento e publicação do Social Publisher.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -272,7 +272,7 @@ async function ensureStorageBucket() {
 
   if (createError && !createError.message.toLowerCase().includes("already exists")) {
     throw new SocialPublisherError(
-      "Falha ao preparar bucket de midia.",
+      "Falha ao preparar bucket de mídia.",
       "MEDIA_BUCKET_ERROR",
       500
     );
@@ -311,7 +311,7 @@ async function storeMediaFiles(
     supabaseResults.push({ storagePath, publicUrl: publicUrlData.publicUrl });
   }
 
-  // 2. Upload ao Cloudinary (primario — CDN)
+  // 2. Upload ao Cloudinary (primário — CDN)
   let cloudinaryResults: Awaited<ReturnType<typeof uploadMediaToCloudinary>> | null = null;
   try {
     cloudinaryResults = await uploadMediaToCloudinary(companyId, mediaFiles);
@@ -319,7 +319,7 @@ async function storeMediaFiles(
     console.error("[SocialPublisher] Cloudinary upload falhou, usando Supabase como fallback:", error);
   }
 
-  // 3. Inserir no banco — Cloudinary como public_url primaria, Supabase como backup
+  // 3. Inserir no banco — Cloudinary como public_url primária, Supabase como backup
   const insertRows: Array<Database["public"]["Tables"]["media_files"]["Insert"]> = [];
   for (let i = 0; i < mediaFiles.length; i++) {
     const mediaFile = mediaFiles[i];
@@ -351,7 +351,7 @@ async function storeMediaFiles(
 
   if (insertError) {
     throw new SocialPublisherError(
-      "Falha ao registrar arquivos de midia.",
+      "Falha ao registrar arquivos de mídia.",
       "MEDIA_REGISTER_ERROR",
       500
     );
@@ -440,7 +440,7 @@ async function getUploadPostConfig(companyId: string): Promise<UploadPostConfig>
 
   if (error) {
     throw new SocialPublisherError(
-      "Falha ao carregar configuracao Upload-Post.",
+      "Falha ao carregar configuração Upload-Post.",
       "UPLOAD_POST_CONFIG_ERROR",
       500
     );
@@ -453,7 +453,7 @@ async function getUploadPostConfig(companyId: string): Promise<UploadPostConfig>
 
   if (!apiKey) {
     throw new SocialPublisherError(
-      "API key da Upload-Post nao configurada no servidor.",
+      "API key da Upload-Post não configurada no servidor.",
       "UPLOAD_POST_INVALID_CONFIG",
       500
     );
@@ -464,7 +464,7 @@ async function getUploadPostConfig(companyId: string): Promise<UploadPostConfig>
     process.env.UPLOAD_POST_API_BASE_URL?.replace(/\/+$/, "");
   if (!baseUrl) {
     throw new SocialPublisherError(
-      "UPLOAD_POST_API_URL (ou UPLOAD_POST_API_BASE_URL) nao configurada no ambiente.",
+      "UPLOAD_POST_API_URL (ou UPLOAD_POST_API_BASE_URL) não configurada no ambiente.",
       "UPLOAD_POST_BASE_URL_MISSING",
       500
     );
@@ -571,7 +571,7 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
 
     if (fetchError) {
       throw new SocialPublisherError(
-        "Falha ao validar arquivos de midia existentes.",
+        "Falha ao validar arquivos de mídia existentes.",
         "MEDIA_VALIDATE_ERROR",
         500
       );
@@ -579,7 +579,7 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
 
     if (!existingFiles || existingFiles.length !== input.existingMediaFileIds.length) {
       throw new SocialPublisherError(
-        "Um ou mais arquivos de midia nao foram encontrados para esta empresa.",
+        "Um ou mais arquivos de mídia não foram encontrados para esta empresa.",
         "MEDIA_NOT_FOUND",
         404
       );
@@ -592,7 +592,7 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
     const storedMediaFiles = await storeMediaFiles(input.companyId, input.mediaFiles);
     if (storedMediaFiles.length === 0) {
       throw new SocialPublisherError(
-        "Nenhuma midia foi salva para o agendamento.",
+        "Nenhuma mídia foi salva para o agendamento.",
         "MEDIA_EMPTY",
         400
       );
@@ -708,7 +708,7 @@ export async function listScheduledPosts(input: ListScheduledPostsInput): Promis
   const { data: rows, error, count } = await query;
   if (error) {
     throw new SocialPublisherError(
-      "Falha ao carregar historico de agendamentos.",
+      "Falha ao carregar histórico de agendamentos.",
       "SCHEDULE_HISTORY_ERROR",
       500
     );
@@ -769,7 +769,7 @@ export async function cancelScheduledPost(companyId: string, scheduledPostId: st
 
   if (!row?.id) {
     throw new SocialPublisherError(
-      "Agendamento nao encontrado para esta empresa.",
+      "Agendamento não encontrado para esta empresa.",
       "SCHEDULE_NOT_FOUND",
       404
     );
@@ -787,7 +787,7 @@ export async function cancelScheduledPost(companyId: string, scheduledPostId: st
     try {
       await cancelScheduledMessage(row.qstash_message_id);
     } catch {
-      // QStash pode ja ter despachado; ainda assim o status local sera cancelado.
+      // QStash pode já ter despachado; ainda assim o status local será cancelado.
     }
   }
 
@@ -832,7 +832,7 @@ export async function publishScheduledPost(input: {
 
   if (error) {
     throw new SocialPublisherError(
-      "Falha ao carregar agendamento para publicacao.",
+      "Falha ao carregar agendamento para publicação.",
       "PUBLISH_FETCH_ERROR",
       500
     );
@@ -840,7 +840,7 @@ export async function publishScheduledPost(input: {
 
   if (!row?.id || !row.company_id) {
     throw new SocialPublisherError(
-      "Agendamento nao encontrado.",
+      "Agendamento não encontrado.",
       "SCHEDULE_NOT_FOUND",
       404
     );
@@ -848,7 +848,7 @@ export async function publishScheduledPost(input: {
 
   if (input.expectedCompanyId && input.expectedCompanyId !== row.company_id) {
     throw new SocialPublisherError(
-      "company_id do payload nao corresponde ao agendamento.",
+      "company_id do payload não corresponde ao agendamento.",
       "COMPANY_MISMATCH",
       403
     );
@@ -931,7 +931,7 @@ export async function publishScheduledPost(input: {
   const platforms = parsePlatforms(processingRow.platforms);
   if (platforms.length === 0) {
     throw new SocialPublisherError(
-      "Post sem plataformas para publicacao.",
+      "Post sem plataformas para publicação.",
       "PUBLISH_PLATFORMS_EMPTY",
       400
     );
@@ -940,7 +940,7 @@ export async function publishScheduledPost(input: {
   const mediaIds = parseUuidArray(processingRow.media_file_ids);
   if (mediaIds.length === 0) {
     throw new SocialPublisherError(
-      "Post sem arquivos de midia vinculados.",
+      "Post sem arquivos de mídia vinculados.",
       "PUBLISH_MEDIA_EMPTY",
       400
     );
@@ -954,7 +954,7 @@ export async function publishScheduledPost(input: {
 
   if (mediaError) {
     throw new SocialPublisherError(
-      "Falha ao carregar arquivos de midia para publicacao.",
+      "Falha ao carregar arquivos de mídia para publicação.",
       "PUBLISH_MEDIA_FETCH_ERROR",
       500
     );
@@ -964,7 +964,7 @@ export async function publishScheduledPost(input: {
   const mediaUrls = mediaIds.map((mediaId) => mediaMap.get(mediaId)).filter((url): url is string => Boolean(url));
   if (mediaUrls.length === 0) {
     throw new SocialPublisherError(
-      "Nao foi possivel resolver URLs publicas das midias.",
+      "Não foi possível resolver URLs públicas das mídias.",
       "PUBLISH_MEDIA_URL_ERROR",
       500
     );
@@ -1019,7 +1019,7 @@ export async function publishScheduledPost(input: {
       successCount += 1;
       delete errorDetails[platform];
     } catch (error) {
-      const detail = error instanceof Error ? error.message : "Erro inesperado na publicacao.";
+      const detail = error instanceof Error ? error.message : "Erro inesperado na publicação.";
       errorDetails[platform] = detail;
       progress[platform] = {
         status: "error",
@@ -1054,7 +1054,7 @@ export async function publishScheduledPost(input: {
 
   if (finalizeError) {
     throw new SocialPublisherError(
-      "Falha ao finalizar status da publicacao.",
+      "Falha ao finalizar status da publicação.",
       "PUBLISH_FINALIZE_ERROR",
       500
     );

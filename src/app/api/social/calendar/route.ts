@@ -14,7 +14,7 @@ import { listPostsByMonth, SocialPublisherError } from "@/services/social/publis
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
   year: z.coerce.number().int().min(2020).max(2100),
   month: z.coerce.number().int().min(1).max(12),
   platform: z.enum(["instagram", "linkedin", "tiktok"]).optional(),
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Query invalida.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Query inválida.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

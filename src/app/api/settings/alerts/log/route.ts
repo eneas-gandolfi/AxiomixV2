@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/settings/alerts/log/route.ts
- * Proposito: Retornar historico de alertas enviados para a empresa.
+ * Propósito: Retornar historico de alertas enviados para a empresa.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

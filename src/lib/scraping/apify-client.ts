@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/scraping/apify-client.ts
- * Proposito: Cliente para integração com Apify (scraping de Instagram e TikTok)
+ * Propósito: Cliente para integração com Apify (scraping de Instagram e TikTok)
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

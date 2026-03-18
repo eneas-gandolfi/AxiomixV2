@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/conversations/delete/route.ts
- * Proposito: Excluir conversas do Axiomix e impedir que retornem em sincronizacoes futuras.
+ * Propósito: Excluir conversas do Axiomix e impedir que retornem em sincronizações futuras.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -16,8 +16,8 @@ import { createConversationExclusions } from "@/services/whatsapp/conversation-e
 export const dynamic = "force-dynamic";
 
 const deleteSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
-  conversationIds: z.array(z.string().uuid("conversationId invalido.")).min(1, "Selecione pelo menos uma conversa."),
+  companyId: z.string().uuid("companyId inválido.").optional(),
+  conversationIds: z.array(z.string().uuid("conversationId inválido.")).min(1, "Selecione pelo menos uma conversa."),
 });
 
 function extractConversationId(payload: unknown) {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Usuario nao autenticado.", code: "AUTH_REQUIRED" }, { status: 401 });
+      return NextResponse.json({ error: "Usuário não autenticado.", code: "AUTH_REQUIRED" }, { status: 401 });
     }
 
     const rawBody: unknown = await request.json().catch(() => ({}));
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -62,12 +62,12 @@ export async function POST(request: NextRequest) {
       .in("id", parsed.data.conversationIds);
 
     if (conversationsError) {
-      throw new Error(`Falha ao carregar conversas para exclusao: ${conversationsError.message}`);
+      throw new Error(`Falha ao carregar conversas para exclusão: ${conversationsError.message}`);
     }
 
     if (!conversations || conversations.length === 0) {
       return NextResponse.json(
-        { error: "Nenhuma conversa valida encontrada para exclusao.", code: "CONVERSATIONS_NOT_FOUND" },
+        { error: "Nenhuma conversa válida encontrada para exclusão.", code: "CONVERSATIONS_NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       companyId: access.companyId,
       deletedCount: conversations.length,
-      message: `${conversations.length} conversa(s) excluida(s) do Axiomix.`,
+      message: `${conversations.length} conversa(s) excluída(s) do Axiomix.`,
     });
   } catch (error) {
     if (error instanceof CompanyAccessError) {

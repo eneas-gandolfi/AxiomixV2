@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/intent-distribution-chart.tsx
- * Proposito: Grafico de rosca mostrando distribuicao de intencoes.
+ * Propósito: Grafico de rosca mostrando distribuicao de intencoes.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

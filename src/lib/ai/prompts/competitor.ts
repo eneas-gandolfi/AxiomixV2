@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/ai/prompts/competitor.ts
- * Proposito: Prompts do modulo Intelligence para analise de concorrentes e radar.
+ * Propósito: Prompts do modulo Intelligence para analise de concorrentes e radar.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */

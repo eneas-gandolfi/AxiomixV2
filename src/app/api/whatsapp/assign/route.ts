@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/assign/route.ts
- * Proposito: Atribuir ou remover responsavel de uma conversa.
+ * Propósito: Atribuir ou remover responsavel de uma conversa.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

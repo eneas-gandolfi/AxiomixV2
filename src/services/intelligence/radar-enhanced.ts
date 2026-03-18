@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/intelligence/radar-enhanced.ts
- * Proposito: Worker de Content Radar com scraping via Apify + dados mockados como fallback
+ * Propósito: Worker de Content Radar com scraping via Apify + dados mockados como fallback
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -136,12 +136,12 @@ async function collectPostsViaApify(
  */
 function generateFallbackPosts(keywords: string[]): CollectedPostDraft[] {
   const templates = [
-    "Checklist pratico para aumentar taxa de resposta",
-    "Antes e depois com metricas reais em 7 dias",
-    "Erros comuns que travam conversao no WhatsApp",
+    "Checklist prático para aumentar taxa de resposta",
+    "Antes e depois com métricas reais em 7 dias",
+    "Erros comuns que travam conversão no WhatsApp",
     "Roteiro de copy curta para campanha local",
     "Framework de atendimento em 3 etapas",
-    "Teste A/B com resultado acima da media",
+    "Teste A/B com resultado acima da média",
   ];
 
   const platforms: IntelligencePlatform[] = ["instagram", "tiktok"];
@@ -158,7 +158,7 @@ function generateFallbackPosts(keywords: string[]): CollectedPostDraft[] {
       competitorId: null,
       platform,
       postUrl: null, // Posts mockados não têm URL real
-      content: `${template} para ${keyword} com orientacoes objetivas e CTA direto.`,
+      content: `${template} para ${keyword} com orientações objetivas e CTA direto.`,
       likesCount,
       commentsCount,
       sharesCount,
@@ -178,12 +178,12 @@ function buildFallbackRadarInsight(
 
   return {
     content: bestPost
-      ? `No radar de ${nicheLabel}, o formato com melhor tracao foi ${bestPost.platform} em conteudo pratico.`
+      ? `No radar de ${nicheLabel}, o formato com melhor tração foi ${bestPost.platform} em conteúdo prático.`
       : `No radar de ${nicheLabel}, ainda faltam dados para identificar um formato vencedor.`,
-    topThemes: ["conteudo pratico", "prova social", "roteiro rapido"],
+    topThemes: ["conteúdo prático", "prova social", "roteiro rápido"],
     recommendations: [
       "Publicar um post curto com checklist aplicado ao nicho.",
-      "Reforcar CTA para conversa direta no WhatsApp.",
+      "Reforçar CTA para conversa direta no WhatsApp.",
       "Replicar o tema com melhor score em duas plataformas.",
     ],
   };
@@ -198,13 +198,13 @@ async function generateRadarInsight(
   try {
     const kbContext = await getKnowledgeBaseContext(
       companyId,
-      `diretrizes marca tom de voz conteudo ${niche}`
+      `diretrizes marca tom de voz conteúdo ${niche}`
     );
     const prompt = buildRadarInsightPrompt(niche, subNiche, posts, kbContext || undefined);
     const rawJson = await openRouterChatCompletion(companyId, [
       {
         role: "system",
-        content: "Responda somente JSON valido, sem markdown e sem texto adicional.",
+        content: "Responda somente JSON válido, sem markdown e sem texto adicional.",
       },
       {
         role: "user",
@@ -246,7 +246,7 @@ export async function runRadarWorkerEnhanced(
     .single();
 
   if (companyError || !company) {
-    throw new Error("Empresa nao encontrada para coleta de radar.");
+    throw new Error("Empresa não encontrada para coleta de radar.");
   }
 
   const niche = payload.nicheOverride ?? company.niche ?? "marketing";
@@ -291,7 +291,7 @@ export async function runRadarWorkerEnhanced(
     throw new Error("Falha ao inserir posts do radar.");
   }
 
-  // --- Alertas para conteudo viral (fire-and-forget) ---
+  // --- Alertas para conteúdo viral (fire-and-forget) ---
   const VIRAL_THRESHOLD = 300;
   for (const viralPost of rows.filter((row) => row.engagement_score >= VIRAL_THRESHOLD)) {
     triggerViralContentAlert({

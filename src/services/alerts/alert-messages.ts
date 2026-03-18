@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/alerts/alert-messages.ts
- * Proposito: Montar mensagens de alerta WhatsApp para cada tipo de evento.
+ * Propósito: Montar mensagens de alerta WhatsApp para cada tipo de evento.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

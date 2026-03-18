@@ -90,13 +90,13 @@ export async function POST(request: NextRequest) {
 
     const queued = await enqueueJob(parsed.data.type, {}, access.companyId, undefined, 1);
 
-    // Processar o job imediatamente (nao depender de cron externo)
+    // Processar o job imediatamente (não depender de cron externo)
     const summary = await processJobs({ companyId: access.companyId, maxJobs: 1 });
     revalidatePath("/dashboard");
     revalidatePath("/settings");
 
     if (summary.processed === 0) {
-      // Job criado mas nao processado — forcar falha
+      // Job criado mas não processado — forçar falha
       const admin = createSupabaseAdminClient();
       await admin
         .from("async_jobs")

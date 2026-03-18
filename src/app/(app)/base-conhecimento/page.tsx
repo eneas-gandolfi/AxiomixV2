@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/(app)/base-conhecimento/page.tsx
- * Proposito: Pagina da Base de Conhecimento (RAG) — upload de PDFs e chat.
+ * Propósito: Pagina da Base de Conhecimento (RAG) — upload de PDFs e chat.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

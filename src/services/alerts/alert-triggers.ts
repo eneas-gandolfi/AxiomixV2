@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/alerts/alert-triggers.ts
- * Proposito: Funcoes fire-and-forget para disparar alertas a partir dos servicos existentes.
+ * Propósito: Funcoes fire-and-forget para disparar alertas a partir dos servicos existentes.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

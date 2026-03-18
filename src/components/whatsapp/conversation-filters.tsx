@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/conversation-filters.tsx
- * Proposito: Filtros e busca para lista de conversas do WhatsApp Intelligence.
+ * Propósito: Filtros e busca para lista de conversas do WhatsApp Intelligence.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

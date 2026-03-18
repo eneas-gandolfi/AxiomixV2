@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/settings/alerts/route.ts
- * Proposito: Gerenciar preferencias de alertas WhatsApp por empresa.
+ * Propósito: Gerenciar preferencias de alertas WhatsApp por empresa.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -82,7 +82,7 @@ export async function PUT(request: NextRequest) {
     const parsed = alertPrefSchema.safeParse(rawBody);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

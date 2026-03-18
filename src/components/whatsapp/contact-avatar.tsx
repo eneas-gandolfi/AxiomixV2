@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/contact-avatar.tsx
- * Proposito: Avatar colorido com iniciais do contato.
+ * Propósito: Avatar colorido com iniciais do contato.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

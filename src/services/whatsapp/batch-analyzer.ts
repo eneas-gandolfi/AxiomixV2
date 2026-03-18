@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/whatsapp/batch-analyzer.ts
- * Proposito: Analise batch horaria de conversas WhatsApp — classificacao leve + resumo geral.
+ * Propósito: Análise batch horária de conversas WhatsApp — classificação leve + resumo geral.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -91,7 +91,7 @@ function fallbackClassification(messages: Array<{ content: string | null }>) {
 async function getEligibleConversations(companyId: string): Promise<EligibleConversation[]> {
   const supabase = createSupabaseAdminClient();
 
-  // Buscar conversas recentes com suas ultimas analises
+  // Buscar conversas recentes com suas últimas análises
   const { data: conversations, error } = await supabase
     .from("conversations")
     .select("id, contact_name, contact_phone, remote_jid, external_id, last_message_at")
@@ -118,12 +118,12 @@ async function getEligibleConversations(companyId: string): Promise<EligibleConv
     (insights ?? []).map((i) => [i.conversation_id, i.generated_at])
   );
 
-  // Filtrar: conversas sem insight OU com novas mensagens desde o ultimo insight
+  // Filtrar: conversas sem insight OU com novas mensagens desde o último insight
   const eligible = conversations.filter((conv) => {
     const lastInsight = insightMap.get(conv.id);
-    if (!lastInsight) return true; // Sem insight — elegivel
+    if (!lastInsight) return true; // Sem insight — elegível
     if (!conv.last_message_at) return false;
-    // Novas mensagens desde o ultimo insight
+    // Novas mensagens desde o último insight
     return new Date(conv.last_message_at) > new Date(lastInsight);
   });
 
@@ -174,7 +174,7 @@ async function loadRecentMessages(
     }
   }
 
-  // Inverter para ordem cronologica (estao em DESC do banco)
+  // Inverter para ordem cronológica (estão em DESC do banco)
   for (const [key, msgs] of grouped) {
     grouped.set(key, msgs.reverse());
   }
@@ -184,7 +184,7 @@ async function loadRecentMessages(
 
 export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysisResult> {
   const periodEnd = new Date().toISOString();
-  const periodStart = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1h atras
+  const periodStart = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1h atrás
 
   const eligible = await getEligibleConversations(companyId);
 
@@ -194,7 +194,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
       conversationsAnalyzed: 0,
       purchaseIntents: 0,
       negativeSentiments: 0,
-      summaryText: "Nenhuma conversa nova para analisar neste periodo.",
+      summaryText: "Nenhuma conversa nova para analisar neste período.",
       periodStart,
       periodEnd,
     };
@@ -203,7 +203,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
   const conversationIds = eligible.map((c) => c.id);
   const messagesMap = await loadRecentMessages(companyId, conversationIds);
 
-  // Filtrar conversas que realmente tem mensagens
+  // Filtrar conversas que realmente têm mensagens
   const conversationsWithMessages = eligible.filter((c) => {
     const msgs = messagesMap.get(c.id);
     return msgs && msgs.length > 0;
@@ -215,7 +215,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
       conversationsAnalyzed: 0,
       purchaseIntents: 0,
       negativeSentiments: 0,
-      summaryText: "Conversas elegiveis sem mensagens para analisar.",
+      summaryText: "Conversas elegíveis sem mensagens para analisar.",
       periodStart,
       periodEnd,
     };
@@ -224,7 +224,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
   // KB context compartilhado (1 chamada para todas)
   const kbContext = await getKnowledgeBaseContext(
     companyId,
-    "analise vendas atendimento whatsapp gargalos oportunidades diagnostico",
+    "análise vendas atendimento whatsapp gargalos oportunidades diagnóstico",
     { includeGlobal: true }
   );
 
@@ -253,7 +253,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
       [
         {
           role: "system",
-          content: "Voce responde apenas JSON valido, sem markdown e sem texto extra.",
+          content: "Você responde apenas JSON válido, sem markdown e sem texto extra.",
         },
         {
           role: "user",
@@ -266,7 +266,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
     const parsed: unknown = JSON.parse(rawJson);
     analyses = batchAnalysisResponseSchema.parse(parsed);
   } catch {
-    // Fallback: classificacao heuristica para cada conversa
+    // Fallback: classificação heurística para cada conversa
     const fallbackAnalyses = conversationsWithMessages.map((conv) => {
       const msgs = messagesMap.get(conv.id) ?? [];
       const classification = fallbackClassification(msgs);
@@ -278,11 +278,11 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
 
     analyses = {
       analyses: fallbackAnalyses,
-      summary: `Analise batch em modo fallback. ${conversationsWithMessages.length} conversas classificadas por heuristica.`,
+      summary: `Análise batch em modo fallback. ${conversationsWithMessages.length} conversas classificadas por heurística.`,
     };
   }
 
-  // Mapear conversas elegiveis por ID para acesso rapido
+  // Mapear conversas elegíveis por ID para acesso rápido
   const convMap = new Map(conversationsWithMessages.map((c) => [c.id, c]));
 
   // Upsert insights e disparar alertas
@@ -298,14 +298,14 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
     if (item.intent === "compra") purchaseIntents += 1;
     if (item.sentiment === "negativo") negativeSentiments += 1;
 
-    // Upsert classificacao leve em conversation_insights
+    // Upsert classificação leve em conversation_insights
     await supabase.from("conversation_insights").upsert(
       {
         company_id: companyId,
         conversation_id: item.conversationId,
         sentiment: item.sentiment,
         intent: item.intent,
-        summary: "Classificado via analise batch horaria.",
+        summary: "Classificado via análise batch horária.",
         action_items: {
           items: [],
           urgency: item.urgency,
@@ -324,7 +324,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
         conversationId: item.conversationId,
         contactName: conv.contact_name,
         contactPhone: conv.contact_phone,
-        summary: `Intencao de compra detectada (batch). Topicos: ${item.key_topics.join(", ") || "N/A"}.`,
+        summary: `Intenção de compra detectada (batch). Tópicos: ${item.key_topics.join(", ") || "N/A"}.`,
       });
     }
 
@@ -335,7 +335,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
         contactName: conv.contact_name,
         contactPhone: conv.contact_phone,
         urgency: item.urgency,
-        summary: `Sentimento negativo detectado (batch). Topicos: ${item.key_topics.join(", ") || "N/A"}.`,
+        summary: `Sentimento negativo detectado (batch). Tópicos: ${item.key_topics.join(", ") || "N/A"}.`,
       });
     }
   }

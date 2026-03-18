@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/sofia-crm/conversations.ts
- * Proposito: Sincronizar conversas e mensagens do Sofia CRM para o banco do AXIOMIX.
+ * Propósito: Sincronizar conversas e mensagens do Sofia CRM para o banco do AXIOMIX.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -395,7 +395,7 @@ export async function syncMessages(
     .single();
 
   if (conversationError || !conversation?.external_id) {
-    throw new Error("Conversa invalida para sincronizacao de mensagens.");
+    throw new Error("Conversa inválida para sincronização de mensagens.");
   }
 
   const remoteMessages = await sofiaClient.listMessages(conversation.external_id, messageLimit);

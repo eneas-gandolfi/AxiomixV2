@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/cloudinary/config.ts
- * Proposito: Configurar cliente Cloudinary server-side para upload e transformacoes.
+ * Propósito: Configurar cliente Cloudinary server-side para upload e transformações.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -18,13 +18,13 @@ export function getCloudinary() {
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
     if (!cloudName) {
-      throw new Error("CLOUDINARY_CLOUD_NAME nao configurada.");
+      throw new Error("CLOUDINARY_CLOUD_NAME não configurada.");
     }
     if (!apiKey) {
-      throw new Error("CLOUDINARY_API_KEY nao configurada.");
+      throw new Error("CLOUDINARY_API_KEY não configurada.");
     }
     if (!apiSecret) {
-      throw new Error("CLOUDINARY_API_SECRET nao configurada.");
+      throw new Error("CLOUDINARY_API_SECRET não configurada.");
     }
 
     cloudinary.config({

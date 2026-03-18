@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/rag/document-list.tsx
- * Proposito: Tabela Ant Design para listagem de documentos RAG.
+ * Propósito: Tabela Ant Design para listagem de documentos RAG.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

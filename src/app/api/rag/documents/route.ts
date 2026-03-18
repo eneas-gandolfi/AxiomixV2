@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/rag/documents/route.ts
- * Proposito: Listar e fazer upload de documentos RAG (PDF).
+ * Propósito: Listar e fazer upload de documentos RAG (PDF).
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Query invalida.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Query inválida.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -115,10 +115,10 @@ export async function GET(request: NextRequest) {
             maxJobs: 1,
             allowedTypes: ["rag_process"],
           });
-          console.log("[RAG] Processamento apos recovery:", JSON.stringify(summary));
+          console.log("[RAG] Processamento após recovery:", JSON.stringify(summary));
         }
       } catch (err) {
-        console.error("[RAG] Falha no processamento apos recovery:", err);
+        console.error("[RAG] Falha no processamento após recovery:", err);
       }
     });
 
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     if (rawFile.type !== "application/pdf") {
       return NextResponse.json(
-        { error: "Apenas arquivos PDF sao aceitos.", code: "INVALID_FILE_TYPE" },
+        { error: "Apenas arquivos PDF são aceitos.", code: "INVALID_FILE_TYPE" },
         { status: 400 }
       );
     }

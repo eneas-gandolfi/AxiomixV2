@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/integrations/evolution-api/vendors/route.ts
- * Proposito: Gerenciar vendedores conectados na Evolution API via QR Code.
+ * Propósito: Gerenciar vendedores conectados na Evolution API via QR Code.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -29,14 +29,14 @@ import {
 export const dynamic = "force-dynamic";
 
 const createVendorSchema = z.object({
-  vendorName: z.string().trim().min(2, "Nome do vendedor invalido."),
-  managerPhone: z.string().trim().min(8, "WhatsApp do gestor invalido.").optional(),
+  vendorName: z.string().trim().min(2, "Nome do vendedor inválido."),
+  managerPhone: z.string().trim().min(8, "WhatsApp do gestor inválido.").optional(),
   instanceName: z
     .string()
     .trim()
     .min(3)
     .max(64)
-    .regex(/^[a-zA-Z0-9_-]+$/, "instanceName invalido.")
+    .regex(/^[a-zA-Z0-9_-]+$/, "instanceName inválido.")
     .optional(),
 });
 
@@ -46,7 +46,7 @@ const deleteVendorSchema = z.object({
     .trim()
     .min(3)
     .max(64)
-    .regex(/^[a-zA-Z0-9_-]+$/, "instanceName invalido."),
+    .regex(/^[a-zA-Z0-9_-]+$/, "instanceName inválido."),
 });
 
 function toEvolutionConfig(payload: unknown): EvolutionApiConfig | null {
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
     const parsed = createVendorSchema.safeParse(rawBody);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     if (managerPhone.trim().length < 8) {
       return NextResponse.json(
         {
-          error: "Informe o WhatsApp do gestor para finalizar a conexao.",
+          error: "Informe o WhatsApp do gestor para finalizar a conexão.",
           code: "MANAGER_PHONE_REQUIRED",
         },
         { status: 400 }
@@ -267,7 +267,7 @@ export async function DELETE(request: NextRequest) {
 
     if (access.role !== "owner" && access.role !== "admin") {
       return NextResponse.json(
-        { error: "Apenas owner/admin podem excluir conexoes.", code: "FORBIDDEN" },
+        { error: "Apenas owner/admin podem excluir conexões.", code: "FORBIDDEN" },
         { status: 403 }
       );
     }
@@ -276,7 +276,7 @@ export async function DELETE(request: NextRequest) {
     const parsed = deleteVendorSchema.safeParse(rawBody);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -294,7 +294,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!existingIntegration?.id || !decoded || !targetVendor) {
       return NextResponse.json(
-        { error: "Instancia nao encontrada.", code: "EVOLUTION_VENDOR_NOT_FOUND" },
+        { error: "Instância não encontrada.", code: "EVOLUTION_VENDOR_NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -337,7 +337,7 @@ export async function DELETE(request: NextRequest) {
 
     if (updateError) {
       return NextResponse.json(
-        { error: "Falha ao remover conexao da Evolution API.", code: "EVOLUTION_VENDOR_DELETE_ERROR" },
+        { error: "Falha ao remover conexão da Evolution API.", code: "EVOLUTION_VENDOR_DELETE_ERROR" },
         { status: 500 }
       );
     }
@@ -348,7 +348,7 @@ export async function DELETE(request: NextRequest) {
       managerPhone: nextConfig.managerPhone,
       vendors: nextVendors,
       message: instanceAlreadyMissing
-        ? `${targetVendor.vendorName} nao existia mais na Evolution API e foi removido da lista.`
+        ? `${targetVendor.vendorName} não existia mais na Evolution API e foi removido da lista.`
         : `${targetVendor.vendorName} removido com sucesso.`,
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/jobs/processor.ts
- * Proposito: Processar async_jobs com dispatch por job_type e lock otimista.
+ * Propósito: Processar async_jobs com dispatch por job_type e lock otimista.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -37,7 +37,7 @@ type ProcessJobsOptions = {
 };
 
 const whatsappAnalyzePayloadSchema = z.object({
-  conversationId: z.string().uuid("conversationId invalido."),
+  conversationId: z.string().uuid("conversationId inválido."),
 });
 
 const weeklyReportPayloadSchema = z.object({
@@ -46,7 +46,7 @@ const weeklyReportPayloadSchema = z.object({
 });
 
 const ragProcessPayloadSchema = z.object({
-  documentId: z.string().uuid("documentId invalido."),
+  documentId: z.string().uuid("documentId inválido."),
 });
 
 function normalizeError(error: unknown) {
@@ -65,7 +65,7 @@ function parseObjectPayload(payload: AsyncJobRow["payload"]) {
 
 async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
   if (!job.company_id) {
-    throw new Error("Job sem company_id nao pode ser processado.");
+    throw new Error("Job sem company_id não pode ser processado.");
   }
 
   const payload = parseObjectPayload(job.payload);
@@ -121,7 +121,7 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
       return runRagProcessWorker(job.company_id, { documentId: parsed.documentId });
     }
     default:
-      throw new Error(`job_type nao suportado: ${job.job_type}`);
+      throw new Error(`job_type não suportado: ${job.job_type}`);
   }
 }
 

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/sofia-crm/sync/route.ts
- * Proposito: Disparar sincronizacao manual de conversas/mensagens do Sofia CRM.
+ * Propósito: Disparar sincronização manual de conversas/mensagens do Sofia CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -19,8 +19,8 @@ const STALE_PENDING_MINUTES = 2;
 const STALE_RUNNING_MINUTES = 5;
 
 const syncRequestSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
-  conversationId: z.string().uuid("conversationId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
+  conversationId: z.string().uuid("conversationId inválido.").optional(),
   mode: z.enum(["full", "messages_only"]).optional(),
   processAnalyses: z.boolean().optional().default(true),
   maxAnalyses: z.number().int().min(1).max(10).optional(),
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         mode: "conversations",
         jobId: existingJob.id,
         jobStatus: existingJob.status,
-        message: "Sincronizacao ja esta em andamento.",
+        message: "Sincronização já está em andamento.",
       });
     }
 
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       mode: "conversations",
       jobId: queuedJob.id,
       jobStatus: queuedJob.status,
-      message: "Sincronizacao iniciada em background.",
+      message: "Sincronização iniciada em background.",
     });
   } catch (error) {
     if (error instanceof CompanyAccessError) {

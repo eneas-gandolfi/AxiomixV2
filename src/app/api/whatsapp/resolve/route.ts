@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/resolve/route.ts
- * Proposito: Marcar conversa como resolvida ou mudar status.
+ * Propósito: Marcar conversa como resolvida ou mudar status.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

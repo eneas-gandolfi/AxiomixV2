@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/social/media-library/[id]/route.ts
- * Proposito: Deletar e atualizar tags de midias individuais na biblioteca.
+ * Propósito: Deletar e atualizar tags de midias individuais na biblioteca.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -46,7 +46,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -70,7 +70,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/critical-alerts-badge.tsx
- * Proposito: Badge para indicar conversas críticas que precisam de atenção.
+ * Propósito: Badge para indicar conversas críticas que precisam de atenção.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

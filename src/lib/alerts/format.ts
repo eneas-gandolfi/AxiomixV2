@@ -7,11 +7,11 @@ function normalizeWhitespace(value: string) {
 export function formatAlertRecipientPhone(phone: string | null | undefined) {
   const raw = phone?.trim() ?? "";
   if (!raw) {
-    return "Nao configurado";
+    return "Não configurado";
   }
 
   if (PLACEHOLDER_PHONE_VALUES.has(raw.toLowerCase())) {
-    return "Nao configurado";
+    return "Não configurado";
   }
 
   const digits = raw.replace(/\D/g, "");
@@ -46,16 +46,16 @@ export function formatAlertErrorDetail(errorDetail: string | null | undefined) {
 
   const normalized = normalizeWhitespace(errorDetail);
 
-  if (/Evolution API nao configurada/i.test(normalized)) {
-    return "A Evolution API nao esta configurada para esta empresa.";
+  if (/Evolution API n[aã]o configurada/i.test(normalized)) {
+    return "A Evolution API não está configurada para esta empresa.";
   }
 
-  if (/Instancia .* nao encontrada na Evolution API/i.test(normalized)) {
-    return "A instancia conectada na Evolution API nao foi encontrada. Refaca a conexao do WhatsApp do gestor.";
+  if (/Inst[aâ]ncia .* n[aã]o encontrada na Evolution API/i.test(normalized)) {
+    return "A instância conectada na Evolution API não foi encontrada. Refaça a conexão do WhatsApp do gestor.";
   }
 
-  if (/Numero de destino invalido para envio WhatsApp/i.test(normalized)) {
-    return "O telefone configurado para o envio e invalido. Revise o numero do gestor ou o destino do alerta.";
+  if (/N[uú]mero de destino inv[aá]lido para envio WhatsApp/i.test(normalized)) {
+    return "O telefone configurado para o envio é inválido. Revise o número do gestor ou o destino do alerta.";
   }
 
   if (
@@ -69,7 +69,7 @@ export function formatAlertErrorDetail(errorDetail: string | null | undefined) {
     (/\b401\b/.test(normalized) || /\b403\b/.test(normalized)) &&
     /(apikey|unauthorized|forbidden)/i.test(normalized)
   ) {
-    return "A Evolution API recusou a autenticacao. Verifique a API key configurada.";
+    return "A Evolution API recusou a autenticação. Verifique a API key configurada.";
   }
 
   if (/\b5\d{2}\b/.test(normalized)) {

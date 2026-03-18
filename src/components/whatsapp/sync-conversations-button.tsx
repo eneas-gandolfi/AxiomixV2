@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/sync-conversations-button.tsx
- * Proposito: Disparar sincronizacao manual de conversas no modulo WhatsApp Intelligence.
+ * Propósito: Disparar sincronização manual de conversas no módulo WhatsApp Intelligence.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -38,10 +38,10 @@ export function SyncConversationsButton({ companyId }: SyncConversationsButtonPr
     const failedAnalyses = payload.analysis?.failedAnalyses ?? 0;
     const analysisSummary =
       processedAnalyses > 0 || failedAnalyses > 0
-        ? ` ${processedAnalyses} analise(s) concluida(s), ${failedAnalyses} falha(s).`
+        ? ` ${processedAnalyses} análise(s) concluída(s), ${failedAnalyses} falha(s).`
         : "";
 
-    return `Sync concluido: ${totalConversations} conversas e ${totalMessages} mensagens.${analysisSummary}`;
+    return `Sync concluído: ${totalConversations} conversas e ${totalMessages} mensagens.${analysisSummary}`;
   };
 
   const handleSync = async () => {
@@ -87,13 +87,13 @@ export function SyncConversationsButton({ companyId }: SyncConversationsButtonPr
         type="button"
         onClick={handleSync}
         disabled={syncing}
-        title={isAutoRefreshing ? "Atualizacao automatica de mensagens em andamento." : undefined}
+        title={isAutoRefreshing ? "Atualização automática de mensagens em andamento." : undefined}
       >
         <RefreshCw className={`h-4 w-4 ${isFullSyncing ? "animate-spin" : ""}`} />
         {progressLabel}
       </Button>
       {isAutoRefreshing ? (
-        <p className="text-xs text-muted">Atualizacao automatica de mensagens em andamento.</p>
+        <p className="text-xs text-muted">Atualização automática de mensagens em andamento.</p>
       ) : null}
       {isFullSyncing && progressPct !== null ? (
         <div className="h-1.5 w-full max-w-[240px] overflow-hidden rounded-full bg-muted/30">

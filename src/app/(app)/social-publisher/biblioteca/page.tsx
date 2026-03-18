@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/(app)/social-publisher/biblioteca/page.tsx
- * Proposito: Pagina da Biblioteca de Midia dentro do Social Publisher.
+ * Propósito: Pagina da Biblioteca de Midia dentro do Social Publisher.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

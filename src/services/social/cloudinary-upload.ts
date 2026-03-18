@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/social/cloudinary-upload.ts
- * Proposito: Upload de midias para Cloudinary com metadados para o Social Publisher.
+ * Propósito: Upload de midias para Cloudinary com metadados para o Social Publisher.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

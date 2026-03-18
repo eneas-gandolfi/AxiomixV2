@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/intelligence/competitors/route.ts
- * Proposito: Gerenciar concorrentes do modulo Intelligence com limite de 3 por empresa.
+ * Propósito: Gerenciar concorrentes do módulo Intelligence com limite de 3 por empresa.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -13,15 +13,15 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
 });
 
 const competitorCreateSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
-  name: z.string().trim().min(2, "Nome do concorrente e obrigatorio."),
-  websiteUrl: z.string().trim().url("Website invalido.").optional().or(z.literal("")),
-  instagramUrl: z.string().trim().url("Instagram invalido.").optional().or(z.literal("")),
-  linkedinUrl: z.string().trim().url("LinkedIn invalido.").optional().or(z.literal("")),
+  companyId: z.string().uuid("companyId inválido.").optional(),
+  name: z.string().trim().min(2, "Nome do concorrente é obrigatório."),
+  websiteUrl: z.string().trim().url("Website inválido.").optional().or(z.literal("")),
+  instagramUrl: z.string().trim().url("Instagram inválido.").optional().or(z.literal("")),
+  linkedinUrl: z.string().trim().url("LinkedIn inválido.").optional().or(z.literal("")),
 });
 
 function normalizeOptionalUrl(value?: string) {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     if (!parsedQuery.success) {
       return NextResponse.json(
-        { error: parsedQuery.error.issues[0]?.message ?? "Query invalida.", code: "VALIDATION_ERROR" },
+        { error: parsedQuery.error.issues[0]?.message ?? "Query inválida.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

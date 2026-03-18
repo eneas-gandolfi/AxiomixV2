@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/report/daily/route.ts
- * Proposito: Enfileirar ou enviar manualmente o relatorio diario de gargalos via WhatsApp.
+ * Propósito: Enfileirar ou enviar manualmente o relatório diário de gargalos via WhatsApp.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -17,7 +17,7 @@ import { isCronAuthorized } from "@/lib/auth/cron-auth";
 export const dynamic = "force-dynamic";
 
 const dailyReportSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
   reportDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "reportDate deve ser YYYY-MM-DD.")
@@ -33,7 +33,7 @@ async function enqueueForAllCompanies(reportDate?: string) {
     .not("company_id", "is", null);
 
   if (error) {
-    throw new Error("Falha ao carregar empresas ativas para enfileirar relatorio diario.");
+    throw new Error("Falha ao carregar empresas ativas para enfileirar relatório diário.");
   }
 
   const companyIds = Array.from(
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
   try {
     if (!isCronAuthorized(request)) {
       return NextResponse.json(
-        { error: "Metodo GET reservado para cron.", code: "METHOD_NOT_ALLOWED" },
+        { error: "Método GET reservado para cron.", code: "METHOD_NOT_ALLOWED" },
         { status: 405 }
       );
     }
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     if (access.role !== "owner" && access.role !== "admin") {
       return NextResponse.json(
-        { error: "Apenas owner/admin podem enviar relatorio diario manual.", code: "FORBIDDEN" },
+        { error: "Apenas owner/admin podem enviar relatório diário manual.", code: "FORBIDDEN" },
         { status: 403 }
       );
     }

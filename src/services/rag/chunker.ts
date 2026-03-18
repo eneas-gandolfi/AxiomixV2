@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/rag/chunker.ts
- * Proposito: Dividir texto em chunks para indexacao vetorial (recursive character split).
+ * Propósito: Dividir texto em chunks para indexacao vetorial (recursive character split).
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */

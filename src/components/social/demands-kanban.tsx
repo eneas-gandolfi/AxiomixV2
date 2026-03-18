@@ -48,14 +48,14 @@ export function DemandsKanban({ demands, onViewDemand }: DemandsKanbanProps) {
   }
 
   return (
-    <div className="overflow-x-auto pb-4">
+    <div className="-mx-4 overflow-x-auto px-4 pb-4 sm:mx-0 sm:px-0">
       <div className="flex gap-3 min-w-[900px]">
         {COLUMNS.map((status) => {
           const items = grouped.get(status) ?? [];
           return (
             <div
               key={status}
-              className={`flex-1 min-w-[180px] rounded-xl border border-[var(--color-border)] border-t-4 ${COLUMN_COLORS[status]} bg-[var(--color-surface-2)]/50`}
+              className={`flex-1 min-w-[150px] rounded-xl border border-[var(--color-border)] border-t-4 ${COLUMN_COLORS[status]} bg-[var(--color-surface-2)]/50`}
             >
               {/* Column header */}
               <div className="px-3 py-2.5 border-b border-[var(--color-border)]">

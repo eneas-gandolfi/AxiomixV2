@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/rag/query/route.ts
- * Proposito: Receber pergunta e retornar resposta baseada nos documentos RAG.
+ * Propósito: Receber pergunta e retornar resposta baseada nos documentos RAG.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Body invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Body inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

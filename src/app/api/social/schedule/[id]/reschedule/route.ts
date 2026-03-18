@@ -14,8 +14,8 @@ import { reschedulePost, SocialPublisherError } from "@/services/social/publishe
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
-  newScheduledAt: z.string().datetime("newScheduledAt invalido."),
+  companyId: z.string().uuid("companyId inválido.").optional(),
+  newScheduledAt: z.string().datetime("newScheduledAt inválido."),
 });
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -41,7 +41,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

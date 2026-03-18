@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/cron/whatsapp-sync/route.ts
- * Proposito: Cron job para sincronizar conversas do Sofia CRM em background.
+ * Propósito: Cron job para sincronizar conversas do Sofia CRM em background.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       .not("company_id", "is", null);
 
     if (integrationsError) {
-      throw new Error(`Falha ao buscar integracoes do Sofia CRM: ${integrationsError.message}`);
+      throw new Error(`Falha ao buscar integrações do Sofia CRM: ${integrationsError.message}`);
     }
 
     const companyIds = Array.from(
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: `Sincronizacao agendada para ${enqueued.length} empresa(s).`,
+      message: `Sincronização agendada para ${enqueued.length} empresa(s).`,
       enqueued: enqueued.length,
       skippedRecent,
       jobIds: enqueued,

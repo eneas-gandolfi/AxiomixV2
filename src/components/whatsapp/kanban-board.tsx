@@ -75,7 +75,7 @@ function StageColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`w-72 shrink-0 rounded-xl border border-border bg-sidebar border-t-4 ${colorClass} transition-colors ${
+      className={`w-64 shrink-0 rounded-xl border border-border bg-sidebar border-t-4 sm:w-72 ${colorClass} transition-colors ${
         isOver ? "bg-[#E0FAF7]/30" : ""
       }`}
     >
@@ -310,7 +310,7 @@ export function KanbanBoard({
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 sm:mx-0 sm:px-0">
             {sortedStages.map((stage, index) => {
               const cards = stage.cards ?? [];
               const colorClass = STAGE_COLORS[index % STAGE_COLORS.length];

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/sofia-crm/sync-status/route.ts
- * Proposito: Consultar status do job de sincronizacao do Sofia CRM.
+ * Propósito: Consultar status do job de sincronização do Sofia CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -17,8 +17,8 @@ const STALE_PENDING_MINUTES = 2;
 const STALE_RUNNING_MINUTES = 5;
 
 const querySchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
-  jobId: z.string().uuid("jobId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
+  jobId: z.string().uuid("jobId inválido.").optional(),
 });
 
 function mapJobResult(raw: unknown) {
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Query invalida.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Query inválida.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -131,8 +131,8 @@ export async function GET(request: NextRequest) {
     ) {
       const staleMessage =
         job.status === "running"
-          ? "Job de sincronizacao travou em running e foi encerrado automaticamente."
-          : "Job de sincronizacao ficou pendente por tempo demais e foi encerrado automaticamente.";
+          ? "Job de sincronização travou em running e foi encerrado automaticamente."
+          : "Job de sincronização ficou pendente por tempo demais e foi encerrado automaticamente.";
 
       const { error: staleError } = await adminSupabase
         .from("async_jobs")

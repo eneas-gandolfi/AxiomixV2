@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/jobs/process/route.ts
- * Proposito: Processar jobs pendentes da fila async_jobs (cron global ou execucao autenticada).
+ * Propósito: Processar jobs pendentes da fila async_jobs (cron global ou execucao autenticada).
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -24,7 +24,7 @@ const allowedJobTypes = [
 ] as const;
 
 const processSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
   maxJobs: z.number().int().min(1).max(10).optional(),
   allowedTypes: z.array(z.enum(allowedJobTypes)).min(1).max(allowedJobTypes.length).optional(),
 });
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

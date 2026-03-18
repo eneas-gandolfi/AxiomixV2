@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/rag/qstash.ts
- * Proposito: Agendar processamento RAG via QStash (background callback).
+ * Propósito: Agendar processamento RAG via QStash (background callback).
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -17,7 +17,7 @@ type RagProcessPayload = {
 function getQStashClient() {
   const token = process.env.QSTASH_TOKEN;
   if (!token) {
-    throw new Error("QSTASH_TOKEN nao configurado.");
+    throw new Error("QSTASH_TOKEN não configurado.");
   }
 
   return new Client({
@@ -28,7 +28,7 @@ function getQStashClient() {
 function resolveAppUrl() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (!appUrl) {
-    throw new Error("NEXT_PUBLIC_APP_URL nao configurada.");
+    throw new Error("NEXT_PUBLIC_APP_URL não configurada.");
   }
 
   return appUrl.replace(/\/+$/, "");

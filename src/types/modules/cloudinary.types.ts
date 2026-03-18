@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/types/modules/cloudinary.types.ts
- * Proposito: Tipos compartilhados para integracao com Cloudinary.
+ * Propósito: Tipos compartilhados para integracao com Cloudinary.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

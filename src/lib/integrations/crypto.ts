@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/integrations/crypto.ts
- * Proposito: Criptografar e descriptografar credenciais de integracoes.
+ * Propósito: Criptografar e descriptografar credenciais de integrações.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -14,7 +14,7 @@ function getEncryptionKey() {
   const integrationKey = process.env.INTEGRATIONS_ENCRYPTION_KEY?.trim();
 
   if (!integrationKey) {
-    throw new Error("INTEGRATIONS_ENCRYPTION_KEY nao esta configurada.");
+    throw new Error("INTEGRATIONS_ENCRYPTION_KEY não está configurada.");
   }
 
   return createHash("sha256").update(integrationKey).digest();
@@ -35,14 +35,14 @@ export function decryptSecret(payload: string) {
   const prefixWithSeparator = `${PAYLOAD_PREFIX}:`;
 
   if (!normalized.startsWith(prefixWithSeparator)) {
-    throw new Error("Formato de segredo criptografado invalido.");
+    throw new Error("Formato de segredo criptografado inválido.");
   }
 
   const encryptedPayload = normalized.slice(prefixWithSeparator.length);
   const [ivBase64, authTagBase64, encryptedBase64, ...rest] = encryptedPayload.split(":");
 
   if (!ivBase64 || !authTagBase64 || !encryptedBase64 || rest.length > 0) {
-    throw new Error("Formato de segredo criptografado invalido.");
+    throw new Error("Formato de segredo criptografado inválido.");
   }
 
   const key = getEncryptionKey();

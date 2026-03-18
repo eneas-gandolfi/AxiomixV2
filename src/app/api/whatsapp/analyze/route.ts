@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/analyze/route.ts
- * Proposito: Analisar conversa do WhatsApp com IA e salvar insight.
+ * Propósito: Analisar conversa do WhatsApp com IA e salvar insight.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -14,8 +14,8 @@ import { analyzeConversation } from "@/services/whatsapp/analyzer";
 export const dynamic = "force-dynamic";
 
 const analyzeSchema = z.object({
-  companyId: z.string().uuid("companyId invalido."),
-  conversationId: z.string().uuid("conversationId invalido."),
+  companyId: z.string().uuid("companyId inválido."),
+  conversationId: z.string().uuid("conversationId inválido."),
 });
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/social/media-library.ts
- * Proposito: Servico de biblioteca de midia com CRUD e integracao Cloudinary.
+ * Propósito: Serviço de biblioteca de mídia com CRUD e integração Cloudinary.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -112,7 +112,7 @@ async function getBlockedMediaIds(
 
   if (scheduledError || demandError) {
     throw new SocialPublisherError(
-      "Falha ao verificar uso dos arquivos de midia.",
+      "Falha ao verificar uso dos arquivos de mídia.",
       "MEDIA_USAGE_CHECK_ERROR",
       500
     );
@@ -157,7 +157,7 @@ export async function listMediaFiles(
 
   if (error) {
     throw new SocialPublisherError(
-      "Falha ao carregar biblioteca de midia.",
+      "Falha ao carregar biblioteca de mídia.",
       "MEDIA_LIBRARY_LIST_ERROR",
       500
     );
@@ -187,7 +187,7 @@ export async function getMediaFile(
 
   if (error) {
     throw new SocialPublisherError(
-      "Falha ao carregar arquivo de midia.",
+      "Falha ao carregar arquivo de mídia.",
       "MEDIA_LIBRARY_GET_ERROR",
       500
     );
@@ -212,7 +212,7 @@ export async function getMediaFilesByIds(
 
   if (error) {
     throw new SocialPublisherError(
-      "Falha ao carregar arquivos de midia por IDs.",
+      "Falha ao carregar arquivos de mídia por IDs.",
       "MEDIA_LIBRARY_BATCH_ERROR",
       500
     );
@@ -229,7 +229,7 @@ export async function deleteMediaFile(
 
   if (result.missingIds.includes(id)) {
     throw new SocialPublisherError(
-      "Arquivo de midia nao encontrado.",
+      "Arquivo de mídia não encontrado.",
       "MEDIA_NOT_FOUND",
       404
     );
@@ -242,7 +242,7 @@ export async function deleteMediaFile(
 
   if (blockedItem.reason === "content_demand") {
     throw new SocialPublisherError(
-      "Arquivo em uso em demandas de conteudo. Remova-o das demandas antes de deletar.",
+      "Arquivo em uso em demandas de conteúdo. Remova-o das demandas antes de deletar.",
       "MEDIA_IN_USE",
       409
     );
@@ -278,7 +278,7 @@ export async function deleteMediaFiles(
 
   if (fetchError) {
     throw new SocialPublisherError(
-      "Falha ao carregar arquivos de midia para exclusao.",
+      "Falha ao carregar arquivos de mídia para exclusão.",
       "MEDIA_DELETE_FETCH_ERROR",
       500
     );
@@ -353,7 +353,7 @@ export async function deleteMediaFiles(
 
   if (deleteError) {
     throw new SocialPublisherError(
-      "Falha ao deletar arquivo de midia.",
+      "Falha ao deletar arquivo de mídia.",
       "MEDIA_DELETE_ERROR",
       500
     );

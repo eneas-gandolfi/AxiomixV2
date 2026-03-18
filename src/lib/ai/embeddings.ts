@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/ai/embeddings.ts
- * Proposito: Gerar embeddings via OpenRouter usando text-embedding-3-small.
+ * Propósito: Gerar embeddings via OpenRouter usando text-embedding-3-small.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -37,7 +37,7 @@ async function resolveApiKey(companyId: string): Promise<string> {
     return envKey;
   }
 
-  throw new Error("Integracao OpenRouter nao configurada para esta empresa.");
+  throw new Error("Integração OpenRouter não configurada para esta empresa.");
 }
 
 export async function generateEmbedding(companyId: string, text: string): Promise<number[]> {
@@ -63,7 +63,7 @@ export async function generateEmbedding(companyId: string, text: string): Promis
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Embedding timeout: requisicao excedeu 30s.");
+      throw new Error("Embedding timeout: requisição excedeu 30s.");
     }
     throw error;
   }
@@ -78,7 +78,7 @@ export async function generateEmbedding(companyId: string, text: string): Promis
   const embedding = payload.data?.[0]?.embedding;
 
   if (!embedding || embedding.length !== 1536) {
-    throw new Error("OpenRouter nao retornou embedding valido (esperado 1536 dims).");
+    throw new Error("OpenRouter não retornou embedding válido (esperado 1536 dims).");
   }
 
   return embedding;
@@ -110,7 +110,7 @@ export async function generateEmbeddings(
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Embedding batch timeout: requisicao excedeu 60s.");
+      throw new Error("Embedding batch timeout: requisição excedeu 60s.");
     }
     throw error;
   }

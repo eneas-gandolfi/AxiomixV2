@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/settings/social/connections/route.ts
- * Proposito: Conectar redes sociais via Upload-Post e manter perfil por empresa.
+ * Propósito: Conectar redes sociais via Upload-Post e manter perfil por empresa.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
       });
       uploadPostAccount = await fetchUploadPostAccountInfo(config);
     } catch {
-      // Se nao houver credenciais disponiveis, apenas nao exibe dados da conta.
+      // Se não houver credenciais disponíveis, apenas não exibe dados da conta.
     }
 
     if (shouldSync && decoded.profileId && connections.length > 0) {
@@ -265,7 +265,7 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch {
-        // Falha de sync nao deve quebrar listagem da tela.
+        // Falha de sync não deve quebrar listagem da tela.
       }
     }
 
@@ -316,7 +316,7 @@ export async function POST(request: NextRequest) {
     const parsed = connectSchema.safeParse(rawBody);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -329,7 +329,7 @@ export async function POST(request: NextRequest) {
 
     if (!company?.name) {
       return NextResponse.json(
-        { error: "Empresa nao encontrada.", code: "COMPANY_NOT_FOUND" },
+        { error: "Empresa não encontrada.", code: "COMPANY_NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -353,7 +353,7 @@ export async function POST(request: NextRequest) {
       existingProfileId: decoded.profileId,
     });
 
-    // Melhor esforco: remove vinculacao anterior da mesma plataforma
+    // Melhor esforço: remove vinculação anterior da mesma plataforma
     // para permitir reconectar com outra conta na Upload-Post.
     try {
       await disconnectUploadPostSocialConnection({
@@ -362,7 +362,7 @@ export async function POST(request: NextRequest) {
         platform: parsed.data.platform,
       });
     } catch {
-      // Se nao houver conexao existente, seguimos com a nova autorizacao.
+      // Se não houver conexão existente, seguimos com a nova autorização.
     }
 
     const started = await startUploadPostSocialConnection({
@@ -374,7 +374,7 @@ export async function POST(request: NextRequest) {
       redirectButtonText: "Fechar sem conectar",
       connectTitle: "Conectar redes sociais no AXIOMIX",
       connectDescription:
-        "Conclua a autorizacao da conta. Esta janela fecha automaticamente ao detectar conexao.",
+        "Conclua a autorização da conta. Esta janela fecha automaticamente ao detectar conexão.",
       showCalendar: false,
       readOnlyCalendar: false,
     });
@@ -421,7 +421,7 @@ export async function POST(request: NextRequest) {
 
     if (upsertError) {
       return NextResponse.json(
-        { error: "Falha ao salvar conexao social.", code: "SOCIAL_CONNECTION_SAVE_ERROR" },
+        { error: "Falha ao salvar conexão social.", code: "SOCIAL_CONNECTION_SAVE_ERROR" },
         { status: 500 }
       );
     }

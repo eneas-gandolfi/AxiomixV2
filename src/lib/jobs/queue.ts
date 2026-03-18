@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/jobs/queue.ts
- * Proposito: Operacoes de fila para async_jobs com lock otimista e retry.
+ * Propósito: Operacoes de fila para async_jobs com lock otimista e retry.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */

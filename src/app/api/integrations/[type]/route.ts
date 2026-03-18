@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/integrations/[type]/route.ts
- * Proposito: Salvar configuracao de uma integracao com credenciais criptografadas.
+ * Propósito: Salvar configuração de uma integração com credenciais criptografadas.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: "Usuario nao autenticado.", code: "AUTH_REQUIRED" },
+        { error: "Usuário não autenticado.", code: "AUTH_REQUIRED" },
         { status: 401 }
       );
     }
@@ -62,14 +62,14 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (!membership?.company_id) {
       return NextResponse.json(
-        { error: "Empresa nao encontrada para este usuario.", code: "COMPANY_NOT_FOUND" },
+        { error: "Empresa não encontrada para este usuário.", code: "COMPANY_NOT_FOUND" },
         { status: 404 }
       );
     }
 
     if (membership.role !== "owner" && membership.role !== "admin") {
       return NextResponse.json(
-        { error: "Apenas owner/admin podem alterar integracoes.", code: "FORBIDDEN" },
+        { error: "Apenas owner/admin podem alterar integrações.", code: "FORBIDDEN" },
         { status: 403 }
       );
     }
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (error || !integration) {
       return NextResponse.json(
-        { error: "Nao foi possivel salvar integracao.", code: "INTEGRATION_SAVE_ERROR" },
+        { error: "Não foi possível salvar integração.", code: "INTEGRATION_SAVE_ERROR" },
         { status: 500 }
       );
     }
@@ -136,12 +136,12 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     return NextResponse.json({
       integration: buildIntegrationPublicItem(integration),
-      message: "Configuracao salva com sucesso.",
+      message: "Configuração salva com sucesso.",
     });
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
       return NextResponse.json(
         {
           error:
-            "Nao foi possivel salvar no momento por configuracao interna pendente. Tente novamente em instantes.",
+            "Não foi possível salvar no momento por configuração interna pendente. Tente novamente em instantes.",
           code: "INTERNAL_CONFIG_ERROR",
         },
         { status: 500 }

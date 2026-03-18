@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/sofia-actions/label/route.ts
- * Proposito: Adicionar label/tag a um contato no Sofia CRM.
+ * Propósito: Adicionar label/tag a um contato no Sofia CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

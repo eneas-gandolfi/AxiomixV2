@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/critical-count/route.ts
- * Proposito: Retornar contagem de conversas críticas (negativas nas últimas 24h).
+ * Propósito: Retornar contagem de conversas críticas (negativas nas últimas 24h).
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -13,7 +13,7 @@ import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-com
 export const dynamic = "force-dynamic";
 
 const countSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

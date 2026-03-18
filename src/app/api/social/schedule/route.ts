@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/social/schedule/route.ts
- * Proposito: Listar e criar agendamentos do modulo Social Publisher.
+ * Propósito: Listar e criar agendamentos do módulo Social Publisher.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -21,30 +21,30 @@ import type { SocialPlatform, SocialPostType } from "@/types/modules/social-publ
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
   page: z.coerce.number().int().min(1).default(1),
   status: z
     .enum(["scheduled", "processing", "published", "partial", "failed", "cancelled"])
     .optional(),
-  dateFrom: z.string().datetime("dateFrom invalida.").optional(),
-  dateTo: z.string().datetime("dateTo invalida.").optional(),
+  dateFrom: z.string().datetime("dateFrom inválida.").optional(),
+  dateTo: z.string().datetime("dateTo inválida.").optional(),
 });
 
 const schedulePostSchema = z
   .object({
-    companyId: z.string().uuid("companyId invalido.").optional(),
+    companyId: z.string().uuid("companyId inválido.").optional(),
     postType: z.enum(["photo", "video", "carousel"]),
     caption: z.string().max(2200, "Legenda excede 2200 caracteres.").optional(),
     platforms: z.array(z.enum(["instagram", "linkedin", "tiktok", "facebook"])).min(1),
     publishNow: z.boolean().default(false),
-    scheduledAt: z.string().datetime("scheduledAt invalido.").optional(),
+    scheduledAt: z.string().datetime("scheduledAt inválido.").optional(),
   })
   .superRefine((value, context) => {
     if (!value.publishNow && !value.scheduledAt) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["scheduledAt"],
-        message: "scheduledAt e obrigatorio quando publishNow = false.",
+        message: "scheduledAt é obrigatório quando publishNow = false.",
       });
     }
   });
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
 
     if (!parsedQuery.success) {
       return NextResponse.json(
-        { error: parsedQuery.error.issues[0]?.message ?? "Query invalida.", code: "VALIDATION_ERROR" },
+        { error: parsedQuery.error.issues[0]?.message ?? "Query inválida.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

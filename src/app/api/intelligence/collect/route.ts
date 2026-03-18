@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/intelligence/collect/route.ts
- * Proposito: Enfileirar e disparar coleta de dados do modulo Intelligence.
+ * Propósito: Enfileirar e disparar coleta de dados do módulo Intelligence.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -16,9 +16,9 @@ export const dynamic = "force-dynamic";
 
 const collectSchema = z
   .object({
-    companyId: z.string().uuid("companyId invalido.").optional(),
+    companyId: z.string().uuid("companyId inválido.").optional(),
     sourceType: z.enum(["competitor", "radar", "all"]).default("all"),
-    competitorId: z.string().uuid("competitorId invalido.").optional(),
+    competitorId: z.string().uuid("competitorId inválido.").optional(),
     processNow: z.boolean().optional().default(true),
     maxJobs: z.number().int().min(1).max(5).optional(),
   })
@@ -26,7 +26,7 @@ const collectSchema = z
     if (value.sourceType === "radar" && value.competitorId) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "competitorId nao pode ser usado quando sourceType = radar.",
+        message: "competitorId não pode ser usado quando sourceType = radar.",
         path: ["competitorId"],
       });
     }
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
       if (!competitor?.id) {
         return NextResponse.json(
-          { error: "Concorrente nao encontrado para esta empresa.", code: "COMPETITOR_NOT_FOUND" },
+          { error: "Concorrente não encontrado para esta empresa.", code: "COMPETITOR_NOT_FOUND" },
           { status: 404 }
         );
       }

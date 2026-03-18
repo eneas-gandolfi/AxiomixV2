@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/auto-sync-indicator.tsx
- * Proposito: Indicador de sincronizacao automatica com contagem regressiva.
+ * Propósito: Indicador de sincronização automática com contagem regressiva.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

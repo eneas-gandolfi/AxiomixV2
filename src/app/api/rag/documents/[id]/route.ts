@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/rag/documents/[id]/route.ts
- * Proposito: Detalhe e exclusao de um documento RAG.
+ * Propósito: Detalhe e exclusão de um documento RAG.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -52,7 +52,7 @@ export async function GET(
 
     if (docError || !doc) {
       return NextResponse.json(
-        { error: "Documento nao encontrado.", code: "NOT_FOUND" },
+        { error: "Documento não encontrado.", code: "NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -98,7 +98,7 @@ export async function DELETE(
 
     if (docError || !doc) {
       return NextResponse.json(
-        { error: "Documento nao encontrado.", code: "NOT_FOUND" },
+        { error: "Documento não encontrado.", code: "NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -147,7 +147,7 @@ export async function PATCH(
 
     if (docError || !doc) {
       return NextResponse.json(
-        { error: "Documento nao encontrado.", code: "NOT_FOUND" },
+        { error: "Documento não encontrado.", code: "NOT_FOUND" },
         { status: 404 }
       );
     }

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/types/modules/social-publisher.types.ts
- * Proposito: Tipos compartilhados do modulo Social Publisher.
+ * Propósito: Tipos compartilhados do modulo Social Publisher.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */

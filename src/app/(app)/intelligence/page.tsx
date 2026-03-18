@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/(app)/intelligence/page.tsx
- * Proposito: Renderizar modulo Intelligence v2.0 com dashboard, concorrentes, radar e salvos.
+ * Propósito: Renderizar modulo Intelligence v2.0 com dashboard, concorrentes, radar e salvos.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  * Versão: 2.0 (Enhanced)

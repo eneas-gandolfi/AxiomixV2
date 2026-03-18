@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/notes/[id]/route.ts
- * Proposito: API para deletar uma nota especifica.
+ * Propósito: API para deletar uma nota especifica.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

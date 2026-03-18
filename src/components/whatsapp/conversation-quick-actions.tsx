@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/conversation-quick-actions.tsx
- * Proposito: Acoes rapidas inline para conversas.
+ * Propósito: Acoes rapidas inline para conversas.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */

@@ -64,8 +64,8 @@ export function AlertsCard({ alerts }: AlertsCardProps) {
 
             {alert.variant === "warning" ? (
               <p className="mt-1 text-sm text-muted">
-                A sincronizacao de conversas esta parada. Sem isso, o WhatsApp
-                Intelligence e o relatorio semanal ficam desatualizados.
+                A sincronização de conversas está parada. Sem isso, o WhatsApp
+                Intelligence e o relatório semanal ficam desatualizados.
               </p>
             ) : null}
 

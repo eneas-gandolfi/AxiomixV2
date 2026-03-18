@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/intelligence/posts/[id]/route.ts
- * Proposito: API para deletar posts do Content Radar
+ * Propósito: API para deletar posts do Content Radar
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -13,7 +13,7 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 const deletePostSchema = z.object({
-  companyId: z.string().uuid("companyId invalido.").optional(),
+  companyId: z.string().uuid("companyId inválido.").optional(),
 });
 
 export async function DELETE(
@@ -28,7 +28,7 @@ export async function DELETE(
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
