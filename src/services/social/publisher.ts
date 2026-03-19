@@ -188,6 +188,21 @@ function parseUuidArray(raw: unknown): string[] {
   return raw.filter((item): item is string => typeof item === "string");
 }
 
+const STALE_PROCESSING_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutos
+
+function isProcessingStale(progress: PublishProgressMap): boolean {
+  const timestamps = Object.values(progress)
+    .map((item) => item.updatedAt)
+    .filter((ts): ts is string => typeof ts === "string");
+
+  if (timestamps.length === 0) {
+    return true;
+  }
+
+  const mostRecent = Math.max(...timestamps.map((ts) => new Date(ts).getTime()));
+  return Date.now() - mostRecent > STALE_PROCESSING_THRESHOLD_MS;
+}
+
 function createInitialProgress(platforms: SocialPlatform[]): PublishProgressMap {
   const now = new Date().toISOString();
   const progress: PublishProgressMap = {};
@@ -484,8 +499,9 @@ async function publishToPlatform(input: {
   postType: SocialPostType;
   caption: string | null;
   mediaUrls: string[];
+  config: UploadPostConfig;
 }) {
-  const config = await getUploadPostConfig(input.companyId);
+  const config = input.config;
   const response = await fetch(`${config.baseUrl}/publish`, {
     method: "POST",
     headers: {
@@ -632,11 +648,27 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
     );
   }
 
-  const qstash = await scheduleSocialPublish({
-    scheduledPostId: created.id,
-    companyId: created.company_id,
-    scheduledAtIso: scheduledAt,
-  });
+  let qstash;
+  try {
+    qstash = await scheduleSocialPublish({
+      scheduledPostId: created.id,
+      companyId: created.company_id,
+      scheduledAtIso: scheduledAt,
+    });
+  } catch (qstashError) {
+    // Rollback: remover registro órfão do banco
+    await supabase
+      .from("scheduled_posts")
+      .delete()
+      .eq("id", created.id)
+      .eq("company_id", created.company_id);
+
+    throw new SocialPublisherError(
+      "Falha ao agendar publicação no QStash. O post não foi criado.",
+      "QSTASH_SCHEDULE_ERROR",
+      500
+    );
+  }
 
   const { data: updated, error: updateError } = await supabase
     .from("scheduled_posts")
@@ -881,16 +913,30 @@ export async function publishScheduledPost(input: {
   }
 
   if (row.status === "processing") {
-    return {
-      scheduledPostId: row.id,
-      companyId: row.company_id,
-      status: "processing",
-      successCount: 0,
-      failureCount: 0,
-      externalPostIds: parseResultMap(row.external_post_ids),
-      errorDetails: parseErrorMap(row.error_details),
-    };
+    const existingProgress = parseProgress(row.progress);
+
+    if (!isProcessingStale(existingProgress)) {
+      // Publicação em andamento recente — não interferir
+      return {
+        scheduledPostId: row.id,
+        companyId: row.company_id,
+        status: "processing",
+        successCount: 0,
+        failureCount: 0,
+        externalPostIds: parseResultMap(row.external_post_ids),
+        errorDetails: parseErrorMap(row.error_details),
+      };
+    }
+
+    // Processing travado (>5min) — retomar via optimistic lock
+    console.warn(
+      `[SocialPublisher] Post ${row.id} travado em processing — retomando publicação.`
+    );
   }
+
+  // Optimistic lock: status "scheduled" → "processing" (normal)
+  // ou "processing" → "processing" com updated_at atualizado (retry de post travado)
+  const lockFromStatus = row.status === "processing" ? "processing" : "scheduled";
 
   const { data: processingRow, error: processingError } = await supabase
     .from("scheduled_posts")
@@ -899,7 +945,7 @@ export async function publishScheduledPost(input: {
     })
     .eq("id", row.id)
     .eq("company_id", row.company_id)
-    .eq("status", "scheduled")
+    .eq("status", lockFromStatus)
     .select(
       "id, company_id, post_type, caption, media_file_ids, platforms, status, progress, external_post_ids, error_details, published_at"
     )
@@ -989,10 +1035,18 @@ export async function publishScheduledPost(input: {
       .eq("company_id", processingCompanyId);
   };
 
+  const uploadPostConfig = await getUploadPostConfig(processingCompanyId);
+
   let successCount = 0;
   let failureCount = 0;
 
   for (const platform of platforms) {
+    // Pular plataformas já publicadas com sucesso (retry de post travado)
+    if (progress[platform]?.status === "ok") {
+      successCount += 1;
+      continue;
+    }
+
     const processingProgress: PlatformProgressItem = {
       status: "processing",
       updatedAt: new Date().toISOString(),
@@ -1008,6 +1062,7 @@ export async function publishScheduledPost(input: {
         postType: processingRow.post_type,
         caption: processingRow.caption,
         mediaUrls,
+        config: uploadPostConfig,
       });
 
       externalPostIds[platform] = externalPostId;
