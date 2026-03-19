@@ -9,7 +9,26 @@ type BatchMessage = {
   direction: "inbound" | "outbound";
   content: string;
   sentAt: string;
+  messageType?: string | null;
 };
+
+const MEDIA_TYPE_LABELS: Record<string, string> = {
+  audio: "Áudio enviado",
+  ptt: "Áudio enviado",
+  image: "Imagem enviada",
+  video: "Vídeo enviado",
+  document: "Documento enviado",
+  sticker: "Figurinha enviada",
+};
+
+function annotateMediaContent(content: string, messageType?: string | null): string {
+  const mediaLabel = messageType ? MEDIA_TYPE_LABELS[messageType] : undefined;
+  const text = content.trim();
+
+  if (!mediaLabel) return text;
+  if (!text) return `[${mediaLabel}]`;
+  return `[${mediaLabel}] ${text}`;
+}
 
 type BatchConversation = {
   conversationId: string;
@@ -33,7 +52,8 @@ export function buildBatchAnalysisPrompt(input: BatchAnalysisPromptInput) {
         .map((msg) => {
           const side = msg.direction === "inbound" ? "CLIENTE" : "ATENDIMENTO";
           const time = msg.sentAt.slice(11, 16);
-          return `${time} | ${side}: ${msg.content}`;
+          const body = annotateMediaContent(msg.content, msg.messageType);
+          return `${time} | ${side}: ${body}`;
         })
         .join("\n");
 
@@ -69,6 +89,7 @@ Regras:
 - key_topics: 1 a 3 palavras-chave curtas.
 - summary: visão geral de todas as conversas (tendências, gargalos, oportunidades). Max 3 frases.
 - Se houver contexto da base de conhecimento, use-o para identificar etapa da venda e gargalos.
+- Mensagens de mídia aparecem como [Áudio enviado], [Imagem enviada], etc. Considere o tipo de mídia na classificação.
 - Não inclua markdown.
 
 ${conversationBlocks}

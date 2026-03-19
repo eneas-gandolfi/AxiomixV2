@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Wifi } from "lucide-react";
+import { FileText, Image, Loader2, MapPin, Mic, RefreshCw, Send, Smile, Sparkles, Video, Wifi, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type MessageData = {
@@ -16,7 +16,26 @@ type MessageData = {
   content: string | null;
   direction: string | null;
   sent_at: string | null;
+  message_type?: string | null;
 };
+
+const MEDIA_TYPE_MAP: Record<string, { label: string; icon: typeof Mic }> = {
+  audio: { label: "Áudio", icon: Mic },
+  voice: { label: "Áudio", icon: Mic },
+  ptt: { label: "Áudio", icon: Mic },
+  image: { label: "Imagem", icon: Image },
+  photo: { label: "Imagem", icon: Image },
+  video: { label: "Vídeo", icon: Video },
+  document: { label: "Documento", icon: FileText },
+  file: { label: "Documento", icon: FileText },
+  sticker: { label: "Figurinha", icon: Smile },
+  location: { label: "Localização", icon: MapPin },
+};
+
+function getMediaInfo(messageType?: string | null) {
+  if (!messageType) return null;
+  return MEDIA_TYPE_MAP[messageType] ?? null;
+}
 
 type ConversationChatProps = {
   companyId: string;
@@ -58,6 +77,8 @@ export function ConversationChat({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const wasAtBottomRef = useRef(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -195,6 +216,37 @@ export function ConversationChat({
     }
   };
 
+  const handleSuggestResponse = async () => {
+    setIsGenerating(true);
+    setSuggestion(null);
+    try {
+      const response = await fetch("/api/whatsapp/suggest-response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId, conversationId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error ?? "Erro ao gerar sugestão.");
+      }
+
+      const data = await response.json();
+      setSuggestion(data.suggestion);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao gerar sugestão.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleUseSuggestion = () => {
+    if (suggestion) {
+      setInput(suggestion);
+      setSuggestion(null);
+    }
+  };
+
   return (
     <div className="flex flex-col">
       {/* Área de mensagens com scroll */}
@@ -219,7 +271,31 @@ export function ConversationChat({
                     : "mr-auto border border-border bg-card"
                 } ${isOptimistic ? "opacity-70" : ""}`}
               >
-                <p className="text-text">{message.content || "(mensagem sem texto)"}</p>
+                {(() => {
+                  const media = getMediaInfo(message.message_type);
+                  if (!message.content && media) {
+                    const Icon = media.icon;
+                    return (
+                      <p className="flex items-center gap-1.5 text-muted italic">
+                        <Icon className="h-3.5 w-3.5" />
+                        {media.label}
+                      </p>
+                    );
+                  }
+                  if (message.content && media) {
+                    const Icon = media.icon;
+                    return (
+                      <div>
+                        <p className="flex items-center gap-1.5 text-muted italic text-xs mb-0.5">
+                          <Icon className="h-3 w-3" />
+                          {media.label}
+                        </p>
+                        <p className="text-text">{message.content}</p>
+                      </div>
+                    );
+                  }
+                  return <p className="text-text">{message.content || "(mensagem sem texto)"}</p>;
+                })()}
                 <p className="mt-1 text-xs text-muted-light">
                   {formatDate(message.sent_at)}
                   {isOptimistic && " · Enviando..."}
@@ -237,7 +313,63 @@ export function ConversationChat({
           {error && (
             <p className="mb-2 text-xs text-danger">{error}</p>
           )}
+
+          {/* Card de sugestão da IA */}
+          {suggestion && (
+            <div className="mb-3 rounded-lg border border-[#FA5E24]/30 bg-[#FA5E24]/5 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-[#FA5E24]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Sugestão da IA
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSuggestion(null)}
+                  className="rounded p-0.5 text-muted hover:text-text"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <p className="mb-3 text-sm text-text">{suggestion}</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleUseSuggestion}
+                  className="h-7 text-xs"
+                >
+                  Usar resposta
+                </Button>
+                <button
+                  type="button"
+                  onClick={handleSuggestResponse}
+                  disabled={isGenerating}
+                  className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted hover:text-text disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3 w-3 ${isGenerating ? "animate-spin" : ""}`} />
+                  Regenerar
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={handleSuggestResponse}
+              disabled={isGenerating}
+              className="h-10 shrink-0 gap-1.5 text-xs"
+              title="Sugerir resposta com IA"
+            >
+              {isGenerating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">{isGenerating ? "Gerando..." : "IA"}</span>
+            </Button>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}

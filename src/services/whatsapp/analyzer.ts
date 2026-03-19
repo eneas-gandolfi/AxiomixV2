@@ -51,6 +51,7 @@ type ConversationMessage = {
   direction: "inbound" | "outbound";
   content: string | null;
   sent_at: string | null;
+  message_type?: string | null;
 };
 
 type AnalyzeConversationResult = {
@@ -249,6 +250,7 @@ async function generateConversationInsight(companyId: string, messages: Conversa
       direction: message.direction,
       content: message.content,
       sentAt: message.sent_at ?? new Date().toISOString(),
+      messageType: message.message_type,
     })),
     knowledgeBaseContext: kbContext || undefined,
   });
@@ -347,7 +349,7 @@ export async function analyzeConversation(
 
   const { data: messages, error: messagesError } = await supabase
     .from("messages")
-    .select("direction, content, sent_at")
+    .select("direction, content, sent_at, message_type")
     .eq("conversation_id", conversationId)
     .eq("company_id", companyId)
     .order("sent_at", { ascending: true });

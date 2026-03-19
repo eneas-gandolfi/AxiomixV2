@@ -178,7 +178,7 @@ async function getEligibleConversations(companyId: string): Promise<EligibleConv
 async function loadRecentMessages(
   companyId: string,
   conversationIds: string[]
-): Promise<Map<string, Array<{ direction: "inbound" | "outbound"; content: string | null; sent_at: string | null }>>> {
+): Promise<Map<string, Array<{ direction: "inbound" | "outbound"; content: string | null; sent_at: string | null; message_type?: string | null }>>> {
   const supabase = createSupabaseAdminClient();
 
   // Carregar mensagens recentes para todas as conversas de uma vez
@@ -187,7 +187,7 @@ async function loadRecentMessages(
   const maxMessages = MESSAGES_PER_CONVERSATION * conversationIds.length;
   const { data: allMessages, error } = await supabase
     .from("messages")
-    .select("conversation_id, direction, content, sent_at")
+    .select("conversation_id, direction, content, sent_at, message_type")
     .eq("company_id", companyId)
     .in("conversation_id", conversationIds)
     .order("sent_at", { ascending: false })
@@ -198,7 +198,7 @@ async function loadRecentMessages(
   }
 
   // Agrupar por conversa e limitar a N mensagens mais recentes
-  const grouped = new Map<string, Array<{ direction: "inbound" | "outbound"; content: string | null; sent_at: string | null }>>();
+  const grouped = new Map<string, Array<{ direction: "inbound" | "outbound"; content: string | null; sent_at: string | null; message_type?: string | null }>>();
 
   for (const msg of allMessages) {
     if (!msg.conversation_id || !msg.direction) continue;
@@ -208,6 +208,7 @@ async function loadRecentMessages(
         direction: msg.direction,
         content: msg.content,
         sent_at: msg.sent_at,
+        message_type: msg.message_type,
       });
       grouped.set(msg.conversation_id, existing);
     }
@@ -275,6 +276,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
       direction: msg.direction,
       content: msg.content ?? "",
       sentAt: msg.sent_at ?? new Date().toISOString(),
+      messageType: msg.message_type,
     })),
   }));
 

@@ -175,6 +175,7 @@ export async function syncConversations(
           ? item.profile_picture
           : `${sofiaClient.baseUrl}${item.profile_picture.startsWith("/") ? "" : "/"}${item.profile_picture}`
         : null,
+      assigned_to: item.assignee_id ?? null,
       status: item.status ?? "open",
       last_message_at: conversationLastMessageDate(item),
       last_synced_at: new Date().toISOString(),
@@ -254,6 +255,7 @@ export async function syncConversations(
         contact_name: row.contact_name,
         contact_phone: row.contact_phone,
         contact_avatar_url: row.contact_avatar_url,
+        assigned_to: row.assigned_to,
         status: row.status,
         last_message_at: row.last_message_at,
         last_synced_at: row.last_synced_at,
@@ -432,6 +434,7 @@ export async function syncMessages(
     content: string | null;
     direction: "inbound" | "outbound";
     sent_at: string;
+    message_type: string | null;
   }> = [];
 
   for (const remoteMessage of remoteMessages) {
@@ -442,6 +445,7 @@ export async function syncMessages(
       content: remoteMessage.content ?? "",
       direction,
       sent_at: normalizeSentAt(remoteMessage.created_at),
+      message_type: remoteMessage.message_type ?? null,
     };
     const fingerprint = buildMessageFingerprint(normalized);
 

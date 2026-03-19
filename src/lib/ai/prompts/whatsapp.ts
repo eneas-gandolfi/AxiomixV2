@@ -9,11 +9,41 @@ type MessageInput = {
   direction: "inbound" | "outbound";
   content: string | null;
   sentAt: string;
+  messageType?: string | null;
 };
+
+const MEDIA_TYPE_LABELS: Record<string, string> = {
+  audio: "Áudio enviado",
+  ptt: "Áudio enviado",
+  image: "Imagem enviada",
+  video: "Vídeo enviado",
+  document: "Documento enviado",
+  sticker: "Figurinha enviada",
+};
+
+function annotateMediaContent(content: string | null, messageType?: string | null): string {
+  const mediaLabel = messageType ? MEDIA_TYPE_LABELS[messageType] : undefined;
+  const text = (content ?? "").trim();
+
+  if (!mediaLabel) return text;
+  if (!text) return `[${mediaLabel}]`;
+  return `[${mediaLabel}] ${text}`;
+}
 
 type PromptOptions = {
   messages: MessageInput[];
   knowledgeBaseContext?: string;
+};
+
+type SuggestionPromptOptions = {
+  messages: MessageInput[];
+  knowledgeBaseContext?: string;
+  existingInsight?: {
+    sentiment?: string;
+    intent?: string;
+    salesStage?: string;
+    summary?: string;
+  };
 };
 
 export function buildWhatsAppAnalysisPrompt(input: MessageInput[] | PromptOptions) {
@@ -23,7 +53,8 @@ export function buildWhatsAppAnalysisPrompt(input: MessageInput[] | PromptOption
   const serializedMessages = messages
     .map((message) => {
       const side = message.direction === "inbound" ? "CLIENTE" : "ATENDIMENTO";
-      return `${message.sentAt} | ${side}: ${message.content ?? ""}`;
+      const body = annotateMediaContent(message.content, message.messageType);
+      return `${message.sentAt} | ${side}: ${body}`;
     })
     .join("\n");
 
@@ -71,7 +102,46 @@ Regras:
 - stall_reason: descreva em 1 frase o principal motivo da conversa estar travada. Retorne string vazia se não houver travamento.
 - confidence_score: sua confiança geral na análise, de 0 a 100.
 - suggested_response: sugestão objetiva de resposta (max 80 palavras), com linguagem técnica/comercial coerente com a base. Se faltar dado técnico, peça a informação faltante em vez de inventar. Se a conversa já está resolvida, retorne string vazia.
+- Mensagens de mídia aparecem como [Áudio enviado], [Imagem enviada], etc. Considere o tipo de mídia na análise (ex: vários áudios seguidos indicam engajamento alto; imagens podem indicar interesse em produto).
 - Não inclua markdown.
+
+Conversa:
+${serializedMessages}
+`.trim();
+}
+
+export function buildResponseSuggestionPrompt(options: SuggestionPromptOptions) {
+  const serializedMessages = options.messages
+    .map((message) => {
+      const side = message.direction === "inbound" ? "CLIENTE" : "ATENDIMENTO";
+      const body = annotateMediaContent(message.content, message.messageType);
+      return `${message.sentAt} | ${side}: ${body}`;
+    })
+    .join("\n");
+
+  const kbBlock = options.knowledgeBaseContext
+    ? `\nBase de conhecimento da empresa (use como referência para responder com precisão):\n${options.knowledgeBaseContext}\n`
+    : "";
+
+  const insightBlock = options.existingInsight
+    ? `\nContexto da análise existente:
+- Sentimento do cliente: ${options.existingInsight.sentiment ?? "não avaliado"}
+- Intenção: ${options.existingInsight.intent ?? "não identificada"}
+- Estágio da venda: ${options.existingInsight.salesStage ?? "desconhecido"}
+- Resumo: ${options.existingInsight.summary ?? "sem resumo"}\n`
+    : "";
+
+  return `
+Você é um assistente de atendimento no WhatsApp. Sua tarefa é gerar UMA sugestão de resposta para o atendente enviar ao cliente.
+${kbBlock}${insightBlock}
+Regras:
+- Máximo 80 palavras.
+- Tom profissional e adequado ao sentimento do cliente.
+- Se houver base de conhecimento, use-a para informações técnicas, preços e detalhes do produto/serviço.
+- Não invente dados, preços, prazos ou informações que não estejam na conversa ou na base de conhecimento.
+- Se faltar informação para responder, sugira perguntar ao cliente ou consultar internamente.
+- Responda em português brasileiro.
+- Retorne APENAS o texto da resposta sugerida, sem aspas, sem JSON, sem explicações.
 
 Conversa:
 ${serializedMessages}

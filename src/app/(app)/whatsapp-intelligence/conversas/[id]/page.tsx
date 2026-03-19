@@ -229,7 +229,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
 
   const { data: rawMessages } = await supabase
     .from("messages")
-    .select("id, content, direction, sent_at")
+    .select("id, content, direction, sent_at, message_type")
     .eq("company_id", companyId)
     .eq("conversation_id", id)
     .order("sent_at", { ascending: true });

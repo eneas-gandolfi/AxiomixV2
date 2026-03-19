@@ -15,6 +15,7 @@ import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 import { ConversationsList } from "@/components/whatsapp/conversations-list";
 import { StartConversationButton } from "@/components/whatsapp/start-conversation-button";
 import { AutoSyncIndicator } from "@/components/whatsapp/auto-sync-indicator";
+import { getSofiaCrmClient } from "@/services/sofia-crm/client";
 
 type Sentiment = "positivo" | "neutro" | "negativo";
 
@@ -29,7 +30,7 @@ export default async function ConversasPage() {
   // Buscar conversas
   const { data: conversations } = await supabase
     .from("conversations")
-    .select("id, external_id, contact_name, contact_avatar_url, remote_jid, status, last_message_at")
+    .select("id, external_id, contact_name, contact_avatar_url, remote_jid, status, last_message_at, assigned_to")
     .eq("company_id", companyId)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
@@ -57,6 +58,16 @@ export default async function ConversasPage() {
     }
   }
 
+  // Buscar agentes do Sofia CRM
+  let agents: Array<{ id: string; name: string | null }> = [];
+  try {
+    const sofiaClient = await getSofiaCrmClient(companyId);
+    const users = await sofiaClient.listUsers();
+    agents = users.map((u) => ({ id: u.id, name: u.name ?? null }));
+  } catch {
+    // Sofia CRM pode não estar configurado — filtro de agente fica vazio
+  }
+
   // Contar conversas sem análise
   const unanalyzedCount = (conversations ?? []).filter((c) => !insightMap.has(c.id)).length;
 
@@ -65,6 +76,7 @@ export default async function ConversasPage() {
     const insight = insightMap.get(conv.id);
     return {
       ...conv,
+      assigned_to: conv.assigned_to ?? null,
       sentiment: insight?.sentiment ?? null,
       intent: insight?.intent ?? null,
     };
@@ -105,6 +117,7 @@ export default async function ConversasPage() {
         <ConversationsList
           conversations={conversationsWithInsights}
           companyId={companyId}
+          agents={agents}
         />
       )}
     </>

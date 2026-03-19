@@ -21,6 +21,7 @@ import {
   MoreHorizontal,
   Clock,
   X,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -33,12 +34,14 @@ export type ConversationFilters = {
   sentiment: Sentiment;
   intent: Intent;
   status: Status;
+  agent: string;
   period: Period;
   search: string;
 };
 
 type ConversationFiltersCompactProps = {
   onFiltersChange: (filters: ConversationFilters) => void;
+  agents?: Array<{ id: string; name: string | null }>;
 };
 
 type ChipProps = {
@@ -76,11 +79,12 @@ function Chip({ label, icon: Icon, active, onClick, color }: ChipProps) {
   );
 }
 
-export function ConversationFiltersCompact({ onFiltersChange }: ConversationFiltersCompactProps) {
+export function ConversationFiltersCompact({ onFiltersChange, agents = [] }: ConversationFiltersCompactProps) {
   const [filters, setFilters] = useState<ConversationFilters>({
     sentiment: "all",
     intent: "all",
     status: "all",
+    agent: "all",
     period: "7",
     search: "",
   });
@@ -103,6 +107,7 @@ export function ConversationFiltersCompact({ onFiltersChange }: ConversationFilt
       sentiment: "all",
       intent: "all",
       status: "all",
+      agent: "all",
       period: "7",
       search: "",
     };
@@ -114,6 +119,7 @@ export function ConversationFiltersCompact({ onFiltersChange }: ConversationFilt
     filters.sentiment !== "all" ||
     filters.intent !== "all" ||
     filters.status !== "all" ||
+    filters.agent !== "all" ||
     filters.period !== "7" ||
     filters.search !== "";
 
@@ -216,6 +222,23 @@ export function ConversationFiltersCompact({ onFiltersChange }: ConversationFilt
           onClick={() => handleFilterChange("intent", filters.intent === "outro" ? "all" : "outro")}
         />
       </div>
+
+      {/* Filtros de Agente */}
+      {agents.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted">Agente:</span>
+          {agents.map((agent) => (
+            <Chip
+              key={agent.id}
+              label={agent.name ?? agent.id}
+              icon={User}
+              active={filters.agent === agent.id}
+              onClick={() => handleFilterChange("agent", filters.agent === agent.id ? "all" : agent.id)}
+              color="primary"
+            />
+          ))}
+        </div>
+      )}
 
       {/* Filtros de Período */}
       <div className="flex flex-wrap items-center gap-2">

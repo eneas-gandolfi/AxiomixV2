@@ -10,7 +10,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Sparkles, Trash2 } from "lucide-react";
-import { Progress } from "antd";
+import { App, Progress } from "antd";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConversationFiltersCompact, type ConversationFilters } from "./conversation-filters-compact";
@@ -27,6 +27,7 @@ type ConversationData = {
   remote_jid: string;
   status: string | null;
   last_message_at: string | null;
+  assigned_to: string | null;
   sentiment: Sentiment | null;
   intent: string | null;
 };
@@ -34,14 +35,17 @@ type ConversationData = {
 type ConversationsListProps = {
   conversations: ConversationData[];
   companyId: string;
+  agents?: Array<{ id: string; name: string | null }>;
 };
 
-export function ConversationsList({ conversations, companyId }: ConversationsListProps) {
+export function ConversationsList({ conversations, companyId, agents = [] }: ConversationsListProps) {
   const router = useRouter();
+  const { message } = App.useApp();
   const [filters, setFilters] = useState<ConversationFilters>({
     sentiment: "all",
     intent: "all",
     status: "all",
+    agent: "all",
     period: "7",
     search: "",
   });
@@ -93,7 +97,7 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
       setAnalyzeProgress({ current: 0, total });
 
       for (let i = 0; i < analyzedIds.length; i++) {
-        setAnalyzeProgress({ current: i, total });
+        setAnalyzeProgress({ current: i + 1, total });
         try {
           const response = await fetch("/api/whatsapp/analyze", {
             method: "POST",
@@ -109,14 +113,15 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
         } catch {
           failCount++;
         }
-        setAnalyzeProgress({ current: i + 1, total });
       }
 
       if (successCount > 0) {
-        // Navegar para a página de análise em lote com os IDs analisados
+        // Toast de sucesso antes de navegar
+        message.success(`${successCount} conversa(s) analisada(s) com sucesso.`);
         const batchUrl = `/whatsapp-intelligence/conversas/analise-lote?ids=${analyzedIds.join(",")}`;
         setSelectedIds(new Set());
         setSelectionMode(false);
+        await new Promise((r) => setTimeout(r, 1200));
         router.push(batchUrl);
       } else {
         // Todas falharam — manter na mesma página com feedback de erro
@@ -222,6 +227,11 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
       filtered = filtered.filter((conv) => conv.status === filters.status);
     }
 
+    // Filtro de agente
+    if (filters.agent !== "all") {
+      filtered = filtered.filter((conv) => conv.assigned_to === filters.agent);
+    }
+
     // Filtro de período
     if (filters.period !== "all") {
       const daysAgo = parseInt(filters.period, 10);
@@ -259,7 +269,7 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
 
   return (
     <>
-      <ConversationFiltersCompact onFiltersChange={setFilters} />
+      <ConversationFiltersCompact onFiltersChange={setFilters} agents={agents} />
 
       {feedback && <p className="mb-2 text-sm text-success">{feedback}</p>}
       {error && <p className="mb-2 text-sm text-danger">{error}</p>}
@@ -363,6 +373,7 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
               percent={Math.round((analyzeProgress.current / analyzeProgress.total) * 100)}
               size="small"
               strokeColor="var(--color-primary)"
+              status={analyzeProgress.current === analyzeProgress.total ? "success" : "active"}
             />
           </div>
         )}

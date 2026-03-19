@@ -32,7 +32,32 @@ type OpenRouterOptions = {
   responseFormat?: "json" | "text";
   temperature?: number;
   model?: string;
+  skipFallback?: boolean;
 };
+
+type AttemptResult =
+  | { ok: true; content: string }
+  | { ok: false; status: number; detail: string };
+
+/* ── Fallback para modelos gratuitos ── */
+
+const FALLBACK_STATUS_CODES = new Set([402, 429, 500, 502, 503]);
+
+const DEFAULT_FREE_MODELS = [
+  "openrouter/free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-coder:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "google/gemma-3-27b-it:free",
+];
+
+function getFreeFallbackModels(): string[] {
+  const env = process.env.OPENROUTER_FREE_MODELS?.trim();
+  if (env) {
+    return env.split(",").map((m) => m.trim()).filter(Boolean);
+  }
+  return DEFAULT_FREE_MODELS;
+}
 
 function resolveOpenRouterEnvConfig(): OpenRouterConfig | null {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
@@ -73,24 +98,17 @@ async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterCon
   throw new Error("Integração OpenRouter não configurada para esta empresa.");
 }
 
-export async function openRouterChatCompletion(
-  companyId: string,
+async function attemptChatCompletion(
+  apiKey: string,
+  model: string,
   messages: OpenRouterMessage[],
-  options?: OpenRouterOptions
-) {
-  const config = await resolveOpenRouterConfig(companyId);
-  const responseFormat = options?.responseFormat ?? "json";
-  const temperature = options?.temperature ?? 0.2;
-  const body: Record<string, unknown> = {
-    model: options?.model || config.model,
-    temperature,
-    messages,
-  };
+  temperature: number,
+  useJsonFormat: boolean,
+): Promise<AttemptResult> {
+  const body: Record<string, unknown> = { model, temperature, messages };
 
-  if (responseFormat === "json") {
-    body.response_format = {
-      type: "json_object",
-    };
+  if (useJsonFormat) {
+    body.response_format = { type: "json_object" };
   }
 
   const controller = new AbortController();
@@ -101,7 +119,7 @@ export async function openRouterChatCompletion(
     response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -110,7 +128,7 @@ export async function openRouterChatCompletion(
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("OpenRouter timeout: requisição excedeu 60s.");
+      return { ok: false, status: 0, detail: "Timeout: requisição excedeu 60s." };
     }
     throw error;
   }
@@ -118,15 +136,80 @@ export async function openRouterChatCompletion(
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`OpenRouter error ${response.status}: ${detail.slice(0, 200)}`);
+    return { ok: false, status: response.status, detail: detail.slice(0, 200) };
   }
 
   const payload = (await response.json()) as OpenRouterResponse;
   const content = payload.choices?.[0]?.message?.content;
 
   if (!content) {
-    throw new Error("OpenRouter não retornou conteúdo da resposta.");
+    return { ok: false, status: 0, detail: "Resposta sem conteúdo." };
   }
 
-  return content;
+  return { ok: true, content };
+}
+
+export async function openRouterChatCompletion(
+  companyId: string,
+  messages: OpenRouterMessage[],
+  options?: OpenRouterOptions
+) {
+  const config = await resolveOpenRouterConfig(companyId);
+  const responseFormat = options?.responseFormat ?? "json";
+  const temperature = options?.temperature ?? 0.2;
+  const primaryModel = options?.model || config.model;
+  const useJson = responseFormat === "json";
+
+  /* ── Tentativa primária ── */
+  const primary = await attemptChatCompletion(
+    config.apiKey, primaryModel, messages, temperature, useJson,
+  );
+
+  if (primary.ok) {
+    return primary.content;
+  }
+
+  const { status: primaryStatus, detail: primaryDetail } = primary;
+
+  /* ── Decidir se deve tentar fallback ── */
+  if (options?.skipFallback || !FALLBACK_STATUS_CODES.has(primaryStatus)) {
+    throw new Error(`OpenRouter error ${primaryStatus}: ${primaryDetail}`);
+  }
+
+  console.warn(
+    `[openrouter] Modelo primário "${primaryModel}" falhou (HTTP ${primaryStatus}). Iniciando fallback para modelo gratuito.`,
+  );
+
+  /* ── Fallback: tentar cada modelo gratuito ── */
+  const freeModels = getFreeFallbackModels();
+
+  for (const freeModel of freeModels) {
+    const attempt = await attemptChatCompletion(
+      config.apiKey, freeModel, messages, temperature, useJson,
+    );
+
+    if (attempt.ok) {
+      console.warn(`[openrouter] Fallback bem-sucedido com modelo "${freeModel}".`);
+      return attempt.content;
+    }
+
+    /* Se pediu JSON e falhou, tentar sem response_format (o system prompt já pede JSON) */
+    if (useJson) {
+      const retryNoJson = await attemptChatCompletion(
+        config.apiKey, freeModel, messages, temperature, false,
+      );
+
+      if (retryNoJson.ok) {
+        console.warn(
+          `[openrouter] Fallback bem-sucedido com modelo "${freeModel}" (sem response_format json).`,
+        );
+        return retryNoJson.content;
+      }
+    }
+  }
+
+  /* ── Todos os fallbacks falharam ── */
+  throw new Error(
+    `OpenRouter error ${primaryStatus}: ${primaryDetail} (fallback com modelos gratuitos também falhou)`,
+  );
 }

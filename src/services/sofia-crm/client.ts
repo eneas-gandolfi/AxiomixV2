@@ -20,6 +20,7 @@ type SofiaConversationApi = {
   updated_at?: string | null;
   created_at?: string | null;
   profile_picture?: string | null;
+  assignee_id?: string | null;
   contact?: {
     id?: string | null;
     name?: string | null;
@@ -33,6 +34,8 @@ type SofiaMessageApi = {
   content?: string | null;
   from_me?: boolean | null;
   created_at?: string | null;
+  message_type?: string | null;
+  caption?: string | null;
 };
 
 type SofiaContactApi = {
@@ -300,6 +303,28 @@ function parseConversationsResponse(payload: unknown): SofiaConversationApi[] {
             ? contactRaw.profile_picture
             : null;
 
+    // Extrair assignee_id — pode vir de vários campos dependendo da versão da API Sofia
+    const metaRaw =
+      typeof row.meta === "object" && row.meta !== null
+        ? (row.meta as Record<string, unknown>)
+        : null;
+    const metaAssigneeRaw =
+      metaRaw && typeof metaRaw.assignee === "object" && metaRaw.assignee !== null
+        ? (metaRaw.assignee as Record<string, unknown>)
+        : null;
+    const assigneeRaw =
+      typeof row.assignee === "object" && row.assignee !== null
+        ? (row.assignee as Record<string, unknown>)
+        : null;
+
+    const assigneeId =
+      toExternalId(row.assignee_id) ??
+      toExternalId(row.assigned_to) ??
+      (assigneeRaw ? toExternalId(assigneeRaw.id) : null) ??
+      (metaAssigneeRaw ? toExternalId(metaAssigneeRaw.id) : null) ??
+      toExternalId(row.assigneeId) ??
+      null;
+
     parsed.push({
       id,
       phone_e164: typeof row.phone_e164 === "string" ? row.phone_e164 : null,
@@ -320,6 +345,7 @@ function parseConversationsResponse(payload: unknown): SofiaConversationApi[] {
       updated_at: typeof row.updated_at === "string" ? row.updated_at : null,
       created_at: typeof row.created_at === "string" ? row.created_at : null,
       profile_picture: profilePicture,
+      assignee_id: assigneeId,
       contact:
         contactName || contactId || contactPhone
           ? {
@@ -409,7 +435,25 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
               ? false
               : null;
 
-    const content =
+    const messageType =
+      typeof row.type === "string" && row.type.trim().length > 0
+        ? row.type.trim().toLowerCase()
+        : typeof row.message_type === "string" && row.message_type.trim().length > 0
+          ? row.message_type.trim().toLowerCase()
+          : typeof row.messageType === "string" && row.messageType.trim().length > 0
+            ? row.messageType.trim().toLowerCase()
+            : typeof row.media_type === "string" && row.media_type.trim().length > 0
+              ? row.media_type.trim().toLowerCase()
+              : typeof row.mediaType === "string" && row.mediaType.trim().length > 0
+                ? row.mediaType.trim().toLowerCase()
+                : null;
+
+    const caption =
+      typeof row.caption === "string" && row.caption.trim().length > 0
+        ? row.caption
+        : null;
+
+    const rawContent =
       typeof row.content === "string"
         ? row.content
         : typeof row.body === "string"
@@ -419,6 +463,8 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
             : typeof row.message === "string"
               ? row.message
               : null;
+
+    const content = rawContent || caption || null;
 
     const createdAt =
       typeof row.created_at === "string"
@@ -433,7 +479,7 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
                 ? row.date
                 : null;
 
-    if (!content && !createdAt) {
+    if (!content && !createdAt && !messageType) {
       continue;
     }
 
@@ -446,6 +492,8 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
       content,
       from_me: fromMe,
       created_at: createdAt,
+      message_type: messageType,
+      caption,
     });
   }
 

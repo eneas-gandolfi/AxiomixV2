@@ -1,21 +1,21 @@
 /**
- * Arquivo: src/app/api/whatsapp/messages/route.ts
- * Propósito: Buscar mensagens de uma conversa (para polling em tempo real do chat).
+ * Arquivo: src/app/api/whatsapp/suggest-response/route.ts
+ * Propósito: Gerar sugestão de resposta IA para o atendente.
  * Autor: AXIOMIX
- * Data: 2026-03-13
+ * Data: 2026-03-19
  */
 
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { generateResponseSuggestion } from "@/services/whatsapp/response-suggester";
 
 export const dynamic = "force-dynamic";
 
-const messagesSchema = z.object({
+const suggestSchema = z.object({
   companyId: z.string().uuid("companyId inválido."),
-  conversationId: z.string().min(1, "conversationId é obrigatório."),
-  after: z.string().optional(),
+  conversationId: z.string().uuid("conversationId inválido."),
 });
 
 export async function POST(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({ ok: true });
     const supabase = createSupabaseRouteHandlerClient(request, response);
     const rawBody: unknown = await request.json();
-    const parsed = messagesSchema.safeParse(rawBody);
+    const parsed = suggestSchema.safeParse(rawBody);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -33,26 +33,18 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
+    const suggestion = await generateResponseSuggestion(
+      access.companyId,
+      parsed.data.conversationId
+    );
 
-    let query = supabase
-      .from("messages")
-      .select("id, content, direction, sent_at, message_type")
-      .eq("company_id", access.companyId)
-      .eq("conversation_id", parsed.data.conversationId)
-      .order("sent_at", { ascending: true });
-
-    if (parsed.data.after) {
-      query = query.gt("sent_at", parsed.data.after);
-    }
-
-    const { data: messages } = await query;
-
-    return NextResponse.json({ messages: messages ?? [] });
+    return NextResponse.json({ suggestion });
   } catch (error) {
     if (error instanceof CompanyAccessError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     }
-    const message = error instanceof Error ? error.message : "Erro ao buscar mensagens.";
-    return NextResponse.json({ error: message, code: "MESSAGES_ERROR" }, { status: 500 });
+
+    const detail = error instanceof Error ? error.message : "Erro inesperado.";
+    return NextResponse.json({ error: detail, code: "SUGGEST_RESPONSE_ERROR" }, { status: 500 });
   }
 }

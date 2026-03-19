@@ -9,7 +9,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
+import { App } from "antd";
 import { Button } from "@/components/ui/button";
 
 type AnalyzeConversationButtonProps = {
@@ -24,6 +25,7 @@ export function AnalyzeConversationButton({
   hasInsight,
 }: AnalyzeConversationButtonProps) {
   const router = useRouter();
+  const { message } = App.useApp();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,13 +52,14 @@ export function AnalyzeConversationButton({
       return;
     }
 
+    message.success("Análise concluída.");
     router.refresh();
   };
 
   return (
     <div className="flex flex-col items-start gap-2">
       <Button type="button" onClick={handleAnalyze} disabled={isLoading}>
-        <Sparkles className="h-4 w-4" />
+        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
         {isLoading ? "Analisando..." : hasInsight ? "Reanalisar com IA" : "Analisar com IA"}
       </Button>
       {error ? <p className="text-xs text-danger">{error}</p> : null}

@@ -313,6 +313,7 @@ export type Database = {
           conversation_id: string | null;
           direction: "inbound" | "outbound" | null;
           id: string;
+          message_type: string | null;
           sent_at: string | null;
         };
         Insert: {
@@ -321,6 +322,7 @@ export type Database = {
           conversation_id?: string | null;
           direction?: "inbound" | "outbound" | null;
           id?: string;
+          message_type?: string | null;
           sent_at?: string | null;
         };
         Update: {
@@ -329,6 +331,7 @@ export type Database = {
           conversation_id?: string | null;
           direction?: "inbound" | "outbound" | null;
           id?: string;
+          message_type?: string | null;
           sent_at?: string | null;
         };
         Relationships: [
