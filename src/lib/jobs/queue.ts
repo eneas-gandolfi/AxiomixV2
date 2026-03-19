@@ -260,6 +260,47 @@ export async function markStaleJobsFailed(companyId: string): Promise<void> {
     .lt("started_at", staleRunningCutoff);
 }
 
+export async function recoverAllStaleJobs(staleMinutes = 5): Promise<number> {
+  const supabase = createSupabaseAdminClient();
+  const staleThreshold = new Date(Date.now() - staleMinutes * 60_000).toISOString();
+
+  const { data } = await supabase
+    .from("async_jobs")
+    .update({
+      status: "pending" as const,
+      error_message: "Job preso em running. Resetado automaticamente.",
+      started_at: null,
+    })
+    .eq("status", "running")
+    .lt("started_at", staleThreshold)
+    .select("id");
+
+  return data?.length ?? 0;
+}
+
+export async function markAllStaleJobsFailed(): Promise<number> {
+  const supabase = createSupabaseAdminClient();
+  const stalePendingCutoff = new Date(Date.now() - 10 * 60_000).toISOString();
+  const staleRunningCutoff = new Date(Date.now() - 30 * 60_000).toISOString();
+  const now = new Date().toISOString();
+
+  const { data: pendingData } = await supabase
+    .from("async_jobs")
+    .update({ status: "failed", error_message: "Job expirou (stale).", completed_at: now })
+    .eq("status", "pending")
+    .lt("created_at", stalePendingCutoff)
+    .select("id");
+
+  const { data: runningData } = await supabase
+    .from("async_jobs")
+    .update({ status: "failed", error_message: "Job expirou (stale).", completed_at: now })
+    .eq("status", "running")
+    .lt("started_at", staleRunningCutoff)
+    .select("id");
+
+  return (pendingData?.length ?? 0) + (runningData?.length ?? 0);
+}
+
 export async function recoverStaleJobs(companyId: string, staleMinutes = 5): Promise<number> {
   const supabase = createSupabaseAdminClient();
   const staleThreshold = new Date(Date.now() - staleMinutes * 60_000).toISOString();
