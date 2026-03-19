@@ -138,10 +138,40 @@ function fallbackInsight(messages: ConversationMessage[]): InsightPayload {
   const negativeWords = ["reclam", "cancel", "ruim", "atras", "problema", "insatisfeit"];
   const purchaseWords = ["preco", "compr", "orcamento", "proposta", "pagamento"];
   const supportWords = ["suporte", "ajuda", "erro", "nao funciona"];
+  const personalWords = [
+    "te amo", "amor", "saudade", "bom dia amor", "boa noite amor",
+    "meu bem", "meu amor", "querido", "querida", "beijo", "abraco",
+    "vou dormir", "bons sonhos", "te adoro",
+  ];
 
   const hasNegative = negativeWords.some((word) => combined.includes(word));
   const hasPurchase = purchaseWords.some((word) => combined.includes(word));
   const hasSupport = supportWords.some((word) => combined.includes(word));
+  const hasPersonal = personalWords.some((word) => combined.includes(word));
+  const hasBusiness = hasPurchase || hasSupport || hasNegative;
+
+  // Conversa pessoal: padrões afetivos SEM keywords de negócio
+  if (hasPersonal && !hasBusiness) {
+    return {
+      sentiment: "positivo",
+      intent: "outro",
+      urgency: 1,
+      sales_stage: "unknown",
+      summary:
+        "Conversa pessoal/informal detectada. Sem contexto comercial identificado.",
+      implicit_need: "",
+      explicit_need: "",
+      objections: [] as string[],
+      key_topics: ["conversa pessoal"],
+      next_commitment: "",
+      stall_reason: "",
+      confidence_score: 35,
+      suggested_response: "",
+      action_items: [
+        "Nenhuma ação comercial necessária — conversa pessoal.",
+      ],
+    };
+  }
 
   const sentiment: "positivo" | "neutro" | "negativo" = hasNegative ? "negativo" : "neutro";
   let intent: InsightPayload["intent"] = "outro";

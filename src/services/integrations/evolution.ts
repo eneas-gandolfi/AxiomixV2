@@ -241,6 +241,41 @@ async function readResponsePayload(response: Response): Promise<{ payload: unkno
   }
 }
 
+function describeNetworkError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "Erro de rede desconhecido ao conectar com a Evolution API.";
+  }
+
+  if (error.name === "AbortError") {
+    return "Evolution API timeout: o servidor não respondeu em 30 s.";
+  }
+
+  const message = error.message.toLowerCase();
+  const cause = (error as NodeJS.ErrnoException).cause;
+  const code =
+    (error as NodeJS.ErrnoException).code ??
+    (cause instanceof Error ? (cause as NodeJS.ErrnoException).code : undefined) ??
+    "";
+
+  if (code === "ECONNREFUSED" || message.includes("econnrefused")) {
+    return "Conexão recusada pela Evolution API. Verifique se o serviço está ativo.";
+  }
+  if (code === "ENOTFOUND" || message.includes("enotfound")) {
+    return "Servidor da Evolution API não encontrado. Verifique a URL configurada.";
+  }
+  if (code === "ECONNRESET" || code === "EPIPE" || message.includes("econnreset")) {
+    return "Conexão com a Evolution API foi interrompida. Tente novamente.";
+  }
+  if (message.includes("ssl") || message.includes("tls") || message.includes("certificate")) {
+    return "Erro de certificado SSL ao conectar com a Evolution API.";
+  }
+  if (message.includes("timeout")) {
+    return "Evolution API timeout: o servidor não respondeu a tempo.";
+  }
+
+  return `Falha de rede ao conectar com a Evolution API: ${error.message}`;
+}
+
 async function callEvolution(credentials: EvolutionCredentials, attempt: EvolutionAttempt): Promise<FetchResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30_000);
@@ -258,10 +293,7 @@ async function callEvolution(credentials: EvolutionCredentials, attempt: Evoluti
     });
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new EvolutionApiRequestError("Evolution API timeout: requisição excedeu 30s.", 408, attempt.source);
-    }
-    throw error;
+    throw new EvolutionApiRequestError(describeNetworkError(error), 0, attempt.source);
   }
   clearTimeout(timeoutId);
 
@@ -349,7 +381,19 @@ export async function generateEvolutionQrCode(input: {
   let lastFailure: string | null = null;
 
   for (const attempt of attempts) {
-    const result = await callEvolution(input.credentials, attempt);
+    let result: FetchResult;
+    try {
+      result = await callEvolution(input.credentials, attempt);
+    } catch (error) {
+      lastFailure =
+        error instanceof EvolutionApiRequestError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : `${attempt.source}: erro de rede`;
+      continue;
+    }
+
     if (!result.ok) {
       lastFailure = `${attempt.source}: HTTP ${result.status}`;
       continue;

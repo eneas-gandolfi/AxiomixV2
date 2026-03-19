@@ -52,6 +52,7 @@ Analise a conversa abaixo e responda SOMENTE em JSON válido com o formato:
 }
 
 Regras:
+- IMPORTANTE: Se a conversa for claramente pessoal ou informal (saudações afetivas, declarações de amor, conversas entre amigos/família/casal, despedidas carinhosas, sem qualquer menção a produtos, serviços, preços, problemas técnicos ou atendimento comercial), classifique como: sentiment="positivo" (ou o sentimento real da conversa), intent="outro", urgency=1, sales_stage="unknown", confidence_score alto. Não force classificação comercial em conversas que não são de negócio.
 - Classifique sentimento, intenção e urgência com base no que realmente aparece na conversa.
 - Se houver contexto da base de conhecimento, use-o como referência principal para detalhes técnicos, argumentos comerciais, gargalos do atendimento, próximos passos e critérios de aplicação.
 - Quando fizer sentido, use o contexto para identificar etapa da venda, necessidade implícita vs explícita, perguntas que faltaram e o melhor compromisso a obter do cliente.

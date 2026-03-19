@@ -60,6 +60,7 @@ Responda SOMENTE em JSON válido com o formato:
 }
 
 Regras:
+- IMPORTANTE: Se uma conversa for claramente pessoal ou informal (saudações afetivas, declarações de amor, conversas entre amigos/família/casal, sem menção a produtos, serviços, preços ou atendimento), classifique como: sentiment="positivo" (ou o sentimento real), intent="outro", urgency=1. Não force classificação comercial em conversas pessoais.
 - Retorne exatamente 1 item em "analyses" para cada conversa listada, na mesma ordem.
 - Use o conversationId exato de cada conversa no retorno.
 - sentiment: positivo/neutro/negativo com base no tom do cliente.

@@ -278,60 +278,69 @@ export function IntegrationsSettingsForm() {
     let mounted = true;
 
     async function loadAll() {
-      const [integrationsRequest, vendorsRequest] = await Promise.all([
-        fetch("/api/integrations"),
-        fetch("/api/integrations/evolution-api/vendors"),
-      ]);
+      try {
+        const [integrationsRequest, vendorsRequest] = await Promise.all([
+          fetch("/api/integrations"),
+          fetch("/api/integrations/evolution-api/vendors"),
+        ]);
 
-      const integrationsResponse = (await integrationsRequest.json()) as {
-        items?: IntegrationsApiItem[];
-        error?: string;
-      };
-      const vendorsResponse = (await vendorsRequest.json()) as EvolutionVendorsResponse;
+        const integrationsResponse = (await integrationsRequest.json()) as {
+          items?: IntegrationsApiItem[];
+          error?: string;
+        };
+        const vendorsResponse = (await vendorsRequest.json()) as EvolutionVendorsResponse;
 
-      if (!mounted) {
-        return;
+        if (!mounted) {
+          return;
+        }
+
+        if (!integrationsRequest.ok) {
+          setGlobalError(integrationsResponse.error ?? "Não foi possível carregar integrações.");
+          setIsLoading(false);
+          return;
+        }
+
+        if (!vendorsRequest.ok) {
+          setGlobalError(vendorsResponse.error ?? "Não foi possível carregar conexões da Evolution.");
+          setIsLoading(false);
+          return;
+        }
+
+        const items = integrationsResponse.items ?? [];
+        const sofia = items.find((item) => item.type === "sofia_crm");
+        const evolution = items.find((item) => item.type === "evolution_api");
+
+        if (sofia) {
+          setSofiaStatus({
+            isActive: sofia.isActive,
+            testStatus: sofia.testStatus,
+            lastTestedAt: sofia.lastTestedAt,
+          });
+          setSofiaForm((previous) => ({
+            ...previous,
+            baseUrl: typeof sofia.config.baseUrl === "string" ? sofia.config.baseUrl : "",
+          }));
+        }
+
+        const nextEvolutionStatus: IntegrationStatus = {
+          isActive: evolution?.isActive ?? false,
+          testStatus: evolution?.testStatus ?? null,
+          lastTestedAt: evolution?.lastTestedAt ?? null,
+        };
+        const nextVendors = vendorsResponse.vendors ?? [];
+
+        setEvolutionStatus(resolveEvolutionUiStatus(nextVendors, nextEvolutionStatus));
+        setEvolutionManagerPhone(vendorsResponse.managerPhone ?? "");
+        setEvolutionVendors(nextVendors);
+      } catch {
+        if (mounted) {
+          setGlobalError("Não foi possível carregar integrações. Verifique sua conexão e recarregue a página.");
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
-
-      if (!integrationsRequest.ok) {
-        setGlobalError(integrationsResponse.error ?? "Não foi possível carregar integrações.");
-        setIsLoading(false);
-        return;
-      }
-
-      if (!vendorsRequest.ok) {
-        setGlobalError(vendorsResponse.error ?? "Não foi possível carregar conexões da Evolution.");
-        setIsLoading(false);
-        return;
-      }
-
-      const items = integrationsResponse.items ?? [];
-      const sofia = items.find((item) => item.type === "sofia_crm");
-      const evolution = items.find((item) => item.type === "evolution_api");
-
-      if (sofia) {
-        setSofiaStatus({
-          isActive: sofia.isActive,
-          testStatus: sofia.testStatus,
-          lastTestedAt: sofia.lastTestedAt,
-        });
-        setSofiaForm((previous) => ({
-          ...previous,
-          baseUrl: typeof sofia.config.baseUrl === "string" ? sofia.config.baseUrl : "",
-        }));
-      }
-
-      const nextEvolutionStatus: IntegrationStatus = {
-        isActive: evolution?.isActive ?? false,
-        testStatus: evolution?.testStatus ?? null,
-        lastTestedAt: evolution?.lastTestedAt ?? null,
-      };
-      const nextVendors = vendorsResponse.vendors ?? [];
-
-      setEvolutionStatus(resolveEvolutionUiStatus(nextVendors, nextEvolutionStatus));
-      setEvolutionManagerPhone(vendorsResponse.managerPhone ?? "");
-      setEvolutionVendors(nextVendors);
-      setIsLoading(false);
     }
 
     loadAll();
@@ -498,95 +507,121 @@ export function IntegrationsSettingsForm() {
     }
 
     setIsConnectingEvolution(true);
-    const request = await fetch("/api/integrations/evolution-api/vendors", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(parsed.data),
-    });
-    const response = (await request.json()) as EvolutionConnectResponse;
-    setIsConnectingEvolution(false);
+    setErrors((previous) => ({ ...previous, evolution: { ...previous.evolution, form: undefined } }));
 
-    if (!request.ok) {
+    try {
+      const request = await fetch("/api/integrations/evolution-api/vendors", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parsed.data),
+      });
+      const response = (await request.json()) as EvolutionConnectResponse;
+
+      if (!request.ok) {
+        setErrors((previous) => ({
+          ...previous,
+          evolution: {
+            ...previous.evolution,
+            form: response.error ?? "Falha ao gerar QR Code.",
+          },
+        }));
+        return;
+      }
+
+      if (response.vendor) {
+        const vendor = response.vendor;
+        setEvolutionVendors((previous) => {
+          const map = new Map(previous.map((vendor) => [vendor.instanceName, vendor]));
+          map.set(vendor.instanceName, vendor);
+          return Array.from(map.values());
+        });
+      }
+
+      setEvolutionManagerPhone(response.managerPhone ?? evolutionManagerPhone);
+      setEvolutionQrCode(response.qrCodeDataUrl ?? null);
+      setPendingEvolutionInstance(response.vendor?.instanceName ?? null);
+      setErrors((previous) => ({ ...previous, evolution: {} }));
+      setEvolutionFeedback(
+        response.testDetail ??
+          "QR Code gerado. Escaneie no WhatsApp do gestor para concluir a conexão."
+      );
+    } catch {
       setErrors((previous) => ({
         ...previous,
         evolution: {
           ...previous.evolution,
-          form: response.error ?? "Falha ao gerar QR Code.",
+          form: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
         },
       }));
-      return;
+    } finally {
+      setIsConnectingEvolution(false);
     }
-
-    if (response.vendor) {
-      const vendor = response.vendor;
-      setEvolutionVendors((previous) => {
-        const map = new Map(previous.map((vendor) => [vendor.instanceName, vendor]));
-        map.set(vendor.instanceName, vendor);
-        return Array.from(map.values());
-      });
-    }
-
-    setEvolutionManagerPhone(response.managerPhone ?? evolutionManagerPhone);
-    setEvolutionQrCode(response.qrCodeDataUrl ?? null);
-    setPendingEvolutionInstance(response.vendor?.instanceName ?? null);
-    setErrors((previous) => ({ ...previous, evolution: {} }));
-    setEvolutionFeedback(
-      response.testDetail ??
-        "QR Code gerado. Escaneie no WhatsApp do gestor para concluir a conexão."
-    );
   };
 
   const refreshEvolutionVendors = useCallback(async (options?: {
     silent?: boolean;
     closeOnConnectedInstance?: string | null;
   }) => {
-    const request = await fetch("/api/integrations/evolution-api/vendors");
-    const response = (await request.json()) as EvolutionVendorsResponse;
-    if (!request.ok) {
+    try {
+      const request = await fetch("/api/integrations/evolution-api/vendors");
+      const response = (await request.json()) as EvolutionVendorsResponse;
+      if (!request.ok) {
+        if (!options?.silent) {
+          setErrors((previous) => ({
+            ...previous,
+            evolution: { ...previous.evolution, form: response.error ?? "Falha ao atualizar conexões." },
+          }));
+        }
+        return null;
+      }
+
+      const nextManagerPhone = response.managerPhone ?? evolutionManagerPhone;
+      const nextVendors = response.vendors ?? [];
+      const nowIso = new Date().toISOString();
+
+      setEvolutionManagerPhone(nextManagerPhone);
+      setEvolutionVendors(nextVendors);
+      setEvolutionStatus((previous) =>
+        resolveEvolutionUiStatus(nextVendors, {
+          ...previous,
+          lastTestedAt: nowIso,
+        })
+      );
+      setErrors((previous) => ({ ...previous, evolution: { ...previous.evolution, form: undefined } }));
+
+      const targetInstance = options?.closeOnConnectedInstance?.trim();
+      if (!targetInstance) {
+        return nextVendors;
+      }
+
+      const connectedVendor = nextVendors.find(
+        (vendor) => vendor.instanceName === targetInstance && vendor.status === "connected"
+      );
+
+      if (connectedVendor) {
+        setEvolutionQrCode(null);
+        setPendingEvolutionInstance(null);
+        setEvolutionFeedback(
+          `${connectedVendor.vendorName} conectado com sucesso. Modal fechado automaticamente.`
+        );
+        setActiveModal((current) => (current?.key === "evolution" ? null : current));
+      }
+
+      return nextVendors;
+    } catch {
       if (!options?.silent) {
         setErrors((previous) => ({
           ...previous,
-          evolution: { ...previous.evolution, form: response.error ?? "Falha ao atualizar conexões." },
+          evolution: {
+            ...previous.evolution,
+            form: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
+          },
         }));
       }
       return null;
     }
-
-    const nextManagerPhone = response.managerPhone ?? evolutionManagerPhone;
-    const nextVendors = response.vendors ?? [];
-    const nowIso = new Date().toISOString();
-
-    setEvolutionManagerPhone(nextManagerPhone);
-    setEvolutionVendors(nextVendors);
-    setEvolutionStatus((previous) =>
-      resolveEvolutionUiStatus(nextVendors, {
-        ...previous,
-        lastTestedAt: nowIso,
-      })
-    );
-    setErrors((previous) => ({ ...previous, evolution: { ...previous.evolution, form: undefined } }));
-
-    const targetInstance = options?.closeOnConnectedInstance?.trim();
-    if (!targetInstance) {
-      return nextVendors;
-    }
-
-    const connectedVendor = nextVendors.find(
-      (vendor) => vendor.instanceName === targetInstance && vendor.status === "connected"
-    );
-
-    if (connectedVendor) {
-      setEvolutionQrCode(null);
-      setPendingEvolutionInstance(null);
-      setEvolutionFeedback(
-        `${connectedVendor.vendorName} conectado com sucesso. Modal fechado automaticamente.`
-      );
-      setActiveModal((current) => (current?.key === "evolution" ? null : current));
-    }
-
-    return nextVendors;
   }, [evolutionManagerPhone]);
 
   const deleteEvolutionVendor = async (vendor: EvolutionVendor) => {

@@ -277,7 +277,15 @@ export function decodeIntegrationConfig<T extends IntegrationType>(
       } as IntegrationConfigByType[T];
     }
     case "evolution_api": {
-      const decrypted = decryptIfEncrypted(config.api_key_encrypted ?? config.api_key);
+      let decrypted = "";
+      try {
+        decrypted = decryptIfEncrypted(config.api_key_encrypted ?? config.api_key);
+      } catch (err) {
+        console.warn(
+          "[decodeIntegrationConfig] Falha ao decriptar api_key da Evolution API, usando fallback env var:",
+          err instanceof Error ? err.message : err
+        );
+      }
       const apiKey = resolveEvolutionApiKey(decrypted);
       const baseUrl = resolveEvolutionBaseUrl(
         typeof config.base_url === "string" ? config.base_url : undefined

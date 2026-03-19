@@ -69,10 +69,27 @@ function fallbackClassification(messages: Array<{ content: string | null }>) {
   const negativeWords = ["reclam", "cancel", "ruim", "atras", "problema", "insatisfeit"];
   const purchaseWords = ["preco", "compr", "orcamento", "proposta", "pagamento"];
   const supportWords = ["suporte", "ajuda", "erro", "nao funciona"];
+  const personalWords = [
+    "te amo", "amor", "saudade", "bom dia amor", "boa noite amor",
+    "meu bem", "meu amor", "querido", "querida", "beijo", "abraco",
+    "vou dormir", "bons sonhos", "te adoro",
+  ];
 
   const hasNegative = negativeWords.some((w) => combined.includes(w));
   const hasPurchase = purchaseWords.some((w) => combined.includes(w));
   const hasSupport = supportWords.some((w) => combined.includes(w));
+  const hasPersonal = personalWords.some((w) => combined.includes(w));
+  const hasBusiness = hasPurchase || hasSupport || hasNegative;
+
+  // Conversa pessoal: padrões afetivos SEM keywords de negócio
+  if (hasPersonal && !hasBusiness) {
+    return {
+      sentiment: "positivo" as const,
+      intent: "outro" as const,
+      urgency: 1,
+      key_topics: ["conversa pessoal"],
+    };
+  }
 
   const sentiment: "positivo" | "neutro" | "negativo" = hasNegative ? "negativo" : "neutro";
   let intent: "compra" | "suporte" | "reclamacao" | "duvida" | "cancelamento" | "outro" = "outro";

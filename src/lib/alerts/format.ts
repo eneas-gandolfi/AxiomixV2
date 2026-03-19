@@ -46,6 +46,10 @@ export function formatAlertErrorDetail(errorDetail: string | null | undefined) {
 
   const normalized = normalizeWhitespace(errorDetail);
 
+  if (/unsupported state|unable to authenticate data/i.test(normalized)) {
+    return "Falha na decriptação das credenciais. Reconfigure a integração Evolution API em Configurações.";
+  }
+
   if (/Evolution API n[aã]o configurada/i.test(normalized)) {
     return "A Evolution API não está configurada para esta empresa.";
   }
