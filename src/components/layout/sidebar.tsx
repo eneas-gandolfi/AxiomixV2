@@ -66,6 +66,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [hovered, setHovered] = useState(false);
   const [criticalCount, setCriticalCount] = useState(0);
+  const [companyName, setCompanyName] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
   const isExpanded = !collapsed || hovered;
   const showTooltip = collapsed && !hovered;
@@ -84,8 +85,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         const response = await fetch("/api/company");
         if (!response.ok) return;
 
-        const companyData = (await response.json()) as { company?: { id: string } };
+        const companyData = (await response.json()) as { company?: { id: string; name?: string } };
         const companyId = companyData.company?.id;
+        if (companyData.company?.name) {
+          setCompanyName(companyData.company.name);
+        }
         if (!companyId) return;
 
         const countResponse = await fetch("/api/whatsapp/critical-count", {
@@ -270,7 +274,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             )}
           >
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-dim)] text-xs font-bold text-[var(--color-primary)]">
-              AX
+              {companyName
+                ? companyName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")
+                : "AX"}
             </div>
             <div
               className="overflow-hidden"
@@ -281,7 +287,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               }}
             >
               <p className="truncate text-xs font-medium leading-none text-[var(--color-text)]">
-                Minha Conta
+                {companyName ?? "Minha Conta"}
               </p>
             </div>
           </div>

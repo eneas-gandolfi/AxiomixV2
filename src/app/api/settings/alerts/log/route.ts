@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/settings/alerts/log/route.ts
- * Propósito: Retornar historico de alertas enviados para a empresa.
+ * Propósito: Retornar e limpar historico de alertas enviados para a empresa.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -61,5 +61,50 @@ export async function GET(request: NextRequest) {
     }
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
     return NextResponse.json({ error: detail, code: "ALERT_LOG_ERROR" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const response = NextResponse.json({ ok: true });
+    const supabase = createSupabaseRouteHandlerClient(request, response);
+    const access = await resolveCompanyAccess(supabase);
+
+    const body = await request.json().catch(() => ({})) as { id?: string };
+
+    if (body.id) {
+      const { error } = await supabase
+        .from("alert_log")
+        .delete()
+        .eq("id", body.id)
+        .eq("company_id", access.companyId);
+
+      if (error) {
+        return NextResponse.json(
+          { error: "Falha ao remover alerta.", code: "ALERT_LOG_DELETE_ERROR" },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { error } = await supabase
+        .from("alert_log")
+        .delete()
+        .eq("company_id", access.companyId);
+
+      if (error) {
+        return NextResponse.json(
+          { error: "Falha ao limpar alertas.", code: "ALERT_LOG_DELETE_ALL_ERROR" },
+          { status: 500 }
+        );
+      }
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof CompanyAccessError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+    const detail = error instanceof Error ? error.message : "Erro inesperado.";
+    return NextResponse.json({ error: detail, code: "ALERT_LOG_DELETE_ERROR" }, { status: 500 });
   }
 }

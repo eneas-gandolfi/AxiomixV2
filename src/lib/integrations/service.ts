@@ -129,9 +129,9 @@ function resolveSofiaBaseUrl(configBaseUrl?: string) {
 }
 
 function resolveEvolutionBaseUrl(configBaseUrl?: string) {
-  const fallback =
+  const envVar =
     process.env.EVOLUTION_API_URL?.trim() || process.env.EVOLUTION_API_BASE_URL?.trim();
-  const source = configBaseUrl?.trim() || fallback || "";
+  const source = envVar || configBaseUrl?.trim() || "";
   return source.replace(/\/+$/, "");
 }
 

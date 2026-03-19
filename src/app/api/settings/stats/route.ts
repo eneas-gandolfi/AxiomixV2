@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // Count active integrations
     const activeIntegrations = integrations?.filter((i) => i.is_active).length ?? 0;
-    const totalIntegrations = 2; // Sofia CRM + Evolution API
+    const totalIntegrations = integrations?.length ?? 0;
 
     // Count social connections
     const uploadPostIntegration = integrations?.find((i) => i.type === "upload_post");

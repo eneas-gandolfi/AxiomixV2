@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Clock3,
   Loader2,
+  X,
   XCircle,
 } from "lucide-react";
 import {
@@ -111,43 +112,84 @@ export function TopbarNotifications() {
   const [criticalCount, setCriticalCount] = useState(0);
   const [logs, setLogs] = useState<AlertLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClearingAll, setIsClearingAll] = useState(false);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refreshNotifications = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    const [countResult, logsResult] = await Promise.allSettled([
-      fetch("/api/whatsapp/critical-count", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-        cache: "no-store",
-      }),
-      fetch("/api/settings/alerts/log?limit=5", {
-        cache: "no-store",
-      }),
-    ]);
+    try {
+      const [countResult, logsResult] = await Promise.allSettled([
+        fetch("/api/whatsapp/critical-count", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+          cache: "no-store",
+        }),
+        fetch("/api/settings/alerts/log?limit=5", {
+          cache: "no-store",
+        }),
+      ]);
 
-    let loadedAnyResource = false;
+      let loadedAnyResource = false;
 
-    if (countResult.status === "fulfilled" && countResult.value.ok) {
-      const countData = (await countResult.value.json()) as CriticalCountResponse;
-      setCriticalCount(countData.count ?? 0);
-      loadedAnyResource = true;
-    }
+      if (countResult.status === "fulfilled" && countResult.value.ok) {
+        const countData = (await countResult.value.json()) as CriticalCountResponse;
+        setCriticalCount(countData.count ?? 0);
+        loadedAnyResource = true;
+      }
 
-    if (logsResult.status === "fulfilled" && logsResult.value.ok) {
-      const logsData = (await logsResult.value.json()) as AlertLogsResponse;
-      setLogs(logsData.logs ?? []);
-      loadedAnyResource = true;
-    }
+      if (logsResult.status === "fulfilled" && logsResult.value.ok) {
+        const logsData = (await logsResult.value.json()) as AlertLogsResponse;
+        setLogs(logsData.logs ?? []);
+        loadedAnyResource = true;
+      }
 
-    if (!loadedAnyResource) {
+      if (!loadedAnyResource) {
+        setError("Não foi possível carregar as notificações.");
+      }
+    } catch {
       setError("Não foi possível carregar as notificações.");
+    } finally {
+      setIsLoading(false);
     }
+  }, []);
 
-    setIsLoading(false);
+  const clearAllLogs = useCallback(async () => {
+    setIsClearingAll(true);
+    try {
+      const response = await fetch("/api/settings/alerts/log", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (response.ok) {
+        setLogs([]);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setIsClearingAll(false);
+    }
+  }, []);
+
+  const dismissLog = useCallback(async (id: string) => {
+    setDismissingId(id);
+    try {
+      const response = await fetch("/api/settings/alerts/log", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (response.ok) {
+        setLogs((prev) => prev.filter((log) => log.id !== id));
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setDismissingId(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -208,7 +250,8 @@ export function TopbarNotifications() {
     });
   };
 
-  const badgeLabel = criticalCount > 99 ? "99+" : String(criticalCount);
+  const badgeCount = logs.length;
+  const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
 
   return (
     <div className="relative">
@@ -223,7 +266,7 @@ export function TopbarNotifications() {
         className="relative flex h-9 w-9 items-center justify-center rounded-lg border text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
       >
         <Bell size={18} aria-hidden="true" />
-        {criticalCount > 0 ? (
+        {badgeCount > 0 ? (
           <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
             {badgeLabel}
           </span>
@@ -301,13 +344,25 @@ export function TopbarNotifications() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
                   Últimos alertas
                 </p>
-                <Link
-                  href="/settings?tab=alerts"
-                  onClick={() => setIsOpen(false)}
-                  className="text-xs font-medium text-[var(--color-primary)] transition-opacity hover:opacity-80"
-                >
-                  Ver tudo
-                </Link>
+                <div className="flex items-center gap-3">
+                  {logs.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => void clearAllLogs()}
+                      disabled={isClearingAll}
+                      className="text-xs font-medium text-[var(--color-text-secondary)] transition-opacity hover:text-[var(--color-text)] hover:opacity-80 disabled:opacity-50"
+                    >
+                      {isClearingAll ? "Limpando..." : "Limpar"}
+                    </button>
+                  ) : null}
+                  <Link
+                    href="/settings?tab=alerts"
+                    onClick={() => setIsOpen(false)}
+                    className="text-xs font-medium text-[var(--color-primary)] transition-opacity hover:opacity-80"
+                  >
+                    Ver tudo
+                  </Link>
+                </div>
               </div>
 
               {error ? (
@@ -357,8 +412,21 @@ export function TopbarNotifications() {
                     return (
                       <li
                         key={log.id}
-                        className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
+                        className="group relative rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
                       >
+                        <button
+                          type="button"
+                          onClick={() => void dismissLog(log.id)}
+                          disabled={dismissingId === log.id}
+                          aria-label="Remover notificação"
+                          className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full text-[var(--color-text-secondary)] opacity-0 transition-opacity hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text)] group-hover:opacity-100 disabled:opacity-50"
+                        >
+                          {dismissingId === log.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <X className="h-3 w-3" aria-hidden="true" />
+                          )}
+                        </button>
                         <div className="flex items-start gap-3">
                           <span
                             className={cn(

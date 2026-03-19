@@ -273,6 +273,12 @@ function describeNetworkError(error: unknown): string {
     return "Evolution API timeout: o servidor não respondeu a tempo.";
   }
 
+  if (message.includes("fetch failed")) {
+    const baseUrl = process.env.EVOLUTION_API_BASE_URL ?? process.env.EVOLUTION_API_URL ?? "";
+    console.error(`[Evolution] fetch failed — URL base configurada: ${baseUrl}`);
+    return "Falha de rede ao conectar com a Evolution API. Verifique se a URL base está correta e acessível pelo servidor.";
+  }
+
   return `Falha de rede ao conectar com a Evolution API: ${error.message}`;
 }
 

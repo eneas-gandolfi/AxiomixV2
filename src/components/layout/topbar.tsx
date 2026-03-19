@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TopbarClock } from "@/components/layout/topbar-clock";
@@ -19,8 +19,29 @@ type TopbarProps = {
   onMobileMenuOpen: () => void;
 };
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return "?";
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "?";
+  const first = parts[0][0]?.toUpperCase() ?? "";
+  const last = parts[parts.length - 1][0]?.toUpperCase() ?? "";
+  return first + last || "?";
+}
+
 export function Topbar({ onMobileMenuOpen }: TopbarProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [initials, setInitials] = useState("...");
+
+  useEffect(() => {
+    fetch("/api/company")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { company?: { name?: string } } | null) => {
+        if (data?.company?.name) {
+          setInitials(getInitials(data.company.name));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -48,7 +69,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
           <TopbarNotifications />
 
           <div className="hidden h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary-dim)] text-xs font-bold text-[var(--color-primary)] sm:flex">
-            AX
+            {initials}
           </div>
 
           <Button

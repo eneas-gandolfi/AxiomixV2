@@ -11,7 +11,7 @@ import { z } from "zod";
 import { useCallback, useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CheckCircle2, Link2, Loader2, QrCode, Smartphone, Trash2, UsersRound, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Link2, Loader2, QrCode, Smartphone, Trash2, UsersRound, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -890,7 +890,12 @@ export function IntegrationsSettingsForm() {
         )}
       </div>
 
-      {errors.evolution.form ? <p className="text-sm text-danger">{errors.evolution.form}</p> : null}
+      {errors.evolution.form ? (
+        <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger-light p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+          <p className="text-sm text-danger">{errors.evolution.form}</p>
+        </div>
+      ) : null}
       {evolutionFeedback ? <p className="text-sm text-success">{evolutionFeedback}</p> : null}
 
       <div className="flex justify-end gap-3 pt-4 border-t border-border">
