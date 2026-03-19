@@ -9,11 +9,13 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Trash2 } from "lucide-react";
+import { Eye, Sparkles, Trash2 } from "lucide-react";
+import { Progress } from "antd";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConversationFiltersCompact, type ConversationFilters } from "./conversation-filters-compact";
 import { ConversationsTable } from "./conversations-table";
+import { ExportButton } from "./export-button";
 
 type Sentiment = "positivo" | "neutro" | "negativo";
 
@@ -50,6 +52,7 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [analyzeProgress, setAnalyzeProgress] = useState<{ current: number; total: number } | null>(null);
 
   const handleToggleSelection = (conversationId: string) => {
     setSelectedIds((prev) => {
@@ -81,16 +84,21 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
     setError(null);
     setFeedback(null);
 
+    const analyzedIds = Array.from(selectedIds);
+
     try {
       let successCount = 0;
       let failCount = 0;
+      const total = analyzedIds.length;
+      setAnalyzeProgress({ current: 0, total });
 
-      for (const conversationId of Array.from(selectedIds)) {
+      for (let i = 0; i < analyzedIds.length; i++) {
+        setAnalyzeProgress({ current: i, total });
         try {
           const response = await fetch("/api/whatsapp/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ companyId, conversationId }),
+            body: JSON.stringify({ companyId, conversationId: analyzedIds[i] }),
           });
 
           if (response.ok) {
@@ -101,24 +109,42 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
         } catch {
           failCount++;
         }
+        setAnalyzeProgress({ current: i + 1, total });
       }
 
-      setFeedback(
-        `Análise concluída: ${successCount} sucesso(s), ${failCount} falha(s).`
-      );
-      setSelectedIds(new Set());
-      setSelectionMode(false);
-
-      setTimeout(() => {
-        router.refresh();
-      }, 1500);
+      if (successCount > 0) {
+        // Navegar para a página de análise em lote com os IDs analisados
+        const batchUrl = `/whatsapp-intelligence/conversas/analise-lote?ids=${analyzedIds.join(",")}`;
+        setSelectedIds(new Set());
+        setSelectionMode(false);
+        router.push(batchUrl);
+      } else {
+        // Todas falharam — manter na mesma página com feedback de erro
+        setError(`Todas as ${failCount} análise(s) falharam.`);
+        setSelectedIds(new Set());
+        setSelectionMode(false);
+      }
     } catch (err) {
       const detail = err instanceof Error ? err.message : "Erro ao analisar conversas.";
       setError(detail);
     } finally {
       setIsAnalyzing(false);
+      setAnalyzeProgress(null);
     }
   };
+
+  const handleViewAnalyses = () => {
+    const ids = Array.from(selectedIds);
+    const batchUrl = `/whatsapp-intelligence/conversas/analise-lote?ids=${ids.join(",")}`;
+    router.push(batchUrl);
+  };
+
+  const selectedWithInsight = useMemo(() => {
+    if (!selectionMode || selectedIds.size === 0) return 0;
+    return conversations.filter(
+      (c) => selectedIds.has(c.id) && c.sentiment !== null
+    ).length;
+  }, [selectionMode, selectedIds, conversations]);
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) {
@@ -223,6 +249,14 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
     return filtered;
   }, [conversations, deletedIds, filters]);
 
+  const exportConversationIds = useMemo(() => {
+    if (selectedIds.size > 0) {
+      return Array.from(selectedIds);
+    }
+
+    return filteredConversations.map((conversation) => conversation.id);
+  }, [filteredConversations, selectedIds]);
+
   return (
     <>
       <ConversationFiltersCompact onFiltersChange={setFilters} />
@@ -247,6 +281,11 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
               )}
             </div>
             <div className="flex gap-2">
+              <ExportButton
+                companyId={companyId}
+                conversationIds={exportConversationIds}
+                disabled={exportConversationIds.length === 0}
+              />
               {!selectionMode ? (
                 <Button
                   type="button"
@@ -278,6 +317,18 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
                     <Trash2 className="h-3.5 w-3.5" />
                     {isDeleting ? "Excluindo..." : `Excluir (${selectedIds.size})`}
                   </Button>
+                  {selectedWithInsight > 0 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleViewAnalyses}
+                      disabled={isAnalyzing || isDeleting}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Ver análises
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="default"
@@ -287,7 +338,7 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                     {isAnalyzing
-                      ? "Analisando..."
+                      ? `Analisando ${analyzeProgress ? `${analyzeProgress.current}/${analyzeProgress.total}` : ""}...`
                       : `Analisar (${selectedIds.size})`}
                   </Button>
                   <Button
@@ -306,6 +357,15 @@ export function ConversationsList({ conversations, companyId }: ConversationsLis
             </div>
           </div>
         </CardHeader>
+        {isAnalyzing && analyzeProgress && (
+          <div className="antd-scope px-4 pb-2">
+            <Progress
+              percent={Math.round((analyzeProgress.current / analyzeProgress.total) * 100)}
+              size="small"
+              strokeColor="var(--color-primary)"
+            />
+          </div>
+        )}
         <CardContent className="p-0">
           <div className="antd-scope">
             <ConversationsTable

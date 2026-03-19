@@ -13,15 +13,11 @@ import { Button } from "@/components/ui/button";
 
 type ExportButtonProps = {
   companyId: string;
-  conversationIds?: string[];
-  filters?: {
-    sentiment?: string;
-    intent?: string;
-    status?: string;
-  };
+  conversationIds: string[];
+  disabled?: boolean;
 };
 
-export function ExportButton({ companyId, conversationIds, filters }: ExportButtonProps) {
+export function ExportButton({ companyId, conversationIds, disabled = false }: ExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +32,6 @@ export function ExportButton({ companyId, conversationIds, filters }: ExportButt
         body: JSON.stringify({
           companyId,
           conversationIds,
-          ...filters,
         }),
       });
 
@@ -71,7 +66,7 @@ export function ExportButton({ companyId, conversationIds, filters }: ExportButt
         variant="secondary"
         size="sm"
         onClick={handleExport}
-        disabled={isExporting}
+        disabled={disabled || isExporting}
       >
         <Download className="h-4 w-4" />
         {isExporting ? "Exportando..." : "Exportar CSV"}

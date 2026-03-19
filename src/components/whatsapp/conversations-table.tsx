@@ -53,7 +53,7 @@ export function sentimentBadgeClass(sentiment?: Sentiment | null) {
 }
 
 export function sentimentLabel(sentiment?: Sentiment | null) {
-  if (!sentiment) return "Sem analise";
+  if (!sentiment) return "Sem análise";
   return sentiment;
 }
 

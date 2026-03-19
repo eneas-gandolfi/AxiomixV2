@@ -212,7 +212,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
   const companyId = await getUserCompanyId();
 
   if (!companyId) {
-    redirect("/onboarding");
+    redirect(`/login?next=${encodeURIComponent(`/whatsapp-intelligence/conversas/${id}`)}`);
   }
 
   const supabase = await createSupabaseServerClient();

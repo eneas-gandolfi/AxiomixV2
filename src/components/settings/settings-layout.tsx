@@ -387,7 +387,7 @@ function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: 
               <Bell className="h-5 w-5 text-primary mt-0.5" />
               <div>
                 <p className="font-medium text-sm text-text">Alertas WhatsApp</p>
-                <p className="text-xs text-muted mt-1">Notificacoes em tempo real</p>
+                <p className="text-xs text-muted mt-1">Notificações em tempo real</p>
               </div>
             </button>
           </div>

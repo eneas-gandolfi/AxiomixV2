@@ -13,7 +13,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SyncConversationsButton } from "@/components/whatsapp/sync-conversations-button";
 import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 import { ConversationsList } from "@/components/whatsapp/conversations-list";
-import { ExportButton } from "@/components/whatsapp/export-button";
 import { StartConversationButton } from "@/components/whatsapp/start-conversation-button";
 import { AutoSyncIndicator } from "@/components/whatsapp/auto-sync-indicator";
 
@@ -78,7 +77,6 @@ export default async function ConversasPage() {
         <AutoSyncIndicator companyId={companyId} intervalSeconds={600} />
         <div className="flex flex-wrap gap-2">
           <StartConversationButton companyId={companyId} />
-          <ExportButton companyId={companyId} />
           <BulkAnalyzeButton companyId={companyId} />
           <SyncConversationsButton companyId={companyId} />
         </div>

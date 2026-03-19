@@ -1,22 +1,32 @@
 /**
  * Arquivo: src/services/alerts/alert-messages.ts
- * Propósito: Montar mensagens de alerta WhatsApp para cada tipo de evento.
+ * Proposito: Montar mensagens de alerta WhatsApp para cada tipo de evento.
  * Autor: AXIOMIX
- * Data: 2026-03-14
+ * Data: 2026-03-19
  */
+
+import "server-only";
+
+import { createWhatsappAlertAccessToken } from "@/lib/alerts/access-token";
 
 function resolveAppUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
 }
 
 export function buildPurchaseIntentMessage(input: {
+  companyId: string;
   conversationId: string;
   contactName: string | null;
   contactPhone: string | null;
   summary: string;
 }): string {
   const appUrl = resolveAppUrl();
+  const alertToken = createWhatsappAlertAccessToken({
+    companyId: input.companyId,
+    conversationId: input.conversationId,
+  });
   const contactLabel = input.contactName ?? input.contactPhone ?? "Contato desconhecido";
+
   return [
     "\u{1F4B0} *Intencao de Compra Detectada*",
     "",
@@ -24,11 +34,12 @@ export function buildPurchaseIntentMessage(input: {
     `Resumo: ${input.summary.slice(0, 200)}`,
     "",
     "Acesse agora:",
-    `${appUrl}/whatsapp-intelligence/conversas/${input.conversationId}`,
+    `${appUrl}/alertas/whatsapp/${alertToken}`,
   ].join("\n");
 }
 
 export function buildNegativeSentimentMessage(input: {
+  companyId: string;
   conversationId: string;
   contactName: string | null;
   contactPhone: string | null;
@@ -36,8 +47,13 @@ export function buildNegativeSentimentMessage(input: {
   summary: string;
 }): string {
   const appUrl = resolveAppUrl();
+  const alertToken = createWhatsappAlertAccessToken({
+    companyId: input.companyId,
+    conversationId: input.conversationId,
+  });
   const contactLabel = input.contactName ?? input.contactPhone ?? "Contato desconhecido";
   const urgencyBars = "\u{2B1B}".repeat(input.urgency) + "\u{2B1C}".repeat(5 - input.urgency);
+
   return [
     "\u{1F534} *Sentimento Negativo + Alta Urgencia*",
     "",
@@ -46,7 +62,7 @@ export function buildNegativeSentimentMessage(input: {
     `Resumo: ${input.summary.slice(0, 200)}`,
     "",
     "Acesse agora:",
-    `${appUrl}/whatsapp-intelligence/conversas/${input.conversationId}`,
+    `${appUrl}/alertas/whatsapp/${alertToken}`,
   ].join("\n");
 }
 
@@ -57,6 +73,7 @@ export function buildFailedPostMessage(input: {
   errorSummary: string;
 }): string {
   const appUrl = resolveAppUrl();
+
   return [
     "\u{274C} *Falha na Publicacao de Post*",
     "",

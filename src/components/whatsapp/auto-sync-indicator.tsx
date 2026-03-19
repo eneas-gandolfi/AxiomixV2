@@ -71,6 +71,17 @@ export function AutoSyncIndicator({ companyId, intervalSeconds = 60 }: AutoSyncI
       await requestSofiaSync({ companyId, mode: "messages_only" });
       consecutiveFailuresRef.current = 0;
       setCurrentInterval(intervalSeconds);
+
+      // Disparar análise batch leve em background (best-effort)
+      try {
+        await fetch("/api/cron/whatsapp-batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyId }),
+        });
+      } catch {
+        // Silencioso — análise batch é best-effort
+      }
     } catch {
       consecutiveFailuresRef.current += 1;
       const backoff = Math.min(

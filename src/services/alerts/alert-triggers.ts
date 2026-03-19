@@ -23,6 +23,7 @@ export function triggerPurchaseIntentAlert(input: {
   summary: string;
 }): void {
   const message = buildPurchaseIntentMessage({
+    companyId: input.companyId,
     conversationId: input.conversationId,
     contactName: input.contactName,
     contactPhone: input.contactPhone,
@@ -46,6 +47,7 @@ export function triggerNegativeSentimentAlert(input: {
   summary: string;
 }): void {
   const message = buildNegativeSentimentMessage({
+    companyId: input.companyId,
     conversationId: input.conversationId,
     contactName: input.contactName,
     contactPhone: input.contactPhone,

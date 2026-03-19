@@ -1,14 +1,15 @@
 /**
  * Arquivo: src/app/api/whatsapp/export/route.ts
- * Propósito: Exportar conversas filtradas para CSV.
+ * Proposito: Exportar conversas filtradas para CSV.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 
 const exportSchema = z.object({
   companyId: z.string().uuid(),
@@ -22,6 +23,83 @@ function escapeCSV(value: string | null | undefined): string {
   if (!value) return "";
   const escaped = value.replace(/"/g, '""');
   return `"${escaped}"`;
+}
+
+function normalizeCsvText(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.replace(/\r\n|\r|\n/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return normalizeCsvText(value);
+  }
+
+  return date.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
+function formatPhoneDisplay(rawPhone: string): string {
+  const digits = rawPhone.replace(/\D/g, "");
+
+  if (!digits) {
+    return rawPhone.trim();
+  }
+
+  if (digits.startsWith("55") && digits.length >= 12) {
+    const ddd = digits.slice(2, 4);
+    const localNumber = digits.slice(4);
+
+    if (localNumber.length === 9) {
+      return `(${ddd}) ${localNumber.slice(0, 5)}-${localNumber.slice(5)}`;
+    }
+
+    if (localNumber.length === 8) {
+      return `(${ddd}) ${localNumber.slice(0, 4)}-${localNumber.slice(4)}`;
+    }
+  }
+
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+
+  return rawPhone.trim();
+}
+
+function formatConversationPhone(
+  contactPhone: string | null | undefined,
+  remoteJid: string | null | undefined
+): string {
+  const normalizedPhone = normalizeWhatsAppPhone(contactPhone);
+  if (normalizedPhone) {
+    return formatPhoneDisplay(normalizedPhone);
+  }
+
+  const normalizedRemoteJid = normalizeWhatsAppPhone(
+    remoteJid?.replace(/@s\.whatsapp\.net|@c\.us/g, "") ?? ""
+  );
+
+  if (normalizedRemoteJid) {
+    return formatPhoneDisplay(normalizedRemoteJid);
+  }
+
+  return normalizeCsvText(remoteJid);
+}
+
+function formatStatusLabel(status: string | null | undefined): string {
+  if (status === "open") return "Aberta";
+  if (status === "closed") return "Encerrada";
+  return normalizeCsvText(status);
+}
+
+function serializeCsvRow(values: Array<string | null | undefined>): string {
+  return values.map((value) => escapeCSV(normalizeCsvText(value))).join(";");
 }
 
 export async function POST(request: NextRequest) {
@@ -53,8 +131,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
+    const explicitConversationIds = Array.from(new Set(parsed.data.conversationIds ?? []));
+    const hasExplicitConversationIds = explicitConversationIds.length > 0;
 
-    // Buscar conversas com insights
     let conversationsQuery = supabase
       .from("conversations")
       .select(
@@ -62,6 +141,7 @@ export async function POST(request: NextRequest) {
         id,
         external_id,
         contact_name,
+        contact_phone,
         remote_jid,
         status,
         last_message_at,
@@ -69,14 +149,15 @@ export async function POST(request: NextRequest) {
       `
       )
       .eq("company_id", access.companyId)
-      .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(1000);
+      .order("last_message_at", { ascending: false, nullsFirst: false });
 
-    if (parsed.data.conversationIds && parsed.data.conversationIds.length > 0) {
-      conversationsQuery = conversationsQuery.in("id", parsed.data.conversationIds);
+    if (hasExplicitConversationIds) {
+      conversationsQuery = conversationsQuery.in("id", explicitConversationIds);
+    } else {
+      conversationsQuery = conversationsQuery.limit(1000);
     }
 
-    if (parsed.data.status && parsed.data.status !== "all") {
+    if (!hasExplicitConversationIds && parsed.data.status && parsed.data.status !== "all") {
       conversationsQuery = conversationsQuery.eq("status", parsed.data.status);
     }
 
@@ -86,9 +167,8 @@ export async function POST(request: NextRequest) {
       throw new Error(`Falha ao carregar conversas: ${conversationsError.message}`);
     }
 
-    const conversationIds = (conversations ?? []).map((c) => c.id);
+    const conversationIds = (conversations ?? []).map((conversation) => conversation.id);
 
-    // Buscar insights
     const { data: insights } =
       conversationIds.length > 0
         ? await supabase
@@ -96,33 +176,42 @@ export async function POST(request: NextRequest) {
             .select("conversation_id, sentiment, intent, summary")
             .eq("company_id", access.companyId)
             .in("conversation_id", conversationIds)
-        : { data: [] };
+        : {
+            data: [] as Array<{
+              conversation_id: string;
+              sentiment: string | null;
+              intent: string | null;
+              summary: string | null;
+            }>,
+          };
 
     const insightMap = new Map(
-      (insights ?? []).map((i) => [
-        i.conversation_id,
-        { sentiment: i.sentiment, intent: i.intent, summary: i.summary },
+      (insights ?? []).map((insight) => [
+        insight.conversation_id,
+        {
+          sentiment: insight.sentiment,
+          intent: insight.intent,
+          summary: insight.summary,
+        },
       ])
     );
 
-    // Aplicar filtros client-side (para sentiment e intent)
     let filteredConversations = conversations ?? [];
 
-    if (parsed.data.sentiment && parsed.data.sentiment !== "all") {
-      filteredConversations = filteredConversations.filter((c) => {
-        const insight = insightMap.get(c.id);
+    if (!hasExplicitConversationIds && parsed.data.sentiment && parsed.data.sentiment !== "all") {
+      filteredConversations = filteredConversations.filter((conversation) => {
+        const insight = insightMap.get(conversation.id);
         return insight?.sentiment === parsed.data.sentiment;
       });
     }
 
-    if (parsed.data.intent && parsed.data.intent !== "all") {
-      filteredConversations = filteredConversations.filter((c) => {
-        const insight = insightMap.get(c.id);
+    if (!hasExplicitConversationIds && parsed.data.intent && parsed.data.intent !== "all") {
+      filteredConversations = filteredConversations.filter((conversation) => {
+        const insight = insightMap.get(conversation.id);
         return insight?.intent === parsed.data.intent;
       });
     }
 
-    // Gerar CSV
     const headers = [
       "ID Externo",
       "Nome do Contato",
@@ -135,31 +224,31 @@ export async function POST(request: NextRequest) {
       "Data de Criação",
     ];
 
-    const csvRows = [headers.join(",")];
+    const csvRows = [headers.join(";")];
 
     for (const conversation of filteredConversations) {
       const insight = insightMap.get(conversation.id);
 
-      const row = [
-        escapeCSV(conversation.external_id ?? ""),
-        escapeCSV(conversation.contact_name ?? ""),
-        escapeCSV(conversation.remote_jid ?? ""),
-        escapeCSV(conversation.status ?? ""),
-        escapeCSV(insight?.sentiment ?? ""),
-        escapeCSV(insight?.intent ?? ""),
-        escapeCSV(insight?.summary ?? ""),
-        escapeCSV(conversation.last_message_at ?? ""),
-        escapeCSV(conversation.created_at ?? ""),
-      ];
-
-      csvRows.push(row.join(","));
+      csvRows.push(
+        serializeCsvRow([
+          conversation.external_id,
+          conversation.contact_name,
+          formatConversationPhone(conversation.contact_phone, conversation.remote_jid),
+          formatStatusLabel(conversation.status),
+          insight?.sentiment,
+          insight?.intent,
+          insight?.summary,
+          formatDateTime(conversation.last_message_at),
+          formatDateTime(conversation.created_at),
+        ])
+      );
     }
 
-    const csvContent = csvRows.join("\n");
+    const csvContent = `\uFEFF${csvRows.join("\r\n")}`;
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `whatsapp-intelligence-${timestamp}.csv`;
 
-    return new NextResponse(csvContent, {
+    return new NextResponse(new TextEncoder().encode(csvContent), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${filename}"`,

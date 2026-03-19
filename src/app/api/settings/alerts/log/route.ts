@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { error: "Falha ao carregar historico de alertas.", code: "ALERT_LOG_FETCH_ERROR" },
+        { error: "Falha ao carregar histórico de alertas.", code: "ALERT_LOG_FETCH_ERROR" },
         { status: 500 }
       );
     }

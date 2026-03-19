@@ -40,6 +40,7 @@ export function BulkAnalyzeButton({ companyId }: BulkAnalyzeButtonProps) {
         error?: string;
         message?: string;
         enqueuedAnalyses?: number;
+        scannedConversations?: number;
       };
 
       if (!response.ok) {

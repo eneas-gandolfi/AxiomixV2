@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/whatsapp/analyzer.ts
- * Propósito: Analisar conversas com IA e aplicar ações automáticas no Sofia CRM.
+ * Proposito: Analisar conversas com IA e aplicar acoes automaticas no Sofia CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -8,11 +8,12 @@
 import { z } from "zod";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
 import { buildWhatsAppAnalysisPrompt } from "@/lib/ai/prompts/whatsapp";
+import { assessConversationGuardrails } from "@/lib/whatsapp/conversation-guardrails";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSofiaCrmClient } from "@/services/sofia-crm/client";
 import {
-  triggerPurchaseIntentAlert,
   triggerNegativeSentimentAlert,
+  triggerPurchaseIntentAlert,
 } from "@/services/alerts/alert-triggers";
 import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 
@@ -114,8 +115,8 @@ function buildKnowledgeBaseSearchQuery(messages: ConversationMessage[]) {
     .join("\n");
 
   return [
-    "Contexto para analisar conversa de WhatsApp com base na documentação da empresa.",
-    "Diagnosticar etapa da venda, necessidades implícitas/explícitas, gargalos do atendimento, perguntas que faltam e próximo compromisso.",
+    "Contexto para analisar conversa de WhatsApp com base na documentacao da empresa.",
+    "Diagnosticar etapa da venda, necessidades implicitas/explicitas, gargalos do atendimento, perguntas que faltam e proximo compromisso.",
     lastInboundMessage
       ? `Necessidade mais recente do cliente: ${lastInboundMessage.content}`
       : null,
@@ -127,7 +128,33 @@ function buildKnowledgeBaseSearchQuery(messages: ConversationMessage[]) {
     .slice(0, KB_SEARCH_MAX_CHARS);
 }
 
+function buildPersonalConversationInsight(sentiment: InsightPayload["sentiment"]): InsightPayload {
+  return {
+    sentiment,
+    intent: "outro",
+    urgency: 1,
+    sales_stage: "unknown",
+    summary:
+      "Conversa pessoal/informal detectada. Sem contexto comercial suficiente para classificar como oportunidade.",
+    implicit_need: "",
+    explicit_need: "",
+    objections: [],
+    key_topics: ["conversa pessoal"],
+    next_commitment: "",
+    stall_reason: "",
+    confidence_score: 88,
+    suggested_response: "",
+    action_items: ["Nenhuma acao comercial necessaria - conversa pessoal."],
+  };
+}
+
 function fallbackInsight(messages: ConversationMessage[]): InsightPayload {
+  const assessment = assessConversationGuardrails(messages);
+
+  if (assessment.isClearlyPersonal) {
+    return buildPersonalConversationInsight(assessment.suggestedSentiment);
+  }
+
   const combined = normalizeText(
     messages
       .map((message) => message.content ?? "")
@@ -138,40 +165,10 @@ function fallbackInsight(messages: ConversationMessage[]): InsightPayload {
   const negativeWords = ["reclam", "cancel", "ruim", "atras", "problema", "insatisfeit"];
   const purchaseWords = ["preco", "compr", "orcamento", "proposta", "pagamento"];
   const supportWords = ["suporte", "ajuda", "erro", "nao funciona"];
-  const personalWords = [
-    "te amo", "amor", "saudade", "bom dia amor", "boa noite amor",
-    "meu bem", "meu amor", "querido", "querida", "beijo", "abraco",
-    "vou dormir", "bons sonhos", "te adoro",
-  ];
 
   const hasNegative = negativeWords.some((word) => combined.includes(word));
   const hasPurchase = purchaseWords.some((word) => combined.includes(word));
   const hasSupport = supportWords.some((word) => combined.includes(word));
-  const hasPersonal = personalWords.some((word) => combined.includes(word));
-  const hasBusiness = hasPurchase || hasSupport || hasNegative;
-
-  // Conversa pessoal: padrões afetivos SEM keywords de negócio
-  if (hasPersonal && !hasBusiness) {
-    return {
-      sentiment: "positivo",
-      intent: "outro",
-      urgency: 1,
-      sales_stage: "unknown",
-      summary:
-        "Conversa pessoal/informal detectada. Sem contexto comercial identificado.",
-      implicit_need: "",
-      explicit_need: "",
-      objections: [] as string[],
-      key_topics: ["conversa pessoal"],
-      next_commitment: "",
-      stall_reason: "",
-      confidence_score: 35,
-      suggested_response: "",
-      action_items: [
-        "Nenhuma ação comercial necessária — conversa pessoal.",
-      ],
-    };
-  }
 
   const sentiment: "positivo" | "neutro" | "negativo" = hasNegative ? "negativo" : "neutro";
   let intent: InsightPayload["intent"] = "outro";
@@ -191,21 +188,37 @@ function fallbackInsight(messages: ConversationMessage[]): InsightPayload {
     urgency: hasNegative ? 4 : 3,
     sales_stage: salesStage,
     summary:
-      "Análise gerada em modo de fallback. Recomenda-se revisar a conversa para confirmar detalhes comerciais e próximos passos.",
+      "Analise gerada em modo de fallback. Recomenda-se revisar a conversa para confirmar detalhes comerciais e proximos passos.",
     implicit_need: "",
     explicit_need: "",
-    objections: [] as string[],
-    key_topics: [] as string[],
+    objections: [],
+    key_topics: [],
     next_commitment: "",
-    stall_reason: hasNegative ? "Cliente demonstra atrito ou insatisfação." : "",
+    stall_reason: hasNegative ? "Cliente demonstra atrito ou insatisfacao." : "",
     confidence_score: 35,
     suggested_response: "",
     action_items: [
       "Revisar a conversa e confirmar necessidade principal do cliente.",
       hasPurchase
         ? "Enviar proposta comercial com prazo claro."
-        : "Responder com orientação objetiva e prazo de retorno.",
+        : "Responder com orientacao objetiva e prazo de retorno.",
     ],
+  };
+}
+
+function applyInsightGuardrails(
+  messages: ConversationMessage[],
+  insight: InsightPayload
+): InsightPayload {
+  const assessment = assessConversationGuardrails(messages);
+
+  if (!assessment.isClearlyPersonal) {
+    return insight;
+  }
+
+  return {
+    ...buildPersonalConversationInsight(assessment.suggestedSentiment),
+    confidence_score: Math.max(insight.confidence_score, 88),
   };
 }
 
@@ -215,6 +228,12 @@ function parseAiResponse(rawContent: string) {
 }
 
 async function generateConversationInsight(companyId: string, messages: ConversationMessage[]) {
+  const assessment = assessConversationGuardrails(messages);
+
+  if (assessment.isClearlyPersonal) {
+    return buildPersonalConversationInsight(assessment.suggestedSentiment);
+  }
+
   const kbSearchQuery = buildKnowledgeBaseSearchQuery(messages);
   const kbContext = kbSearchQuery
     ? await getKnowledgeBaseContext(companyId, kbSearchQuery, {
@@ -235,22 +254,27 @@ async function generateConversationInsight(companyId: string, messages: Conversa
   });
 
   try {
-    const rawJson = await openRouterChatCompletion(companyId, [
+    const rawJson = await openRouterChatCompletion(
+      companyId,
+      [
+        {
+          role: "system",
+          content: "Voce responde apenas JSON valido, sem markdown e sem texto extra.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
       {
-        role: "system",
-        content: "Você responde apenas JSON válido, sem markdown e sem texto extra.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ], {
-      model: process.env.OPENROUTER_MODEL_LIGHT,
-    });
+        model: process.env.OPENROUTER_MODEL_LIGHT,
+      }
+    );
 
-    return parseAiResponse(rawJson);
-  } catch {
-    return fallbackInsight(messages);
+    return applyInsightGuardrails(messages, parseAiResponse(rawJson));
+  } catch (error) {
+    console.error("[analyzer] Falha na chamada IA - usando fallback:", error);
+    return applyInsightGuardrails(messages, fallbackInsight(messages));
   }
 }
 
@@ -294,7 +318,7 @@ async function executeAutomaticActions(
     try {
       await client.addContactLabel({
         contactId,
-        label: "Atenção",
+        label: "Atencao",
       });
       actions.push("negative_label_added");
     } catch {
@@ -318,7 +342,7 @@ export async function analyzeConversation(
     .single();
 
   if (conversationError || !conversation?.id) {
-    throw new Error("Conversa não encontrada para esta empresa.");
+    throw new Error("Conversa nao encontrada para esta empresa.");
   }
 
   const { data: messages, error: messagesError } = await supabase
@@ -333,7 +357,7 @@ export async function analyzeConversation(
   }
 
   if (!messages || messages.length === 0) {
-    throw new Error("Conversa sem mensagens para análise.");
+    throw new Error("Conversa sem mensagens para analise.");
   }
 
   const insight = await generateConversationInsight(companyId, messages as ConversationMessage[]);
@@ -377,7 +401,6 @@ export async function analyzeConversation(
     throw new Error("Falha ao salvar insight da conversa.");
   }
 
-  // --- Alertas em tempo real (fire-and-forget) ---
   if (insight.intent === "compra") {
     triggerPurchaseIntentAlert({
       companyId,

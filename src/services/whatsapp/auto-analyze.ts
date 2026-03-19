@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/whatsapp/auto-analyze.ts
- * Propósito: Enfileirar análises automáticas para conversas sem insight.
+ * Propósito: Enfileirar análises automáticas para conversas sem insight ou com insight desatualizado.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -43,10 +43,10 @@ export async function enqueueAutoAnalyses(companyId: string): Promise<AutoAnalyz
 
   const conversationIds = conversations.map((c) => c.id);
 
-  // Verificar quais já têm insight
+  // Verificar quais já têm insight e quando foi gerado
   const { data: existingInsights, error: insightsError } = await supabase
     .from("conversation_insights")
-    .select("conversation_id")
+    .select("conversation_id, generated_at")
     .eq("company_id", companyId)
     .in("conversation_id", conversationIds);
 
@@ -54,8 +54,15 @@ export async function enqueueAutoAnalyses(companyId: string): Promise<AutoAnalyz
     throw new Error(`Falha ao verificar insights existentes: ${insightsError.message}`);
   }
 
-  const hasInsight = new Set((existingInsights ?? []).map((i) => i.conversation_id));
-  const needsAnalysis = conversations.filter((c) => !hasInsight.has(c.id));
+  const insightMap = new Map(
+    (existingInsights ?? []).map((i) => [i.conversation_id, i.generated_at])
+  );
+  const needsAnalysis = conversations.filter((c) => {
+    const generatedAt = insightMap.get(c.id);
+    if (!generatedAt) return true; // Sem insight
+    if (!c.last_message_at) return false;
+    return new Date(c.last_message_at) > new Date(generatedAt); // Insight desatualizado
+  });
 
   // Limitar a 10 análises por execução para não sobrecarregar
   const toAnalyze = needsAnalysis.slice(0, 10);

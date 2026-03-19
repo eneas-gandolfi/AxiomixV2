@@ -54,7 +54,7 @@ export const NAV_ITEMS = [
   { label: "Intelligence", href: "/intelligence", icon: TrendingUp },
   { label: "Social Publisher", href: "/social-publisher", icon: Share2 },
   { label: "Base de Conhecimento", href: "/base-conhecimento", icon: BookOpen },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Configurações", href: "/settings", icon: Settings },
 ];
 
 interface SidebarProps {

@@ -1,0 +1,38 @@
+/**
+ * Arquivo: middleware.ts
+ * Proposito: Proteger rotas autenticadas e liberar links publicos assinados.
+ * Autor: AXIOMIX
+ * Data: 2026-03-19
+ */
+
+import { NextResponse, type NextRequest } from "next/server";
+import { resolveSessionFromMiddleware } from "@/lib/supabase/middleware";
+
+export async function middleware(request: NextRequest) {
+  const { response, user } = await resolveSessionFromMiddleware(request);
+
+  if (!user) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Proteger todas as rotas EXCETO:
+     * - /login, /register (auth pages dentro do grupo (auth))
+     * - /auth/* (callback OAuth / magic link)
+     * - /onboarding (precisa ser acessivel para usuarios sem empresa)
+     * - /alertas/* (links publicos assinados enviados por WhatsApp)
+     * - /api/* (APIs ja tem sua propria auth)
+     * - /_next/* (assets do Next.js)
+     * - /favicon.ico, arquivos estaticos com extensao
+     */
+    "/((?!login|register|auth|onboarding|alertas|api|_next/static|_next/image|favicon\\.ico|.*\\..*).*)",
+  ],
+};

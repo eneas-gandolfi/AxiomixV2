@@ -14,6 +14,11 @@ import {
   type BatchConversation,
 } from "@/lib/ai/prompts/whatsapp-batch";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { assessConversationGuardrails } from "@/lib/whatsapp/conversation-guardrails";
+import {
+  conversationIntentValues,
+  normalizeConversationIntent,
+} from "@/lib/whatsapp/intent";
 import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 import {
   triggerPurchaseIntentAlert,
@@ -26,7 +31,11 @@ const MESSAGES_PER_CONVERSATION = 5;
 const batchAnalysisItemSchema = z.object({
   conversationId: z.string(),
   sentiment: z.enum(["positivo", "neutro", "negativo"]),
-  intent: z.enum(["compra", "suporte", "reclamacao", "duvida", "cancelamento", "outro"]),
+  intent: z.preprocess(
+    (value) =>
+      typeof value === "string" ? normalizeConversationIntent(value) ?? value : value,
+    z.enum(conversationIntentValues)
+  ),
   urgency: z.number().int().min(1).max(5).optional().default(3),
   key_topics: z.array(z.string().trim().min(1)).max(5).optional().default([]),
 });
@@ -62,6 +71,17 @@ function normalizeText(text: string) {
 }
 
 function fallbackClassification(messages: Array<{ content: string | null }>) {
+  const assessment = assessConversationGuardrails(messages);
+
+  if (assessment.isClearlyPersonal) {
+    return {
+      sentiment: assessment.suggestedSentiment,
+      intent: "outro" as const,
+      urgency: 1,
+      key_topics: ["conversa pessoal"],
+    };
+  }
+
   const combined = normalizeText(
     messages.map((m) => m.content ?? "").join(" ").slice(0, 3000)
   );
@@ -69,28 +89,11 @@ function fallbackClassification(messages: Array<{ content: string | null }>) {
   const negativeWords = ["reclam", "cancel", "ruim", "atras", "problema", "insatisfeit"];
   const purchaseWords = ["preco", "compr", "orcamento", "proposta", "pagamento"];
   const supportWords = ["suporte", "ajuda", "erro", "nao funciona"];
-  const personalWords = [
-    "te amo", "amor", "saudade", "bom dia amor", "boa noite amor",
-    "meu bem", "meu amor", "querido", "querida", "beijo", "abraco",
-    "vou dormir", "bons sonhos", "te adoro",
-  ];
-
   const hasNegative = negativeWords.some((w) => combined.includes(w));
   const hasPurchase = purchaseWords.some((w) => combined.includes(w));
   const hasSupport = supportWords.some((w) => combined.includes(w));
-  const hasPersonal = personalWords.some((w) => combined.includes(w));
-  const hasBusiness = hasPurchase || hasSupport || hasNegative;
 
   // Conversa pessoal: padrões afetivos SEM keywords de negócio
-  if (hasPersonal && !hasBusiness) {
-    return {
-      sentiment: "positivo" as const,
-      intent: "outro" as const,
-      urgency: 1,
-      key_topics: ["conversa pessoal"],
-    };
-  }
-
   const sentiment: "positivo" | "neutro" | "negativo" = hasNegative ? "negativo" : "neutro";
   let intent: "compra" | "suporte" | "reclamacao" | "duvida" | "cancelamento" | "outro" = "outro";
   if (hasPurchase) intent = "compra";
@@ -102,6 +105,25 @@ function fallbackClassification(messages: Array<{ content: string | null }>) {
     intent,
     urgency: hasNegative ? 4 : 3,
     key_topics: [] as string[],
+  };
+}
+
+function applyClassificationGuardrails(
+  messages: Array<{ content: string | null }>,
+  classification: z.infer<typeof batchAnalysisItemSchema>
+) {
+  const assessment = assessConversationGuardrails(messages);
+
+  if (!assessment.isClearlyPersonal) {
+    return classification;
+  }
+
+  return {
+    ...classification,
+    sentiment: assessment.suggestedSentiment,
+    intent: "outro" as const,
+    urgency: 1,
+    key_topics: ["conversa pessoal"],
   };
 }
 
@@ -281,9 +303,16 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
     );
 
     const parsed: unknown = JSON.parse(rawJson);
-    analyses = batchAnalysisResponseSchema.parse(parsed);
-  } catch {
+    const parsedAnalyses = batchAnalysisResponseSchema.parse(parsed);
+    analyses = {
+      ...parsedAnalyses,
+      analyses: parsedAnalyses.analyses.map((item) =>
+        applyClassificationGuardrails(messagesMap.get(item.conversationId) ?? [], item)
+      ),
+    };
+  } catch (error) {
     // Fallback: classificação heurística para cada conversa
+    console.error("[batch-analyzer] Falha na chamada IA â€” usando fallback:", error);
     const fallbackAnalyses = conversationsWithMessages.map((conv) => {
       const msgs = messagesMap.get(conv.id) ?? [];
       const classification = fallbackClassification(msgs);

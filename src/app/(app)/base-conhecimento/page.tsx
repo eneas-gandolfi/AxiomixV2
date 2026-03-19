@@ -21,7 +21,7 @@ export default async function BaseConhecimentoPage() {
     <div style={{ '--module-color': '#7C3AED', '--module-color-bg': '#F3EEFF' } as React.CSSProperties}>
       <PageContainer
         title="Base de Conhecimento"
-        description="Envie catalogos, playbooks, FAQs e materiais tecnicos para orientar a IA nas analises de conversas do WhatsApp."
+        description="Envie catálogos, playbooks, FAQs e materiais técnicos para orientar a IA nas análises de conversas do WhatsApp."
       >
         <KnowledgeBaseModule companyId={companyId} />
       </PageContainer>

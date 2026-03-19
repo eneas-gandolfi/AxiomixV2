@@ -84,7 +84,7 @@ export function HistoryPageClient({
         const payload = (await response.json()) as ApiErrorPayload & HistoryResponse;
 
         if (!response.ok) {
-          setError(payload.error ?? "Falha ao carregar historico.");
+          setError(payload.error ?? "Falha ao carregar histórico.");
           return;
         }
 
@@ -97,7 +97,7 @@ export function HistoryPageClient({
           return;
         }
 
-        setError(fetchError instanceof Error ? fetchError.message : "Falha ao carregar historico.");
+        setError(fetchError instanceof Error ? fetchError.message : "Falha ao carregar histórico.");
       } finally {
         setIsLoadingHistory(false);
       }

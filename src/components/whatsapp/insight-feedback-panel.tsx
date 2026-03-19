@@ -24,20 +24,20 @@ const FEEDBACK_OPTIONS: Array<{
 }> = [
   {
     status: "helpful",
-    label: "Util",
-    hint: "A leitura ajudou e esta bem direcionada.",
+    label: "Útil",
+    hint: "A leitura ajudou e está bem direcionada.",
     icon: CheckCircle2,
   },
   {
     status: "needs_review",
     label: "Revisar",
-    hint: "A ideia e boa, mas faltou contexto ou precisao.",
+    hint: "A ideia é boa, mas faltou contexto ou precisão.",
     icon: MessageSquareWarning,
   },
   {
     status: "incorrect",
     label: "Incorreto",
-    hint: "A analise induz ao erro ou leu a conversa errado.",
+    hint: "A análise induz ao erro ou leu a conversa errado.",
     icon: XCircle,
   },
 ];
@@ -69,7 +69,7 @@ export function InsightFeedbackPanel({
 
   const handleSave = async () => {
     if (!selectedStatus) {
-      setError("Selecione uma classificacao para o insight.");
+      setError("Selecione uma classificação para o insight.");
       return;
     }
 
@@ -114,7 +114,7 @@ export function InsightFeedbackPanel({
     return (
       <div className="rounded-lg border border-border bg-background p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-medium text-muted">A analise ajudou?</p>
+          <p className="text-xs font-medium text-muted">A análise ajudou?</p>
           <div className="flex gap-1.5">
             {FEEDBACK_OPTIONS.map((option) => {
               const Icon = option.icon;
@@ -155,7 +155,7 @@ export function InsightFeedbackPanel({
     return (
       <div className="rounded-lg border border-border bg-background p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-medium text-muted">A analise ajudou?</p>
+          <p className="text-xs font-medium text-muted">A análise ajudou?</p>
           <div className="flex items-center gap-1.5">
             {FEEDBACK_OPTIONS.map((option) => {
               const Icon = option.icon;
@@ -192,7 +192,7 @@ export function InsightFeedbackPanel({
             id="insight-feedback-note-compact"
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="O que faltou ou acertou na analise..."
+            placeholder="O que faltou ou acertou na análise..."
             maxLength={1000}
             className="min-h-[80px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-text placeholder:text-muted-light focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
@@ -214,11 +214,11 @@ export function InsightFeedbackPanel({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-light">Feedback do time</p>
-          <h3 className="mt-1 text-sm font-semibold text-text">A analise ajudou de verdade?</h3>
+          <h3 className="mt-1 text-sm font-semibold text-text">A análise ajudou de verdade?</h3>
         </div>
         {initialStatus ? (
           <span className="rounded-full bg-[var(--color-surface-2)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-text-secondary)]">
-            Ultimo: {FEEDBACK_OPTIONS.find((option) => option.status === initialStatus)?.label ?? initialStatus}
+            Último: {FEEDBACK_OPTIONS.find((option) => option.status === initialStatus)?.label ?? initialStatus}
           </span>
         ) : null}
       </div>
@@ -256,7 +256,7 @@ export function InsightFeedbackPanel({
           id="insight-feedback-note"
           value={note}
           onChange={(event) => setNote(event.target.value)}
-          placeholder="Ex.: faltou identificar a objecao de prazo, resumiu bem a necessidade, sugeriu um proximo passo fraco..."
+          placeholder="Ex.: faltou identificar a objeção de prazo, resumiu bem a necessidade, sugeriu um próximo passo fraco..."
           className="min-h-[110px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-text placeholder:text-muted-light focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
       </div>

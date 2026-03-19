@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     const message =
       queued.enqueuedAnalyses === 0
-        ? "Todas as conversas ja foram analisadas."
+        ? `Todas as ${queued.scannedConversations} conversas recentes ja possuem analise atualizada.`
         : failedNow > 0
           ? `${processedNow} analise(s) concluida(s) e ${failedNow} falha(s).`
           : `${processedNow} analise(s) concluida(s) agora.`;

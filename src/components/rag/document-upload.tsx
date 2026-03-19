@@ -26,7 +26,7 @@ export function DocumentUpload({ companyId, onUploadComplete }: DocumentUploadPr
   const uploadFile = useCallback(
     async (file: File) => {
       if (file.type !== "application/pdf") {
-        message.error("Apenas arquivos PDF sao aceitos.");
+        message.error("Apenas arquivos PDF são aceitos.");
         return;
       }
 
@@ -129,7 +129,7 @@ export function DocumentUpload({ companyId, onUploadComplete }: DocumentUploadPr
               Arraste um PDF aqui ou clique para selecionar
             </p>
             <p className="text-xs text-muted">
-              A IA usara estes documentos nas analises de conversas do WhatsApp. Apenas PDF, ate
+              A IA usará estes documentos nas análises de conversas do WhatsApp. Apenas PDF, até
               20 MB.
             </p>
           </>
