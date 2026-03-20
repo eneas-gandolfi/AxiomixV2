@@ -48,11 +48,16 @@ export function NextReportCard({
   sendDisabledReason,
 }: NextReportCardProps) {
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="p-6">
-        <header className="mb-4 flex items-center gap-2">
-          <CalendarDays className="h-[20px] w-[20px] text-primary" aria-label="Próximo relatório" />
-          <h2 className="text-sm font-medium text-text">Próximo relatório semanal</h2>
+    <section className="overflow-hidden rounded-[24px] border border-border bg-card shadow-card-modern">
+      <div className="p-5">
+        <header className="mb-4 flex items-start gap-3">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-light">
+            <CalendarDays className="h-5 w-5 text-primary" aria-label="Próximo relatório" />
+          </span>
+          <div>
+            <p className="section-label">Relatórios</p>
+            <h2 className="mt-1 text-base font-semibold text-text">Próximo relatório semanal</h2>
+          </div>
         </header>
 
         <div className="space-y-3">
@@ -67,32 +72,32 @@ export function NextReportCard({
           </p>
         </div>
 
-        {canManageReports && (
+        {canManageReports ? (
           <div className="mt-5 space-y-2">
             <SendReportButton
               disabled={!canSendNow}
               disabledReason={sendDisabledReason}
               variant="default"
-              className="ml-auto bg-primary text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full bg-primary text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
               iconPosition="right"
             />
-            {!canSendNow && sendDisabledReason && (
+            {!canSendNow && sendDisabledReason ? (
               <div className="flex items-center gap-1.5 text-xs text-warning">
                 <Info className="h-3.5 w-3.5 shrink-0" />
                 <p>{sendDisabledReason}</p>
               </div>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
       </div>
 
-      <div className="border-t border-border bg-sidebar px-6 py-3">
+      <div className="border-t border-border bg-sidebar/60 px-5 py-3">
         <div className="flex items-center gap-2 text-xs text-muted-light">
           <StatusDot state={evolutionStatus.state} />
           <span>{evolutionStatus.label}</span>
-          {evolutionStatus.state !== "active" && (
+          {evolutionStatus.state !== "active" ? (
             <>
-              <span>—</span>
+              <span>-</span>
               <Link
                 href="/settings?tab=integrations"
                 className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -100,7 +105,7 @@ export function NextReportCard({
                 Configurar
               </Link>
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </section>

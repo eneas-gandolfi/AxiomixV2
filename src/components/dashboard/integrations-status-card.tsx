@@ -21,7 +21,7 @@ const integrationLabels: Record<IntegrationStatusItem["type"], string> = {
 
 function formatRelativeTime(value: string | null) {
   if (!value) {
-    return "—";
+    return "-";
   }
 
   const diffMs = Date.now() - new Date(value).getTime();
@@ -64,22 +64,36 @@ function statusMeta(status: IntegrationStatusItem["status"]) {
 }
 
 export function IntegrationsStatusCard({ integrations }: IntegrationsStatusCardProps) {
+  const connectedCount = integrations.filter((integration) => integration.status === "connected").length;
+
   return (
-    <section className="rounded-xl border border-border bg-card p-6">
-      <header className="mb-4 flex items-center gap-2">
-        <Plug className="h-[20px] w-[20px] text-primary" aria-label="Status das integrações" />
-        <h2 className="text-sm font-medium text-text">Status das integrações</h2>
+    <section className="overflow-hidden rounded-[24px] border border-border bg-card shadow-card-modern">
+      <header className="flex items-center justify-between gap-3 border-b border-border/80 px-5 py-4">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-primary-light">
+            <Plug className="h-4 w-4 text-primary" aria-label="Status das integrações" />
+          </span>
+          <div>
+            <p className="section-label">Operação</p>
+            <h2 className="mt-1 text-base font-semibold text-text">Status das integrações</h2>
+          </div>
+        </div>
+        <span className="rounded-full bg-sidebar px-2.5 py-1 text-xs font-medium text-muted">
+          {connectedCount}/{integrations.length}
+        </span>
       </header>
 
-      <div className="space-y-0">
-        {integrations.map((integration, index) => {
+      <div className="space-y-2 p-4">
+        {integrations.map((integration) => {
           const meta = statusMeta(integration.status);
           return (
             <article
               key={integration.type}
               className={cn(
-                "grid grid-cols-[1fr_auto] items-center gap-3 py-3",
-                index !== integrations.length - 1 && "border-b border-border"
+                "grid grid-cols-[1fr_auto] items-center gap-3 rounded-2xl border px-3 py-3",
+                integration.status === "error" && "border-danger/20 bg-danger-light/50",
+                integration.status === "connected" && "border-border bg-background/60",
+                integration.status === "missing" && "border-border bg-sidebar/40"
               )}
             >
               <p className="text-sm text-text">{integrationLabels[integration.type]}</p>
@@ -88,7 +102,7 @@ export function IntegrationsStatusCard({ integrations }: IntegrationsStatusCardP
                   {meta.label}
                 </span>
                 <p className="text-xs text-muted-light">
-                  {integration.lastTestedAt ? formatRelativeTime(integration.lastTestedAt) : "—"}
+                  {integration.lastTestedAt ? formatRelativeTime(integration.lastTestedAt) : "-"}
                 </p>
               </div>
             </article>
@@ -96,7 +110,7 @@ export function IntegrationsStatusCard({ integrations }: IntegrationsStatusCardP
         })}
       </div>
 
-      <div className="mt-5 border-t border-border pt-4 text-right">
+      <div className="border-t border-border px-4 py-4">
         <Link
           href="/settings?tab=integrations"
           className="inline-flex h-10 items-center rounded-lg border border-border bg-card px-4 text-sm text-text hover:bg-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"

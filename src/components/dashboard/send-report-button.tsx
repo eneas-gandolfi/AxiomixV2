@@ -52,10 +52,13 @@ export function SendReportButton({
       const payload = (await response.json().catch(() => ({}))) as ApiPayload;
 
       if (!response.ok) {
+        const errorMessage =
+          typeof payload.error === "string" && !payload.error.startsWith("[")
+            ? payload.error
+            : "Erro ao processar o relatório. Tente novamente.";
         toast({
           title: "Falha no envio",
-          description:
-            payload.error ?? "Erro ao processar o relatório.",
+          description: errorMessage,
           variant: "destructive",
         });
         return;

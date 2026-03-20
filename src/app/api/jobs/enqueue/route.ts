@@ -3,8 +3,7 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { enqueueJob, markStaleJobsFailed } from "@/lib/jobs/queue";
-import { processJobs } from "@/lib/jobs/processor";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { processJobById } from "@/lib/jobs/processor";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -90,23 +89,10 @@ export async function POST(request: NextRequest) {
 
     const queued = await enqueueJob(parsed.data.type, {}, access.companyId, undefined, 1);
 
-    // Processar o job imediatamente (não depender de cron externo)
-    const summary = await processJobs({ companyId: access.companyId, maxJobs: 1 });
-    revalidatePath("/dashboard");
-    revalidatePath("/settings");
+    // Processar exatamente o job recém-criado (não depender de cron externo)
+    const result = await processJobById(queued.id);
 
-    if (summary.processed === 0) {
-      // Job criado mas não processado — forçar falha
-      const admin = createSupabaseAdminClient();
-      await admin
-        .from("async_jobs")
-        .update({
-          status: "failed",
-          error_message: "Job não foi processado.",
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", queued.id);
-
+    if (!result) {
       return NextResponse.json(
         {
           error: "Falha ao processar o relatório. Tente novamente.",
@@ -117,11 +103,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const processedJob = summary.jobs[0];
-    if (processedJob?.status === "failed") {
+    revalidatePath("/dashboard");
+    revalidatePath("/settings");
+
+    if (result.status === "failed") {
       return NextResponse.json(
         {
-          error: processedJob.error ?? "Falha ao processar o relatório.",
+          error: result.error ?? "Falha ao processar o relatório.",
           code: "JOB_EXECUTION_FAILED",
           jobId: queued.id,
         },
@@ -129,10 +117,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      jobId: queued.id,
-      status: processedJob?.status ?? queued.status,
-    });
+    return NextResponse.json({ jobId: queued.id, status: result.status });
   } catch (error) {
     if (error instanceof CompanyAccessError) {
       return NextResponse.json({ error: "Erro ao carregar dados. Tente novamente." }, { status: error.status });

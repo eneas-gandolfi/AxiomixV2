@@ -15,13 +15,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]",
+          "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] hover:text-white",
         secondary:
-          "bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)]",
+          "bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]",
         ghost:
           "bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]",
         destructive:
-          "bg-[var(--color-danger)] text-white hover:bg-red-600",
+          "bg-[var(--color-danger)] text-white hover:bg-red-600 hover:text-white",
         link:
           "text-[var(--color-primary)] underline-offset-4 hover:underline bg-transparent",
       },

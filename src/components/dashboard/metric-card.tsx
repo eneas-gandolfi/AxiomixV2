@@ -1,12 +1,41 @@
-﻿import Link from "next/link";
+/**
+ * Arquivo: src/components/dashboard/metric-card.tsx
+ * Propósito: Card de métrica com variante hero, sparklines e animações
+ * Autor: AXIOMIX
+ * Data: 2026-03-19
+ */
+
+"use client";
+
+import Link from "next/link";
+import {
+  ArrowRight,
+  Flame,
+  MessageSquare,
+  Share2,
+  ShoppingCart,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
+import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
+import { useAnimatedValue } from "@/lib/hooks/use-animated-value";
+import type { SparkData } from "@/types/modules/dashboard.types";
+
+export type MetricIconName = "message-square" | "shopping-cart" | "share-2" | "flame";
+
+const ICON_MAP: Record<MetricIconName, LucideIcon> = {
+  "message-square": MessageSquare,
+  "shopping-cart": ShoppingCart,
+  "share-2": Share2,
+  "flame": Flame,
+};
 
 export interface MetricCardProps {
   label: string;
   value: number;
-  icon: LucideIcon;
+  icon: MetricIconName;
   sublabel: string;
   change?: number | null;
   alert?: {
@@ -23,6 +52,9 @@ export interface MetricCardProps {
     href: string;
     label: string;
   };
+  variant?: "default" | "hero" | "status";
+  sparkData?: SparkData;
+  animationDelay?: string;
 }
 
 function renderDelta(delta: number | null | undefined, emptyMessage?: string) {
@@ -70,10 +102,28 @@ function AlertBadge({ alert }: { alert: NonNullable<MetricCardProps["alert"]> })
   );
 }
 
+function Sparkline({ data, color = "var(--color-primary)" }: { data: number[]; color?: string }) {
+  const chartData = data.map((v, i) => ({ v, i }));
+  return (
+    <ResponsiveContainer width="100%" height={32}>
+      <LineChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 4 }}>
+        <Line
+          type="monotone"
+          dataKey="v"
+          stroke={color}
+          strokeWidth={1.5}
+          dot={false}
+          animationDuration={800}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function MetricCard({
   label,
   value,
-  icon: Icon,
+  icon,
   sublabel,
   change,
   alert,
@@ -83,11 +133,20 @@ export function MetricCard({
   ctaHref,
   emptyHint,
   emptyAction,
+  variant = "default",
+  sparkData,
+  animationDelay,
 }: MetricCardProps) {
+  const Icon = ICON_MAP[icon];
+  const animatedValue = useAnimatedValue(value);
+
   if (loading) {
     return (
       <article
-        className="rounded-xl border border-border bg-card p-3 shadow-card sm:p-4"
+        className={cn(
+          "rounded-xl border border-border bg-card p-3 shadow-card-modern sm:p-4",
+          false
+        )}
         aria-busy="true"
       >
         <div className="mb-3 flex items-start justify-between">
@@ -100,18 +159,63 @@ export function MetricCard({
     );
   }
 
+  const isHero = variant === "hero";
+  const isStatus = variant === "status";
+
   return (
-    <article className="group rounded-xl border border-border bg-card p-3 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover sm:p-4">
+    <article
+      className={cn(
+        "group rounded-xl border bg-card p-3 transition-all duration-200 sm:p-4",
+        "opacity-0 animate-fade-in-up",
+        isHero
+          ? "glass-card gradient-border-card shadow-card-elevated hover:shadow-card-hover-modern"
+          : isStatus
+            ? "border-border/80 bg-surface-2/50 shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern hover:border-primary/20"
+            : "border-border shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern hover:border-primary/20",
+        animationDelay
+      )}
+    >
       <div className="mb-2 flex items-start justify-between gap-3">
-        <p className="text-sm text-muted">{label}</p>
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary-light transition-colors duration-200 group-hover:bg-primary group-hover:shadow-sm">
-          <Icon className="h-4 w-4 text-primary transition-colors duration-200 group-hover:text-white" aria-label={label} />
+        <p className={cn("text-sm text-muted", (isHero || isStatus) && "section-label")}>{label}</p>
+        <span
+          className={cn(
+            "inline-flex items-center justify-center rounded-lg transition-all duration-200 group-hover:shadow-md",
+            isStatus
+              ? "bg-warning-light group-hover:bg-warning group-hover:shadow-warning/20"
+              : "bg-primary-light group-hover:bg-primary group-hover:shadow-primary/20",
+            isHero ? "h-9 w-9" : "h-8 w-8"
+          )}
+        >
+          <Icon
+            className={cn(
+              "transition-colors duration-200 group-hover:text-white",
+              isStatus ? "text-warning" : "text-primary",
+              "h-4 w-4"
+            )}
+            aria-label={label}
+          />
         </span>
       </div>
 
-      <p className="text-xl font-bold tracking-tight tabular-nums text-text sm:text-2xl">{value}</p>
+      <p
+        className={cn(
+          "font-bold tracking-tight tabular-nums text-text",
+          isHero ? "font-display text-2xl sm:text-3xl" : "text-xl sm:text-2xl"
+        )}
+      >
+        {animatedValue.toLocaleString("pt-BR")}
+      </p>
 
       <div className="mt-1">{renderDelta(change, emptyMessage)}</div>
+
+      {sparkData && sparkData.length > 0 && (
+        <div className={cn("mt-2", isHero ? "h-[36px]" : "h-[32px]")}>
+          <Sparkline
+            data={sparkData}
+            color={isHero ? "var(--color-primary)" : "var(--color-text-tertiary)"}
+          />
+        </div>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <p className="text-xs text-muted">{sublabel}</p>

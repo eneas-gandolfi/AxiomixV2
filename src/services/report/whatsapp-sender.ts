@@ -13,6 +13,7 @@ import {
   resolvePreferredEvolutionInstance,
   resolveEvolutionCredentials,
   sendEvolutionTextMessage,
+  sendEvolutionMediaMessage,
 } from "@/services/integrations/evolution";
 
 type SendWeeklyReportResult = {
@@ -79,4 +80,35 @@ export async function sendWeeklyReport(
   };
 }
 
-export type { SendWeeklyReportResult };
+type SendWeeklyReportPdfResult = {
+  managerPhone: string;
+  providerStatus: number;
+  providerBody: string;
+};
+
+export async function sendWeeklyReportPdf(
+  companyId: string,
+  pdfBuffer: Buffer,
+  fileName: string
+): Promise<SendWeeklyReportPdfResult> {
+  const config = await resolveEvolutionConfig(companyId);
+  const mediaBase64 = pdfBuffer.toString("base64");
+
+  const result = await sendEvolutionMediaMessage({
+    credentials: config.credentials,
+    instanceName: config.instanceName,
+    number: config.managerPhone,
+    mediaBase64,
+    mediatype: "document",
+    fileName,
+    caption: "Relatório Semanal AXIOMIX",
+  });
+
+  return {
+    managerPhone: config.managerPhone,
+    providerStatus: result.providerStatus,
+    providerBody: result.providerBody,
+  };
+}
+
+export type { SendWeeklyReportResult, SendWeeklyReportPdfResult };

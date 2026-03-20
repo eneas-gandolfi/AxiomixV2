@@ -42,6 +42,12 @@ type EvolutionSendTextResult = {
   source: string;
 };
 
+type EvolutionSendMediaResult = {
+  providerStatus: number;
+  providerBody: string;
+  source: string;
+};
+
 type EvolutionInstanceStatus = {
   instanceName: string;
   connected: boolean;
@@ -557,6 +563,82 @@ export async function sendEvolutionTextMessage(input: {
 
   if (statuses && !statuses.some((status) => status.instanceName === instanceName)) {
     throw new Error(`Instância ${instanceName} não encontrada na Evolution API.`);
+  }
+
+  let lastFailure = firstAttempt;
+  for (const attempt of attempts.slice(1)) {
+    const result = await callEvolution(input.credentials, attempt);
+    if (result.ok) {
+      return {
+        providerStatus: result.status,
+        providerBody: result.text.slice(0, 500),
+        source: result.source,
+      };
+    }
+    lastFailure = result;
+  }
+
+  throw new Error(formatEvolutionFailure(lastFailure));
+}
+
+export async function sendEvolutionMediaMessage(input: {
+  credentials: EvolutionCredentials;
+  instanceName: string;
+  number: string;
+  mediaBase64: string;
+  mediatype: "document" | "image" | "audio" | "video";
+  fileName: string;
+  caption?: string;
+}): Promise<EvolutionSendMediaResult> {
+  const instanceName = input.instanceName.trim();
+  if (!instanceName) {
+    throw new Error("Nenhuma instância conectada na Evolution API.");
+  }
+
+  const normalizedNumber = normalizeWhatsAppPhone(input.number);
+  if (normalizedNumber.replace(/\D/g, "").length < 8) {
+    throw new Error("Número de destino inválido para envio WhatsApp.");
+  }
+
+  const attempts: EvolutionAttempt[] = [
+    {
+      source: "message_send_media_instance",
+      method: "POST",
+      url: `${input.credentials.baseUrl}/message/sendMedia/${encodeURIComponent(instanceName)}`,
+      body: {
+        number: normalizedNumber,
+        media: input.mediaBase64,
+        mediatype: input.mediatype,
+        fileName: input.fileName,
+        caption: input.caption ?? "",
+      },
+    },
+    {
+      source: "message_send_media_instance_body",
+      method: "POST",
+      url: `${input.credentials.baseUrl}/message/sendMedia`,
+      body: {
+        instanceName,
+        number: normalizedNumber,
+        media: input.mediaBase64,
+        mediatype: input.mediatype,
+        fileName: input.fileName,
+        caption: input.caption ?? "",
+      },
+    },
+  ];
+
+  const firstAttempt = await callEvolution(input.credentials, attempts[0]);
+  if (firstAttempt.ok) {
+    return {
+      providerStatus: firstAttempt.status,
+      providerBody: firstAttempt.text.slice(0, 500),
+      source: firstAttempt.source,
+    };
+  }
+
+  if (firstAttempt.status !== 404) {
+    throw new Error(formatEvolutionFailure(firstAttempt));
   }
 
   let lastFailure = firstAttempt;

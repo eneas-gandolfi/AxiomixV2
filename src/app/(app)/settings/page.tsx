@@ -359,12 +359,16 @@ export default async function SettingsPage({
       displayStatus = "delivery_failed";
     }
 
+    const pdfStoragePath =
+      typeof resultObj?.pdfStoragePath === "string" ? resultObj.pdfStoragePath : null;
+
     return {
       id: row.id,
       completedAt: row.completed_at,
       reportText: parseReportText(row.payload, row.result),
       status: displayStatus,
       errorMessage: row.error_message ?? deliveryError,
+      pdfStoragePath,
     };
   });
 

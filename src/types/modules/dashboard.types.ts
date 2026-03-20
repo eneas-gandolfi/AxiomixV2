@@ -5,6 +5,10 @@
  * Data: 2026-03-13
  */
 
+/* ---------- Spark Data (7 daily values for sparklines) ---------- */
+
+export type SparkData = number[];
+
 /* ---------- Sentiment Trend Chart ---------- */
 
 export type SentimentTrendDataPoint = {

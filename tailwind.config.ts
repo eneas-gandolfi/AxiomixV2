@@ -111,12 +111,13 @@ const config: Config = {
 
       boxShadow: {
         "card-sm": "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-        card: "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+        card: "0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03)",
         "card-hover": "0 4px 16px rgba(0,0,0,0.08)",
+        "card-modern": "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03), 0 0 0 1px rgba(0,0,0,0.02)",
+        "card-hover-modern": "0 4px 16px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.04)",
+        "card-elevated": "0 8px 24px rgba(0,0,0,0.08), 0 16px 48px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)",
         dropdown: "0 4px 16px rgba(0,0,0,0.10)",
         modal: "0 20px 60px rgba(0,0,0,0.15)",
-        primary: "0 4px 14px rgba(250,94,36,0.25)",
-        "primary-hover": "0 6px 20px rgba(250,94,36,0.40)",
       },
 
       keyframes: {
@@ -124,10 +125,21 @@ const config: Config = {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(100%)" },
         },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "pulse-dot": {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.5", transform: "scale(1.4)" },
+        },
       },
       animation: {
         shimmer: "shimmer 1.5s ease-in-out infinite",
+        "fade-in-up": "fade-in-up 500ms ease-out forwards",
+        "pulse-dot": "pulse-dot 2s ease-in-out infinite",
       },
+
 
       borderRadius: {
         sm: "4px",

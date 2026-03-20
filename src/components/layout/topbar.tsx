@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TopbarBreadcrumb } from "@/components/layout/topbar-breadcrumb";
 import { TopbarClock } from "@/components/layout/topbar-clock";
 import { TopbarNotifications } from "@/components/layout/topbar-notifications";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -61,6 +62,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
           >
             <Menu size={18} aria-hidden="true" />
           </button>
+          <TopbarBreadcrumb />
           <TopbarClock />
         </div>
 

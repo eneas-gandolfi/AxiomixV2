@@ -1,0 +1,1364 @@
+﻿diff --git a/src/app/(app)/base-conhecimento/page.tsx b/src/app/(app)/base-conhecimento/page.tsx
+index 0735a9a..47e33c9 100644
+--- a/src/app/(app)/base-conhecimento/page.tsx
++++ b/src/app/(app)/base-conhecimento/page.tsx
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/app/(app)/base-conhecimento/page.tsx
+- * Prop├│sito: Pagina da Base de Conhecimento (RAG) ÔÇö upload de PDFs e chat.
++ * Prop├│sito: P├ígina$2 da Base de Conhecimento (RAG) ÔÇö upload de PDFs e chat.
+  * Autor: AXIOMIX
+  * Data: 2026-03-14
+  */
+@@ -21,7 +21,7 @@ export default async function BaseConhecimentoPage() {
+     <div style={{ '--module-color': '#7C3AED', '--module-color-bg': '#F3EEFF' } as React.CSSProperties}>
+       <PageContainer
+         title="Base de Conhecimento"
+-        description="Envie catalogos, playbooks, FAQs e materiais tecnicos para orientar a IA nas analises de conversas do WhatsApp."
++        description="Envie cat├ílogos, playbooks, FAQs e materiais t├®cnicos para orientar a IA nas analises de conversas do WhatsApp."
+       >
+         <KnowledgeBaseModule companyId={companyId} />
+       </PageContainer>
+diff --git a/src/app/(app)/intelligence/page.tsx b/src/app/(app)/intelligence/page.tsx
+index cc11896..3d8c3b0 100644
+--- a/src/app/(app)/intelligence/page.tsx
++++ b/src/app/(app)/intelligence/page.tsx
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/app/(app)/intelligence/page.tsx
+- * Prop├│sito: Renderizar modulo Intelligence v2.0 com dashboard, concorrentes, radar e salvos.
++ * Prop├│sito: Renderizar m├│dulo$2 Intelligence v2.0 com dashboard, concorrentes, radar e salvos.
+  * Autor: AXIOMIX
+  * Data: 2026-03-12
+  * Vers├úo: 2.0 (Enhanced)
+diff --git a/src/app/(app)/social-publisher/biblioteca/page.tsx b/src/app/(app)/social-publisher/biblioteca/page.tsx
+index 3d96f1c..9e375f3 100644
+--- a/src/app/(app)/social-publisher/biblioteca/page.tsx
++++ b/src/app/(app)/social-publisher/biblioteca/page.tsx
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/app/(app)/social-publisher/biblioteca/page.tsx
+- * Prop├│sito: Pagina da Biblioteca de Midia dentro do Social Publisher.
++ * Prop├│sito: P├ígina$2 da Biblioteca de Midia dentro do Social Publisher.
+  * Autor: AXIOMIX
+  * Data: 2026-03-13
+  */
+diff --git a/src/app/(app)/social-publisher/page.tsx b/src/app/(app)/social-publisher/page.tsx
+index 3cf64ec..44da16e 100644
+--- a/src/app/(app)/social-publisher/page.tsx
++++ b/src/app/(app)/social-publisher/page.tsx
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/app/(app)/social-publisher/page.tsx
+- * Prop├│sito: Renderizar modulo Social Publisher com formulario e historico paginado.
++ * Prop├│sito: Renderizar m├│dulo$2 Social Publisher com formulario e hist├│rico$2 paginado.
+  * Autor: AXIOMIX
+  * Data: 2026-03-11
+  */
+diff --git a/src/app/(app)/whatsapp-intelligence/conversas/[id]/page.tsx b/src/app/(app)/whatsapp-intelligence/conversas/[id]/page.tsx
+index 02aa043..e8e0570 100644
+--- a/src/app/(app)/whatsapp-intelligence/conversas/[id]/page.tsx
++++ b/src/app/(app)/whatsapp-intelligence/conversas/[id]/page.tsx
+@@ -27,6 +27,10 @@ import { InsightFeedbackPanel } from "@/components/whatsapp/insight-feedback-pan
+ import { SessionStatusBadge } from "@/components/whatsapp/session-status-badge";
+ import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
+ import { createSupabaseServerClient } from "@/lib/supabase/server";
++import {
++  formatConversationIntentLabel,
++  normalizeConversationIntent,
++} from "@/lib/whatsapp/intent";
+ import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+ 
+ type ConversationDetailsPageProps = {
+@@ -63,14 +67,14 @@ function formatDate(value?: string | null) {
+ }
+ 
+ function getIntentIcon(intent?: string | null) {
+-  switch (intent) {
++  switch (normalizeConversationIntent(intent)) {
+     case "compra":
+       return ShoppingCart;
+     case "suporte":
+       return Headphones;
+-    case "reclama├º├úo":
++    case "reclamacao":
+       return AlertTriangle;
+-    case "d├║vida":
++    case "duvida":
+       return HelpCircle;
+     case "cancelamento":
+       return XCircle;
+@@ -80,14 +84,14 @@ function getIntentIcon(intent?: string | null) {
+ }
+ 
+ function getIntentColor(intent?: string | null) {
+-  switch (intent) {
++  switch (normalizeConversationIntent(intent)) {
+     case "compra":
+       return "text-success";
+     case "suporte":
+       return "text-primary";
+-    case "reclama├º├úo":
++    case "reclamacao":
+       return "text-danger";
+-    case "d├║vida":
++    case "duvida":
+       return "text-warning";
+     case "cancelamento":
+       return "text-danger";
+@@ -377,7 +381,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
+                         <>
+                           <IntentIcon className={`h-4 w-4 ${intentColor}`} />
+                           <p className={`text-sm font-medium capitalize ${intentColor}`}>
+-                            {insight.intent || "sem inten├º├úo"}
++                            {formatConversationIntentLabel(insight.intent) || "sem inten├º├úo"}
+                           </p>
+                         </>
+                       );
+diff --git a/src/app/api/settings/alerts/log/route.ts b/src/app/api/settings/alerts/log/route.ts
+index be4dfaa..3524775 100644
+--- a/src/app/api/settings/alerts/log/route.ts
++++ b/src/app/api/settings/alerts/log/route.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/app/api/settings/alerts/log/route.ts
+- * Prop├│sito: Retornar e limpar historico de alertas enviados para a empresa.
++ * Prop├│sito: Retornar e limpar hist├│rico$2 de alertas enviados para a empresa.
+  * Autor: AXIOMIX
+  * Data: 2026-03-14
+  */
+@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
+ 
+     if (error) {
+       return NextResponse.json(
+-        { error: "Falha ao carregar historico de alertas.", code: "ALERT_LOG_FETCH_ERROR" },
++        { error: "Falha ao carregar hist├│rico$2 de alertas.", code: "ALERT_LOG_FETCH_ERROR" },
+         { status: 500 }
+       );
+     }
+diff --git a/src/app/api/whatsapp/bulk-analyze/route.ts b/src/app/api/whatsapp/bulk-analyze/route.ts
+index 213685d..2a8efc5 100644
+--- a/src/app/api/whatsapp/bulk-analyze/route.ts
++++ b/src/app/api/whatsapp/bulk-analyze/route.ts
+@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
+       queued.enqueuedAnalyses === 0
+         ? "Todas as conversas ja foram analisadas."
+         : failedNow > 0
+-          ? `${processedNow} analise(s) concluida(s) e ${failedNow} falha(s).`
+-          : `${processedNow} analise(s) concluida(s) agora.`;
++          ? `${processedNow} analise(s) conclu├¡da(s) e ${failedNow} falha(s).`
++          : `${processedNow} analise(s) conclu├¡da(s) agora.`;
+ 
+     return NextResponse.json({
+       companyId: access.companyId,
+diff --git a/src/app/api/whatsapp/critical-count/route.ts b/src/app/api/whatsapp/critical-count/route.ts
+index 6a9f62b..473e48c 100644
+--- a/src/app/api/whatsapp/critical-count/route.ts
++++ b/src/app/api/whatsapp/critical-count/route.ts
+@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
+ 
+ const countSchema = z.object({
+   companyId: z.string().uuid("companyId inv├ílido.").optional(),
++  dismissedAfter: z.string().datetime({ offset: true }).optional(),
+ });
+ 
+ export async function POST(request: NextRequest) {
+@@ -32,16 +33,22 @@ export async function POST(request: NextRequest) {
+ 
+     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
+ 
+-    // Buscar conversas negativas das ├║ltimas 24h
++    // Buscar conversas negativas das ├║ltimas 24h (ou desde o dismiss, se mais recente)
+     const oneDayAgo = new Date();
+     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+ 
++    let cutoff = oneDayAgo;
++    if (parsed.data.dismissedAfter) {
++      const dismissed = new Date(parsed.data.dismissedAfter);
++      if (dismissed > oneDayAgo) cutoff = dismissed;
++    }
++
+     const { count, error } = await supabase
+       .from("conversation_insights")
+       .select("id", { count: "exact", head: true })
+       .eq("company_id", access.companyId)
+       .eq("sentiment", "negativo")
+-      .gte("generated_at", oneDayAgo.toISOString());
++      .gte("generated_at", cutoff.toISOString());
+ 
+     if (error) {
+       throw new Error(`Falha ao contar conversas cr├¡ticas: ${error.message}`);
+diff --git a/src/app/auth/upload-post/popup-close/page.tsx b/src/app/auth/upload-post/popup-close/page.tsx
+index f1bf571..2d1f562 100644
+--- a/src/app/auth/upload-post/popup-close/page.tsx
++++ b/src/app/auth/upload-post/popup-close/page.tsx
+@@ -29,7 +29,7 @@ export default function UploadPostPopupClosePage() {
+ 
+   return (
+     <main className="flex min-h-screen items-center justify-center px-6">
+-      <p className="text-sm text-muted">Conexao concluida. Fechando janela...</p>
++      <p className="text-sm text-muted">Conexao conclu├¡da. Fechando janela...</p>
+     </main>
+   );
+ }
+diff --git a/src/components/layout/sidebar.tsx b/src/components/layout/sidebar.tsx
+index c74aeb0..515faa8 100644
+--- a/src/components/layout/sidebar.tsx
++++ b/src/components/layout/sidebar.tsx
+@@ -29,6 +29,8 @@ import {
+ } from "@/components/ui/tooltip";
+ import { cn } from "@/lib/utils";
+ 
++const WA_ALERTS_DISMISSED_KEY = "axiomix:whatsapp-alerts-dismissed-at";
++
+ type ModuleColors = {
+   color: string;
+   bgLight: string;
+@@ -80,6 +82,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+   }, []);
+ 
+   useEffect(() => {
++    // Auto-dismiss: ao visitar /whatsapp-intelligence, gravar timestamp no localStorage
++    if (pathname.startsWith("/whatsapp-intelligence")) {
++      localStorage.setItem(WA_ALERTS_DISMISSED_KEY, new Date().toISOString());
++    }
++
+     const fetchCriticalCount = async () => {
+       try {
+         const response = await fetch("/api/company");
+@@ -92,10 +99,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+         }
+         if (!companyId) return;
+ 
++        const dismissedAfter = localStorage.getItem(WA_ALERTS_DISMISSED_KEY) ?? undefined;
++
+         const countResponse = await fetch("/api/whatsapp/critical-count", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+-          body: JSON.stringify({ companyId }),
++          body: JSON.stringify({ companyId, dismissedAfter }),
+         });
+ 
+         if (countResponse.ok) {
+diff --git a/src/components/rag/document-list.tsx b/src/components/rag/document-list.tsx
+index b5acb8b..bbbc5e3 100644
+--- a/src/components/rag/document-list.tsx
++++ b/src/components/rag/document-list.tsx
+@@ -160,7 +160,7 @@ export function DocumentList({ companyId, refreshKey }: DocumentListProps) {
+                 : "shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600"
+             }
+           >
+-            {record.scope === "global" ? "Padrao Axiomix" : "Empresa"}
++            {record.scope === "global" ? "Padr├úo Axiomix" : "Empresa"}
+           </span>
+         </div>
+       ),
+diff --git a/src/components/rag/document-upload.tsx b/src/components/rag/document-upload.tsx
+index 5174965..456abc4 100644
+--- a/src/components/rag/document-upload.tsx
++++ b/src/components/rag/document-upload.tsx
+@@ -26,7 +26,7 @@ export function DocumentUpload({ companyId, onUploadComplete }: DocumentUploadPr
+   const uploadFile = useCallback(
+     async (file: File) => {
+       if (file.type !== "application/pdf") {
+-        message.error("Apenas arquivos PDF sao aceitos.");
++        message.error("Apenas arquivos PDF s├úo aceitos.");
+         return;
+       }
+ 
+@@ -129,7 +129,7 @@ export function DocumentUpload({ companyId, onUploadComplete }: DocumentUploadPr
+               Arraste um PDF aqui ou clique para selecionar
+             </p>
+             <p className="text-xs text-muted">
+-              A IA usara estes documentos nas analises de conversas do WhatsApp. Apenas PDF, ate
++              A IA usar├í estes documentos nas analises de conversas do WhatsApp. Apenas PDF, at├®
+               20 MB.
+             </p>
+           </>
+diff --git a/src/components/social/history-page-client.tsx b/src/components/social/history-page-client.tsx
+index 859c017..1075cab 100644
+--- a/src/components/social/history-page-client.tsx
++++ b/src/components/social/history-page-client.tsx
+@@ -84,7 +84,7 @@ export function HistoryPageClient({
+         const payload = (await response.json()) as ApiErrorPayload & HistoryResponse;
+ 
+         if (!response.ok) {
+-          setError(payload.error ?? "Falha ao carregar historico.");
++          setError(payload.error ?? "Falha ao carregar hist├│rico$2.");
+           return;
+         }
+ 
+@@ -97,7 +97,7 @@ export function HistoryPageClient({
+           return;
+         }
+ 
+-        setError(fetchError instanceof Error ? fetchError.message : "Falha ao carregar historico.");
++        setError(fetchError instanceof Error ? fetchError.message : "Falha ao carregar hist├│rico$2.");
+       } finally {
+         setIsLoadingHistory(false);
+       }
+diff --git a/src/components/social/media-library-picker.tsx b/src/components/social/media-library-picker.tsx
+index d804a3f..7be0117 100644
+--- a/src/components/social/media-library-picker.tsx
++++ b/src/components/social/media-library-picker.tsx
+@@ -267,7 +267,7 @@ export function MediaLibraryPicker({
+           )}
+         </div>
+ 
+-        {/* Pagina├º├úo + Footer */}
++        {/* P├ígina$2├º├úo + Footer */}
+         <div className="flex items-center justify-between p-4 border-t border-[var(--color-border)]">
+           <div className="flex items-center gap-2">
+             {totalPages > 1 && (
+diff --git a/src/components/social/social-module-nav.tsx b/src/components/social/social-module-nav.tsx
+index ef0ca50..0e7f075 100644
+--- a/src/components/social/social-module-nav.tsx
++++ b/src/components/social/social-module-nav.tsx
+@@ -22,7 +22,7 @@ type TabItem = {
+ const TABS: TabItem[] = [
+   { key: "agendar", label: "Agendar", href: "/social-publisher", icon: PenSquare, exact: true },
+   { key: "calendario", label: "Calend├írio", href: "/social-publisher/calendario", icon: Calendar },
+-  { key: "historico", label: "Hist├│rico", href: "/social-publisher/historico", icon: History },
++  { key: "hist├│rico$2", label: "Hist├│rico", href: "/social-publisher/hist├│rico$2", icon: History },
+   { key: "biblioteca", label: "Biblioteca", href: "/social-publisher/biblioteca", icon: FolderOpen },
+   { key: "demandas", label: "Demandas", href: "/social-publisher/demandas", icon: ClipboardList },
+ ];
+diff --git a/src/components/social/social-publisher-dashboard.tsx b/src/components/social/social-publisher-dashboard.tsx
+index f540d21..dcf3109 100644
+--- a/src/components/social/social-publisher-dashboard.tsx
++++ b/src/components/social/social-publisher-dashboard.tsx
+@@ -640,7 +640,7 @@ export function SocialPublisherDashboard({
+             ) : null}
+           </div>
+           <Button asChild variant="ghost" size="sm">
+-            <Link href="/social-publisher/historico">
++            <Link href="/social-publisher/hist├│rico$2">
+               Ver hist├│rico
+               <ArrowRight className="h-4 w-4" />
+             </Link>
+diff --git a/src/components/social/social-publisher-history.tsx b/src/components/social/social-publisher-history.tsx
+index 3d4cf06..b61d235 100644
+--- a/src/components/social/social-publisher-history.tsx
++++ b/src/components/social/social-publisher-history.tsx
+@@ -130,7 +130,7 @@ export function SocialPublisherHistory({
+                 Hist├│rico de Publica├º├Áes
+               </CardTitle>
+               <CardDescription>
+-                {total} item(ns) carregados com pagina├º├úo e detalhes completos.
++                {total} item(ns) carregados com p├ígina$2├º├úo e detalhes completos.
+               </CardDescription>
+             </div>
+ 
+diff --git a/src/components/whatsapp/conversation-quick-actions.tsx b/src/components/whatsapp/conversation-quick-actions.tsx
+index c366dad..c87cd5e 100644
+--- a/src/components/whatsapp/conversation-quick-actions.tsx
++++ b/src/components/whatsapp/conversation-quick-actions.tsx
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/components/whatsapp/conversation-quick-actions.tsx
+- * Prop├│sito: Acoes rapidas inline para conversas.
++ * Prop├│sito: A├º├Áes rapidas inline para conversas.
+  * Autor: AXIOMIX
+  * Data: 2026-03-12
+  */
+diff --git a/src/components/whatsapp/conversations-table.tsx b/src/components/whatsapp/conversations-table.tsx
+index 03470f3..e6c855c 100644
+--- a/src/components/whatsapp/conversations-table.tsx
++++ b/src/components/whatsapp/conversations-table.tsx
+@@ -22,6 +22,10 @@ import {
+ import { ContactAvatar } from "./contact-avatar";
+ import { ConversationQuickActions } from "./conversation-quick-actions";
+ import { axiomixPagination, axiomixTableProps } from "@/lib/ant-table-defaults";
++import {
++  formatConversationIntentLabel,
++  normalizeConversationIntent,
++} from "@/lib/whatsapp/intent";
+ 
+ type Sentiment = "positivo" | "neutro" | "negativo";
+ 
+@@ -53,7 +57,7 @@ export function sentimentBadgeClass(sentiment?: Sentiment | null) {
+ }
+ 
+ export function sentimentLabel(sentiment?: Sentiment | null) {
+-  if (!sentiment) return "Sem analise";
++  if (!sentiment) return "Sem an├ílise$2";
+   return sentiment;
+ }
+ 
+@@ -63,7 +67,7 @@ export function formatDate(value?: string | null) {
+ }
+ 
+ export function getIntentIcon(intent?: string | null) {
+-  switch (intent) {
++  switch (normalizeConversationIntent(intent)) {
+     case "compra":
+       return ShoppingCart;
+     case "suporte":
+@@ -80,7 +84,7 @@ export function getIntentIcon(intent?: string | null) {
+ }
+ 
+ export function getIntentColor(intent?: string | null) {
+-  switch (intent) {
++  switch (normalizeConversationIntent(intent)) {
+     case "compra":
+       return "text-success";
+     case "suporte":
+@@ -224,7 +228,7 @@ export function ConversationsTable({
+             className={`flex items-center gap-1 rounded-full bg-background px-2.5 py-1 text-xs font-medium w-fit ${intentColor}`}
+           >
+             <IntentIcon className="h-3 w-3" />
+-            {intent}
++            {formatConversationIntentLabel(intent)}
+           </span>
+         );
+       },
+diff --git a/src/components/whatsapp/insight-feedback-panel.tsx b/src/components/whatsapp/insight-feedback-panel.tsx
+index 125fb39..9df68e5 100644
+--- a/src/components/whatsapp/insight-feedback-panel.tsx
++++ b/src/components/whatsapp/insight-feedback-panel.tsx
+@@ -37,7 +37,7 @@ const FEEDBACK_OPTIONS: Array<{
+   {
+     status: "incorrect",
+     label: "Incorreto",
+-    hint: "A analise induz ao erro ou leu a conversa errado.",
++    hint: "A an├ílise$2 induz ao erro ou leu a conversa errado.",
+     icon: XCircle,
+   },
+ ];
+@@ -114,7 +114,7 @@ export function InsightFeedbackPanel({
+     return (
+       <div className="rounded-lg border border-border bg-background p-3">
+         <div className="flex items-center justify-between gap-2">
+-          <p className="text-xs font-medium text-muted">A analise ajudou?</p>
++          <p className="text-xs font-medium text-muted">A an├ílise$2 ajudou?</p>
+           <div className="flex gap-1.5">
+             {FEEDBACK_OPTIONS.map((option) => {
+               const Icon = option.icon;
+@@ -155,7 +155,7 @@ export function InsightFeedbackPanel({
+     return (
+       <div className="rounded-lg border border-border bg-background p-3">
+         <div className="flex items-center justify-between gap-2">
+-          <p className="text-xs font-medium text-muted">A analise ajudou?</p>
++          <p className="text-xs font-medium text-muted">A an├ílise$2 ajudou?</p>
+           <div className="flex items-center gap-1.5">
+             {FEEDBACK_OPTIONS.map((option) => {
+               const Icon = option.icon;
+@@ -192,7 +192,7 @@ export function InsightFeedbackPanel({
+             id="insight-feedback-note-compact"
+             value={note}
+             onChange={(event) => setNote(event.target.value)}
+-            placeholder="O que faltou ou acertou na analise..."
++            placeholder="O que faltou ou acertou na an├ílise$2..."
+             maxLength={1000}
+             className="min-h-[80px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-text placeholder:text-muted-light focus:outline-none focus:ring-2 focus:ring-primary/30"
+           />
+@@ -214,7 +214,7 @@ export function InsightFeedbackPanel({
+       <div className="flex items-start justify-between gap-3">
+         <div>
+           <p className="text-xs uppercase tracking-wide text-muted-light">Feedback do time</p>
+-          <h3 className="mt-1 text-sm font-semibold text-text">A analise ajudou de verdade?</h3>
++          <h3 className="mt-1 text-sm font-semibold text-text">A an├ílise$2 ajudou de verdade?</h3>
+         </div>
+         {initialStatus ? (
+           <span className="rounded-full bg-[var(--color-surface-2)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-text-secondary)]">
+diff --git a/src/components/whatsapp/metric-card-with-sparkline.tsx b/src/components/whatsapp/metric-card-with-sparkline.tsx
+index 3f46d78..2ca6a28 100644
+--- a/src/components/whatsapp/metric-card-with-sparkline.tsx
++++ b/src/components/whatsapp/metric-card-with-sparkline.tsx
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/components/whatsapp/metric-card-with-sparkline.tsx
+- * Prop├│sito: Card de metrica com sparkline mostrando tendencia.
++ * Prop├│sito: Card de m├®trica$2 com sparkline mostrando tendencia.
+  * Autor: AXIOMIX
+  * Data: 2026-03-12
+  */
+diff --git a/src/lib/ai/prompts/competitor.ts b/src/lib/ai/prompts/competitor.ts
+index ecf1e36..e7576c5 100644
+--- a/src/lib/ai/prompts/competitor.ts
++++ b/src/lib/ai/prompts/competitor.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/lib/ai/prompts/competitor.ts
+- * Prop├│sito: Prompts do modulo Intelligence para analise de concorrentes e radar.
++ * Prop├│sito: Prompts do m├│dulo$2 Intelligence para an├ílise$2 de concorrentes e radar.
+  * Autor: AXIOMIX
+  * Data: 2026-03-11
+  */
+@@ -30,7 +30,7 @@ export function buildCompetitorInsightPrompt(
+   knowledgeBaseContext?: string
+ ) {
+   const kbBlock = knowledgeBaseContext
+-    ? `\n\nContexto da base de conhecimento da empresa (use para enriquecer a analise):\n${knowledgeBaseContext}\n`
++    ? `\n\nContexto da base de conhecimento da empresa (use para enriquecer a an├ílise$2):\n${knowledgeBaseContext}\n`
+     : "";
+ 
+   return `
+@@ -60,7 +60,7 @@ export function buildRadarInsightPrompt(
+   knowledgeBaseContext?: string
+ ) {
+   const kbBlock = knowledgeBaseContext
+-    ? `\n\nContexto da base de conhecimento da empresa (use para enriquecer a analise):\n${knowledgeBaseContext}\n`
++    ? `\n\nContexto da base de conhecimento da empresa (use para enriquecer a an├ílise$2):\n${knowledgeBaseContext}\n`
+     : "";
+ 
+   return `
+diff --git a/src/lib/ai/prompts/weekly-report.ts b/src/lib/ai/prompts/weekly-report.ts
+index dbc670e..d060d29 100644
+--- a/src/lib/ai/prompts/weekly-report.ts
++++ b/src/lib/ai/prompts/weekly-report.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/lib/ai/prompts/weekly-report.ts
+- * Prop├│sito: Prompt de geracao de relatorio executivo semanal para WhatsApp.
++ * Prop├│sito: Prompt de gera├º├úo de relat├│rio$2 executivo semanal para WhatsApp.
+  * Autor: AXIOMIX
+  * Data: 2026-03-11
+  */
+@@ -31,7 +31,7 @@ export function buildWeeklyReportPrompt(input: WeeklyReportPromptInput) {
+     .join("\n");
+ 
+   const kbBlock = input.knowledgeBaseContext
+-    ? `\n\nContexto da base de conhecimento da empresa (use para enriquecer o relatorio):\n${input.knowledgeBaseContext}\n`
++    ? `\n\nContexto da base de conhecimento da empresa (use para enriquecer o relat├│rio$2):\n${input.knowledgeBaseContext}\n`
+     : "";
+ 
+   return `
+@@ -50,7 +50,7 @@ Sem asteriscos, sem markdown, sem emojis excessivos.
+ 
+ Dados da empresa:
+ - Empresa: ${input.companyName}
+-- Periodo: ${input.weekStartIso} ate ${input.weekEndIso}
++- Periodo: ${input.weekStartIso} at├® ${input.weekEndIso}
+ - Conversas analisadas: ${input.conversationsAnalyzed}
+ - Oportunidades de venda: ${input.salesOpportunities}
+ - Posts publicados: ${input.postsPublished}
+diff --git a/src/lib/ai/prompts/whatsapp-batch.ts b/src/lib/ai/prompts/whatsapp-batch.ts
+index cb321e4..c8dc8de 100644
+--- a/src/lib/ai/prompts/whatsapp-batch.ts
++++ b/src/lib/ai/prompts/whatsapp-batch.ts
+@@ -51,7 +51,7 @@ Responda SOMENTE em JSON v├ílido com o formato:
+     {
+       "conversationId": "uuid da conversa",
+       "sentiment": "positivo" | "neutro" | "negativo",
+-      "intent": "compra" | "suporte" | "reclama├º├úo" | "d├║vida" | "cancelamento" | "outro",
++      "intent": "compra" | "suporte" | "reclamacao" | "duvida" | "cancelamento" | "outro",
+       "urgency": 1 a 5,
+       "key_topics": ["t├│pico1", "t├│pico2"]
+     }
+@@ -61,6 +61,7 @@ Responda SOMENTE em JSON v├ílido com o formato:
+ 
+ Regras:
+ - IMPORTANTE: Se uma conversa for claramente pessoal ou informal (sauda├º├Áes afetivas, declara├º├Áes de amor, conversas entre amigos/fam├¡lia/casal, sem men├º├úo a produtos, servi├ºos, pre├ºos ou atendimento), classifique como: sentiment="positivo" (ou o sentimento real), intent="outro", urgency=1. N├úo force classifica├º├úo comercial em conversas pessoais.
++- Use exatamente estes tokens ASCII no campo intent: "compra", "suporte", "reclamacao", "duvida", "cancelamento" ou "outro".
+ - Retorne exatamente 1 item em "analyses" para cada conversa listada, na mesma ordem.
+ - Use o conversationId exato de cada conversa no retorno.
+ - sentiment: positivo/neutro/negativo com base no tom do cliente.
+diff --git a/src/lib/ai/prompts/whatsapp.ts b/src/lib/ai/prompts/whatsapp.ts
+index 8fee3b4..6334489 100644
+--- a/src/lib/ai/prompts/whatsapp.ts
++++ b/src/lib/ai/prompts/whatsapp.ts
+@@ -36,7 +36,7 @@ Voc├¬ ├® um analista s├¬nior de vendas e atendimento no WhatsApp.${kbBlock}
+ Analise a conversa abaixo e responda SOMENTE em JSON v├ílido com o formato:
+ {
+   "sentiment": "positivo" | "neutro" | "negativo",
+-  "intent": "compra" | "suporte" | "reclama├º├úo" | "d├║vida" | "cancelamento" | "outro",
++  "intent": "compra" | "suporte" | "reclamacao" | "duvida" | "cancelamento" | "outro",
+   "urgency": 1 a 5,
+   "sales_stage": "discovery" | "qualification" | "proposal" | "negotiation" | "closing" | "post_sale" | "unknown",
+   "summary": "resumo curto em portugu├¬s",
+@@ -53,6 +53,7 @@ Analise a conversa abaixo e responda SOMENTE em JSON v├ílido com o formato:
+ 
+ Regras:
+ - IMPORTANTE: Se a conversa for claramente pessoal ou informal (sauda├º├Áes afetivas, declara├º├Áes de amor, conversas entre amigos/fam├¡lia/casal, despedidas carinhosas, sem qualquer men├º├úo a produtos, servi├ºos, pre├ºos, problemas t├®cnicos ou atendimento comercial), classifique como: sentiment="positivo" (ou o sentimento real da conversa), intent="outro", urgency=1, sales_stage="unknown", confidence_score alto. N├úo force classifica├º├úo comercial em conversas que n├úo s├úo de neg├│cio.
++- Use exatamente estes tokens ASCII no campo intent: "compra", "suporte", "reclamacao", "duvida", "cancelamento" ou "outro".
+ - Classifique sentimento, inten├º├úo e urg├¬ncia com base no que realmente aparece na conversa.
+ - Se houver contexto da base de conhecimento, use-o como refer├¬ncia principal para detalhes t├®cnicos, argumentos comerciais, gargalos do atendimento, pr├│ximos passos e crit├®rios de aplica├º├úo.
+ - Quando fizer sentido, use o contexto para identificar etapa da venda, necessidade impl├¡cita vs expl├¡cita, perguntas que faltaram e o melhor compromisso a obter do cliente.
+diff --git a/src/services/alerts/alert-messages.ts b/src/services/alerts/alert-messages.ts
+index 09c6bde..4fceffe 100644
+--- a/src/services/alerts/alert-messages.ts
++++ b/src/services/alerts/alert-messages.ts
+@@ -58,14 +58,14 @@ export function buildFailedPostMessage(input: {
+ }): string {
+   const appUrl = resolveAppUrl();
+   return [
+-    "\u{274C} *Falha na Publicacao de Post*",
++    "\u{274C} *Falha na Publica├º├úo de Post*",
+     "",
+     `Post: ${(input.caption ?? "Sem legenda").slice(0, 100)}`,
+     `Plataformas: ${input.platforms.join(", ")}`,
+     `Erro: ${input.errorSummary.slice(0, 200)}`,
+     "",
+     "Revise o agendamento:",
+-    `${appUrl}/social-publisher/historico`,
++    `${appUrl}/social-publisher/hist├│rico$2`,
+   ].join("\n");
+ }
+ 
+diff --git a/src/services/alerts/alert-triggers.ts b/src/services/alerts/alert-triggers.ts
+index 0114ec8..00cbc31 100644
+--- a/src/services/alerts/alert-triggers.ts
++++ b/src/services/alerts/alert-triggers.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/services/alerts/alert-triggers.ts
+- * Prop├│sito: Funcoes fire-and-forget para disparar alertas a partir dos servicos existentes.
++ * Prop├│sito: Fun├º├Áes fire-and-forget para disparar alertas a partir dos servicos existentes.
+  * Autor: AXIOMIX
+  * Data: 2026-03-14
+  */
+diff --git a/src/services/integrations/upload-post.ts b/src/services/integrations/upload-post.ts
+index ca7b6a6..0245b86 100644
+--- a/src/services/integrations/upload-post.ts
++++ b/src/services/integrations/upload-post.ts
+@@ -476,7 +476,7 @@ export async function ensureUploadPostProfile(input: {
+     ? " Verifique se a UPLOAD_POST_API_KEY tem permissao para criar perfis (users_create)."
+     : "";
+   throw new Error(
+-    `Nao foi possivel criar ou validar perfil na Upload-Post API.${diagnosticText}${permissionHint}`
++    `N├úo foi possivel criar ou validar perfil na Upload-Post API.${diagnosticText}${permissionHint}`
+   );
+ }
+ 
+diff --git a/src/services/report/daily-job.ts b/src/services/report/daily-job.ts
+index ba6f302..6bb9a41 100644
+--- a/src/services/report/daily-job.ts
++++ b/src/services/report/daily-job.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/services/report/daily-job.ts
+- * Prop├│sito: Executar ciclo completo do relatorio diario (gerar, enviar e registrar).
++ * Prop├│sito: Executar ciclo completo do relat├│rio$2 diario (gerar, enviar e registrar).
+  * Autor: AXIOMIX
+  * Data: 2026-03-17
+  */
+diff --git a/src/services/report/weekly-job.ts b/src/services/report/weekly-job.ts
+index d9b540e..8171e62 100644
+--- a/src/services/report/weekly-job.ts
++++ b/src/services/report/weekly-job.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/services/report/weekly-job.ts
+- * Prop├│sito: Executar ciclo completo do relatorio semanal (gerar, enviar e registrar).
++ * Prop├│sito: Executar ciclo completo do relat├│rio$2 semanal (gerar, enviar e registrar).
+  * Autor: AXIOMIX
+  * Data: 2026-03-11
+  */
+diff --git a/src/services/whatsapp/analyzer.ts b/src/services/whatsapp/analyzer.ts
+index b1779d5..e612689 100644
+--- a/src/services/whatsapp/analyzer.ts
++++ b/src/services/whatsapp/analyzer.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/services/whatsapp/analyzer.ts
+- * Prop├│sito: Analisar conversas com IA e aplicar a├º├Áes autom├íticas no Sofia CRM.
++ * Proposito: Analisar conversas com IA e aplicar a├º├Áes automaticas no Sofia CRM.
+  * Autor: AXIOMIX
+  * Data: 2026-03-11
+  */
+@@ -9,23 +9,25 @@ import { z } from "zod";
+ import { openRouterChatCompletion } from "@/lib/ai/openrouter";
+ import { buildWhatsAppAnalysisPrompt } from "@/lib/ai/prompts/whatsapp";
+ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
++import { assessConversationGuardrails } from "@/lib/whatsapp/conversation-guardrails";
++import {
++  conversationIntentValues,
++  normalizeConversationIntent,
++} from "@/lib/whatsapp/intent";
+ import {
+-  triggerPurchaseIntentAlert,
+   triggerNegativeSentimentAlert,
++  triggerPurchaseIntentAlert,
+ } from "@/services/alerts/alert-triggers";
+ import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
++import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+ 
+ const insightSchema = z.object({
+   sentiment: z.enum(["positivo", "neutro", "negativo"]),
+-  intent: z
+-    .enum(["compra", "suporte", "reclamacao", "duvida", "cancelamento", "outro"])
+-    .transform((value) => {
+-      if (value === "reclamacao") {
+-        return "reclamacao";
+-      }
+-      return value;
+-    }),
++  intent: z.preprocess(
++    (value) =>
++      typeof value === "string" ? normalizeConversationIntent(value) ?? value : value,
++    z.enum(conversationIntentValues)
++  ),
+   urgency: z.number().int().min(1).max(5).optional().default(3),
+   sales_stage: z
+     .enum(["discovery", "qualification", "proposal", "negotiation", "closing", "post_sale", "unknown"])
+@@ -77,6 +79,10 @@ const KB_SEARCH_MAX_CHARS = 1200;
+ const KB_CONTEXT_MATCH_THRESHOLD = 0.3;
+ const KB_CONTEXT_MATCH_COUNT = 4;
+ const KB_CONTEXT_MAX_CHARS = 3600;
++const PERSONAL_CONVERSATION_SUMMARY =
++  "Conversa pessoal/informal detectada. Sem contexto comercial suficiente para classificacao.";
++const PERSONAL_CONVERSATION_ACTION =
++  "Nenhuma acao comercial necessaria - conversa pessoal.";
+ 
+ function normalizeText(text: string) {
+   return text
+@@ -114,8 +120,8 @@ function buildKnowledgeBaseSearchQuery(messages: ConversationMessage[]) {
+     .join("\n");
+ 
+   return [
+-    "Contexto para analisar conversa de WhatsApp com base na documenta├º├úo da empresa.",
+-    "Diagnosticar etapa da venda, necessidades impl├¡citas/expl├¡citas, gargalos do atendimento, perguntas que faltam e pr├│ximo compromisso.",
++    "Contexto para analisar conversa de WhatsApp com base na documentacao da empresa.",
++    "Diagnosticar etapa da venda, necessidades implicitas/explicitas, gargalos do atendimento, perguntas que faltam e proximo compromisso.",
+     lastInboundMessage
+       ? `Necessidade mais recente do cliente: ${lastInboundMessage.content}`
+       : null,
+@@ -127,7 +133,32 @@ function buildKnowledgeBaseSearchQuery(messages: ConversationMessage[]) {
+     .slice(0, KB_SEARCH_MAX_CHARS);
+ }
+ 
++function buildPersonalConversationInsight(sentiment: InsightPayload["sentiment"]): InsightPayload {
++  return {
++    sentiment,
++    intent: "outro",
++    urgency: 1,
++    sales_stage: "unknown",
++    summary: PERSONAL_CONVERSATION_SUMMARY,
++    implicit_need: "",
++    explicit_need: "",
++    objections: [],
++    key_topics: ["conversa pessoal"],
++    next_commitment: "",
++    stall_reason: "",
++    confidence_score: 88,
++    suggested_response: "",
++    action_items: [PERSONAL_CONVERSATION_ACTION],
++  };
++}
++
+ function fallbackInsight(messages: ConversationMessage[]): InsightPayload {
++  const assessment = assessConversationGuardrails(messages);
++
++  if (assessment.isClearlyPersonal) {
++    return buildPersonalConversationInsight(assessment.suggestedSentiment);
++  }
++
+   const combined = normalizeText(
+     messages
+       .map((message) => message.content ?? "")
+@@ -137,41 +168,11 @@ function fallbackInsight(messages: ConversationMessage[]): InsightPayload {
+ 
+   const negativeWords = ["reclam", "cancel", "ruim", "atras", "problema", "insatisfeit"];
+   const purchaseWords = ["preco", "compr", "orcamento", "proposta", "pagamento"];
+-  const supportWords = ["suporte", "ajuda", "erro", "nao funciona"];
+-  const personalWords = [
+-    "te amo", "amor", "saudade", "bom dia amor", "boa noite amor",
+-    "meu bem", "meu amor", "querido", "querida", "beijo", "abraco",
+-    "vou dormir", "bons sonhos", "te adoro",
+-  ];
++  const supportWords = ["suporte", "ajuda", "erro", "n├úo funciona"];
+ 
+   const hasNegative = negativeWords.some((word) => combined.includes(word));
+   const hasPurchase = purchaseWords.some((word) => combined.includes(word));
+   const hasSupport = supportWords.some((word) => combined.includes(word));
+-  const hasPersonal = personalWords.some((word) => combined.includes(word));
+-  const hasBusiness = hasPurchase || hasSupport || hasNegative;
+-
+-  // Conversa pessoal: padr├Áes afetivos SEM keywords de neg├│cio
+-  if (hasPersonal && !hasBusiness) {
+-    return {
+-      sentiment: "positivo",
+-      intent: "outro",
+-      urgency: 1,
+-      sales_stage: "unknown",
+-      summary:
+-        "Conversa pessoal/informal detectada. Sem contexto comercial identificado.",
+-      implicit_need: "",
+-      explicit_need: "",
+-      objections: [] as string[],
+-      key_topics: ["conversa pessoal"],
+-      next_commitment: "",
+-      stall_reason: "",
+-      confidence_score: 35,
+-      suggested_response: "",
+-      action_items: [
+-        "Nenhuma a├º├úo comercial necess├íria ÔÇö conversa pessoal.",
+-      ],
+-    };
+-  }
+ 
+   const sentiment: "positivo" | "neutro" | "negativo" = hasNegative ? "negativo" : "neutro";
+   let intent: InsightPayload["intent"] = "outro";
+@@ -191,30 +192,52 @@ function fallbackInsight(messages: ConversationMessage[]): InsightPayload {
+     urgency: hasNegative ? 4 : 3,
+     sales_stage: salesStage,
+     summary:
+-      "An├ílise gerada em modo de fallback. Recomenda-se revisar a conversa para confirmar detalhes comerciais e pr├│ximos passos.",
++      "Analise gerada em modo de fallback. Recomenda-se revisar a conversa para confirmar detalhes comerciais e proximos passos.",
+     implicit_need: "",
+     explicit_need: "",
+-    objections: [] as string[],
+-    key_topics: [] as string[],
++    objections: [],
++    key_topics: [],
+     next_commitment: "",
+-    stall_reason: hasNegative ? "Cliente demonstra atrito ou insatisfa├º├úo." : "",
++    stall_reason: hasNegative ? "Cliente demonstra atrito ou insatisfacao." : "",
+     confidence_score: 35,
+     suggested_response: "",
+     action_items: [
+       "Revisar a conversa e confirmar necessidade principal do cliente.",
+       hasPurchase
+         ? "Enviar proposta comercial com prazo claro."
+-        : "Responder com orienta├º├úo objetiva e prazo de retorno.",
++        : "Responder com orientacao objetiva e prazo de retorno.",
+     ],
+   };
+ }
+ 
++function applyInsightGuardrails(
++  messages: ConversationMessage[],
++  insight: InsightPayload
++): InsightPayload {
++  const assessment = assessConversationGuardrails(messages);
++
++  if (!assessment.isClearlyPersonal) {
++    return insight;
++  }
++
++  return {
++    ...buildPersonalConversationInsight(assessment.suggestedSentiment),
++    confidence_score: Math.max(insight.confidence_score, 88),
++  };
++}
++
+ function parseAiResponse(rawContent: string) {
+   const parsedUnknown: unknown = JSON.parse(rawContent);
+   return insightSchema.parse(parsedUnknown);
+ }
+ 
+ async function generateConversationInsight(companyId: string, messages: ConversationMessage[]) {
++  const assessment = assessConversationGuardrails(messages);
++
++  if (assessment.isClearlyPersonal) {
++    return buildPersonalConversationInsight(assessment.suggestedSentiment);
++  }
++
+   const kbSearchQuery = buildKnowledgeBaseSearchQuery(messages);
+   const kbContext = kbSearchQuery
+     ? await getKnowledgeBaseContext(companyId, kbSearchQuery, {
+@@ -235,22 +258,27 @@ async function generateConversationInsight(companyId: string, messages: Conversa
+   });
+ 
+   try {
+-    const rawJson = await openRouterChatCompletion(companyId, [
+-      {
+-        role: "system",
+-        content: "Voc├¬ responde apenas JSON v├ílido, sem markdown e sem texto extra.",
+-      },
++    const rawJson = await openRouterChatCompletion(
++      companyId,
++      [
++        {
++          role: "system",
++          content: "Voce responde apenas JSON valido, sem markdown e sem texto extra.",
++        },
++        {
++          role: "user",
++          content: prompt,
++        },
++      ],
+       {
+-        role: "user",
+-        content: prompt,
+-      },
+-    ], {
+-      model: process.env.OPENROUTER_MODEL_LIGHT,
+-    });
++        model: process.env.OPENROUTER_MODEL_LIGHT,
++      }
++    );
+ 
+-    return parseAiResponse(rawJson);
+-  } catch {
+-    return fallbackInsight(messages);
++    return applyInsightGuardrails(messages, parseAiResponse(rawJson));
++  } catch (error) {
++    console.error("[analyzer] Falha na chamada IA - usando fallback:", error);
++    return applyInsightGuardrails(messages, fallbackInsight(messages));
+   }
+ }
+ 
+@@ -294,7 +322,7 @@ async function executeAutomaticActions(
+     try {
+       await client.addContactLabel({
+         contactId,
+-        label: "Aten├º├úo",
++        label: "Atencao",
+       });
+       actions.push("negative_label_added");
+     } catch {
+@@ -333,7 +361,7 @@ export async function analyzeConversation(
+   }
+ 
+   if (!messages || messages.length === 0) {
+-    throw new Error("Conversa sem mensagens para an├ílise.");
++    throw new Error("Conversa sem mensagens para an├ílise$2.");
+   }
+ 
+   const insight = await generateConversationInsight(companyId, messages as ConversationMessage[]);
+@@ -377,7 +405,6 @@ export async function analyzeConversation(
+     throw new Error("Falha ao salvar insight da conversa.");
+   }
+ 
+-  // --- Alertas em tempo real (fire-and-forget) ---
+   if (insight.intent === "compra") {
+     triggerPurchaseIntentAlert({
+       companyId,
+diff --git a/src/services/whatsapp/batch-analyzer.ts b/src/services/whatsapp/batch-analyzer.ts
+index d2c1956..585b613 100644
+--- a/src/services/whatsapp/batch-analyzer.ts
++++ b/src/services/whatsapp/batch-analyzer.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/services/whatsapp/batch-analyzer.ts
+- * Prop├│sito: An├ílise batch hor├íria de conversas WhatsApp ÔÇö classifica├º├úo leve + resumo geral.
++ * Proposito: Analise batch horaria de conversas WhatsApp - classificacao leve + resumo geral.
+  * Autor: AXIOMIX
+  * Data: 2026-03-17
+  */
+@@ -14,11 +14,16 @@ import {
+   type BatchConversation,
+ } from "@/lib/ai/prompts/whatsapp-batch";
+ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+-import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
++import { assessConversationGuardrails } from "@/lib/whatsapp/conversation-guardrails";
++import {
++  conversationIntentValues,
++  normalizeConversationIntent,
++} from "@/lib/whatsapp/intent";
+ import {
+-  triggerPurchaseIntentAlert,
+   triggerNegativeSentimentAlert,
++  triggerPurchaseIntentAlert,
+ } from "@/services/alerts/alert-triggers";
++import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
+ 
+ const MAX_CONVERSATIONS_PER_BATCH = 20;
+ const MESSAGES_PER_CONVERSATION = 5;
+@@ -26,7 +31,11 @@ const MESSAGES_PER_CONVERSATION = 5;
+ const batchAnalysisItemSchema = z.object({
+   conversationId: z.string(),
+   sentiment: z.enum(["positivo", "neutro", "negativo"]),
+-  intent: z.enum(["compra", "suporte", "reclamacao", "duvida", "cancelamento", "outro"]),
++  intent: z.preprocess(
++    (value) =>
++      typeof value === "string" ? normalizeConversationIntent(value) ?? value : value,
++    z.enum(conversationIntentValues)
++  ),
+   urgency: z.number().int().min(1).max(5).optional().default(3),
+   key_topics: z.array(z.string().trim().min(1)).max(5).optional().default([]),
+ });
+@@ -62,35 +71,26 @@ function normalizeText(text: string) {
+ }
+ 
+ function fallbackClassification(messages: Array<{ content: string | null }>) {
+-  const combined = normalizeText(
+-    messages.map((m) => m.content ?? "").join(" ").slice(0, 3000)
+-  );
++  const assessment = assessConversationGuardrails(messages);
+ 
+-  const negativeWords = ["reclam", "cancel", "ruim", "atras", "problema", "insatisfeit"];
+-  const purchaseWords = ["preco", "compr", "orcamento", "proposta", "pagamento"];
+-  const supportWords = ["suporte", "ajuda", "erro", "nao funciona"];
+-  const personalWords = [
+-    "te amo", "amor", "saudade", "bom dia amor", "boa noite amor",
+-    "meu bem", "meu amor", "querido", "querida", "beijo", "abraco",
+-    "vou dormir", "bons sonhos", "te adoro",
+-  ];
+-
+-  const hasNegative = negativeWords.some((w) => combined.includes(w));
+-  const hasPurchase = purchaseWords.some((w) => combined.includes(w));
+-  const hasSupport = supportWords.some((w) => combined.includes(w));
+-  const hasPersonal = personalWords.some((w) => combined.includes(w));
+-  const hasBusiness = hasPurchase || hasSupport || hasNegative;
+-
+-  // Conversa pessoal: padr├Áes afetivos SEM keywords de neg├│cio
+-  if (hasPersonal && !hasBusiness) {
++  if (assessment.isClearlyPersonal) {
+     return {
+-      sentiment: "positivo" as const,
++      sentiment: assessment.suggestedSentiment,
+       intent: "outro" as const,
+       urgency: 1,
+       key_topics: ["conversa pessoal"],
+     };
+   }
+ 
++  const combined = normalizeText(messages.map((message) => message.content ?? "").join(" ").slice(0, 3000));
++  const negativeWords = ["reclam", "cancel", "ruim", "atras", "problema", "insatisfeit"];
++  const purchaseWords = ["preco", "compr", "orcamento", "proposta", "pagamento"];
++  const supportWords = ["suporte", "ajuda", "erro", "n├úo funciona"];
++
++  const hasNegative = negativeWords.some((word) => combined.includes(word));
++  const hasPurchase = purchaseWords.some((word) => combined.includes(word));
++  const hasSupport = supportWords.some((word) => combined.includes(word));
++
+   const sentiment: "positivo" | "neutro" | "negativo" = hasNegative ? "negativo" : "neutro";
+   let intent: "compra" | "suporte" | "reclamacao" | "duvida" | "cancelamento" | "outro" = "outro";
+   if (hasPurchase) intent = "compra";
+@@ -105,10 +105,28 @@ function fallbackClassification(messages: Array<{ content: string | null }>) {
+   };
+ }
+ 
++function applyClassificationGuardrails(
++  messages: Array<{ content: string | null }>,
++  classification: z.infer<typeof batchAnalysisItemSchema>
++) {
++  const assessment = assessConversationGuardrails(messages);
++
++  if (!assessment.isClearlyPersonal) {
++    return classification;
++  }
++
++  return {
++    ...classification,
++    sentiment: assessment.suggestedSentiment,
++    intent: "outro" as const,
++    urgency: 1,
++    key_topics: ["conversa pessoal"],
++  };
++}
++
+ async function getEligibleConversations(companyId: string): Promise<EligibleConversation[]> {
+   const supabase = createSupabaseAdminClient();
+ 
+-  // Buscar conversas recentes com suas ├║ltimas an├ílises
+   const { data: conversations, error } = await supabase
+     .from("conversations")
+     .select("id, contact_name, contact_phone, remote_jid, external_id, last_message_at")
+@@ -121,35 +139,30 @@ async function getEligibleConversations(companyId: string): Promise<EligibleConv
+     return [];
+   }
+ 
+-  const conversationIds = conversations.map((c) => c.id);
++  const conversationIds = conversations.map((conversation) => conversation.id);
+   if (conversationIds.length === 0) return [];
+ 
+-  // Buscar insights existentes para estas conversas
+   const { data: insights } = await supabase
+     .from("conversation_insights")
+     .select("conversation_id, generated_at")
+     .eq("company_id", companyId)
+     .in("conversation_id", conversationIds);
+ 
+-  const insightMap = new Map(
+-    (insights ?? []).map((i) => [i.conversation_id, i.generated_at])
+-  );
++  const insightMap = new Map((insights ?? []).map((item) => [item.conversation_id, item.generated_at]));
+ 
+-  // Filtrar: conversas sem insight OU com novas mensagens desde o ├║ltimo insight
+-  const eligible = conversations.filter((conv) => {
+-    const lastInsight = insightMap.get(conv.id);
+-    if (!lastInsight) return true; // Sem insight ÔÇö eleg├¡vel
+-    if (!conv.last_message_at) return false;
+-    // Novas mensagens desde o ├║ltimo insight
+-    return new Date(conv.last_message_at) > new Date(lastInsight);
++  const eligible = conversations.filter((conversation) => {
++    const lastInsight = insightMap.get(conversation.id);
++    if (!lastInsight) return true;
++    if (!conversation.last_message_at) return false;
++    return new Date(conversation.last_message_at) > new Date(lastInsight);
+   });
+ 
+-  return eligible.slice(0, MAX_CONVERSATIONS_PER_BATCH).map((c) => ({
+-    id: c.id,
+-    contact_name: c.contact_name,
+-    contact_phone: c.contact_phone,
+-    remote_jid: c.remote_jid,
+-    external_id: c.external_id,
++  return eligible.slice(0, MAX_CONVERSATIONS_PER_BATCH).map((conversation) => ({
++    id: conversation.id,
++    contact_name: conversation.contact_name,
++    contact_phone: conversation.contact_phone,
++    remote_jid: conversation.remote_jid,
++    external_id: conversation.external_id,
+   }));
+ }
+ 
+@@ -158,10 +171,6 @@ async function loadRecentMessages(
+   conversationIds: string[]
+ ): Promise<Map<string, Array<{ direction: "inbound" | "outbound"; content: string | null; sent_at: string | null }>>> {
+   const supabase = createSupabaseAdminClient();
+-
+-  // Carregar mensagens recentes para todas as conversas de uma vez
+-  // Ordenamos por sent_at DESC para pegar as mais recentes, depois invertemos no JS
+-  // Limitar a N mensagens por conversa ├ù total de conversas para evitar carga excessiva
+   const maxMessages = MESSAGES_PER_CONVERSATION * conversationIds.length;
+   const { data: allMessages, error } = await supabase
+     .from("messages")
+@@ -175,25 +184,23 @@ async function loadRecentMessages(
+     return new Map();
+   }
+ 
+-  // Agrupar por conversa e limitar a N mensagens mais recentes
+   const grouped = new Map<string, Array<{ direction: "inbound" | "outbound"; content: string | null; sent_at: string | null }>>();
+ 
+-  for (const msg of allMessages) {
+-    if (!msg.conversation_id || !msg.direction) continue;
+-    const existing = grouped.get(msg.conversation_id) ?? [];
++  for (const message of allMessages) {
++    if (!message.conversation_id || !message.direction) continue;
++    const existing = grouped.get(message.conversation_id) ?? [];
+     if (existing.length < MESSAGES_PER_CONVERSATION) {
+       existing.push({
+-        direction: msg.direction,
+-        content: msg.content,
+-        sent_at: msg.sent_at,
++        direction: message.direction,
++        content: message.content,
++        sent_at: message.sent_at,
+       });
+-      grouped.set(msg.conversation_id, existing);
++      grouped.set(message.conversation_id, existing);
+     }
+   }
+ 
+-  // Inverter para ordem cronol├│gica (est├úo em DESC do banco)
+-  for (const [key, msgs] of grouped) {
+-    grouped.set(key, msgs.reverse());
++  for (const [conversationId, messages] of grouped) {
++    grouped.set(conversationId, messages.reverse());
+   }
+ 
+   return grouped;
+@@ -201,7 +208,7 @@ async function loadRecentMessages(
+ 
+ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysisResult> {
+   const periodEnd = new Date().toISOString();
+-  const periodStart = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1h atr├ís
++  const periodStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+ 
+   const eligible = await getEligibleConversations(companyId);
+ 
+@@ -211,19 +218,18 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
+       conversationsAnalyzed: 0,
+       purchaseIntents: 0,
+       negativeSentiments: 0,
+-      summaryText: "Nenhuma conversa nova para analisar neste per├¡odo.",
++      summaryText: "Nenhuma conversa nova para analisar neste periodo.",
+       periodStart,
+       periodEnd,
+     };
+   }
+ 
+-  const conversationIds = eligible.map((c) => c.id);
++  const conversationIds = eligible.map((conversation) => conversation.id);
+   const messagesMap = await loadRecentMessages(companyId, conversationIds);
+ 
+-  // Filtrar conversas que realmente t├¬m mensagens
+-  const conversationsWithMessages = eligible.filter((c) => {
+-    const msgs = messagesMap.get(c.id);
+-    return msgs && msgs.length > 0;
++  const conversationsWithMessages = eligible.filter((conversation) => {
++    const messages = messagesMap.get(conversation.id);
++    return messages && messages.length > 0;
+   });
+ 
+   if (conversationsWithMessages.length === 0) {
+@@ -232,27 +238,25 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
+       conversationsAnalyzed: 0,
+       purchaseIntents: 0,
+       negativeSentiments: 0,
+-      summaryText: "Conversas eleg├¡veis sem mensagens para analisar.",
++      summaryText: "Conversas elegiveis sem mensagens para analisar.",
+       periodStart,
+       periodEnd,
+     };
+   }
+ 
+-  // KB context compartilhado (1 chamada para todas)
+   const kbContext = await getKnowledgeBaseContext(
+     companyId,
+-    "an├ílise vendas atendimento whatsapp gargalos oportunidades diagn├│stico",
++    "analise vendas atendimento whatsapp gargalos oportunidades diagnostico",
+     { includeGlobal: true }
+   );
+ 
+-  // Montar conversas para o prompt
+-  const batchConversations: BatchConversation[] = conversationsWithMessages.map((conv) => ({
+-    conversationId: conv.id,
+-    contactName: conv.contact_name ?? conv.remote_jid,
+-    messages: (messagesMap.get(conv.id) ?? []).map((msg) => ({
+-      direction: msg.direction,
+-      content: msg.content ?? "",
+-      sentAt: msg.sent_at ?? new Date().toISOString(),
++  const batchConversations: BatchConversation[] = conversationsWithMessages.map((conversation) => ({
++    conversationId: conversation.id,
++    contactName: conversation.contact_name ?? conversation.remote_jid,
++    messages: (messagesMap.get(conversation.id) ?? []).map((message) => ({
++      direction: message.direction,
++      content: message.content ?? "",
++      sentAt: message.sent_at ?? new Date().toISOString(),
+     })),
+   }));
+ 
+@@ -261,7 +265,6 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
+     knowledgeBaseContext: kbContext || undefined,
+   });
+ 
+-  // Classificar via IA ou fallback
+   let analyses: z.infer<typeof batchAnalysisResponseSchema>;
+ 
+   try {
+@@ -270,7 +273,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
+       [
+         {
+           role: "system",
+-          content: "Voc├¬ responde apenas JSON v├ílido, sem markdown e sem texto extra.",
++          content: "Voce responde apenas JSON valido, sem markdown e sem texto extra.",
+         },
+         {
+           role: "user",
+@@ -281,48 +284,50 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
+     );
+ 
+     const parsed: unknown = JSON.parse(rawJson);
+-    analyses = batchAnalysisResponseSchema.parse(parsed);
+-  } catch {
+-    // Fallback: classifica├º├úo heur├¡stica para cada conversa
+-    const fallbackAnalyses = conversationsWithMessages.map((conv) => {
+-      const msgs = messagesMap.get(conv.id) ?? [];
+-      const classification = fallbackClassification(msgs);
++    const parsedAnalyses = batchAnalysisResponseSchema.parse(parsed);
++    analyses = {
++      ...parsedAnalyses,
++      analyses: parsedAnalyses.analyses.map((item) =>
++        applyClassificationGuardrails(messagesMap.get(item.conversationId) ?? [], item)
++      ),
++    };
++  } catch (error) {
++    console.error("[batch-analyzer] Falha na chamada IA - usando fallback:", error);
++    const fallbackAnalyses = conversationsWithMessages.map((conversation) => {
++      const messages = messagesMap.get(conversation.id) ?? [];
++      const classification = fallbackClassification(messages);
+       return {
+-        conversationId: conv.id,
++        conversationId: conversation.id,
+         ...classification,
+       };
+     });
+ 
+     analyses = {
+       analyses: fallbackAnalyses,
+-      summary: `An├ílise batch em modo fallback. ${conversationsWithMessages.length} conversas classificadas por heur├¡stica.`,
++      summary: `Analise batch em modo fallback. ${conversationsWithMessages.length} conversas classificadas por heuristica.`,
+     };
+   }
+ 
+-  // Mapear conversas eleg├¡veis por ID para acesso r├ípido
+-  const convMap = new Map(conversationsWithMessages.map((c) => [c.id, c]));
+-
+-  // Upsert insights e disparar alertas
++  const convMap = new Map(conversationsWithMessages.map((conversation) => [conversation.id, conversation]));
+   const supabase = createSupabaseAdminClient();
+   const generatedAt = new Date().toISOString();
+   let purchaseIntents = 0;
+   let negativeSentiments = 0;
+ 
+   for (const item of analyses.analyses) {
+-    const conv = convMap.get(item.conversationId);
+-    if (!conv) continue;
++    const conversation = convMap.get(item.conversationId);
++    if (!conversation) continue;
+ 
+     if (item.intent === "compra") purchaseIntents += 1;
+     if (item.sentiment === "negativo") negativeSentiments += 1;
+ 
+-    // Upsert classifica├º├úo leve em conversation_insights
+     await supabase.from("conversation_insights").upsert(
+       {
+         company_id: companyId,
+         conversation_id: item.conversationId,
+         sentiment: item.sentiment,
+         intent: item.intent,
+-        summary: "Classificado via an├ílise batch hor├íria.",
++        summary: "Classificado via analise batch horaria.",
+         action_items: {
+           items: [],
+           urgency: item.urgency,
+@@ -334,14 +339,13 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
+       { onConflict: "conversation_id" }
+     );
+ 
+-    // Alertas fire-and-forget
+     if (item.intent === "compra") {
+       triggerPurchaseIntentAlert({
+         companyId,
+         conversationId: item.conversationId,
+-        contactName: conv.contact_name,
+-        contactPhone: conv.contact_phone,
+-        summary: `Inten├º├úo de compra detectada (batch). T├│picos: ${item.key_topics.join(", ") || "N/A"}.`,
++        contactName: conversation.contact_name,
++        contactPhone: conversation.contact_phone,
++        summary: `Intencao de compra detectada (batch). Topicos: ${item.key_topics.join(", ") || "N/A"}.`,
+       });
+     }
+ 
+@@ -349,15 +353,14 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
+       triggerNegativeSentimentAlert({
+         companyId,
+         conversationId: item.conversationId,
+-        contactName: conv.contact_name,
+-        contactPhone: conv.contact_phone,
++        contactName: conversation.contact_name,
++        contactPhone: conversation.contact_phone,
+         urgency: item.urgency,
+-        summary: `Sentimento negativo detectado (batch). T├│picos: ${item.key_topics.join(", ") || "N/A"}.`,
++        summary: `Sentimento negativo detectado (batch). Topicos: ${item.key_topics.join(", ") || "N/A"}.`,
+       });
+     }
+   }
+ 
+-  // Salvar digest
+   await supabase.from("conversation_digests").insert({
+     company_id: companyId,
+     period_start: periodStart,
+diff --git a/src/types/modules/intelligence.types.ts b/src/types/modules/intelligence.types.ts
+index d0fbff5..8785441 100644
+--- a/src/types/modules/intelligence.types.ts
++++ b/src/types/modules/intelligence.types.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/types/modules/intelligence.types.ts
+- * Prop├│sito: Tipos compartilhados do modulo Intelligence.
++ * Prop├│sito: Tipos compartilhados do m├│dulo$2 Intelligence.
+  * Autor: AXIOMIX
+  * Data: 2026-03-11
+  */
+diff --git a/src/types/modules/rag.types.ts b/src/types/modules/rag.types.ts
+index d58b395..66c0178 100644
+--- a/src/types/modules/rag.types.ts
++++ b/src/types/modules/rag.types.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/types/modules/rag.types.ts
+- * Prop├│sito: Tipos do modulo RAG (Retrieval-Augmented Generation).
++ * Prop├│sito: Tipos do m├│dulo$2 RAG (Retrieval-Augmented Generation).
+  * Autor: AXIOMIX
+  * Data: 2026-03-14
+  */
+diff --git a/src/types/modules/social-publisher.types.ts b/src/types/modules/social-publisher.types.ts
+index d478963..6998448 100644
+--- a/src/types/modules/social-publisher.types.ts
++++ b/src/types/modules/social-publisher.types.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Arquivo: src/types/modules/social-publisher.types.ts
+- * Prop├│sito: Tipos compartilhados do modulo Social Publisher.
++ * Prop├│sito: Tipos compartilhados do m├│dulo$2 Social Publisher.
+  * Autor: AXIOMIX
+  * Data: 2026-03-11
+  */

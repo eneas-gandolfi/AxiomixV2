@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, FileText, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, FileText, Loader2, X } from "lucide-react";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
 
 export type RecentReportItem = {
@@ -10,6 +10,7 @@ export type RecentReportItem = {
   reportText: string;
   status?: "done" | "failed" | "delivery_failed";
   errorMessage?: string | null;
+  pdfStoragePath?: string | null;
 };
 
 type RecentReportsCardProps = {
@@ -46,8 +47,32 @@ function formatElapsedMinutes(createdAt: string) {
   return `Iniciado há ${minutes} min`;
 }
 
-export function RecentReportsCard({ reports, hasRunningJob, runningJobCreatedAt }: RecentReportsCardProps) {
+export function RecentReportsCard({
+  reports,
+  hasRunningJob,
+  runningJobCreatedAt,
+}: RecentReportsCardProps) {
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function handleDownloadPdf(reportId: string, storagePath: string) {
+    if (downloadingId === reportId) return;
+    setDownloadingId(reportId);
+    try {
+      const res = await fetch(`/api/report/pdf?path=${encodeURIComponent(storagePath)}`);
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        alert(body.error ?? "Falha ao gerar link de download.");
+        return;
+      }
+      const body = (await res.json()) as { url: string };
+      window.open(body.url, "_blank", "noopener,noreferrer");
+    } catch {
+      alert("Não foi possível baixar o PDF. Tente novamente.");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   const selectedReport = useMemo(
     () => reports.find((report) => report.id === selectedReportId) ?? null,
@@ -79,26 +104,31 @@ export function RecentReportsCard({ reports, hasRunningJob, runningJobCreatedAt 
   }, [selectedReport]);
 
   return (
-    <section className="rounded-xl border border-border bg-card p-6">
-      <header className="mb-4 flex items-center gap-2">
-        <FileText className="h-[20px] w-[20px] text-primary" aria-label="Histórico de relatórios" />
-        <h2 className="text-lg font-semibold text-text">Histórico de relatórios</h2>
+    <section className="rounded-[24px] border border-border bg-card p-5 shadow-card-modern">
+      <header className="mb-4 flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-light">
+          <FileText className="h-5 w-5 text-primary" aria-label="Histórico de relatórios" />
+        </span>
+        <div>
+          <p className="section-label">Relatórios</p>
+          <h2 className="mt-1 text-base font-semibold text-text">Histórico de relatórios</h2>
+        </div>
       </header>
 
       {hasRunningJob ? (
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4" aria-busy="true">
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-info/20 bg-info-light p-4" aria-busy="true">
           <LoadingSpinner size="sm" />
           <div>
-            <p className="text-sm font-medium text-blue-900">Relatório em processamento</p>
+            <p className="text-sm font-medium text-text">Relatório em processamento</p>
             {runningJobCreatedAt ? (
-              <p className="text-xs text-blue-700">{formatElapsedMinutes(runningJobCreatedAt)}</p>
+              <p className="text-xs text-muted">{formatElapsedMinutes(runningJobCreatedAt)}</p>
             ) : null}
           </div>
         </div>
       ) : null}
 
       {reports.length === 0 ? (
-        <div className="p-6 text-center">
+        <div className="rounded-2xl bg-surface-subtle p-6 text-center">
           <FileText className="mx-auto h-6 w-6 text-muted-light" aria-label="Sem relatórios" />
           <p className="mt-2 text-sm text-muted">
             Seus relatórios aparecerão aqui após o primeiro envio na próxima segunda-feira.
@@ -111,12 +141,12 @@ export function RecentReportsCard({ reports, hasRunningJob, runningJobCreatedAt 
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-sm font-medium text-text">{formatDateLabel(report.completedAt)}</p>
                 {report.status === "failed" ? (
-                  <span className="inline-flex items-center gap-1 rounded bg-destructive/10 px-2.5 py-1 text-xs text-destructive">
+                  <span className="inline-flex items-center gap-1 rounded bg-danger-light px-2.5 py-1 text-xs text-danger">
                     <AlertCircle className="h-3.5 w-3.5" aria-label="Falhou" />
                     Falhou
                   </span>
                 ) : report.status === "delivery_failed" ? (
-                  <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2.5 py-1 text-xs text-amber-700">
+                  <span className="inline-flex items-center gap-1 rounded bg-warning-light px-2.5 py-1 text-xs text-warning">
                     <AlertCircle className="h-3.5 w-3.5" aria-label="Envio falhou" />
                     Envio falhou
                   </span>
@@ -127,14 +157,31 @@ export function RecentReportsCard({ reports, hasRunningJob, runningJobCreatedAt 
                   </span>
                 )}
               </div>
-              <p className="text-sm text-muted">{truncatePreview(report.reportText, 80)}</p>
-              <button
-                type="button"
-                onClick={() => setSelectedReportId(report.id)}
-                className="mt-2 inline-flex h-10 items-center rounded-lg bg-transparent px-3 text-sm text-muted hover:bg-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              >
-                Ver relatório
-              </button>
+              <p className="text-sm leading-6 text-muted">{truncatePreview(report.reportText, 88)}</p>
+              <div className="mt-2 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedReportId(report.id)}
+                  className="inline-flex h-10 items-center rounded-lg bg-transparent px-3 text-sm text-muted hover:bg-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  Ver relatório
+                </button>
+                {report.pdfStoragePath ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadPdf(report.id, report.pdfStoragePath!)}
+                    disabled={downloadingId === report.id}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-transparent px-3 text-sm text-primary hover:bg-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60"
+                  >
+                    {downloadingId === report.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    {downloadingId === report.id ? "Gerando..." : "Baixar PDF"}
+                  </button>
+                ) : null}
+              </div>
             </article>
           ))}
         </div>
@@ -142,7 +189,7 @@ export function RecentReportsCard({ reports, hasRunningJob, runningJobCreatedAt 
 
       {selectedReport ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
           role="presentation"
           onClick={(event) => {
             if (event.target === event.currentTarget) {
@@ -167,7 +214,7 @@ export function RecentReportsCard({ reports, hasRunningJob, runningJobCreatedAt 
               <button
                 type="button"
                 onClick={() => setSelectedReportId(null)}
-                className="rounded-lg p-1.5 text-muted-light hover:text-text hover:bg-sidebar transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="rounded-lg p-1.5 text-muted-light transition-colors hover:bg-sidebar hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label="Fechar modal do relatório"
               >
                 <X className="h-5 w-5" />

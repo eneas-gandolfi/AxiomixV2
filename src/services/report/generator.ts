@@ -20,7 +20,11 @@ type WeeklyPeriod = {
 type WeeklyMetrics = {
   companyName: string;
   conversationsAnalyzed: number;
+  activeConversations: number;
   salesOpportunities: number;
+  negativeSentiments: number;
+  topPurchaseContacts: string[];
+  digestSummaries: string[];
   postsPublished: number;
   socialPerformanceSummary: string;
   topRadarPosts: Array<{
@@ -102,63 +106,131 @@ function fallbackReportText(period: WeeklyPeriod, metrics: WeeklyMetrics) {
     ? `No radar, destaque para ${bestRadar.platform} com score ${bestRadar.engagementScore}.`
     : "No radar, não houve posts virais relevantes no período.";
 
+  const purchaseNames =
+    metrics.topPurchaseContacts.length > 0
+      ? `Contatos com intenção de compra: ${metrics.topPurchaseContacts.join(", ")}.`
+      : "";
+
+  const negativeLine =
+    metrics.negativeSentiments > 0
+      ? ` ${metrics.negativeSentiments} sentimento(s) negativo(s) detectado(s) — verificar.`
+      : "";
+
   const text = `
-Destaque da semana: ${metrics.companyName} manteve operação ativa com foco em oportunidade comercial e consistência de publicação.
-WhatsApp: ${metrics.conversationsAnalyzed} conversas analisadas e ${metrics.salesOpportunities} oportunidades de venda identificadas.
-Redes sociais: ${metrics.postsPublished} posts publicados. ${metrics.socialPerformanceSummary}
-Concorrentes: ${metrics.competitorSummary}
-Ação recomendada: repetir o formato com melhor tração e reforçar CTA direto para WhatsApp em toda publicação da semana.
+*Resumo da semana*: ${metrics.companyName} manteve operação ativa com foco em oportunidade comercial e consistência de publicação.
+*WhatsApp*: ${metrics.activeConversations} conversas ativas, ${metrics.conversationsAnalyzed} analisadas pela IA, ${metrics.salesOpportunities} oportunidades de venda.${negativeLine}
+${purchaseNames}
+*Redes sociais*: ${metrics.postsPublished} posts publicados. ${metrics.socialPerformanceSummary}
+*Concorrentes*: ${metrics.competitorSummary}
+*Ação recomendada*: repetir o formato com melhor tração e reforçar CTA direto para WhatsApp em toda publicação da semana.
 ${bestRadarLine}
 Período: ${period.weekStartIso} até ${period.weekEndIso}.
 `.trim();
 
-  return clampWords(text, 400);
+  return clampWords(text, 500);
 }
 
 async function collectWeeklyMetrics(companyId: string, period: WeeklyPeriod): Promise<WeeklyMetrics> {
   const supabase = createSupabaseAdminClient();
-  const [{ data: company }, { count: conversationCount }, { count: opportunitiesCount }, { data: publishedPosts }, { data: radarPosts }, { data: competitorInsights }] =
-    await Promise.all([
-      supabase.from("companies").select("name").eq("id", companyId).single(),
-      supabase
-        .from("conversation_insights")
-        .select("id", { count: "exact", head: true })
-        .eq("company_id", companyId)
-        .gte("generated_at", period.weekStartIso)
-        .lte("generated_at", period.weekEndIso),
-      supabase
-        .from("conversation_insights")
-        .select("id", { count: "exact", head: true })
-        .eq("company_id", companyId)
-        .eq("intent", "compra")
-        .gte("generated_at", period.weekStartIso)
-        .lte("generated_at", period.weekEndIso),
-      supabase
-        .from("scheduled_posts")
-        .select("id, progress, post_type")
-        .eq("company_id", companyId)
-        .in("status", ["published", "partial"])
-        .gte("published_at", period.weekStartIso)
-        .lte("published_at", period.weekEndIso),
-      supabase
-        .from("collected_posts")
-        .select("platform, engagement_score, content")
-        .eq("company_id", companyId)
-        .eq("source_type", "radar")
-        .gte("collected_at", period.weekStartIso)
-        .lte("collected_at", period.weekEndIso)
-        .order("engagement_score", { ascending: false })
-        .limit(3),
-      supabase
-        .from("intelligence_insights")
-        .select("content")
-        .eq("company_id", companyId)
-        .eq("source_type", "competitor")
-        .gte("generated_at", period.weekStartIso)
-        .lte("generated_at", period.weekEndIso)
-        .order("generated_at", { ascending: false })
-        .limit(3),
-    ]);
+  const [
+    { data: company },
+    { data: digests },
+    { count: activeConvCount },
+    { data: purchaseInsights },
+    { count: analyzedInsightsCount },
+    { count: negativeInsightsCount },
+    { data: publishedPosts },
+    { data: radarPosts },
+    { data: competitorInsights },
+  ] = await Promise.all([
+    supabase.from("companies").select("name").eq("id", companyId).single(),
+    supabase
+      .from("conversation_digests")
+      .select("conversations_analyzed, purchase_intents, negative_sentiments, summary_text")
+      .eq("company_id", companyId)
+      .gte("period_start", period.weekStartIso)
+      .lte("period_end", period.weekEndIso),
+    supabase
+      .from("conversations")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .gte("last_message_at", period.weekStartIso)
+      .lte("last_message_at", period.weekEndIso),
+    supabase
+      .from("conversation_insights")
+      .select("conversation_id, conversations!inner(contact_name)")
+      .eq("company_id", companyId)
+      .eq("intent", "compra")
+      .gte("generated_at", period.weekStartIso)
+      .lte("generated_at", period.weekEndIso),
+    // Fallback: contar insights individuais gerados no período
+    supabase
+      .from("conversation_insights")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .gte("generated_at", period.weekStartIso)
+      .lte("generated_at", period.weekEndIso),
+    supabase
+      .from("conversation_insights")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("sentiment", "negativo")
+      .gte("generated_at", period.weekStartIso)
+      .lte("generated_at", period.weekEndIso),
+    supabase
+      .from("scheduled_posts")
+      .select("id, progress, post_type")
+      .eq("company_id", companyId)
+      .in("status", ["published", "partial"])
+      .gte("published_at", period.weekStartIso)
+      .lte("published_at", period.weekEndIso),
+    supabase
+      .from("collected_posts")
+      .select("platform, engagement_score, content")
+      .eq("company_id", companyId)
+      .eq("source_type", "radar")
+      .gte("collected_at", period.weekStartIso)
+      .lte("collected_at", period.weekEndIso)
+      .order("engagement_score", { ascending: false })
+      .limit(3),
+    supabase
+      .from("intelligence_insights")
+      .select("content")
+      .eq("company_id", companyId)
+      .eq("source_type", "competitor")
+      .gte("generated_at", period.weekStartIso)
+      .lte("generated_at", period.weekEndIso)
+      .order("generated_at", { ascending: false })
+      .limit(3),
+  ]);
+
+  // Agregar dados dos digests + fallback para insights individuais
+  const digestRows = digests ?? [];
+  const digestAnalyzed = digestRows.reduce((sum, d) => sum + (d.conversations_analyzed ?? 0), 0);
+  const digestSales = digestRows.reduce((sum, d) => sum + (d.purchase_intents ?? 0), 0);
+  const digestNegative = digestRows.reduce((sum, d) => sum + (d.negative_sentiments ?? 0), 0);
+  const digestSummaries = digestRows
+    .map((d) => d.summary_text ?? "")
+    .filter((s) => s.trim().length > 0);
+
+  // Usar o maior entre digests e contagem direta de insights (cobre cenários sem batches)
+  const purchaseRows = purchaseInsights ?? [];
+  const conversationsAnalyzed = Math.max(digestAnalyzed, analyzedInsightsCount ?? 0);
+  const salesOpportunities = Math.max(digestSales, purchaseRows.length);
+  const negativeSentiments = Math.max(digestNegative, negativeInsightsCount ?? 0);
+
+  // Contatos com intenção de compra (nomes únicos)
+  const seenNames = new Set<string>();
+  const topPurchaseContacts: string[] = [];
+  for (const row of purchaseRows) {
+    const conv = row.conversations as unknown as { contact_name: string | null };
+    const name = conv?.contact_name;
+    if (name && !seenNames.has(name)) {
+      seenNames.add(name);
+      topPurchaseContacts.push(name);
+    }
+    if (topPurchaseContacts.length >= 10) break;
+  }
 
   const postsPublished = (publishedPosts ?? []).length;
   const totalOkPlatforms = (publishedPosts ?? []).reduce((total, post) => {
@@ -185,8 +257,12 @@ async function collectWeeklyMetrics(companyId: string, period: WeeklyPeriod): Pr
 
   return {
     companyName: company?.name ?? "Empresa",
-    conversationsAnalyzed: conversationCount ?? 0,
-    salesOpportunities: opportunitiesCount ?? 0,
+    conversationsAnalyzed,
+    activeConversations: activeConvCount ?? 0,
+    salesOpportunities,
+    negativeSentiments,
+    topPurchaseContacts,
+    digestSummaries,
     postsPublished,
     socialPerformanceSummary,
     topRadarPosts,
@@ -214,7 +290,11 @@ export async function generateWeeklyReport(
     weekStartIso: period.weekStartIso,
     weekEndIso: period.weekEndIso,
     conversationsAnalyzed: metrics.conversationsAnalyzed,
+    activeConversations: metrics.activeConversations,
     salesOpportunities: metrics.salesOpportunities,
+    negativeSentiments: metrics.negativeSentiments,
+    topPurchaseContacts: metrics.topPurchaseContacts,
+    digestSummaries: metrics.digestSummaries,
     postsPublished: metrics.postsPublished,
     socialPerformanceSummary: metrics.socialPerformanceSummary,
     topRadarPosts: metrics.topRadarPosts,
@@ -228,7 +308,7 @@ export async function generateWeeklyReport(
       [
         {
           role: "system",
-          content: "Você gera texto puro em português, sem markdown.",
+          content: "Você gera texto em português formatado para WhatsApp. Use *negrito* para destaques. Sem markdown, sem emojis excessivos.",
         },
         {
           role: "user",
@@ -243,7 +323,7 @@ export async function generateWeeklyReport(
 
     return {
       period,
-      reportText: clampWords(aiText, 400),
+      reportText: clampWords(aiText, 500),
       metrics,
     };
   } catch {

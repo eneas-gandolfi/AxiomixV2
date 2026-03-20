@@ -1052,6 +1052,8 @@ export type Database = {
           delivery_status: "sent" | "failed";
           id: string;
           job_id: string | null;
+          pdf_public_url: string | null;
+          pdf_storage_path: string | null;
           report_text: string;
           sent_at: string | null;
           sent_to: string | null;
@@ -1065,6 +1067,8 @@ export type Database = {
           delivery_status?: "sent" | "failed";
           id?: string;
           job_id?: string | null;
+          pdf_public_url?: string | null;
+          pdf_storage_path?: string | null;
           report_text: string;
           sent_at?: string | null;
           sent_to?: string | null;
@@ -1078,6 +1082,8 @@ export type Database = {
           delivery_status?: "sent" | "failed";
           id?: string;
           job_id?: string | null;
+          pdf_public_url?: string | null;
+          pdf_storage_path?: string | null;
           report_text?: string;
           sent_at?: string | null;
           sent_to?: string | null;

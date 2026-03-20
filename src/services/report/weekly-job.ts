@@ -10,7 +10,8 @@ import "server-only";
 import type { Json } from "@/database/types/database.types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { generateWeeklyReport, type WeeklyPeriod } from "@/services/report/generator";
-import { sendWeeklyReport } from "@/services/report/whatsapp-sender";
+import { sendWeeklyReport, sendWeeklyReportPdf } from "@/services/report/whatsapp-sender";
+import { generateWeeklyReportPdf } from "@/services/report/pdf-generator";
 
 type RunWeeklyReportJobInput = {
   companyId: string;
@@ -26,6 +27,8 @@ type RunWeeklyReportJobResult = {
   managerPhone?: string;
   deliveryStatus: "sent" | "failed";
   deliveryError?: string;
+  pdfStoragePath?: string;
+  pdfPublicUrl?: string;
 };
 
 async function upsertWeeklyReportRecord(input: {
@@ -36,6 +39,8 @@ async function upsertWeeklyReportRecord(input: {
   sentTo?: string;
   deliveryStatus: "sent" | "failed";
   deliveryResponse: Json;
+  pdfStoragePath?: string;
+  pdfPublicUrl?: string;
 }) {
   const supabase = createSupabaseAdminClient();
   const weekStartDate = input.period.weekStartIso.slice(0, 10);
@@ -52,6 +57,8 @@ async function upsertWeeklyReportRecord(input: {
       delivery_status: input.deliveryStatus,
       delivery_response: input.deliveryResponse,
       sent_at: new Date().toISOString(),
+      pdf_storage_path: input.pdfStoragePath ?? null,
+      pdf_public_url: input.pdfPublicUrl ?? null,
     },
     {
       onConflict: "company_id,week_start,week_end",
@@ -59,13 +66,88 @@ async function upsertWeeklyReportRecord(input: {
   );
 }
 
+const STORAGE_BUCKET = "reports";
+
+async function uploadPdfToStorage(
+  companyId: string,
+  pdfBuffer: Buffer,
+  fileName: string
+): Promise<{ storagePath: string; publicUrl: string }> {
+  const supabase = createSupabaseAdminClient();
+  const storagePath = `${companyId}/${fileName}`;
+
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(storagePath, pdfBuffer, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`Falha no upload do PDF: ${error.message}`);
+  }
+
+  const { data: urlData } = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(storagePath);
+
+  return {
+    storagePath: `${STORAGE_BUCKET}/${storagePath}`,
+    publicUrl: urlData.publicUrl,
+  };
+}
+
 export async function runWeeklyReportJob(
   input: RunWeeklyReportJobInput
 ): Promise<RunWeeklyReportJobResult> {
   const generated = await generateWeeklyReport(input.companyId, input.period);
 
+  const weekStart = generated.period.weekStartIso.slice(0, 10);
+  const weekEnd = generated.period.weekEndIso.slice(0, 10);
+  const pdfFileName = `weekly-${weekStart}-${weekEnd}.pdf`;
+
+  // PDF generation & upload — best-effort (não bloqueia o envio do texto)
+  let pdfStoragePath: string | undefined;
+  let pdfPublicUrl: string | undefined;
+  let pdfBuffer: Buffer | undefined;
+
   try {
+    pdfBuffer = await generateWeeklyReportPdf(
+      generated.metrics,
+      generated.period,
+      generated.reportText
+    );
+
+    const uploaded = await uploadPdfToStorage(
+      input.companyId,
+      pdfBuffer,
+      pdfFileName
+    );
+    pdfStoragePath = uploaded.storagePath;
+    pdfPublicUrl = uploaded.publicUrl;
+  } catch (pdfError) {
+    console.error(
+      "[WeeklyJob] Falha na geração/upload do PDF (best-effort):",
+      pdfError instanceof Error ? pdfError.message : pdfError
+    );
+  }
+
+  try {
+    // Enviar texto pelo WhatsApp
     const delivery = await sendWeeklyReport(input.companyId, generated.reportText);
+
+    // Enviar PDF como documento pelo WhatsApp — best-effort
+    if (pdfBuffer) {
+      try {
+        await sendWeeklyReportPdf(input.companyId, pdfBuffer, pdfFileName);
+      } catch (pdfSendError) {
+        console.error(
+          "[WeeklyJob] Falha no envio do PDF via WhatsApp (best-effort):",
+          pdfSendError instanceof Error ? pdfSendError.message : pdfSendError
+        );
+      }
+    }
+
     await upsertWeeklyReportRecord({
       companyId: input.companyId,
       jobId: input.jobId,
@@ -77,6 +159,8 @@ export async function runWeeklyReportJob(
         providerStatus: delivery.providerStatus,
         providerBody: delivery.providerBody,
       },
+      pdfStoragePath,
+      pdfPublicUrl,
     });
 
     return {
@@ -86,6 +170,8 @@ export async function runWeeklyReportJob(
       reportText: generated.reportText,
       managerPhone: delivery.managerPhone,
       deliveryStatus: "sent",
+      pdfStoragePath,
+      pdfPublicUrl,
     };
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Falha de envio.";
@@ -98,6 +184,8 @@ export async function runWeeklyReportJob(
       deliveryResponse: {
         error: detail,
       },
+      pdfStoragePath,
+      pdfPublicUrl,
     });
 
     return {
@@ -107,6 +195,8 @@ export async function runWeeklyReportJob(
       reportText: generated.reportText,
       deliveryStatus: "failed",
       deliveryError: detail,
+      pdfStoragePath,
+      pdfPublicUrl,
     };
   }
 }
