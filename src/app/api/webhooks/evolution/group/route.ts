@@ -105,16 +105,70 @@ export async function POST(request: NextRequest) {
 
     const supabase = createSupabaseAdminClient();
 
-    const { data: config } = await supabase
+    // Busca config existente para este grupo (ativo ou inativo)
+    let { data: config } = await supabase
       .from("group_agent_configs")
       .select("id, company_id, trigger_keywords, is_active, group_name")
       .eq("group_jid", remoteJid)
-      .eq("is_active", true)
       .limit(1)
       .maybeSingle();
 
+    // Auto-registrar grupo se não existe config
     if (!config) {
-      return NextResponse.json({ ok: true, skipped: "no_config" });
+      const { data: integration } = await supabase
+        .from("integrations")
+        .select("company_id")
+        .eq("type", "evolution_api")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (!integration?.company_id) {
+        return NextResponse.json({ ok: true, skipped: "no_company" });
+      }
+
+      const companyId: string = integration.company_id;
+      const groupName = senderName ? `Grupo ${remoteJid.split("@")[0].slice(-6)}` : null;
+
+      const { data: newConfig } = await supabase
+        .from("group_agent_configs")
+        .upsert(
+          {
+            company_id: companyId,
+            group_jid: remoteJid,
+            group_name: groupName,
+            is_active: false,
+          },
+          { onConflict: "company_id,group_jid" }
+        )
+        .select("id, company_id, trigger_keywords, is_active, group_name")
+        .maybeSingle();
+
+      if (!newConfig) {
+        return NextResponse.json({ ok: true, skipped: "auto_register_failed" });
+      }
+
+      config = newConfig;
+    }
+
+    // Se grupo está inativo, salva mensagem mas não processa trigger
+    if (!config.is_active) {
+      await supabase.from("group_messages").upsert(
+        {
+          company_id: config.company_id,
+          config_id: config.id,
+          group_jid: remoteJid,
+          sender_jid: senderJid,
+          sender_name: senderName,
+          message_id: messageId,
+          content,
+          message_type: messageType,
+          is_trigger: false,
+          sent_at: sentAt,
+        },
+        { onConflict: "company_id,message_id", ignoreDuplicates: true }
+      );
+      return NextResponse.json({ ok: true, registered: true, active: false });
     }
 
     const isTrigger = content ? detectTrigger(content, config.trigger_keywords) : false;
