@@ -12,7 +12,7 @@
     },
     {
       "path": "/api/cron/group-rag-batch",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
