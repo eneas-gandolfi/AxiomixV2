@@ -674,7 +674,9 @@ export type Database = {
             | "weekly_report"
             | "whatsapp_analyze"
             | "rag_process"
-            | "daily_report";
+            | "daily_report"
+            | "group_agent_respond"
+            | "group_rag_batch";
           max_attempts: number | null;
           payload: Json | null;
           result: Json | null;
@@ -696,7 +698,9 @@ export type Database = {
             | "weekly_report"
             | "whatsapp_analyze"
             | "rag_process"
-            | "daily_report";
+            | "daily_report"
+            | "group_agent_respond"
+            | "group_rag_batch";
           max_attempts?: number | null;
           payload?: Json | null;
           result?: Json | null;
@@ -718,7 +722,9 @@ export type Database = {
             | "weekly_report"
             | "whatsapp_analyze"
             | "rag_process"
-            | "daily_report";
+            | "daily_report"
+            | "group_agent_respond"
+            | "group_rag_batch";
           max_attempts?: number | null;
           payload?: Json | null;
           result?: Json | null;
@@ -1349,6 +1355,203 @@ export type Database = {
             columns: ["company_id"];
             isOneToOne: false;
             referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      group_agent_configs: {
+        Row: {
+          id: string;
+          company_id: string;
+          group_jid: string;
+          group_name: string | null;
+          is_active: boolean;
+          trigger_keywords: string[];
+          agent_name: string;
+          agent_tone: "profissional" | "casual" | "tecnico";
+          feed_to_rag: boolean;
+          rag_min_message_length: number;
+          rag_batch_interval_minutes: number;
+          max_responses_per_hour: number;
+          cooldown_seconds: number;
+          evolution_instance_name: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          group_jid: string;
+          group_name?: string | null;
+          is_active?: boolean;
+          trigger_keywords?: string[];
+          agent_name?: string;
+          agent_tone?: "profissional" | "casual" | "tecnico";
+          feed_to_rag?: boolean;
+          rag_min_message_length?: number;
+          rag_batch_interval_minutes?: number;
+          max_responses_per_hour?: number;
+          cooldown_seconds?: number;
+          evolution_instance_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          group_jid?: string;
+          group_name?: string | null;
+          is_active?: boolean;
+          trigger_keywords?: string[];
+          agent_name?: string;
+          agent_tone?: "profissional" | "casual" | "tecnico";
+          feed_to_rag?: boolean;
+          rag_min_message_length?: number;
+          rag_batch_interval_minutes?: number;
+          max_responses_per_hour?: number;
+          cooldown_seconds?: number;
+          evolution_instance_name?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "group_agent_configs_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      group_messages: {
+        Row: {
+          id: string;
+          company_id: string;
+          config_id: string;
+          group_jid: string;
+          sender_jid: string;
+          sender_name: string | null;
+          message_id: string;
+          content: string | null;
+          message_type: string | null;
+          is_trigger: boolean;
+          agent_responded: boolean;
+          rag_processed: boolean;
+          sent_at: string;
+          received_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          config_id: string;
+          group_jid: string;
+          sender_jid: string;
+          sender_name?: string | null;
+          message_id: string;
+          content?: string | null;
+          message_type?: string | null;
+          is_trigger?: boolean;
+          agent_responded?: boolean;
+          rag_processed?: boolean;
+          sent_at: string;
+          received_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          config_id?: string;
+          group_jid?: string;
+          sender_jid?: string;
+          sender_name?: string | null;
+          message_id?: string;
+          content?: string | null;
+          message_type?: string | null;
+          is_trigger?: boolean;
+          agent_responded?: boolean;
+          rag_processed?: boolean;
+          sent_at?: string;
+          received_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "group_messages_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "group_messages_config_id_fkey";
+            columns: ["config_id"];
+            isOneToOne: false;
+            referencedRelation: "group_agent_configs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      group_agent_responses: {
+        Row: {
+          id: string;
+          company_id: string;
+          config_id: string;
+          trigger_message_id: string | null;
+          group_jid: string;
+          response_text: string;
+          response_type: "reply" | "summary" | "rag_query" | "sales_data" | "report" | "error";
+          rag_sources_used: number | null;
+          model_used: string | null;
+          processing_time_ms: number | null;
+          evolution_status: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          config_id: string;
+          trigger_message_id?: string | null;
+          group_jid: string;
+          response_text: string;
+          response_type?: "reply" | "summary" | "rag_query" | "sales_data" | "report" | "error";
+          rag_sources_used?: number | null;
+          model_used?: string | null;
+          processing_time_ms?: number | null;
+          evolution_status?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          config_id?: string;
+          trigger_message_id?: string | null;
+          group_jid?: string;
+          response_text?: string;
+          response_type?: "reply" | "summary" | "rag_query" | "sales_data" | "report" | "error";
+          rag_sources_used?: number | null;
+          model_used?: string | null;
+          processing_time_ms?: number | null;
+          evolution_status?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "group_agent_responses_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "group_agent_responses_config_id_fkey";
+            columns: ["config_id"];
+            isOneToOne: false;
+            referencedRelation: "group_agent_configs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "group_agent_responses_trigger_message_id_fkey";
+            columns: ["trigger_message_id"];
+            isOneToOne: false;
+            referencedRelation: "group_messages";
             referencedColumns: ["id"];
           },
         ];

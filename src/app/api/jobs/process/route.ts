@@ -21,6 +21,8 @@ const allowedJobTypes = [
   "weekly_report",
   "competitor_scrape",
   "radar_collect",
+  "group_agent_respond",
+  "group_rag_batch",
 ] as const;
 
 const processSchema = z.object({

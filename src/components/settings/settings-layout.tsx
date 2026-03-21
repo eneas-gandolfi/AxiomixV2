@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
+  Bot,
   Building2,
   FileText,
   Plug,
@@ -33,8 +34,9 @@ import {
   type RecentReportItem,
 } from "@/components/dashboard/recent-reports-card";
 import { AlertsSettings } from "@/components/settings/alerts-settings";
+import { GroupAgentSettings } from "@/components/settings/group-agent-settings";
 
-type TabKey = "overview" | "company" | "integrations" | "social" | "reports" | "alerts";
+type TabKey = "overview" | "company" | "integrations" | "social" | "reports" | "alerts" | "group-agent";
 
 type SettingsStats = {
   companyConfigured: boolean;
@@ -82,6 +84,12 @@ const TABS = [
     icon: Bell,
     description: "Alertas em tempo real via WhatsApp",
   },
+  {
+    key: "group-agent" as const,
+    label: "Agente de Grupo",
+    icon: Bot,
+    description: "IA para grupos WhatsApp",
+  },
 ];
 
 type ReportData = {
@@ -103,7 +111,7 @@ type SettingsLayoutProps = {
   initialTab?: TabKey;
 };
 
-const VALID_TABS: TabKey[] = ["overview", "company", "integrations", "social", "reports", "alerts"];
+const VALID_TABS: TabKey[] = ["overview", "company", "integrations", "social", "reports", "alerts", "group-agent"];
 
 export function SettingsLayout({ initialStats, reportData, initialTab }: SettingsLayoutProps) {
   const [activeTab, setActiveTab] = useState<TabKey>(
@@ -214,6 +222,7 @@ export function SettingsLayout({ initialStats, reportData, initialTab }: Setting
           {activeTab === "social" && <SocialTab />}
           {activeTab === "reports" && reportData && <ReportsTab data={reportData} />}
           {activeTab === "alerts" && <AlertsTab />}
+          {activeTab === "group-agent" && <GroupAgentTab />}
         </div>
       </div>
     </div>
@@ -472,6 +481,14 @@ function AlertsTab() {
   return (
     <div className="space-y-6">
       <AlertsSettings />
+    </div>
+  );
+}
+
+function GroupAgentTab() {
+  return (
+    <div className="space-y-6">
+      <GroupAgentSettings />
     </div>
   );
 }

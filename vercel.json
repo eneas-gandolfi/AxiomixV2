@@ -9,6 +9,10 @@
     {
       "path": "/api/report/daily",
       "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/group-rag-batch",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

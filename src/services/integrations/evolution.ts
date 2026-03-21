@@ -694,6 +694,50 @@ export function resolvePreferredEvolutionInstance(vendors?: EvolutionVendor[]): 
   return validVendors[0]?.instanceName.trim() ?? null;
 }
 
+export type EvolutionGroup = {
+  id: string;
+  subject: string;
+  size: number;
+};
+
+export async function fetchEvolutionGroups(input: {
+  credentials: EvolutionCredentials;
+  instanceName: string;
+}): Promise<EvolutionGroup[]> {
+  const result = await callEvolution(input.credentials, {
+    source: "fetch_all_groups",
+    method: "GET",
+    url: `${input.credentials.baseUrl}/group/fetchAllGroups/${encodeURIComponent(input.instanceName)}?getParticipants=false`,
+  });
+
+  if (!result.ok) {
+    throw new EvolutionApiRequestError(
+      `Falha ao listar grupos na Evolution API: HTTP ${result.status}`,
+      result.status,
+      result.source
+    );
+  }
+
+  const payload = result.payload;
+  const groups: EvolutionGroup[] = [];
+
+  const items = Array.isArray(payload) ? payload : [];
+
+  for (const item of items) {
+    if (!isRecord(item)) continue;
+
+    const id = typeof item.id === "string" ? item.id : null;
+    const subject = typeof item.subject === "string" ? item.subject : null;
+    const size = typeof item.size === "number" ? item.size : 0;
+
+    if (id && subject) {
+      groups.push({ id, subject, size });
+    }
+  }
+
+  return groups;
+}
+
 export function mergeVendorStatuses(input: {
   vendors: EvolutionVendor[];
   statuses: EvolutionInstanceStatus[];
