@@ -22,8 +22,8 @@ type IdleState = "active" | "warning" | "expired";
 export function useIdleTimeout() {
   const [state, setState] = useState<IdleState>("active");
   const [countdown, setCountdown] = useState(IDLE_COUNTDOWN_SECONDS);
-  const [remainingMinutes, setRemainingMinutes] = useState(
-    Math.ceil(IDLE_WARNING_MS / 60_000)
+  const [remainingSeconds, setRemainingSeconds] = useState(
+    Math.ceil(IDLE_WARNING_MS / 1_000)
   );
   const router = useRouter();
 
@@ -96,7 +96,7 @@ export function useIdleTimeout() {
     clearAllTimers();
     setState("active");
     setCountdown(IDLE_COUNTDOWN_SECONDS);
-    setRemainingMinutes(Math.ceil(IDLE_WARNING_MS / 60_000));
+    setRemainingSeconds(Math.ceil(IDLE_WARNING_MS / 1_000));
     lastActivityRef.current = Date.now();
     startWarningTimer();
   }, [clearAllTimers, startWarningTimer]);
@@ -131,18 +131,18 @@ export function useIdleTimeout() {
     };
   }, [startWarningCountdown]);
 
-  // Remaining-minutes interval — updates every 60s while active
+  // Remaining-seconds interval — updates every 1s while active
   useEffect(() => {
     if (state !== "active") {
-      if (state === "warning") setRemainingMinutes(0);
+      if (state === "warning") setRemainingSeconds(0);
       return;
     }
 
     remainingIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - lastActivityRef.current;
-      const msLeft = Math.max(IDLE_WARNING_MS - elapsed, 0);
-      setRemainingMinutes(Math.ceil(msLeft / 60_000));
-    }, 60_000);
+      const sLeft = Math.max(Math.ceil((IDLE_WARNING_MS - elapsed) / 1_000), 0);
+      setRemainingSeconds(sLeft);
+    }, 1_000);
 
     return () => {
       if (remainingIntervalRef.current) {
@@ -161,5 +161,5 @@ export function useIdleTimeout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { state, countdown, remainingMinutes, resetTimer, logout };
+  return { state, countdown, remainingSeconds, resetTimer, logout };
 }

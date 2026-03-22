@@ -17,29 +17,20 @@ function formatCountdown(seconds: number): string {
 }
 
 export function TopbarSessionTimer() {
-  const { state, countdown, remainingMinutes } = useIdleTimeoutContext();
+  const { state, countdown, remainingSeconds } = useIdleTimeoutContext();
 
   if (state === "expired") return null;
 
-  if (state === "warning") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded bg-[var(--color-hover)] px-1.5 py-0.5 font-mono text-xs text-[var(--color-danger)] animate-pulse"
-        title="Tempo restante da sessão"
-      >
-        <Timer size={12} aria-hidden="true" />
-        {formatCountdown(countdown)}
-      </span>
-    );
-  }
+  // During warning state, show the modal countdown
+  const seconds = state === "warning" ? countdown : remainingSeconds;
 
-  // state === "active"
   let textColor = "text-[var(--color-muted)]";
   let extraClass = "";
-  if (remainingMinutes <= 2) {
+
+  if (state === "warning" || seconds <= 120) {
     textColor = "text-[var(--color-danger)]";
     extraClass = " animate-pulse";
-  } else if (remainingMinutes <= 5) {
+  } else if (seconds <= 300) {
     textColor = "text-[var(--color-warning)]";
   }
 
@@ -49,7 +40,7 @@ export function TopbarSessionTimer() {
       title="Tempo restante da sessão"
     >
       <Timer size={12} aria-hidden="true" />
-      {remainingMinutes} min
+      {formatCountdown(seconds)}
     </span>
   );
 }
