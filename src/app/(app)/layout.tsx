@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { AntProvider } from "@/components/providers/AntProvider";
 import { AppShell } from "@/components/layout/app-shell";
+import { IdleTimeoutProvider } from "@/components/layout/idle-timeout-provider";
 import { IdleTimeoutModal } from "@/components/layout/idle-timeout-modal";
 
 export default function AuthenticatedLayout({
@@ -12,8 +13,10 @@ export default function AuthenticatedLayout({
   return (
     <ThemeProvider>
       <AntProvider>
-        <AppShell>{children}</AppShell>
-        <IdleTimeoutModal />
+        <IdleTimeoutProvider>
+          <AppShell>{children}</AppShell>
+          <IdleTimeoutModal />
+        </IdleTimeoutProvider>
       </AntProvider>
     </ThemeProvider>
   );

@@ -12,6 +12,7 @@ import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TopbarBreadcrumb } from "@/components/layout/topbar-breadcrumb";
 import { TopbarClock } from "@/components/layout/topbar-clock";
+import { TopbarSessionTimer } from "@/components/layout/topbar-session-timer";
 import { TopbarNotifications } from "@/components/layout/topbar-notifications";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -66,6 +67,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
           </button>
           <TopbarBreadcrumb />
           <TopbarClock />
+          <TopbarSessionTimer />
         </div>
 
         <div className="flex items-center gap-2">

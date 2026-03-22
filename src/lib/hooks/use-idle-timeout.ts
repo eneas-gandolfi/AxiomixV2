@@ -22,11 +22,15 @@ type IdleState = "active" | "warning" | "expired";
 export function useIdleTimeout() {
   const [state, setState] = useState<IdleState>("active");
   const [countdown, setCountdown] = useState(IDLE_COUNTDOWN_SECONDS);
+  const [remainingMinutes, setRemainingMinutes] = useState(
+    Math.ceil(IDLE_WARNING_MS / 60_000)
+  );
   const router = useRouter();
 
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const remainingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActivityRef = useRef(Date.now());
   const stateRef = useRef<IdleState>("active");
 
@@ -47,6 +51,10 @@ export function useIdleTimeout() {
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
+    }
+    if (remainingIntervalRef.current) {
+      clearInterval(remainingIntervalRef.current);
+      remainingIntervalRef.current = null;
     }
   }, []);
 
@@ -88,6 +96,7 @@ export function useIdleTimeout() {
     clearAllTimers();
     setState("active");
     setCountdown(IDLE_COUNTDOWN_SECONDS);
+    setRemainingMinutes(Math.ceil(IDLE_WARNING_MS / 60_000));
     lastActivityRef.current = Date.now();
     startWarningTimer();
   }, [clearAllTimers, startWarningTimer]);
@@ -122,6 +131,27 @@ export function useIdleTimeout() {
     };
   }, [startWarningCountdown]);
 
+  // Remaining-minutes interval — updates every 60s while active
+  useEffect(() => {
+    if (state !== "active") {
+      if (state === "warning") setRemainingMinutes(0);
+      return;
+    }
+
+    remainingIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - lastActivityRef.current;
+      const msLeft = Math.max(IDLE_WARNING_MS - elapsed, 0);
+      setRemainingMinutes(Math.ceil(msLeft / 60_000));
+    }, 60_000);
+
+    return () => {
+      if (remainingIntervalRef.current) {
+        clearInterval(remainingIntervalRef.current);
+        remainingIntervalRef.current = null;
+      }
+    };
+  }, [state]);
+
   // Start the initial timer on mount
   useEffect(() => {
     startWarningTimer();
@@ -131,5 +161,5 @@ export function useIdleTimeout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { state, countdown, resetTimer, logout };
+  return { state, countdown, remainingMinutes, resetTimer, logout };
 }

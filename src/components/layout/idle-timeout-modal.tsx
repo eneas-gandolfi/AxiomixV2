@@ -9,7 +9,7 @@
 
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useIdleTimeout } from "@/lib/hooks/use-idle-timeout";
+import { useIdleTimeoutContext } from "@/components/layout/idle-timeout-provider";
 
 function formatCountdown(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -18,7 +18,7 @@ function formatCountdown(seconds: number): string {
 }
 
 export function IdleTimeoutModal() {
-  const { state, countdown, resetTimer, logout } = useIdleTimeout();
+  const { state, countdown, resetTimer, logout } = useIdleTimeoutContext();
 
   if (state !== "warning") return null;
 
