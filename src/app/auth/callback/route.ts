@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "@/lib/auth/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,15 @@ export async function GET(request: NextRequest) {
   if (error) {
     return NextResponse.redirect(new URL("/login", requestUrl.origin));
   }
+
+  const isSecure = requestUrl.protocol === "https:";
+  response.cookies.set(REMEMBER_ME_COOKIE, "1", {
+    path: "/",
+    httpOnly: false,
+    sameSite: "lax" as const,
+    secure: isSecure,
+    maxAge: REMEMBER_ME_MAX_AGE,
+  });
 
   return response;
 }

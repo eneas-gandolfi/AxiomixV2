@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { type ChangeEvent, type FormEvent, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -59,11 +59,15 @@ function getAuthBaseUrl() {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [fields, setFields] = useState<LoginFields>({ email: "", password: "" });
   const [errors, setErrors] = useState<LoginErrors>({});
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [isMagicLinkLoading, setIsMagicLinkLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  const idleReason = searchParams.get("reason") === "idle";
 
   const handleFieldChange =
     (field: keyof LoginFields) => (event: ChangeEvent<HTMLInputElement>) => {
@@ -93,14 +97,25 @@ export default function LoginPage() {
     }
 
     setIsPasswordLoading(true);
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithPassword(parsed.data);
-    setIsPasswordLoading(false);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...parsed.data, rememberMe }),
+      });
+      const data = await res.json();
 
-    if (error) {
-      setErrors({ form: error.message });
+      if (data.error) {
+        setErrors({ form: data.error });
+        setIsPasswordLoading(false);
+        return;
+      }
+    } catch {
+      setErrors({ form: "Erro de conexão. Tente novamente." });
+      setIsPasswordLoading(false);
       return;
     }
+    setIsPasswordLoading(false);
 
     router.push(getSafeNextPath());
     router.refresh();
@@ -148,6 +163,11 @@ export default function LoginPage() {
             Acesso restrito a usuários previamente cadastrados no Supabase.
           </CardDescription>
         </CardHeader>
+        {idleReason ? (
+          <div className="mx-6 -mt-2 mb-2 rounded-md border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5 px-3 py-2 text-sm text-[var(--color-warning)]">
+            Sua sessão foi encerrada por inatividade.
+          </div>
+        ) : null}
         <CardContent>
           <form className="space-y-4" onSubmit={handlePasswordLogin}>
             <div className="space-y-1">
@@ -181,6 +201,16 @@ export default function LoginPage() {
               />
               {errors.password ? <p className="text-xs text-danger">{errors.password}</p> : null}
             </div>
+
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-[var(--color-primary)]"
+              />
+              <span className="text-sm text-[var(--color-text-secondary)]">Lembrar-me</span>
+            </label>
 
             {errors.form ? <p className="text-sm text-danger">{errors.form}</p> : null}
             {feedback ? <p className="text-sm text-success">{feedback}</p> : null}

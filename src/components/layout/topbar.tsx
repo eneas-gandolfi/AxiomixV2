@@ -15,6 +15,7 @@ import { TopbarClock } from "@/components/layout/topbar-clock";
 import { TopbarNotifications } from "@/components/layout/topbar-notifications";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { REMEMBER_ME_COOKIE } from "@/lib/auth/constants";
 
 type TopbarProps = {
   onMobileMenuOpen: () => void;
@@ -46,6 +47,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    document.cookie = `${REMEMBER_ME_COOKIE}=; path=/; max-age=0`;
     const supabase = createSupabaseBrowserClient();
     await supabase.auth.signOut();
     window.location.href = "/login";
