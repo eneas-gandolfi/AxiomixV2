@@ -8,12 +8,14 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { recoverAllStaleJobs, markAllStaleJobsFailed, enqueueJob } from "@/lib/jobs/queue";
 import { processJobs } from "@/lib/jobs/processor";
+import { enqueueAutoAnalyses } from "@/services/whatsapp/auto-analyze";
 
 const MIN_SYNC_INTERVAL_MINUTES = 15;
 
 type HeartbeatResult = {
   recovered: number;
   staleMarkedFailed: number;
+  autoAnalyses: { companies: number; totalEnqueued: number; errors: number };
   processed: number;
   synced: { enqueued: number; skippedRecent: number };
 };
@@ -25,18 +27,69 @@ export async function runHeartbeat(): Promise<HeartbeatResult> {
   // 2. Marcar como failed jobs que passaram do limite (pending >10min, running >30min)
   const staleMarkedFailed = await markAllStaleJobsFailed();
 
-  // 3. Processar até 5 jobs pendentes da fila
+  // 3. Enfileirar análises automáticas para todas as empresas ativas
+  const autoAnalyses = await enqueueAutoAnalysesForAllCompanies();
+
+  // 4. Processar até 5 jobs pendentes da fila (inclui análises recém-enfileiradas)
   const processingResult = await processJobs({ maxJobs: 5 });
 
-  // 4. Enfileirar syncs pendentes para empresas ativas com Sofia CRM
+  // 5. Enfileirar syncs pendentes para empresas ativas com Sofia CRM
   const synced = await enqueuePendingSyncs();
 
   return {
     recovered,
     staleMarkedFailed,
+    autoAnalyses,
     processed: processingResult.processed,
     synced,
   };
+}
+
+async function enqueueAutoAnalysesForAllCompanies(): Promise<{
+  companies: number;
+  totalEnqueued: number;
+  errors: number;
+}> {
+  const supabase = createSupabaseAdminClient();
+
+  const { data: integrations, error: integrationsError } = await supabase
+    .from("integrations")
+    .select("company_id")
+    .eq("type", "sofia_crm")
+    .eq("is_active", true)
+    .eq("test_status", "ok")
+    .not("company_id", "is", null);
+
+  if (integrationsError) {
+    throw new Error(`Falha ao buscar integrações para auto-análise: ${integrationsError.message}`);
+  }
+
+  const companyIds = Array.from(
+    new Set(
+      (integrations ?? [])
+        .map((i) => i.company_id)
+        .filter((id): id is string => typeof id === "string")
+    )
+  );
+
+  if (companyIds.length === 0) {
+    return { companies: 0, totalEnqueued: 0, errors: 0 };
+  }
+
+  let totalEnqueued = 0;
+  let errors = 0;
+
+  for (const companyId of companyIds) {
+    try {
+      const result = await enqueueAutoAnalyses(companyId);
+      totalEnqueued += result.enqueuedAnalyses;
+    } catch (error) {
+      errors += 1;
+      console.error(`Falha ao enfileirar auto-análises para company ${companyId}:`, error);
+    }
+  }
+
+  return { companies: companyIds.length, totalEnqueued, errors };
 }
 
 async function enqueuePendingSyncs(): Promise<{ enqueued: number; skippedRecent: number }> {

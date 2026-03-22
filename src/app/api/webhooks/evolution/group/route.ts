@@ -8,9 +8,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { enqueueJob } from "@/lib/jobs/queue";
+import { processGroupAgentResponse } from "@/services/group-agent/responder";
+import {
+  resolveEvolutionCredentials,
+  fetchEvolutionGroups,
+  resolvePreferredEvolutionInstance,
+} from "@/services/integrations/evolution";
+import { decodeIntegrationConfig } from "@/lib/integrations/service";
 
 export const dynamic = "force-dynamic";
+
+const LOG_PREFIX = "[webhook/group]";
 
 const webhookPayloadSchema = z.object({
   event: z.string(),
@@ -66,33 +74,205 @@ function resolveTimestamp(raw: number | string | undefined): string {
   return new Date(ts * 1000).toISOString();
 }
 
-export async function POST(request: NextRequest) {
+/**
+ * Normaliza o payload da Evolution API v2 para o formato esperado.
+ * - Se `data` for array, usa `data[0]`
+ * - Se `instance` for objeto com `instanceName`, extrai como string
+ */
+function normalizeEvolutionPayload(raw: Record<string, unknown>): Record<string, unknown> {
+  const normalized = { ...raw };
+
+  // Evolution API v2 pode enviar `data` como array
+  if (Array.isArray(normalized.data)) {
+    console.log(LOG_PREFIX, "data is array, using data[0]");
+    normalized.data = normalized.data[0] ?? {};
+  }
+
+  // Evolution API v2 pode enviar `instance` como objeto { instanceName: "..." }
+  if (
+    normalized.instance &&
+    typeof normalized.instance === "object" &&
+    !Array.isArray(normalized.instance) &&
+    "instanceName" in (normalized.instance as Record<string, unknown>)
+  ) {
+    const instanceObj = normalized.instance as Record<string, unknown>;
+    console.log(LOG_PREFIX, "instance is object, extracting instanceName:", instanceObj.instanceName);
+    normalized.instance = instanceObj.instanceName as string;
+  }
+
+  return normalized;
+}
+
+/**
+ * Tenta buscar o nome real do grupo via Evolution API.
+ * Retorna null se falhar (best-effort).
+ */
+async function fetchGroupNameFromApi(
+  groupJid: string,
+  companyId: string,
+  supabase: ReturnType<typeof createSupabaseAdminClient>
+): Promise<string | null> {
   try {
+    const { data: integration } = await supabase
+      .from("integrations")
+      .select("config")
+      .eq("company_id", companyId)
+      .eq("type", "evolution_api")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!integration?.config) return null;
+
+    const decoded = decodeIntegrationConfig("evolution_api", integration.config);
+    const credentials = resolveEvolutionCredentials({
+      baseUrl: decoded.baseUrl,
+      apiKey: decoded.apiKey,
+    });
+
+    const instanceName =
+      resolvePreferredEvolutionInstance(decoded.vendors) ??
+      process.env.EVOLUTION_INSTANCE_NAME?.trim() ??
+      "axiomix-default";
+
+    const groups = await fetchEvolutionGroups({ credentials, instanceName });
+    const match = groups.find((g) => g.id === groupJid);
+
+    if (match) {
+      console.log(LOG_PREFIX, "Nome real do grupo obtido via API:", match.subject);
+      return match.subject;
+    }
+  } catch (err) {
+    console.warn(LOG_PREFIX, "Falha ao buscar nome do grupo via API (best-effort):", err instanceof Error ? err.message : err);
+  }
+  return null;
+}
+
+/**
+ * Trata evento groups.upsert — atualiza o nome do grupo no banco.
+ */
+async function handleGroupsUpsert(
+  rawData: unknown,
+  supabase: ReturnType<typeof createSupabaseAdminClient>
+): Promise<NextResponse> {
+  const items = Array.isArray(rawData) ? rawData : [rawData];
+
+  let updated = 0;
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    const id = typeof rec.id === "string" ? rec.id : null;
+    const subject = typeof rec.subject === "string" ? rec.subject : null;
+
+    if (!id || !subject || !id.endsWith("@g.us")) continue;
+
+    const { error } = await supabase
+      .from("group_agent_configs")
+      .update({ group_name: subject })
+      .eq("group_jid", id);
+
+    if (!error) {
+      updated++;
+      console.log(LOG_PREFIX, "group_name atualizado via GROUPS_UPSERT", { jid: id, subject });
+    }
+  }
+
+  return NextResponse.json({ ok: true, groups_updated: updated });
+}
+
+export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+
+  try {
+    const url = request.nextUrl.toString();
     const token = request.nextUrl.searchParams.get("token");
+    const cidParam = request.nextUrl.searchParams.get("cid");
+
+    console.log(LOG_PREFIX, "POST recebido", {
+      url: url.replace(/token=[^&]+/, "token=***"),
+      cid: cidParam ?? "(none)",
+      timestamp: new Date().toISOString(),
+    });
+
+    // --- Token validation ---
     const expectedToken = process.env.EVOLUTION_WEBHOOK_API_KEY?.trim();
 
-    if (!expectedToken || token !== expectedToken) {
+    if (!expectedToken) {
+      console.warn(LOG_PREFIX, "EVOLUTION_WEBHOOK_API_KEY não definido no servidor!");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rawBody: unknown = await request.json().catch(() => null);
+    if (token !== expectedToken) {
+      console.warn(LOG_PREFIX, "Token mismatch", {
+        received: token ? `${token.slice(0, 6)}...` : "(empty)",
+        expected: `${expectedToken.slice(0, 6)}...`,
+      });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // --- Parse body ---
+    const rawBody: unknown = await request.json().catch((err) => {
+      console.error(LOG_PREFIX, "Falha ao parsear JSON body:", err);
+      return null;
+    });
+
     if (!rawBody) {
+      console.warn(LOG_PREFIX, "Body vazio ou JSON inválido");
       return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
     }
 
-    const parsed = webhookPayloadSchema.safeParse(rawBody);
+    // Log top-level keys and event
+    const topKeys = typeof rawBody === "object" && rawBody !== null ? Object.keys(rawBody) : [];
+    const rawEvent = typeof rawBody === "object" && rawBody !== null ? (rawBody as Record<string, unknown>).event : undefined;
+    console.log(LOG_PREFIX, "Raw payload recebido", {
+      topKeys,
+      event: rawEvent,
+      dataIsArray: Array.isArray((rawBody as Record<string, unknown>).data),
+      instanceType: typeof (rawBody as Record<string, unknown>).instance,
+    });
+
+    // --- Handle groups.upsert event (update group names) ---
+    if (rawEvent === "groups.upsert") {
+      console.log(LOG_PREFIX, "Evento GROUPS_UPSERT recebido");
+      const supabase = createSupabaseAdminClient();
+      return handleGroupsUpsert((rawBody as Record<string, unknown>).data, supabase);
+    }
+
+    // --- Normalize payload ---
+    const normalizedBody = typeof rawBody === "object" && rawBody !== null
+      ? normalizeEvolutionPayload(rawBody as Record<string, unknown>)
+      : rawBody;
+
+    const parsed = webhookPayloadSchema.safeParse(normalizedBody);
+
     if (!parsed.success) {
+      console.warn(LOG_PREFIX, "Zod parse falhou", {
+        errors: parsed.error.issues.map((e) => ({ path: e.path.join("."), message: e.message })),
+        bodyPreview: JSON.stringify(normalizedBody).slice(0, 500),
+      });
       return NextResponse.json({ ok: true, skipped: "payload_invalid" });
     }
 
     const { data } = parsed.data;
     const remoteJid = data.key.remoteJid;
 
+    console.log(LOG_PREFIX, "Parse OK", {
+      event: parsed.data.event,
+      instance: parsed.data.instance,
+      remoteJid,
+      fromMe: data.key.fromMe,
+      hasContent: !!(data.message?.conversation || data.message?.extendedTextMessage?.text),
+      participant: data.key.participant,
+      pushName: data.pushName,
+    });
+
+    // --- Group check ---
     if (!isGroupJid(remoteJid)) {
+      console.log(LOG_PREFIX, "Ignorando: não é grupo", { remoteJid });
       return NextResponse.json({ ok: true, skipped: "not_group" });
     }
 
     if (data.key.fromMe) {
+      console.log(LOG_PREFIX, "Ignorando: fromMe=true", { remoteJid });
       return NextResponse.json({ ok: true, skipped: "from_me" });
     }
 
@@ -105,32 +285,72 @@ export async function POST(request: NextRequest) {
 
     const supabase = createSupabaseAdminClient();
 
-    // Busca config existente para este grupo (ativo ou inativo)
-    let { data: config } = await supabase
-      .from("group_agent_configs")
-      .select("id, company_id, trigger_keywords, is_active, group_name")
-      .eq("group_jid", remoteJid)
-      .limit(1)
-      .maybeSingle();
+    // --- Resolve company_id ---
+    let resolvedCompanyId: string | null = null;
 
-    // Auto-registrar grupo se não existe config
-    if (!config) {
-      const { data: integration } = await supabase
+    if (cidParam) {
+      const { data: cidIntegration } = await supabase
         .from("integrations")
         .select("company_id")
+        .eq("company_id", cidParam)
         .eq("type", "evolution_api")
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
 
-      if (!integration?.company_id) {
-        return NextResponse.json({ ok: true, skipped: "no_company" });
+      if (!cidIntegration) {
+        console.warn(LOG_PREFIX, "cid inválido: nenhuma integração evolution_api ativa para company_id", { cid: cidParam });
+        return NextResponse.json({ ok: true, skipped: "invalid_cid" });
+      }
+      resolvedCompanyId = cidIntegration.company_id;
+      console.log(LOG_PREFIX, "company_id via cid param:", resolvedCompanyId);
+    }
+
+    // --- Config lookup ---
+    const configQuery = supabase
+      .from("group_agent_configs")
+      .select("id, company_id, trigger_keywords, is_active, group_name")
+      .eq("group_jid", remoteJid)
+      .limit(1);
+
+    if (resolvedCompanyId) {
+      configQuery.eq("company_id", resolvedCompanyId);
+    }
+
+    let { data: config } = await configQuery.maybeSingle();
+
+    // --- Auto-register group ---
+    if (!config) {
+      console.log(LOG_PREFIX, "Grupo não encontrado, tentando auto-registrar", { remoteJid });
+
+      let companyId: string;
+
+      if (resolvedCompanyId) {
+        companyId = resolvedCompanyId;
+      } else {
+        const { data: integration } = await supabase
+          .from("integrations")
+          .select("company_id")
+          .eq("type", "evolution_api")
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+
+        if (!integration?.company_id) {
+          console.warn(LOG_PREFIX, "Nenhuma integração evolution_api ativa encontrada! Grupo não pode ser registrado.", {
+            remoteJid,
+          });
+          return NextResponse.json({ ok: true, skipped: "no_company" });
+        }
+        companyId = integration.company_id;
+        console.log(LOG_PREFIX, "company_id via fallback (primeira integração ativa):", companyId);
       }
 
-      const companyId: string = integration.company_id;
-      const groupName = senderName ? `Grupo ${remoteJid.split("@")[0].slice(-6)}` : null;
+      // Tentar buscar o nome real do grupo via Evolution API
+      const realGroupName = await fetchGroupNameFromApi(remoteJid, companyId, supabase);
+      const groupName = realGroupName ?? `Grupo ${remoteJid.split("@")[0].slice(-6)}`;
 
-      const { data: newConfig } = await supabase
+      const { data: newConfig, error: upsertError } = await supabase
         .from("group_agent_configs")
         .upsert(
           {
@@ -145,14 +365,31 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (!newConfig) {
+        console.error(LOG_PREFIX, "Auto-register falhou!", {
+          remoteJid,
+          companyId,
+          error: upsertError?.message ?? "sem resposta do upsert",
+        });
         return NextResponse.json({ ok: true, skipped: "auto_register_failed" });
       }
+
+      console.log(LOG_PREFIX, "Grupo auto-registrado com sucesso", {
+        configId: newConfig.id,
+        companyId: newConfig.company_id,
+        groupJid: remoteJid,
+        groupName: newConfig.group_name,
+      });
 
       config = newConfig;
     }
 
-    // Se grupo está inativo, salva mensagem mas não processa trigger
+    // --- Group inactive: save message only ---
     if (!config.is_active) {
+      console.log(LOG_PREFIX, "Grupo inativo, salvando mensagem sem processar trigger", {
+        configId: config.id,
+        remoteJid,
+      });
+
       await supabase.from("group_messages").upsert(
         {
           company_id: config.company_id,
@@ -171,7 +408,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, registered: true, active: false });
     }
 
+    // --- Active group: check trigger ---
     const isTrigger = content ? detectTrigger(content, config.trigger_keywords) : false;
+
+    console.log(LOG_PREFIX, "Processando mensagem", {
+      configId: config.id,
+      isActive: config.is_active,
+      isTrigger,
+      contentPreview: content?.slice(0, 80) ?? "(sem conteúdo)",
+      triggerKeywords: config.trigger_keywords,
+    });
 
     const { error: insertError } = await supabase.from("group_messages").upsert(
       {
@@ -190,7 +436,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (insertError) {
-      console.error("[webhook/group] Falha ao inserir mensagem:", insertError.message);
+      console.error(LOG_PREFIX, "Falha ao inserir mensagem:", insertError.message);
       return NextResponse.json({ ok: true, skipped: "insert_error" });
     }
 
@@ -203,17 +449,33 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (insertedMsg) {
-        await enqueueJob(
-          "group_agent_respond",
-          { messageId: insertedMsg.id, configId: config.id },
-          config.company_id
-        );
+        console.log(LOG_PREFIX, "Processando trigger inline (resposta imediata)", {
+          msgDbId: insertedMsg.id,
+          configId: config.id,
+        });
+
+        try {
+          const result = await processGroupAgentResponse(config.company_id, {
+            messageId: insertedMsg.id,
+            configId: config.id,
+          });
+          console.log(LOG_PREFIX, "Resposta do agente gerada", {
+            success: result.success,
+            responseType: result.responseType,
+            elapsed: `${result.processingTimeMs}ms`,
+          });
+        } catch (err) {
+          console.error(LOG_PREFIX, "Falha ao processar resposta do agente:", err instanceof Error ? err.message : err);
+        }
       }
     }
 
+    const elapsed = Date.now() - startTime;
+    console.log(LOG_PREFIX, "Concluído", { elapsed: `${elapsed}ms`, trigger: isTrigger });
+
     return NextResponse.json({ ok: true, trigger: isTrigger });
   } catch (error) {
-    console.error("[webhook/group] Erro inesperado:", error instanceof Error ? error.message : error);
+    console.error(LOG_PREFIX, "Erro inesperado:", error instanceof Error ? error.stack ?? error.message : error);
     return NextResponse.json({ ok: true, skipped: "error" });
   }
 }

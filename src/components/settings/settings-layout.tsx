@@ -106,6 +106,7 @@ type ReportData = {
 };
 
 type SettingsLayoutProps = {
+  companyId: string;
   initialStats?: Partial<SettingsStats>;
   reportData?: ReportData;
   initialTab?: TabKey;
@@ -113,7 +114,7 @@ type SettingsLayoutProps = {
 
 const VALID_TABS: TabKey[] = ["overview", "company", "integrations", "social", "reports", "alerts", "group-agent"];
 
-export function SettingsLayout({ initialStats, reportData, initialTab }: SettingsLayoutProps) {
+export function SettingsLayout({ companyId, initialStats, reportData, initialTab }: SettingsLayoutProps) {
   const [activeTab, setActiveTab] = useState<TabKey>(
     initialTab && VALID_TABS.includes(initialTab) ? initialTab : "overview"
   );
@@ -222,7 +223,7 @@ export function SettingsLayout({ initialStats, reportData, initialTab }: Setting
           {activeTab === "social" && <SocialTab />}
           {activeTab === "reports" && reportData && <ReportsTab data={reportData} />}
           {activeTab === "alerts" && <AlertsTab />}
-          {activeTab === "group-agent" && <GroupAgentTab />}
+          {activeTab === "group-agent" && <GroupAgentTab companyId={companyId} />}
         </div>
       </div>
     </div>
@@ -485,10 +486,10 @@ function AlertsTab() {
   );
 }
 
-function GroupAgentTab() {
+function GroupAgentTab({ companyId }: { companyId: string }) {
   return (
     <div className="space-y-6">
-      <GroupAgentSettings />
+      <GroupAgentSettings companyId={companyId} />
     </div>
   );
 }

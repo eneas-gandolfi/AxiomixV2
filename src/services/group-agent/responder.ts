@@ -17,6 +17,8 @@ import {
 import { detectGroupAgentIntent } from "@/services/group-agent/intent-detector";
 import { buildAgentContext } from "@/services/group-agent/context-builder";
 import { sendGroupAgentResponse } from "@/services/group-agent/sender";
+import { resolvePreferredEvolutionInstance } from "@/services/integrations/evolution";
+import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import type {
   GroupAgentResponseResult,
   GroupAgentResponseType,
@@ -166,10 +168,25 @@ export async function processGroupAgentResponse(
     };
   }
 
-  const instanceName =
-    config.evolution_instance_name ??
-    process.env.EVOLUTION_INSTANCE_NAME ??
-    "axiomix-default";
+  // Resolver instance name: config > integração DB (vendor preferido) > env var
+  let instanceName = config.evolution_instance_name ?? null;
+
+  if (!instanceName) {
+    const { data: integration } = await supabase
+      .from("integrations")
+      .select("config")
+      .eq("company_id", companyId)
+      .eq("type", "evolution_api")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (integration?.config) {
+      const decoded = decodeIntegrationConfig("evolution_api", integration.config);
+      instanceName = resolvePreferredEvolutionInstance(decoded.vendors) ?? null;
+    }
+  }
+
+  instanceName = instanceName ?? process.env.EVOLUTION_INSTANCE_NAME ?? "axiomix-default";
 
   const sendResult = await sendGroupAgentResponse({
     instanceName,

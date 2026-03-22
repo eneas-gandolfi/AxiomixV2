@@ -46,6 +46,33 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function sendPresenceComposing(
+  credentials: { baseUrl: string; apiKey: string },
+  instanceName: string,
+  groupJid: string
+): Promise<void> {
+  try {
+    const url = `${credentials.baseUrl}/chat/updatePresence/${encodeURIComponent(instanceName)}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        apikey: credentials.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        number: groupJid,
+        presence: "composing",
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn("[group-agent/sender] Falha ao enviar presence composing:", response.status);
+    }
+  } catch (err) {
+    console.warn("[group-agent/sender] Erro ao enviar presence (best-effort):", err instanceof Error ? err.message : err);
+  }
+}
+
 export async function sendGroupAgentResponse(input: {
   instanceName: string;
   groupJid: string;
@@ -57,6 +84,10 @@ export async function sendGroupAgentResponse(input: {
   let lastStatus = "sent";
 
   for (let i = 0; i < chunks.length; i++) {
+    // Enviar "digitando..." antes de cada chunk
+    await sendPresenceComposing(credentials, input.instanceName, input.groupJid);
+    await delay(1500);
+
     try {
       await sendEvolutionTextMessage({
         credentials,

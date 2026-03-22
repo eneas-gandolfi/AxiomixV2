@@ -46,7 +46,7 @@ type GroupAgentConfig = {
   };
 };
 
-export function GroupAgentSettings() {
+export function GroupAgentSettings({ companyId }: { companyId: string }) {
   const [configs, setConfigs] = useState<GroupAgentConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -70,7 +70,7 @@ export function GroupAgentSettings() {
   useEffect(() => { fetchConfigs(); }, [fetchConfigs]);
 
   const webhookUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/api/webhooks/evolution/group?token=${process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_TOKEN ?? "SEU_TOKEN"}`
+    ? `${window.location.origin}/api/webhooks/evolution/group?token=${process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_TOKEN ?? "SEU_TOKEN"}&cid=${companyId}`
     : "";
 
   const handleCopyWebhook = () => {
