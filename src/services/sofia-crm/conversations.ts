@@ -435,6 +435,7 @@ export async function syncMessages(
     direction: "inbound" | "outbound";
     sent_at: string;
     message_type: string | null;
+    media_url: string | null;
   }> = [];
 
   for (const remoteMessage of remoteMessages) {
@@ -446,6 +447,7 @@ export async function syncMessages(
       direction,
       sent_at: normalizeSentAt(remoteMessage.created_at),
       message_type: remoteMessage.message_type ?? null,
+      media_url: remoteMessage.media_url ?? null,
     };
     const fingerprint = buildMessageFingerprint(normalized);
 

@@ -16,6 +16,7 @@ import {
   triggerPurchaseIntentAlert,
 } from "@/services/alerts/alert-triggers";
 import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
+import { enrichMediaMessages } from "@/lib/whatsapp/media-enricher";
 
 const insightSchema = z.object({
   sentiment: z.enum(["positivo", "neutro", "negativo"]),
@@ -48,10 +49,12 @@ type InsightPayload = z.infer<typeof insightSchema>;
 type InsightSalesStage = InsightPayload["sales_stage"];
 
 type ConversationMessage = {
+  id: string;
   direction: "inbound" | "outbound";
   content: string | null;
   sent_at: string | null;
   message_type?: string | null;
+  media_url?: string | null;
 };
 
 type AnalyzeConversationResult = {
@@ -347,9 +350,9 @@ export async function analyzeConversation(
     throw new Error("Conversa nao encontrada para esta empresa.");
   }
 
-  const { data: messages, error: messagesError } = await supabase
+  const { data: rawMessages, error: messagesError } = await supabase
     .from("messages")
-    .select("direction, content, sent_at, message_type")
+    .select("id, direction, content, sent_at, message_type, media_url")
     .eq("conversation_id", conversationId)
     .eq("company_id", companyId)
     .order("sent_at", { ascending: true });
@@ -358,11 +361,16 @@ export async function analyzeConversation(
     throw new Error("Falha ao carregar mensagens da conversa.");
   }
 
-  if (!messages || messages.length === 0) {
+  if (!rawMessages || rawMessages.length === 0) {
     throw new Error("Conversa sem mensagens para analise.");
   }
 
-  const insight = await generateConversationInsight(companyId, messages as ConversationMessage[]);
+  const messages = await enrichMediaMessages(
+    companyId,
+    rawMessages as unknown as ConversationMessage[]
+  );
+
+  const insight = await generateConversationInsight(companyId, messages);
   await executeAutomaticActions(companyId, conversation, {
     sentiment: insight.sentiment,
     intent: insight.intent,

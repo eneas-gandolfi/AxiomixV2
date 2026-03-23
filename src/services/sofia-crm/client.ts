@@ -36,6 +36,7 @@ type SofiaMessageApi = {
   created_at?: string | null;
   message_type?: string | null;
   caption?: string | null;
+  media_url?: string | null;
 };
 
 type SofiaContactApi = {
@@ -453,6 +454,19 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
         ? row.caption
         : null;
 
+    const mediaUrl =
+      typeof row.media_url === "string" && row.media_url.trim().length > 0
+        ? row.media_url.trim()
+        : typeof row.mediaUrl === "string" && row.mediaUrl.trim().length > 0
+          ? row.mediaUrl.trim()
+          : typeof row.file_url === "string" && row.file_url.trim().length > 0
+            ? row.file_url.trim()
+            : typeof row.fileUrl === "string" && row.fileUrl.trim().length > 0
+              ? row.fileUrl.trim()
+              : typeof row.attachment_url === "string" && row.attachment_url.trim().length > 0
+                ? row.attachment_url.trim()
+                : null;
+
     const rawContent =
       typeof row.content === "string"
         ? row.content
@@ -494,6 +508,7 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
       created_at: createdAt,
       message_type: messageType,
       caption,
+      media_url: mediaUrl,
     });
   }
 
