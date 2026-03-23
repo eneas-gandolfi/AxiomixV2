@@ -255,7 +255,7 @@ export function IntegrationsSettingsForm() {
   const [activeModal, setActiveModal] = useState<ModalMeta | null>(null);
 
   const [sofiaForm, setSofiaForm] = useState<SofiaForm>({
-    baseUrl: "",
+    baseUrl: "https://crm.getlead.capital",
     apiToken: "",
   });
   const [evolutionManagerPhone, setEvolutionManagerPhone] = useState("");
@@ -732,9 +732,8 @@ export function IntegrationsSettingsForm() {
         <input
           id="sofia-base-url"
           value={sofiaForm.baseUrl}
-          onChange={handleSofiaChange("baseUrl")}
-          placeholder="https://crm.seudominio.com"
-          className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm placeholder:text-muted-light hover:border-border-strong focus:outline-none focus:border-transparent focus:ring-2 focus:ring-primary"
+          readOnly
+          className="h-10 w-full rounded-lg border border-border bg-sidebar px-3 text-sm text-muted cursor-not-allowed"
         />
         {errors.sofia.baseUrl ? <p className="text-xs text-danger">{errors.sofia.baseUrl}</p> : null}
       </div>

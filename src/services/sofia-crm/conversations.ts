@@ -175,7 +175,7 @@ export async function syncConversations(
           ? item.profile_picture
           : `${sofiaClient.baseUrl}${item.profile_picture.startsWith("/") ? "" : "/"}${item.profile_picture}`
         : null,
-      assigned_to: item.assignee_id ?? null,
+      assigned_to: null, // assignee_id do Sofia CRM é inteiro, não UUID do Supabase
       status: item.status ?? "open",
       last_message_at: conversationLastMessageDate(item),
       last_synced_at: new Date().toISOString(),
