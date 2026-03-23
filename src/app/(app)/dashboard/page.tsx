@@ -922,7 +922,7 @@ async function DashboardContent() {
               </div>
             </div>
 
-            <aside className="dashboard-panel relative z-[1] flex h-full flex-col justify-between gap-5 rounded-[24px] p-5">
+            <aside className="dashboard-panel relative z-[1] flex h-full flex-col justify-between gap-3 rounded-[24px] p-4">
               <div>
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
@@ -932,37 +932,34 @@ async function DashboardContent() {
                   <span className="text-xs text-muted">{railStatus}</span>
                 </div>
 
-                <h2 className="font-display text-2xl font-semibold text-text">
+                <h2 className="font-display text-xl font-semibold text-text">
                   {aiSummary ? "Leitura da semana" : "Painel em calibração"}
                 </h2>
-                <p className="mt-3 text-sm leading-6 text-muted">
+                <p className="mt-2 text-sm leading-6 text-muted">
                   {aiSummary ??
                     "Ainda não há recomendação automática suficiente. Assim que o radar consolidar volume, este bloco passa a orientar a prioridade do time."}
                 </p>
 
                 {!aiSummary && (
-                  <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border/70 bg-card/30 px-4 py-3.5">
+                  <div className="mt-2 flex items-center gap-2">
                     <div className="flex shrink-0 items-end gap-[3px]">
                       {([11, 18, 14, 24, 17, 22, 15] as number[]).map((h, i) => (
                         <div
                           key={i}
-                          className="w-1.5 rounded-sm bg-primary/50"
+                          className="w-1 rounded-sm bg-primary/40"
                           style={{ height: h }}
                         />
                       ))}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-text">Radar acumulando volume</p>
-                      <p className="text-xs text-muted">
-                        {conversationsCurrent.toLocaleString("pt-BR")} conversas coletadas
-                      </p>
-                    </div>
+                    <p className="text-xs text-muted">
+                      {conversationsCurrent.toLocaleString("pt-BR")} conversas coletadas
+                    </p>
                   </div>
                 )}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-                <div className="rounded-2xl border border-border/70 bg-card/65 p-4">
+              <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+                <div className="rounded-2xl border border-border/70 bg-card/65 p-3">
                   <div className="flex items-center gap-2 text-xs text-muted">
                     {alerts.length > 0 ? (
                       <AlertTriangle className="h-3.5 w-3.5 text-warning" aria-hidden="true" />
@@ -971,27 +968,27 @@ async function DashboardContent() {
                     )}
                     Monitoramento
                   </div>
-                  <p className="mt-2 text-sm font-medium text-text">
+                  <p className="mt-1 text-sm font-medium text-text">
                     {alerts.length > 0
                       ? `${alerts.length} alertas em aberto`
                       : "Nenhum alerta crítico agora"}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-border/70 bg-card/65 p-4">
+                <div className="rounded-2xl border border-border/70 bg-card/65 p-3">
                   <div className="flex items-center gap-2 text-xs text-muted">
                     <ShieldCheck className="h-3.5 w-3.5 text-success" aria-hidden="true" />
                     Integrações
                   </div>
-                  <p className="mt-2 text-sm font-medium text-text">
+                  <p className="mt-1 text-sm font-medium text-text">
                     {connectedIntegrationsCount}/{integrationStatusItems.length} conectadas
                   </p>
                 </div>
-                <div className="rounded-2xl border border-border/70 bg-card/65 p-4">
+                <div className="rounded-2xl border border-border/70 bg-card/65 p-3">
                   <div className="flex items-center gap-2 text-xs text-muted">
                     <CalendarDays className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                     Próximo envio
                   </div>
-                  <p className="mt-2 text-sm font-medium text-text">
+                  <p className="mt-1 text-sm font-medium text-text">
                     {formatCompactDate(nextMonday)} às 08:00
                   </p>
                 </div>
