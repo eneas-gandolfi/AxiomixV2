@@ -909,7 +909,7 @@ async function DashboardContent() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="mt-auto flex flex-wrap gap-3">
                 <Button asChild className="h-11 px-5 btn-glow">
                   <Link href="/whatsapp-intelligence">
                     Ver operação
