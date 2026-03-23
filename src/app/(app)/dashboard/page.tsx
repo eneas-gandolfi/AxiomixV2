@@ -939,6 +939,26 @@ async function DashboardContent() {
                   {aiSummary ??
                     "Ainda não há recomendação automática suficiente. Assim que o radar consolidar volume, este bloco passa a orientar a prioridade do time."}
                 </p>
+
+                {!aiSummary && (
+                  <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border/70 bg-card/30 px-4 py-3.5">
+                    <div className="flex shrink-0 items-end gap-[3px]">
+                      {([11, 18, 14, 24, 17, 22, 15] as number[]).map((h, i) => (
+                        <div
+                          key={i}
+                          className="w-1.5 rounded-sm bg-primary/50"
+                          style={{ height: h }}
+                        />
+                      ))}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-text">Radar acumulando volume</p>
+                      <p className="text-xs text-muted">
+                        {conversationsCurrent.toLocaleString("pt-BR")} conversas coletadas
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
