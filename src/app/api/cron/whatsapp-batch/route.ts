@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
@@ -41,48 +41,33 @@ async function getAllActiveCompanyIds(): Promise<string[]> {
 }
 
 export async function GET(request: NextRequest) {
-  try {
-    if (!isCronAuthorized(request)) {
-      return NextResponse.json(
-        { error: "Endpoint reservado para cron.", code: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
-
-    const companyIds = await getAllActiveCompanyIds();
-    const results: Array<BatchAnalysisResult & { error?: string }> = [];
-
-    for (const companyId of companyIds) {
-      try {
-        const result = await runBatchAnalysis(companyId);
-        results.push(result);
-      } catch (error) {
-        const detail = error instanceof Error ? error.message : "Erro inesperado.";
-        results.push({
-          companyId,
-          conversationsAnalyzed: 0,
-          purchaseIntents: 0,
-          negativeSentiments: 0,
-          summaryText: "",
-          periodStart: "",
-          periodEnd: "",
-          error: detail,
-        });
-      }
-    }
-
-    return NextResponse.json({
-      mode: "cron",
-      companies: companyIds.length,
-      results,
-    });
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : "Erro inesperado.";
+  if (!isCronAuthorized(request)) {
     return NextResponse.json(
-      { error: detail, code: "WHATSAPP_BATCH_CRON_ERROR" },
-      { status: 500 }
+      { error: "Endpoint reservado para cron.", code: "UNAUTHORIZED" },
+      { status: 401 }
     );
   }
+
+  after(async () => {
+    try {
+      const companyIds = await getAllActiveCompanyIds();
+
+      for (const companyId of companyIds) {
+        try {
+          const result = await runBatchAnalysis(companyId);
+          console.log("[whatsapp-batch cron] Empresa processada:", JSON.stringify(result));
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : "Erro inesperado.";
+          console.error(`[whatsapp-batch cron] Erro na empresa ${companyId}:`, detail);
+        }
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Erro inesperado.";
+      console.error("[whatsapp-batch cron] Erro geral:", detail);
+    }
+  });
+
+  return NextResponse.json({ ok: true, message: "Análise batch iniciada em background." });
 }
 
 export async function POST(request: NextRequest) {
