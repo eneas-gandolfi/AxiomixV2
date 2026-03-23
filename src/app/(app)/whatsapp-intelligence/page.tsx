@@ -6,6 +6,7 @@
  */
 
 import { redirect } from "next/navigation";
+import { CheckCircle2, MessageSquare } from "lucide-react";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { MetricCardWithSparkline } from "@/components/whatsapp/metric-card-with-sparkline";
@@ -45,6 +46,12 @@ export default async function WhatsAppDashboardPage() {
     .select("sentiment, intent, generated_at")
     .eq("company_id", companyId)
     .gte("generated_at", thirtyDaysAgo.toISOString());
+
+  // Contagem de conversas sincronizadas (para detectar pós-sync sem análises)
+  const { count: syncedConversationsCount } = await supabase
+    .from("conversations")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId);
 
   // Métricas
   const totalAnalyzed = (recentInsights ?? []).length;
@@ -148,8 +155,33 @@ export default async function WhatsAppDashboardPage() {
     .sort((a, b) => b.value - a.value);
 
   if (totalAnalyzed === 0) {
+    const hasSyncedConversations = (syncedConversationsCount ?? 0) > 0;
+
+    if (hasSyncedConversations) {
+      return (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-success/30 bg-success-light p-12 text-center">
+          <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
+            <CheckCircle2 className="h-6 w-6 text-success" />
+          </div>
+          <p className="text-lg font-medium text-text">
+            {syncedConversationsCount} conversa{syncedConversationsCount === 1 ? "" : "s"} sincronizada{syncedConversationsCount === 1 ? "" : "s"}
+          </p>
+          <p className="mt-2 text-sm text-muted">
+            Agora analise com IA para gerar métricas de sentimento e intenção.
+          </p>
+          <div className="mt-6 flex gap-2">
+            <BulkAnalyzeButton companyId={companyId} />
+            <SyncConversationsButton companyId={companyId} />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-12 text-center">
+        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-sidebar">
+          <MessageSquare className="h-6 w-6 text-muted" />
+        </div>
         <p className="text-lg font-medium text-text">Nenhuma análise nos últimos 7 dias</p>
         <p className="mt-2 text-sm text-muted">
           Sincronize conversas e analise com IA para ver métricas aqui.
