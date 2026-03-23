@@ -38,6 +38,7 @@ const batchAnalysisItemSchema = z.object({
   ),
   urgency: z.number().int().min(1).max(5).optional().default(3),
   key_topics: z.array(z.string().trim().min(1)).max(5).optional().default([]),
+  summary: z.string().trim().max(400).optional().default(""),
 });
 
 const batchAnalysisResponseSchema = z.object({
@@ -353,7 +354,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
         conversation_id: item.conversationId,
         sentiment: item.sentiment,
         intent: item.intent,
-        summary: "Classificado via análise batch horária.",
+        summary: item.summary || "Classificado via análise batch horária.",
         action_items: {
           items: [],
           urgency: item.urgency,

@@ -73,7 +73,8 @@ Responda SOMENTE em JSON válido com o formato:
       "sentiment": "positivo" | "neutro" | "negativo",
       "intent": "compra" | "suporte" | "reclamação" | "dúvida" | "cancelamento" | "outro",
       "urgency": 1 a 5,
-      "key_topics": ["tópico1", "tópico2"]
+      "key_topics": ["tópico1", "tópico2"],
+      "summary": "resumo objetivo da conversa em até 40 palavras"
     }
   ],
   "summary": "Resumo geral em 2-3 frases sobre o panorama das conversas."
@@ -87,7 +88,8 @@ Regras:
 - intent: classifique a intenção principal do cliente.
 - urgency: 1=informativo, 2=baixa, 3=média, 4=alta, 5=crítico.
 - key_topics: 1 a 3 palavras-chave curtas.
-- summary: visão geral de todas as conversas (tendências, gargalos, oportunidades). Max 3 frases.
+- summary (por conversa): descreva a necessidade do cliente, o tom e o principal ponto de atenção ou oportunidade. Máximo 40 palavras. Em português.
+- summary (geral): visão geral de todas as conversas (tendências, gargalos, oportunidades). Max 3 frases.
 - Se houver contexto da base de conhecimento, use-o para identificar etapa da venda e gargalos.
 - Mensagens de mídia aparecem como [Áudio enviado], [Imagem enviada], etc. Considere o tipo de mídia na classificação.
 - Não inclua markdown.
