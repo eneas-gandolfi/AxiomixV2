@@ -27,14 +27,17 @@ export function buildPurchaseIntentMessage(input: {
   });
   const contactLabel = input.contactName ?? input.contactPhone ?? "Contato desconhecido";
 
+  const summary = input.summary.length > 300
+    ? input.summary.slice(0, 300).trimEnd() + "..."
+    : input.summary;
+
   return [
-    "\u{1F4B0} *Intencao de Compra Detectada*",
+    "\u{1F4B0} *Inten\u00E7\u00E3o de Compra Detectada*",
     "",
     `Contato: ${contactLabel}`,
-    `Resumo: ${input.summary.slice(0, 200)}`,
+    `Resumo: ${summary}`,
     "",
-    "Acesse agora:",
-    `${appUrl}/alertas/whatsapp/${alertToken}`,
+    `\u{1F517} Acesse agora: ${appUrl}/alertas/whatsapp/${alertToken}`,
   ].join("\n");
 }
 
@@ -54,15 +57,18 @@ export function buildNegativeSentimentMessage(input: {
   const contactLabel = input.contactName ?? input.contactPhone ?? "Contato desconhecido";
   const urgencyBars = "\u{2B1B}".repeat(input.urgency) + "\u{2B1C}".repeat(5 - input.urgency);
 
+  const summary = input.summary.length > 300
+    ? input.summary.slice(0, 300).trimEnd() + "..."
+    : input.summary;
+
   return [
-    "\u{1F534} *Sentimento Negativo + Alta Urgencia*",
+    "\u{1F534} *Sentimento Negativo \u2014 Alta Urg\u00EAncia*",
     "",
     `Contato: ${contactLabel}`,
-    `Urgencia: ${urgencyBars} (${input.urgency}/5)`,
-    `Resumo: ${input.summary.slice(0, 200)}`,
+    `Urg\u00EAncia: ${urgencyBars} (${input.urgency}/5)`,
+    `Resumo: ${summary}`,
     "",
-    "Acesse agora:",
-    `${appUrl}/alertas/whatsapp/${alertToken}`,
+    `\u{1F517} Acesse agora: ${appUrl}/alertas/whatsapp/${alertToken}`,
   ].join("\n");
 }
 
@@ -74,15 +80,18 @@ export function buildFailedPostMessage(input: {
 }): string {
   const appUrl = resolveAppUrl();
 
+  const errorSummary = input.errorSummary.length > 200
+    ? input.errorSummary.slice(0, 200).trimEnd() + "..."
+    : input.errorSummary;
+
   return [
-    "\u{274C} *Falha na Publicacao de Post*",
+    "\u{274C} *Falha na Publica\u00E7\u00E3o de Post*",
     "",
     `Post: ${(input.caption ?? "Sem legenda").slice(0, 100)}`,
     `Plataformas: ${input.platforms.join(", ")}`,
-    `Erro: ${input.errorSummary.slice(0, 200)}`,
+    `Erro: ${errorSummary}`,
     "",
-    "Revise o agendamento:",
-    `${appUrl}/social-publisher/historico`,
+    `\u{1F517} Revise o agendamento: ${appUrl}/social-publisher/historico`,
   ].join("\n");
 }
 
@@ -93,18 +102,22 @@ export function buildViralContentMessage(input: {
   postUrl: string | null;
 }): string {
   const appUrl = resolveAppUrl();
+  const content = input.content.length > 200
+    ? input.content.slice(0, 200).trimEnd() + "..."
+    : input.content;
+
   const lines = [
-    "\u{1F525} *Conteudo Viral Detectado*",
+    "\u{1F525} *Conte\u00FAdo Viral Detectado*",
     "",
     `Plataforma: ${input.platform}`,
     `Score de engajamento: ${input.engagementScore}`,
-    `Conteudo: ${input.content.slice(0, 200)}`,
+    `Conte\u00FAdo: ${content}`,
   ];
 
   if (input.postUrl) {
-    lines.push(`Link: ${input.postUrl}`);
+    lines.push(`\u{1F517} Link: ${input.postUrl}`);
   }
 
-  lines.push("", "Veja no radar:", `${appUrl}/intelligence`);
+  lines.push("", `\u{1F517} Veja no radar: ${appUrl}/intelligence`);
   return lines.join("\n");
 }
