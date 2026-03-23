@@ -738,6 +738,66 @@ export async function fetchEvolutionGroups(input: {
   return groups;
 }
 
+export type EvolutionMediaDownload = {
+  base64: string;
+  mimetype: string;
+  fileName: string | null;
+};
+
+/**
+ * Baixa mídia de uma mensagem do grupo via Evolution API.
+ * Endpoint: POST /chat/getBase64FromMediaMessage/{instanceName}
+ */
+export async function downloadEvolutionMedia(input: {
+  credentials: EvolutionCredentials;
+  instanceName: string;
+  messageKey: {
+    remoteJid: string;
+    id: string;
+    fromMe?: boolean;
+    participant?: string;
+  };
+}): Promise<EvolutionMediaDownload> {
+  const result = await callEvolution(input.credentials, {
+    source: "get_base64_media",
+    method: "POST",
+    url: `${input.credentials.baseUrl}/chat/getBase64FromMediaMessage/${encodeURIComponent(input.instanceName)}`,
+    body: {
+      message: { key: input.messageKey },
+    },
+  });
+
+  if (!result.ok) {
+    throw new EvolutionApiRequestError(
+      `Falha ao baixar mídia: HTTP ${result.status}`,
+      result.status,
+      result.source
+    );
+  }
+
+  const payload = result.payload;
+  if (!isRecord(payload)) {
+    throw new Error("Resposta de mídia inválida da Evolution API.");
+  }
+
+  const base64 =
+    typeof payload.base64 === "string"
+      ? payload.base64
+      : typeof payload.data === "string"
+        ? payload.data
+        : null;
+
+  if (!base64) {
+    throw new Error("Evolution API não retornou base64 para a mídia.");
+  }
+
+  return {
+    base64,
+    mimetype: typeof payload.mimetype === "string" ? payload.mimetype : "application/octet-stream",
+    fileName: typeof payload.fileName === "string" ? payload.fileName : null,
+  };
+}
+
 export function mergeVendorStatuses(input: {
   vendors: EvolutionVendor[];
   statuses: EvolutionInstanceStatus[];

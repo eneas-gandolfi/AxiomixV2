@@ -15,9 +15,13 @@ type OpenRouterConfig = {
   model: string;
 };
 
+export type OpenRouterContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 type OpenRouterMessage = {
   role: "system" | "user";
-  content: string;
+  content: string | OpenRouterContentPart[];
 };
 
 type OpenRouterResponse = {
@@ -212,4 +216,59 @@ export async function openRouterChatCompletion(
   throw new Error(
     `OpenRouter error ${primaryStatus}: ${primaryDetail} (fallback com modelos gratuitos também falhou)`,
   );
+}
+
+/**
+ * Transcreve áudio via OpenRouter (Whisper).
+ * Envia o arquivo de áudio como multipart/form-data.
+ */
+export async function openRouterAudioTranscription(
+  companyId: string,
+  audioBase64: string,
+  mimetype: string
+): Promise<string> {
+  const config = await resolveOpenRouterConfig(companyId);
+
+  const extension = mimetype.split("/")[1]?.replace("mpeg", "mp3").replace("ogg; codecs=opus", "ogg") ?? "ogg";
+  const audioBuffer = Buffer.from(audioBase64, "base64");
+  const blob = new Blob([audioBuffer], { type: mimetype });
+
+  const formData = new FormData();
+  formData.append("file", blob, `audio.${extension}`);
+  formData.append("model", "openai/whisper-1");
+  formData.append("language", "pt");
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120_000);
+
+  let response: Response;
+  try {
+    response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Timeout: transcrição de áudio excedeu 120s.");
+    }
+    throw error;
+  }
+  clearTimeout(timeoutId);
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`OpenRouter Whisper error ${response.status}: ${detail.slice(0, 200)}`);
+  }
+
+  const payload = (await response.json()) as { text?: string };
+  if (!payload.text) {
+    throw new Error("Transcrição de áudio retornou vazia.");
+  }
+
+  return payload.text;
 }

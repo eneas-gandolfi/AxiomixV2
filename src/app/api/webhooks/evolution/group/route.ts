@@ -13,8 +13,14 @@ import {
   resolveEvolutionCredentials,
   fetchEvolutionGroups,
   resolvePreferredEvolutionInstance,
+  downloadEvolutionMedia,
 } from "@/services/integrations/evolution";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
+import {
+  resolveMediaType,
+  isPdfDocument,
+  processMediaMessage,
+} from "@/services/group-agent/media-processor";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +45,45 @@ const webhookPayloadSchema = z.object({
             text: z.string().optional(),
           })
           .optional(),
+        imageMessage: z
+          .object({
+            caption: z.string().optional(),
+            mimetype: z.string().optional(),
+            url: z.string().optional(),
+          })
+          .optional(),
+        audioMessage: z
+          .object({
+            mimetype: z.string().optional(),
+            ptt: z.boolean().optional(),
+            url: z.string().optional(),
+          })
+          .optional(),
+        documentMessage: z
+          .object({
+            caption: z.string().optional(),
+            mimetype: z.string().optional(),
+            fileName: z.string().optional(),
+            url: z.string().optional(),
+          })
+          .optional(),
+        documentWithCaptionMessage: z
+          .object({
+            message: z
+              .object({
+                documentMessage: z
+                  .object({
+                    caption: z.string().optional(),
+                    mimetype: z.string().optional(),
+                    fileName: z.string().optional(),
+                    url: z.string().optional(),
+                  })
+                  .optional(),
+              })
+              .optional(),
+          })
+          .optional(),
+        stickerMessage: z.object({}).optional(),
       })
       .optional(),
     messageType: z.string().optional(),
@@ -46,9 +91,40 @@ const webhookPayloadSchema = z.object({
   }),
 });
 
-function extractTextContent(message: z.infer<typeof webhookPayloadSchema>["data"]["message"]): string | null {
+type ParsedMessage = z.infer<typeof webhookPayloadSchema>["data"]["message"];
+
+function extractTextContent(message: ParsedMessage): string | null {
   if (!message) return null;
-  return message.conversation ?? message.extendedTextMessage?.text ?? null;
+  return (
+    message.conversation ??
+    message.extendedTextMessage?.text ??
+    message.imageMessage?.caption ??
+    message.documentMessage?.caption ??
+    message.documentWithCaptionMessage?.message?.documentMessage?.caption ??
+    null
+  );
+}
+
+function isMediaMessage(message: ParsedMessage): boolean {
+  if (!message) return false;
+  return !!(
+    message.imageMessage ||
+    message.audioMessage ||
+    message.documentMessage ||
+    message.documentWithCaptionMessage?.message?.documentMessage ||
+    message.stickerMessage
+  );
+}
+
+function extractMediaMimetype(message: ParsedMessage): string | null {
+  if (!message) return null;
+  return (
+    message.imageMessage?.mimetype ??
+    message.audioMessage?.mimetype ??
+    message.documentMessage?.mimetype ??
+    message.documentWithCaptionMessage?.message?.documentMessage?.mimetype ??
+    null
+  );
 }
 
 function isGroupJid(jid: string): boolean {
@@ -261,6 +337,8 @@ export async function POST(request: NextRequest) {
       remoteJid,
       fromMe: data.key.fromMe,
       hasContent: !!(data.message?.conversation || data.message?.extendedTextMessage?.text),
+      hasMedia: isMediaMessage(data.message),
+      messageType: data.messageType,
       participant: data.key.participant,
       pushName: data.pushName,
     });
@@ -408,14 +486,112 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, registered: true, active: false });
     }
 
-    // --- Active group: check trigger ---
-    const isTrigger = content ? detectTrigger(content, config.trigger_keywords) : false;
+    // --- Media processing ---
+    const hasMedia = isMediaMessage(data.message);
+    const mediaMimetype = extractMediaMimetype(data.message);
+    let processedContent = content;
+    let finalMessageType = messageType;
+
+    // Para áudios, trigger é detectado após transcrição
+    // Para imagens/docs, trigger pode estar na caption
+    const isTrigger = processedContent ? detectTrigger(processedContent, config.trigger_keywords) : false;
+    // Áudios com trigger ou mídia com trigger na caption: precisa processar
+    const isMediaTrigger = hasMedia && (isTrigger || messageType.toLowerCase().includes("audio") || messageType.toLowerCase().includes("ptt"));
+
+    if (hasMedia && config.is_active && isMediaTrigger) {
+      const mediaType = resolveMediaType(messageType);
+
+      if (mediaType) {
+        // Para documentos, só processar se for PDF
+        const shouldProcess = mediaType !== "pdf" || (mediaMimetype && isPdfDocument(mediaMimetype));
+
+        if (shouldProcess) {
+          console.log(LOG_PREFIX, "Processando mídia", { mediaType, mimetype: mediaMimetype, messageType });
+
+          try {
+            // Resolver credenciais da Evolution API
+            const { data: integration } = await supabase
+              .from("integrations")
+              .select("config")
+              .eq("company_id", config.company_id)
+              .eq("type", "evolution_api")
+              .eq("is_active", true)
+              .maybeSingle();
+
+            let credentials;
+            if (integration?.config) {
+              const decoded = decodeIntegrationConfig("evolution_api", integration.config);
+              credentials = resolveEvolutionCredentials({
+                baseUrl: decoded.baseUrl,
+                apiKey: decoded.apiKey,
+              });
+            } else {
+              credentials = resolveEvolutionCredentials();
+            }
+
+            const instanceName =
+              parsed.data.instance ??
+              process.env.EVOLUTION_INSTANCE_NAME?.trim() ??
+              "axiomix-default";
+
+            // Baixar mídia via Evolution API
+            const mediaDownload = await downloadEvolutionMedia({
+              credentials,
+              instanceName,
+              messageKey: {
+                remoteJid: data.key.remoteJid,
+                id: data.key.id,
+                fromMe: data.key.fromMe,
+                participant: data.key.participant,
+              },
+            });
+
+            // Processar mídia
+            const mediaResult = await processMediaMessage(
+              config.company_id,
+              mediaType,
+              mediaDownload.base64,
+              mediaDownload.mimetype
+            );
+
+            // Montar conteúdo processado
+            const prefix =
+              mediaType === "pdf" ? "[PDF]" :
+              mediaType === "audio" ? "[ÁUDIO]" :
+              "[IMAGEM]";
+
+            processedContent = `${prefix} ${mediaResult.extractedText}`;
+            finalMessageType = `${messageType}_processed`;
+
+            console.log(LOG_PREFIX, "Mídia processada com sucesso", {
+              mediaType,
+              extractedLength: mediaResult.extractedText.length,
+            });
+
+            // Para áudios, re-verificar trigger na transcrição
+            if (mediaType === "audio" && !isTrigger) {
+              const audioHasTrigger = detectTrigger(mediaResult.extractedText, config.trigger_keywords);
+              if (!audioHasTrigger) {
+                console.log(LOG_PREFIX, "Áudio transcrito mas sem trigger, salvando sem responder");
+              }
+            }
+          } catch (err) {
+            console.error(LOG_PREFIX, "Falha ao processar mídia:", err instanceof Error ? err.message : err);
+            // Salvar mensagem original sem conteúdo processado
+          }
+        }
+      }
+    }
+
+    // Re-verificar trigger com conteúdo processado (importante para áudios transcritos)
+    const finalIsTrigger = processedContent ? detectTrigger(processedContent, config.trigger_keywords) : false;
 
     console.log(LOG_PREFIX, "Processando mensagem", {
       configId: config.id,
       isActive: config.is_active,
-      isTrigger,
-      contentPreview: content?.slice(0, 80) ?? "(sem conteúdo)",
+      isTrigger: finalIsTrigger,
+      hasMedia,
+      contentPreview: processedContent?.slice(0, 80) ?? "(sem conteúdo)",
       triggerKeywords: config.trigger_keywords,
     });
 
@@ -427,9 +603,9 @@ export async function POST(request: NextRequest) {
         sender_jid: senderJid,
         sender_name: senderName,
         message_id: messageId,
-        content,
-        message_type: messageType,
-        is_trigger: isTrigger,
+        content: processedContent,
+        message_type: finalMessageType,
+        is_trigger: finalIsTrigger,
         sent_at: sentAt,
       },
       { onConflict: "company_id,message_id", ignoreDuplicates: true }
@@ -440,7 +616,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, skipped: "insert_error" });
     }
 
-    if (isTrigger && content) {
+    if (finalIsTrigger && processedContent) {
       const { data: insertedMsg } = await supabase
         .from("group_messages")
         .select("id")
@@ -452,6 +628,7 @@ export async function POST(request: NextRequest) {
         console.log(LOG_PREFIX, "Processando trigger inline (resposta imediata)", {
           msgDbId: insertedMsg.id,
           configId: config.id,
+          hasMedia,
         });
 
         try {

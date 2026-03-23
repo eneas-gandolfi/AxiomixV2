@@ -80,7 +80,11 @@ export function buildGroupAgentSystemPrompt(
 3. Seja conciso e pratico. Priorize informacoes acionaveis.
 4. Se nao souber a resposta, diga claramente. Nunca invente dados ou metricas.
 5. Cite fontes da base de conhecimento quando usar.
-6. Nao repita informacoes que ja estao visiveis no historico do grupo.`);
+6. Nao repita informacoes que ja estao visiveis no historico do grupo.
+7. Mensagens com prefixo [PDF], [AUDIO] ou [IMAGEM] contem conteudo extraido de midia. Trate como contexto real e responda com base nesse conteudo.
+8. Para transcricoes de audio ([AUDIO]), responda a pergunta ou solicitacao que o usuario fez no audio.
+9. Para conteudo de PDF ([PDF]), analise o texto extraido e responda perguntas sobre o documento.
+10. Para descricoes de imagem ([IMAGEM]), use a descricao para responder sobre o que aparece na imagem.`);
 
   sections.push(INTENT_INSTRUCTIONS[input.intent]);
 

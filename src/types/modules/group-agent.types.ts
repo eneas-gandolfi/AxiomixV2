@@ -50,6 +50,15 @@ export type GroupAgentContext = {
   }>;
 };
 
+export type GroupAgentMediaType = "pdf" | "audio" | "image";
+
+export type GroupAgentMediaContent = {
+  type: GroupAgentMediaType;
+  extractedText: string;
+  base64?: string;
+  mimetype?: string;
+};
+
 export type GroupAgentResponseResult = {
   success: boolean;
   responseText: string;
