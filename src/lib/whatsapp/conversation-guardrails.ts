@@ -51,34 +51,36 @@ const STRONG_BUSINESS_SIGNALS = [
   "atendimento",
   "orcamento",
   "proposta",
-  "compr",
   "pedido",
   "entrega",
   "pagamento",
   "pix",
   "boleto",
   "nota fiscal",
-  "suporte",
-  "erro",
-  "problema",
-  "não funciona",
+  "suporte tecnico",
+  "suporte ao cliente",
+  "erro no sistema",
+  "problema com",
+  "nao funciona",
   "garantia",
-  "instal",
-  "consulta",
-  "reserva",
+  "instalacao",
+  "consulta medica",
+  "reserva de",
   "agendamento",
-  "cancel",
+  "cancelamento",
   "reclam",
   "defeito",
-  "troca",
+  "troca do",
   "devolu",
-  "prazo",
+  "prazo de",
   "estoque",
-  "cliente",
+  "nosso cliente",
+  "o cliente",
   "atendente",
   "vendedor",
-  "loja",
-  "empresa",
+  "nossa loja",
+  "a loja",
+  "nossa empresa",
   "contrato",
   "fatura",
   "mensalidade",
@@ -152,9 +154,9 @@ export function assessConversationGuardrails(
   }
 
   const isClearlyPersonal =
-    personalScore >= 3 &&
+    personalScore >= 2 &&
     strongBusinessMatches === 0 &&
-    businessScore <= 1;
+    weakBusinessMatches === 0;
 
   return {
     isClearlyPersonal,
