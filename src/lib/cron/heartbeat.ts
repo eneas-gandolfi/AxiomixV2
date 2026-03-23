@@ -7,7 +7,6 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { recoverAllStaleJobs, markAllStaleJobsFailed, enqueueJob } from "@/lib/jobs/queue";
-import { processJobs } from "@/lib/jobs/processor";
 import { enqueueAutoAnalyses } from "@/services/whatsapp/auto-analyze";
 
 const MIN_SYNC_INTERVAL_MINUTES = 15;
@@ -16,7 +15,6 @@ type HeartbeatResult = {
   recovered: number;
   staleMarkedFailed: number;
   autoAnalyses: { companies: number; totalEnqueued: number; errors: number };
-  processed: number;
   synced: { enqueued: number; skippedRecent: number };
 };
 
@@ -30,17 +28,13 @@ export async function runHeartbeat(): Promise<HeartbeatResult> {
   // 3. Enfileirar análises automáticas para todas as empresas ativas
   const autoAnalyses = await enqueueAutoAnalysesForAllCompanies();
 
-  // 4. Processar até 5 jobs pendentes da fila (inclui análises recém-enfileiradas)
-  const processingResult = await processJobs({ maxJobs: 5 });
-
-  // 5. Enfileirar syncs pendentes para empresas ativas com Sofia CRM
+  // 4. Enfileirar syncs pendentes para empresas ativas com Sofia CRM
   const synced = await enqueuePendingSyncs();
 
   return {
     recovered,
     staleMarkedFailed,
     autoAnalyses,
-    processed: processingResult.processed,
     synced,
   };
 }
