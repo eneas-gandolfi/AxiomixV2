@@ -32,6 +32,7 @@ export function useIdleTimeout() {
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActivityRef = useRef(Date.now());
+  const lastThrottleRef = useRef(Date.now());
   const stateRef = useRef<IdleState>("active");
 
   // Keep ref in sync with state so event listeners see the latest value
@@ -97,20 +98,29 @@ export function useIdleTimeout() {
     setState("active");
     setCountdown(IDLE_COUNTDOWN_SECONDS);
     setRemainingSeconds(Math.ceil(IDLE_WARNING_MS / 1_000));
-    lastActivityRef.current = Date.now();
+    const now = Date.now();
+    lastActivityRef.current = now;
+    lastThrottleRef.current = now;
     startWarningTimer();
   }, [clearAllTimers, startWarningTimer]);
 
-  // Activity listeners — only reset during "active" state, throttled to 1/s
+  // Activity listeners — only reset during "active" state.
+  // lastActivityRef é atualizado a cada 60s (não a cada 1s) para que o
+  // cronômetro da topbar decremente visivelmente entre resets.
   useEffect(() => {
     const handleActivity = () => {
       if (stateRef.current !== "active") return;
 
       const now = Date.now();
-      if (now - lastActivityRef.current < 1000) return;
+      // Throttle: ignora eventos com menos de 1s de intervalo
+      if (now - lastThrottleRef.current < 1_000) return;
+      lastThrottleRef.current = now;
+
+      // Só reinicia o timer de warning (e reseta lastActivityRef) a cada 60s
+      // para que o cronômetro da topbar decremente visivelmente
+      if (now - lastActivityRef.current < 60_000) return;
       lastActivityRef.current = now;
 
-      // Reset the warning timer on activity
       if (warningTimerRef.current) {
         clearTimeout(warningTimerRef.current);
       }
