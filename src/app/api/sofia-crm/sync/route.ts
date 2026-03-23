@@ -13,6 +13,12 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { processJobById } from "@/lib/jobs/processor";
 
+function fireAndForgetProcessJob(jobId: string) {
+  processJobById(jobId).catch((error) => {
+    console.error(`[SYNC] Falha ao processar job ${jobId} em background:`, error);
+  });
+}
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
@@ -122,16 +128,18 @@ export async function POST(request: NextRequest) {
 
     const queuedJob = await enqueueJob("sofia_crm_sync", {}, access.companyId, undefined, 1);
 
-    const processed = await processJobById(queuedJob.id);
+    // Processar em background para liberar a resposta imediatamente.
+    // O client vai pollar /api/sofia-crm/sync-status para acompanhar o progresso.
+    fireAndForgetProcessJob(queuedJob.id);
 
     return NextResponse.json({
       companyId: access.companyId,
       mode: "conversations",
       jobId: queuedJob.id,
-      jobStatus: processed?.status === "done" ? "done" : processed?.status === "failed" ? "failed" : "pending",
-      completedAt: processed?.status === "done" ? new Date().toISOString() : null,
-      error: processed?.error ?? null,
-      result: processed?.result ?? null,
+      jobStatus: "pending",
+      completedAt: null,
+      error: null,
+      result: null,
     });
   } catch (error) {
     if (error instanceof CompanyAccessError) {
