@@ -228,8 +228,13 @@ export default async function WhatsappAlertPage({ params }: PageProps) {
                     Contato
                   </div>
                   <p className="mt-2 text-base font-semibold">
-                    {conversation.contact_phone || formatContactDisplay(null, conversation.remote_jid)}
+                    {conversation.contact_name || formatContactDisplay(null, conversation.remote_jid)}
                   </p>
+                  {conversation.contact_phone ? (
+                    <p className="text-sm text-[var(--color-text-secondary)]">
+                      {conversation.contact_phone}
+                    </p>
+                  ) : null}
                   <p className="text-sm text-[var(--color-text-secondary)]">
                     Canal: WhatsApp
                   </p>

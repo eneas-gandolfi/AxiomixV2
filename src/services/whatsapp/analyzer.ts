@@ -341,7 +341,7 @@ export async function analyzeConversation(
   const supabase = createSupabaseAdminClient();
   const { data: conversation, error: conversationError } = await supabase
     .from("conversations")
-    .select("id, company_id, external_id, contact_phone, remote_jid")
+    .select("id, company_id, external_id, contact_name, contact_phone, remote_jid")
     .eq("id", conversationId)
     .eq("company_id", companyId)
     .single();
@@ -415,7 +415,7 @@ export async function analyzeConversation(
     triggerPurchaseIntentAlert({
       companyId,
       conversationId,
-      contactName: conversation.contact_phone,
+      contactName: conversation.contact_name,
       contactPhone: conversation.contact_phone,
       summary: insight.summary,
     });
@@ -425,7 +425,7 @@ export async function analyzeConversation(
     triggerNegativeSentimentAlert({
       companyId,
       conversationId,
-      contactName: conversation.contact_phone,
+      contactName: conversation.contact_name,
       contactPhone: conversation.contact_phone,
       urgency: insight.urgency,
       summary: insight.summary,
