@@ -6,24 +6,18 @@
  */
 
 import { z } from "zod";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { processJobById } from "@/lib/jobs/processor";
 
-function fireAndForgetProcessJob(jobId: string) {
-  processJobById(jobId).catch((error) => {
-    console.error(`[SYNC] Falha ao processar job ${jobId} em background:`, error);
-  });
-}
-
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
-const STALE_PENDING_MINUTES = 2;
-const STALE_RUNNING_MINUTES = 5;
+const STALE_PENDING_MINUTES = 3;
+const STALE_RUNNING_MINUTES = 10;
 
 const syncRequestSchema = z.object({
   companyId: z.string().uuid("companyId inválido.").optional(),
@@ -128,9 +122,16 @@ export async function POST(request: NextRequest) {
 
     const queuedJob = await enqueueJob("sofia_crm_sync", {}, access.companyId, undefined, 1);
 
-    // Processar em background para liberar a resposta imediatamente.
-    // O client vai pollar /api/sofia-crm/sync-status para acompanhar o progresso.
-    fireAndForgetProcessJob(queuedJob.id);
+    // Usar after() do Next.js para garantir que o processamento em background
+    // continue mesmo após a resposta ser enviada. O fireAndForget simples
+    // é terminado pelo runtime serverless (Vercel) após o response.
+    after(async () => {
+      try {
+        await processJobById(queuedJob.id);
+      } catch (error) {
+        console.error(`[SYNC] Falha ao processar job ${queuedJob.id} em background:`, error);
+      }
+    });
 
     return NextResponse.json({
       companyId: access.companyId,

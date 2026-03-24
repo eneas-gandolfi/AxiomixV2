@@ -13,8 +13,8 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-const STALE_PENDING_MINUTES = 2;
-const STALE_RUNNING_MINUTES = 5;
+const STALE_PENDING_MINUTES = 3;
+const STALE_RUNNING_MINUTES = 10;
 
 const querySchema = z.object({
   companyId: z.string().uuid("companyId inválido.").optional(),

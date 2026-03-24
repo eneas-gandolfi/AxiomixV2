@@ -22,7 +22,7 @@ type SyncMessagesResult = {
 };
 
 export type SyncProgressInfo = {
-  phase: "conversations" | "messages";
+  phase: "conversations" | "upserting" | "messages";
   totalConversations: number;
   processedConversations: number;
   syncedMessages: number;
@@ -224,6 +224,13 @@ export async function syncConversations(
   const rows: Array<{ id: string; external_id: string | null }> = [];
   const messageSyncExternalIds = new Set<string>();
 
+  onProgress?.({
+    phase: "upserting",
+    totalConversations: syncRows.length,
+    processedConversations: 0,
+    syncedMessages: 0,
+  });
+
   if (insertRows.length > 0) {
     const { data: insertedRows, error: insertError } = await supabase
       .from("conversations")
@@ -242,39 +249,65 @@ export async function syncConversations(
     }
   }
 
-  for (const row of updateRows) {
-    const existingConversation = existingByExternalId.get(row.external_id);
-    if (!existingConversation) {
-      continue;
-    }
+  onProgress?.({
+    phase: "upserting",
+    totalConversations: syncRows.length,
+    processedConversations: insertRows.length,
+    syncedMessages: 0,
+  });
 
-    const { data: updatedRow, error: updateError } = await supabase
-      .from("conversations")
-      .update({
-        remote_jid: row.remote_jid,
-        contact_name: row.contact_name,
-        contact_phone: row.contact_phone,
-        contact_avatar_url: row.contact_avatar_url,
-        assigned_to: row.assigned_to,
-        status: row.status,
-        last_message_at: row.last_message_at,
-        last_synced_at: row.last_synced_at,
-      })
-      .eq("id", existingConversation.id)
-      .eq("company_id", companyId)
-      .select("id, external_id")
-      .single();
+  // Batch updates em grupos de 20 para evitar N queries individuais
+  const UPDATE_BATCH_SIZE = 20;
+  for (let batchStart = 0; batchStart < updateRows.length; batchStart += UPDATE_BATCH_SIZE) {
+    const batch = updateRows.slice(batchStart, batchStart + UPDATE_BATCH_SIZE);
+    const updatePromises = batch.map(async (row) => {
+      const existingConversation = existingByExternalId.get(row.external_id);
+      if (!existingConversation) {
+        return null;
+      }
 
-    if (updateError) {
-      throw new Error(`Falha ao atualizar conversa ${row.external_id}: ${updateError.message}`);
-    }
+      const { data: updatedRow, error: updateError } = await supabase
+        .from("conversations")
+        .update({
+          remote_jid: row.remote_jid,
+          contact_name: row.contact_name,
+          contact_phone: row.contact_phone,
+          contact_avatar_url: row.contact_avatar_url,
+          assigned_to: row.assigned_to,
+          status: row.status,
+          last_message_at: row.last_message_at,
+          last_synced_at: row.last_synced_at,
+        })
+        .eq("id", existingConversation.id)
+        .eq("company_id", companyId)
+        .select("id, external_id")
+        .single();
 
-    if (updatedRow) {
-      rows.push(updatedRow);
-      if (updatedRow.external_id && shouldSyncMessages(existingConversation.lastMessageAt, row.last_message_at)) {
+      if (updateError) {
+        console.error(`[SYNC] Falha ao atualizar conversa ${row.external_id}: ${updateError.message}`);
+        return null;
+      }
+
+      if (updatedRow?.external_id && shouldSyncMessages(existingConversation.lastMessageAt, row.last_message_at)) {
         messageSyncExternalIds.add(updatedRow.external_id);
       }
+
+      return updatedRow;
+    });
+
+    const batchResults = await Promise.all(updatePromises);
+    for (const updatedRow of batchResults) {
+      if (updatedRow) {
+        rows.push(updatedRow);
+      }
     }
+
+    onProgress?.({
+      phase: "upserting",
+      totalConversations: syncRows.length,
+      processedConversations: insertRows.length + Math.min(batchStart + UPDATE_BATCH_SIZE, updateRows.length),
+      syncedMessages: 0,
+    });
   }
 
   let syncedMessages = 0;

@@ -72,12 +72,16 @@ export function SyncConversationsButton({ companyId }: SyncConversationsButtonPr
     if (phase === "conversations") {
       return `Carregando conversas... (${totalConversations})`;
     }
+    if (phase === "upserting") {
+      const pct = totalConversations > 0 ? Math.round((processedConversations / totalConversations) * 100) : 0;
+      return `Salvando conversas... ${processedConversations}/${totalConversations} (${pct}%)`;
+    }
     const pct = totalConversations > 0 ? Math.round((processedConversations / totalConversations) * 100) : 0;
     return `Sincronizando... ${processedConversations}/${totalConversations} conversas (${pct}%) — ${syncedMessages} msgs`;
   })();
 
   const progressPct =
-    isFullSyncing && progress && progress.totalConversations > 0
+    isFullSyncing && progress && progress.totalConversations > 0 && progress.phase !== "conversations"
       ? Math.round((progress.processedConversations / progress.totalConversations) * 100)
       : null;
 
