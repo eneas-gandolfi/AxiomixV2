@@ -116,13 +116,16 @@ async function transcribeAudio(
  * Extrai texto de PDF (lazy import para não incluir no bundle desnecessariamente).
  */
 async function extractPdfText(base64: string): Promise<string> {
-  const { PDFParse } = await import("pdf-parse");
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const buffer = Buffer.from(base64, "base64");
-  const parser = new PDFParse({ data: buffer });
-  const result = await parser.getText();
-  await parser.destroy();
-
-  const text = result.text?.trim() ?? "";
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+  }
+  const text = pages.join("\n").trim();
   if (!text) throw new Error("PDF sem texto extraível.");
 
   const limit = 3000;

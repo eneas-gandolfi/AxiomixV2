@@ -7,7 +7,6 @@
 
 import "server-only";
 
-import { PDFParse } from "pdf-parse";
 import {
   openRouterChatCompletion,
   openRouterAudioTranscription,
@@ -24,10 +23,15 @@ async function extractPdfText(base64: string): Promise<string> {
   const pdfBuffer = Buffer.from(base64, "base64");
   console.log(LOG_PREFIX, `PDF recebido: ${pdfBuffer.length} bytes`);
 
-  const parser = new PDFParse({ data: pdfBuffer });
-  const textResult = await parser.getText();
-  const extractedText = textResult.text;
-  await parser.destroy();
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer) }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+  }
+  const extractedText = pages.join("\n");
 
   if (!extractedText || extractedText.trim().length === 0) {
     throw new Error("PDF não contém texto extraível.");

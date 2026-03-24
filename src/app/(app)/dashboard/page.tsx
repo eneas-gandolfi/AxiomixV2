@@ -117,7 +117,9 @@ function extractPlatforms(rawPlatforms: Json) {
 }
 
 function getGreeting(): string {
-  const hour = new Date().getHours();
+  const now = new Date();
+  const brTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const hour = brTime.getHours();
   if (hour < 12) return "Bom dia";
   if (hour < 18) return "Boa tarde";
   return "Boa noite";
