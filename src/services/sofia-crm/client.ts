@@ -127,6 +127,7 @@ const SOFIA_HTTP2_TIMEOUT_MS = 15_000;
 
 type SofiaCrmClient = {
   baseUrl: string;
+  apiToken: string;
   inboxId?: string;
   buildConversationUrl: (externalConversationId: string) => string;
   // Conversas
@@ -744,6 +745,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
 
   return {
     baseUrl,
+    apiToken: config.apiToken,
     inboxId: config.inboxId || undefined,
     buildConversationUrl(externalConversationId: string) {
       return `${baseUrl}/conversations/${encodeURIComponent(externalConversationId)}`;

@@ -42,14 +42,20 @@ function ensureAbsoluteUrl(url: string, baseUrl?: string): string {
  */
 async function downloadMediaFromUrl(
   url: string,
-  sofiaBaseUrl?: string
+  sofiaBaseUrl?: string,
+  sofiaToken?: string
 ): Promise<{ base64: string; mimetype: string } | null> {
   try {
     const absoluteUrl = ensureAbsoluteUrl(url, sofiaBaseUrl);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
 
-    const response = await fetch(absoluteUrl, { signal: controller.signal });
+    const headers: Record<string, string> = {};
+    if (sofiaToken && !url.startsWith("http")) {
+      headers["Authorization"] = `Bearer ${sofiaToken}`;
+    }
+
+    const response = await fetch(absoluteUrl, { signal: controller.signal, headers });
     clearTimeout(timeout);
 
     if (!response.ok) {
@@ -139,14 +145,15 @@ async function extractPdfText(base64: string): Promise<string> {
 async function processMediaMessage(
   companyId: string,
   message: MessageToEnrich,
-  sofiaBaseUrl?: string
+  sofiaBaseUrl?: string,
+  sofiaToken?: string
 ): Promise<string | null> {
   const type = (message.message_type ?? "").toLowerCase();
   const url = message.media_url;
 
   if (!url) return null;
 
-  const media = await downloadMediaFromUrl(url, sofiaBaseUrl);
+  const media = await downloadMediaFromUrl(url, sofiaBaseUrl, sofiaToken);
   if (!media) return null;
 
   const { base64, mimetype } = media;
@@ -217,9 +224,11 @@ export async function enrichMediaMessages<T extends MessageToEnrich>(
 
   // Resolver base URL do Sofia CRM para URLs relativas de mídia
   let sofiaBaseUrl: string | undefined;
+  let sofiaToken: string | undefined;
   try {
     const sofiaClient = await getSofiaCrmClient(companyId);
     sofiaBaseUrl = sofiaClient.baseUrl;
+    sofiaToken = sofiaClient.apiToken;
   } catch {
     // Sofia CRM pode não estar configurado — URLs relativas não serão resolvidas
   }
@@ -229,7 +238,7 @@ export async function enrichMediaMessages<T extends MessageToEnrich>(
 
   await Promise.allSettled(
     toProcess.map(async (message) => {
-      const extracted = await processMediaMessage(companyId, message, sofiaBaseUrl);
+      const extracted = await processMediaMessage(companyId, message, sofiaBaseUrl, sofiaToken);
       if (extracted) {
         updatedContents.set(message.id, extracted);
 
