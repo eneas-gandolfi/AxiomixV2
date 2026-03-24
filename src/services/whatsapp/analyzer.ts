@@ -18,16 +18,23 @@ import {
 import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 import { enrichMediaMessages } from "@/lib/whatsapp/media-enricher";
 
+/** Normaliza acentos comuns retornados pela IA nos enums. */
+function normalizeAccents(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const map: Record<string, string> = {
+    "reclamação": "reclamacao",
+    "dúvida": "duvida",
+    "duvída": "duvida",
+  };
+  return map[value.toLowerCase()] ?? value;
+}
+
 const insightSchema = z.object({
   sentiment: z.enum(["positivo", "neutro", "negativo"]),
-  intent: z
-    .enum(["compra", "suporte", "reclamacao", "duvida", "cancelamento", "outro"])
-    .transform((value) => {
-      if (value === "reclamacao") {
-        return "reclamacao";
-      }
-      return value;
-    }),
+  intent: z.preprocess(
+    normalizeAccents,
+    z.enum(["compra", "suporte", "reclamacao", "duvida", "cancelamento", "outro"])
+  ),
   urgency: z.number().int().min(1).max(5).optional().default(3),
   sales_stage: z
     .enum(["discovery", "qualification", "proposal", "negotiation", "closing", "post_sale", "unknown"])
