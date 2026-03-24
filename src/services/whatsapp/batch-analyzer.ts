@@ -322,6 +322,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
       return {
         conversationId: conv.id,
         ...classification,
+        summary: "",
       };
     });
 
