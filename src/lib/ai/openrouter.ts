@@ -17,7 +17,8 @@ type OpenRouterConfig = {
 
 export type OpenRouterContentPart =
   | { type: "text"; text: string }
-  | { type: "image_url"; image_url: { url: string } };
+  | { type: "image_url"; image_url: { url: string } }
+  | { type: "input_audio"; input_audio: { data: string; format: "mp3" | "wav" } };
 
 type OpenRouterMessage = {
   role: "system" | "user";
@@ -219,56 +220,42 @@ export async function openRouterChatCompletion(
 }
 
 /**
- * Transcreve áudio via OpenRouter (Whisper).
- * Envia o arquivo de áudio como multipart/form-data.
+ * Transcreve áudio via OpenRouter usando modelo com suporte a input de áudio.
+ * Envia o áudio como data URL inline no chat completion (sem endpoint Whisper).
  */
 export async function openRouterAudioTranscription(
   companyId: string,
   audioBase64: string,
   mimetype: string
 ): Promise<string> {
-  const config = await resolveOpenRouterConfig(companyId);
+  const dataUrl = `data:${mimetype};base64,${audioBase64}`;
 
-  const extension = mimetype.split("/")[1]?.replace("mpeg", "mp3").replace("ogg; codecs=opus", "ogg") ?? "ogg";
-  const audioBuffer = Buffer.from(audioBase64, "base64");
-  const blob = new Blob([audioBuffer], { type: mimetype });
-
-  const formData = new FormData();
-  formData.append("file", blob, `audio.${extension}`);
-  formData.append("model", "openai/whisper-1");
-  formData.append("language", "pt");
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120_000);
-
-  let response: Response;
-  try {
-    response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
+  const transcription = await openRouterChatCompletion(
+    companyId,
+    [
+      {
+        role: "system",
+        content:
+          "Voce e um transcritor de audio profissional. Transcreva o audio a seguir em portugues brasileiro, " +
+          "mantendo o texto fiel ao que foi dito. Retorne APENAS a transcricao, sem comentarios ou formatacao extra.",
       },
-      body: formData,
-      signal: controller.signal,
-    });
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Timeout: transcrição de áudio excedeu 120s.");
-    }
-    throw error;
-  }
-  clearTimeout(timeoutId);
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Transcreva este audio:" },
+          {
+            type: "input_audio",
+            input_audio: { data: audioBase64, format: mimetype.includes("mp3") || mimetype.includes("mpeg") ? "mp3" : "wav" },
+          },
+        ],
+      },
+    ],
+    { responseFormat: "text", temperature: 0.1, model: "openai/gpt-4o-audio-preview" }
+  );
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`OpenRouter Whisper error ${response.status}: ${detail.slice(0, 200)}`);
-  }
-
-  const payload = (await response.json()) as { text?: string };
-  if (!payload.text) {
+  if (!transcription || transcription.trim().length === 0) {
     throw new Error("Transcrição de áudio retornou vazia.");
   }
 
-  return payload.text;
+  return transcription.trim();
 }
