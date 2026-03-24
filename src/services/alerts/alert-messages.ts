@@ -13,6 +13,21 @@ function resolveAppUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
 }
 
+function formatContactLines(contactName: string | null, contactPhone: string | null): string[] {
+  const name = contactName?.trim() || null;
+  const phone = contactPhone?.trim() || null;
+
+  if (name && phone) {
+    return [`Contato: ${name}`, `Telefone: ${phone}`];
+  }
+
+  if (name) {
+    return [`Contato: ${name}`];
+  }
+
+  return [`Contato: ${phone ?? "Desconhecido"}`];
+}
+
 export function buildPurchaseIntentMessage(input: {
   companyId: string;
   conversationId: string;
@@ -25,8 +40,6 @@ export function buildPurchaseIntentMessage(input: {
     companyId: input.companyId,
     conversationId: input.conversationId,
   });
-  const contactLabel = input.contactName ?? input.contactPhone ?? "Contato desconhecido";
-
   const summary = input.summary.length > 300
     ? input.summary.slice(0, 300).trimEnd() + "..."
     : input.summary;
@@ -34,7 +47,7 @@ export function buildPurchaseIntentMessage(input: {
   return [
     "\u{1F4B0} *Inten\u00E7\u00E3o de Compra Detectada*",
     "",
-    `Contato: ${contactLabel}`,
+    ...formatContactLines(input.contactName, input.contactPhone),
     `Resumo: ${summary}`,
     "",
     `\u{1F517} Acesse agora: ${appUrl}/alertas/whatsapp/${alertToken}`,
@@ -54,7 +67,6 @@ export function buildNegativeSentimentMessage(input: {
     companyId: input.companyId,
     conversationId: input.conversationId,
   });
-  const contactLabel = input.contactName ?? input.contactPhone ?? "Contato desconhecido";
   const urgencyBars = "\u{2B1B}".repeat(input.urgency) + "\u{2B1C}".repeat(5 - input.urgency);
 
   const summary = input.summary.length > 300
@@ -64,7 +76,7 @@ export function buildNegativeSentimentMessage(input: {
   return [
     "\u{1F534} *Sentimento Negativo \u2014 Alta Urg\u00EAncia*",
     "",
-    `Contato: ${contactLabel}`,
+    ...formatContactLines(input.contactName, input.contactPhone),
     `Urg\u00EAncia: ${urgencyBars} (${input.urgency}/5)`,
     `Resumo: ${summary}`,
     "",
