@@ -8,7 +8,7 @@
 
 import "server-only";
 
-import https from "node:https";
+import http2 from "node:http2";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   openRouterChatCompletion,
@@ -39,48 +39,59 @@ function ensureAbsoluteUrl(url: string, baseUrl?: string): string {
 }
 
 /**
- * Baixa a mídia de uma URL e retorna base64 + mimetype.
+ * Baixa mídia via HTTP/2 com rejectUnauthorized=false.
+ * Usa o mesmo protocolo que o Sofia CRM client (que funciona), pois
+ * HTTP/1.1 (node:https) falha com EPROTO no TLS do servidor Sofia.
  */
-/**
- * Baixa via node:https com rejectUnauthorized=false (Sofia CRM pode ter cert auto-assinado).
- */
-function httpsGet(
+function http2Get(
   urlStr: string,
   token?: string
 ): Promise<{ base64: string; mimetype: string; status: number }> {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(urlStr);
-    const options: https.RequestOptions = {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port || 443,
-      path: parsedUrl.pathname + parsedUrl.search,
-      method: "GET",
-      rejectUnauthorized: false,
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+    const client = http2.connect(parsedUrl.origin, { rejectUnauthorized: false });
+
+    client.on("error", (err) => {
+      client.close();
+      reject(err);
+    });
+
+    client.setTimeout(30_000, () => {
+      client.close();
+      reject(new Error("Timeout ao baixar mídia."));
+    });
+
+    const reqHeaders: http2.OutgoingHttpHeaders = {
+      ":method": "GET",
+      ":path": parsedUrl.pathname + parsedUrl.search,
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
     };
 
-    const req = https.request(options, (res) => {
-      const chunks: Buffer[] = [];
-      res.on("data", (chunk: Buffer) => chunks.push(chunk));
-      res.on("end", () => {
-        const buffer = Buffer.concat(chunks);
-        const contentType = res.headers["content-type"] ?? "application/octet-stream";
-        resolve({
-          base64: buffer.toString("base64"),
-          mimetype: contentType.split(";")[0].trim(),
-          status: res.statusCode ?? 0,
-        });
+    const req = client.request(reqHeaders);
+    const chunks: Buffer[] = [];
+    let statusCode = 0;
+    let contentType = "application/octet-stream";
+
+    req.on("response", (headers) => {
+      statusCode = Number(headers[":status"]);
+      contentType = (headers["content-type"] as string) ?? contentType;
+    });
+
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      client.close();
+      const buffer = Buffer.concat(chunks);
+      resolve({
+        base64: buffer.toString("base64"),
+        mimetype: contentType.split(";")[0].trim(),
+        status: statusCode,
       });
     });
 
-    req.on("error", reject);
-    req.setTimeout(30_000, () => {
-      req.destroy();
-      reject(new Error("Timeout ao baixar mídia."));
+    req.on("error", (err) => {
+      client.close();
+      reject(err);
     });
-    req.end();
   });
 }
 
@@ -93,9 +104,9 @@ async function downloadMediaFromUrl(
     const absoluteUrl = ensureAbsoluteUrl(url, sofiaBaseUrl);
     const isSofiaRelative = !url.startsWith("http");
 
-    // URLs internas do Sofia CRM: usar node:https com SSL flexível
+    // URLs internas do Sofia CRM: usar HTTP/2 com SSL flexível (mesmo protocolo do client Sofia)
     if (isSofiaRelative && absoluteUrl.startsWith("https://")) {
-      const result = await httpsGet(absoluteUrl, sofiaToken);
+      const result = await http2Get(absoluteUrl, sofiaToken);
       if (result.status < 200 || result.status >= 300) {
         console.warn(LOG_PREFIX, `Falha ao baixar mídia (HTTP ${result.status}): ${url}`);
         return null;
