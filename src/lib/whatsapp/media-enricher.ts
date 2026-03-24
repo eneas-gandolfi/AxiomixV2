@@ -154,7 +154,7 @@ async function describeImage(
         ],
       },
     ],
-    { responseFormat: "text", temperature: 0.2 }
+    { responseFormat: "text", temperature: 0.2, model: "openai/gpt-4o-mini" }
   );
 }
 
@@ -173,20 +173,9 @@ async function transcribeAudio(
  * Extrai texto de PDF (lazy import para não incluir no bundle desnecessariamente).
  */
 async function extractPdfText(base64: string): Promise<string> {
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const { extractTextFromPdf } = await import("@/lib/pdf/extract-text");
   const buffer = Buffer.from(base64, "base64");
-  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
-  const pages: string[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
-  }
-  const text = pages.join("\n").trim();
-  if (!text) throw new Error("PDF sem texto extraível.");
-
-  const limit = 3000;
-  return text.length > limit ? text.slice(0, limit) + "\n\n[... texto truncado]" : text;
+  return extractTextFromPdf(buffer, 3000);
 }
 
 /**

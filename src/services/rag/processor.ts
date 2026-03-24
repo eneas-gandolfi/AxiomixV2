@@ -83,24 +83,13 @@ export async function runRagProcessWorker(
       throw new Error(`Falha ao baixar PDF: ${downloadError?.message ?? "Arquivo não encontrado."}`);
     }
 
-    // 3. Extrair texto com pdfjs-dist (sem @napi-rs/canvas)
+    // 3. Extrair texto com pdfjs-dist (polyfill DOMMatrix centralizado)
     const pdfBuffer = Buffer.from(await fileData.arrayBuffer());
     console.log(`[RAG] PDF baixado: ${pdfBuffer.length} bytes`);
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer) }).promise;
-    const pages: string[] = [];
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      const page = await pdfDoc.getPage(i);
-      const content = await page.getTextContent();
-      pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
-    }
-    const extractedText = pages.join("\n");
+    const { extractTextFromPdf } = await import("@/lib/pdf/extract-text");
+    const extractedText = await extractTextFromPdf(pdfBuffer);
 
     console.log(`[RAG] Texto extraído: ${extractedText.length} chars`);
-
-    if (!extractedText || extractedText.trim().length === 0) {
-      throw new Error("PDF não contém texto extraível.");
-    }
 
     // 4. Chunkar texto
     const chunks = chunkText(extractedText);
