@@ -236,6 +236,7 @@ export default async function WhatsAppDashboardPage() {
           icon="alert"
           color={criticalCount > 0 ? "danger" : undefined}
           className={criticalCount > 0 ? "border-danger" : ""}
+          href={criticalCount > 0 ? "/whatsapp-intelligence/conversas?sentiment=negativo&period=1" : undefined}
         />
       </div>
 

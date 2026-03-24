@@ -305,7 +305,9 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
       { model: process.env.OPENROUTER_MODEL_LIGHT }
     );
 
-    const parsed: unknown = JSON.parse(rawJson);
+    const jsonMatch = rawJson.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const cleanedJson = jsonMatch?.[1]?.trim() ?? rawJson.trim();
+    const parsed: unknown = JSON.parse(cleanedJson);
     const parsedAnalyses = batchAnalysisResponseSchema.parse(parsed);
     analyses = {
       ...parsedAnalyses,

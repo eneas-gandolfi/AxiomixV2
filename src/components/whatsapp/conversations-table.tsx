@@ -43,6 +43,7 @@ type ConversationsTableProps = {
   selectedIds: Set<string>;
   onToggleSelection: (id: string) => void;
   onSelectAll: () => void;
+  onResolve?: (conversationId: string) => void;
 };
 
 export function sentimentBadgeClass(sentiment?: Sentiment | null) {
@@ -150,6 +151,7 @@ export function ConversationsTable({
   selectedIds,
   onToggleSelection,
   onSelectAll,
+  onResolve,
 }: ConversationsTableProps) {
   const router = useRouter();
 
@@ -233,12 +235,19 @@ export function ConversationsTable({
       title: "Sentimento",
       dataIndex: "sentiment",
       width: 130,
-      render: (sentiment: Sentiment | null) => (
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs font-medium ${sentimentBadgeClass(sentiment)}`}
-        >
-          {sentimentLabel(sentiment)}
-        </span>
+      render: (sentiment: Sentiment | null, record: ConversationData) => (
+        <div className="flex flex-col gap-1">
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-medium w-fit ${sentimentBadgeClass(sentiment)}`}
+          >
+            {sentimentLabel(sentiment)}
+          </span>
+          {record.status === "closed" && (
+            <span className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-success-light text-success w-fit">
+              Resolvida
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -254,6 +263,7 @@ export function ConversationsTable({
             <ConversationQuickActions
               conversationId={record.id}
               conversationUrl={conversationUrl}
+              onResolve={onResolve && record.status !== "closed" ? () => onResolve(record.id) : undefined}
             />
           </div>
         );

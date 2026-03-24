@@ -36,9 +36,10 @@ type ConversationsListProps = {
   conversations: ConversationData[];
   companyId: string;
   agents?: Array<{ id: string; name: string | null }>;
+  initialFilters?: Partial<ConversationFilters>;
 };
 
-export function ConversationsList({ conversations, companyId, agents = [] }: ConversationsListProps) {
+export function ConversationsList({ conversations, companyId, agents = [], initialFilters }: ConversationsListProps) {
   const router = useRouter();
   const { message } = App.useApp();
   const [filters, setFilters] = useState<ConversationFilters>({
@@ -48,6 +49,7 @@ export function ConversationsList({ conversations, companyId, agents = [] }: Con
     agent: "all",
     period: "7",
     search: "",
+    ...initialFilters,
   });
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -57,6 +59,28 @@ export function ConversationsList({ conversations, companyId, agents = [] }: Con
   const [error, setError] = useState<string | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [analyzeProgress, setAnalyzeProgress] = useState<{ current: number; total: number } | null>(null);
+  const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
+
+  const handleResolve = async (conversationId: string) => {
+    try {
+      const response = await fetch("/api/whatsapp/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId, conversationId, status: "closed" }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error ?? "Erro ao resolver conversa.");
+      }
+
+      setResolvedIds((prev) => new Set(prev).add(conversationId));
+      message.success("Conversa marcada como resolvida.");
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "Erro ao resolver conversa.";
+      message.error(detail);
+    }
+  };
 
   const handleToggleSelection = (conversationId: string) => {
     setSelectedIds((prev) => {
@@ -208,7 +232,11 @@ export function ConversationsList({ conversations, companyId, agents = [] }: Con
   };
 
   const filteredConversations = useMemo(() => {
-    let filtered = conversations.filter((conversation) => !deletedIds.has(conversation.id));
+    let filtered = conversations
+      .filter((conversation) => !deletedIds.has(conversation.id))
+      .map((conv) =>
+        resolvedIds.has(conv.id) ? { ...conv, status: "closed" } : conv
+      );
 
     // Filtro de sentimento
     if (filters.sentiment === "not_analyzed") {
@@ -257,7 +285,7 @@ export function ConversationsList({ conversations, companyId, agents = [] }: Con
     }
 
     return filtered;
-  }, [conversations, deletedIds, filters]);
+  }, [conversations, deletedIds, resolvedIds, filters]);
 
   const exportConversationIds = useMemo(() => {
     if (selectedIds.size > 0) {
@@ -269,7 +297,7 @@ export function ConversationsList({ conversations, companyId, agents = [] }: Con
 
   return (
     <>
-      <ConversationFiltersCompact onFiltersChange={setFilters} agents={agents} />
+      <ConversationFiltersCompact onFiltersChange={setFilters} agents={agents} initialFilters={initialFilters} />
 
       {feedback && <p className="mb-2 text-sm text-success">{feedback}</p>}
       {error && <p className="mb-2 text-sm text-danger">{error}</p>}
@@ -385,6 +413,7 @@ export function ConversationsList({ conversations, companyId, agents = [] }: Con
               selectedIds={selectedIds}
               onToggleSelection={handleToggleSelection}
               onSelectAll={handleSelectAll}
+              onResolve={handleResolve}
             />
           </div>
         </CardContent>

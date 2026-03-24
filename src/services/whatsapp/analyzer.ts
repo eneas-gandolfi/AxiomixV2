@@ -226,8 +226,14 @@ function applyInsightGuardrails(
   };
 }
 
+function extractJson(text: string): string {
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  return match?.[1]?.trim() ?? text.trim();
+}
+
 function parseAiResponse(rawContent: string) {
-  const parsedUnknown: unknown = JSON.parse(rawContent);
+  const cleaned = extractJson(rawContent);
+  const parsedUnknown: unknown = JSON.parse(cleaned);
   return insightSchema.parse(parsedUnknown);
 }
 

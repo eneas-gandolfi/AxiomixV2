@@ -7,6 +7,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import {
@@ -34,6 +35,7 @@ type MetricCardWithSparklineProps = {
   change?: number | null;
   color?: "success" | "warning" | "danger" | "primary";
   className?: string;
+  href?: string;
 };
 
 function getIconComponent(iconName?: IconName) {
@@ -100,14 +102,26 @@ export function MetricCardWithSparkline({
   change,
   color,
   className,
+  href,
 }: MetricCardWithSparklineProps) {
   const colors = getColorClasses(color);
   const trendIcon = getTrendIcon(change);
   const changeFormatted = formatChange(change);
   const IconComponent = getIconComponent(icon);
 
+  const Wrapper = href
+    ? ({ children, className: cls }: { children: React.ReactNode; className?: string }) => (
+        <Link href={href} className={cls}>
+          {children}
+        </Link>
+      )
+    : ({ children, className: cls }: { children: React.ReactNode; className?: string }) => (
+        <div className={cls}>{children}</div>
+      );
+
   return (
-    <Card className={className}>
+    <Wrapper className={href ? "block" : undefined}>
+    <Card className={`${className ?? ""}${href ? " cursor-pointer transition-shadow hover:shadow-md" : ""}`}>
       <CardHeader className="pb-2">
         <CardDescription className="text-xs">{title}</CardDescription>
         <div className="flex items-center justify-between">
@@ -148,5 +162,6 @@ export function MetricCardWithSparkline({
         </div>
       </CardContent>
     </Card>
+    </Wrapper>
   );
 }

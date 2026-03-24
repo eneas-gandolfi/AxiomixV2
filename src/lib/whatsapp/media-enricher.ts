@@ -13,6 +13,7 @@ import {
   openRouterChatCompletion,
   openRouterAudioTranscription,
 } from "@/lib/ai/openrouter";
+import { getSofiaCrmClient } from "@/services/sofia-crm/client";
 
 const LOG_PREFIX = "[whatsapp/media-enricher]";
 
@@ -28,17 +29,27 @@ export type MessageToEnrich = {
   [key: string]: unknown;
 };
 
+function ensureAbsoluteUrl(url: string, baseUrl?: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  if (!baseUrl) return url;
+  return `${baseUrl.replace(/\/$/, "")}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 /**
  * Baixa a mídia de uma URL e retorna base64 + mimetype.
  */
 async function downloadMediaFromUrl(
-  url: string
+  url: string,
+  sofiaBaseUrl?: string
 ): Promise<{ base64: string; mimetype: string } | null> {
   try {
+    const absoluteUrl = ensureAbsoluteUrl(url, sofiaBaseUrl);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
 
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(absoluteUrl, { signal: controller.signal });
     clearTimeout(timeout);
 
     if (!response.ok) {
@@ -124,14 +135,15 @@ async function extractPdfText(base64: string): Promise<string> {
  */
 async function processMediaMessage(
   companyId: string,
-  message: MessageToEnrich
+  message: MessageToEnrich,
+  sofiaBaseUrl?: string
 ): Promise<string | null> {
   const type = (message.message_type ?? "").toLowerCase();
   const url = message.media_url;
 
   if (!url) return null;
 
-  const media = await downloadMediaFromUrl(url);
+  const media = await downloadMediaFromUrl(url, sofiaBaseUrl);
   if (!media) return null;
 
   const { base64, mimetype } = media;
@@ -200,12 +212,21 @@ export async function enrichMediaMessages<T extends MessageToEnrich>(
 
   console.log(LOG_PREFIX, `Processando ${toProcess.length} mensagem(ns) de mídia`);
 
+  // Resolver base URL do Sofia CRM para URLs relativas de mídia
+  let sofiaBaseUrl: string | undefined;
+  try {
+    const sofiaClient = await getSofiaCrmClient(companyId);
+    sofiaBaseUrl = sofiaClient.baseUrl;
+  } catch {
+    // Sofia CRM pode não estar configurado — URLs relativas não serão resolvidas
+  }
+
   const supabase = createSupabaseAdminClient();
   const updatedContents = new Map<string, string>();
 
   await Promise.allSettled(
     toProcess.map(async (message) => {
-      const extracted = await processMediaMessage(companyId, message);
+      const extracted = await processMediaMessage(companyId, message, sofiaBaseUrl);
       if (extracted) {
         updatedContents.set(message.id, extracted);
 

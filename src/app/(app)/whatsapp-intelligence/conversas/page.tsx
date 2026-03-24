@@ -19,7 +19,12 @@ import { getSofiaCrmClient } from "@/services/sofia-crm/client";
 
 type Sentiment = "positivo" | "neutro" | "negativo";
 
-export default async function ConversasPage() {
+type ConversasPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function ConversasPage({ searchParams }: ConversasPageProps) {
+  const params = await searchParams;
   const companyId = await getUserCompanyId();
   if (!companyId) {
     redirect("/onboarding");
@@ -71,6 +76,21 @@ export default async function ConversasPage() {
   // Contar conversas sem análise
   const unanalyzedCount = (conversations ?? []).filter((c) => !insightMap.has(c.id)).length;
 
+  // Filtros iniciais vindos da URL (ex: ?sentiment=negativo&period=1)
+  const validSentiments = ["positivo", "neutro", "negativo", "not_analyzed"] as const;
+  const validPeriods = ["1", "7", "30", "all"] as const;
+
+  const initialFilters: Record<string, string> = {};
+  const sentimentParam = typeof params.sentiment === "string" ? params.sentiment : undefined;
+  const periodParam = typeof params.period === "string" ? params.period : undefined;
+
+  if (sentimentParam && (validSentiments as readonly string[]).includes(sentimentParam)) {
+    initialFilters.sentiment = sentimentParam;
+  }
+  if (periodParam && (validPeriods as readonly string[]).includes(periodParam)) {
+    initialFilters.period = periodParam;
+  }
+
   // Preparar dados das conversas com insights
   const conversationsWithInsights = (conversations ?? []).map((conv) => {
     const insight = insightMap.get(conv.id);
@@ -118,6 +138,7 @@ export default async function ConversasPage() {
           conversations={conversationsWithInsights}
           companyId={companyId}
           agents={agents}
+          initialFilters={Object.keys(initialFilters).length > 0 ? initialFilters : undefined}
         />
       )}
     </>

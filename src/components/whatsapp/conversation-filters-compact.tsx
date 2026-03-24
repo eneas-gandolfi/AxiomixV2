@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 type Sentiment = "all" | "positivo" | "neutro" | "negativo" | "not_analyzed";
 type Intent = "all" | "compra" | "suporte" | "reclamacao" | "duvida" | "cancelamento" | "outro";
 type Status = "all" | "open" | "closed";
-type Period = "7" | "30" | "all";
+type Period = "1" | "7" | "30" | "all";
 
 export type ConversationFilters = {
   sentiment: Sentiment;
@@ -42,6 +42,7 @@ export type ConversationFilters = {
 type ConversationFiltersCompactProps = {
   onFiltersChange: (filters: ConversationFilters) => void;
   agents?: Array<{ id: string; name: string | null }>;
+  initialFilters?: Partial<ConversationFilters>;
 };
 
 type ChipProps = {
@@ -79,7 +80,7 @@ function Chip({ label, icon: Icon, active, onClick, color }: ChipProps) {
   );
 }
 
-export function ConversationFiltersCompact({ onFiltersChange, agents = [] }: ConversationFiltersCompactProps) {
+export function ConversationFiltersCompact({ onFiltersChange, agents = [], initialFilters }: ConversationFiltersCompactProps) {
   const [filters, setFilters] = useState<ConversationFilters>({
     sentiment: "all",
     intent: "all",
@@ -87,6 +88,7 @@ export function ConversationFiltersCompact({ onFiltersChange, agents = [] }: Con
     agent: "all",
     period: "7",
     search: "",
+    ...initialFilters,
   });
 
   const handleFilterChange = <K extends keyof ConversationFilters>(
@@ -243,6 +245,12 @@ export function ConversationFiltersCompact({ onFiltersChange, agents = [] }: Con
       {/* Filtros de Período */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-muted">Período:</span>
+        <Chip
+          label="24h"
+          icon={Clock}
+          active={filters.period === "1"}
+          onClick={() => handleFilterChange("period", "1")}
+        />
         <Chip
           label="7 dias"
           icon={Clock}
