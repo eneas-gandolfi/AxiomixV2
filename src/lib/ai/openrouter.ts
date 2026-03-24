@@ -17,8 +17,7 @@ type OpenRouterConfig = {
 
 export type OpenRouterContentPart =
   | { type: "text"; text: string }
-  | { type: "image_url"; image_url: { url: string } }
-  | { type: "input_audio"; input_audio: { data: string; format: "mp3" | "wav" } };
+  | { type: "image_url"; image_url: { url: string } };
 
 type OpenRouterMessage = {
   role: "system" | "user";
@@ -220,8 +219,9 @@ export async function openRouterChatCompletion(
 }
 
 /**
- * Transcreve áudio via OpenRouter usando modelo com suporte a input de áudio.
- * Envia o áudio como data URL inline no chat completion (sem endpoint Whisper).
+ * Transcreve áudio via OpenRouter usando Gemini Flash (aceita ogg, mp3, wav, etc.).
+ * WhatsApp envia áudio em ogg/opus — gpt-4o-audio-preview não aceita ogg,
+ * mas Gemini processa áudio em vários formatos via data URL.
  */
 export async function openRouterAudioTranscription(
   companyId: string,
@@ -243,14 +243,11 @@ export async function openRouterAudioTranscription(
         role: "user",
         content: [
           { type: "text", text: "Transcreva este audio:" },
-          {
-            type: "input_audio",
-            input_audio: { data: audioBase64, format: mimetype.includes("mp3") || mimetype.includes("mpeg") ? "mp3" : "wav" },
-          },
+          { type: "image_url", image_url: { url: dataUrl } },
         ],
       },
     ],
-    { responseFormat: "text", temperature: 0.1, model: "openai/gpt-4o-audio-preview" }
+    { responseFormat: "text", temperature: 0.1, model: "google/gemini-2.0-flash-001" }
   );
 
   if (!transcription || transcription.trim().length === 0) {
