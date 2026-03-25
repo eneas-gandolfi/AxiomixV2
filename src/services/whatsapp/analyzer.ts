@@ -49,7 +49,7 @@ const insightSchema = z.object({
   stall_reason: z.string().trim().optional().default(""),
   confidence_score: z.number().int().min(0).max(100).optional().default(65),
   suggested_response: z.string().trim().optional().default(""),
-  action_items: z.array(z.string().trim().min(2)).min(1).max(6),
+  action_items: z.array(z.string().trim().min(2)).max(6).optional().default(["Revisar conversa"]),
 });
 
 type InsightPayload = z.infer<typeof insightSchema>;
