@@ -19,12 +19,18 @@ import {
 
 type IdleState = "active" | "warning" | "expired";
 
+function hasRememberMeCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.cookie.split(";").some((c) => c.trim().startsWith(`${REMEMBER_ME_COOKIE}=1`));
+}
+
 export function useIdleTimeout() {
   const [state, setState] = useState<IdleState>("active");
   const [countdown, setCountdown] = useState(IDLE_COUNTDOWN_SECONDS);
   const [remainingSeconds, setRemainingSeconds] = useState(
     Math.ceil(IDLE_WARNING_MS / 1_000)
   );
+  const [rememberMe] = useState(hasRememberMeCookie);
   const router = useRouter();
 
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,8 +168,9 @@ export function useIdleTimeout() {
     };
   }, [state]);
 
-  // Start the initial timer on mount
+  // Start the initial timer on mount — skip if "Lembrar-me" está ativo
   useEffect(() => {
+    if (rememberMe) return;
     startWarningTimer();
     return () => {
       clearAllTimers();
@@ -171,5 +178,5 @@ export function useIdleTimeout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { state, countdown, remainingSeconds, resetTimer, logout };
+  return { state, countdown, remainingSeconds, rememberMe, resetTimer, logout };
 }

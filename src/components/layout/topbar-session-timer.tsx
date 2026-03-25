@@ -17,9 +17,9 @@ function formatCountdown(seconds: number): string {
 }
 
 export function TopbarSessionTimer() {
-  const { state, countdown, remainingSeconds } = useIdleTimeoutContext();
+  const { state, countdown, remainingSeconds, rememberMe } = useIdleTimeoutContext();
 
-  if (state === "expired") return null;
+  if (rememberMe || state === "expired") return null;
 
   // During warning state, show the modal countdown
   const seconds = state === "warning" ? countdown : remainingSeconds;
