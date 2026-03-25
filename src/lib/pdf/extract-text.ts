@@ -10,8 +10,16 @@ import "./polyfill";
 export async function extractTextFromPdf(buffer: Buffer, maxLength?: number): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
-  // Desabilitar worker — não disponível no serverless da Vercel
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+  // No Node.js, pdfjs-dist desabilita web workers automaticamente e usa "fake worker",
+  // mas precisa do workerSrc apontando para o arquivo real. Usar require.resolve
+  // para obter o caminho absoluto correto no runtime da Vercel.
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = require.resolve(
+      "pdfjs-dist/legacy/build/pdf.worker.mjs"
+    );
+  } catch {
+    // Se não encontrar, manter o valor default — pdfjs usará fake worker
+  }
   const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
   const pages: string[] = [];
 
