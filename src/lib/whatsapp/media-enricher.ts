@@ -230,8 +230,14 @@ async function processMediaMessage(
 
     if (MEDIA_TYPES_DOCUMENT.has(type)) {
       if (!mimetype.includes("pdf")) return null;
-      const text = await extractPdfText(base64);
-      return `[Documento] ${text}`;
+      try {
+        const text = await extractPdfText(base64);
+        return `[Documento] ${text}`;
+      } catch {
+        // PDF sem texto extraível (escaneado/imagem) — ignorar silenciosamente
+        console.log(LOG_PREFIX, "PDF sem texto extraível, pulando.");
+        return null;
+      }
     }
   } catch (error) {
     console.warn(LOG_PREFIX, `Erro ao processar ${type}:`, error);
