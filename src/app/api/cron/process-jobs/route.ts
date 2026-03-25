@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
 
   after(async () => {
     try {
-      const result = await processJobs({ maxJobs: 2 });
+      // Hobby plan = 60s max. Processar 1 job por vez para caber no limite.
+      const result = await processJobs({ maxJobs: 1 });
       console.log("[process-jobs cron] Processados:", result.processed, "jobs");
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Erro inesperado.";

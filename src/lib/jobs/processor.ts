@@ -147,9 +147,28 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
   }
 }
 
+/** Timeout guard — aborta job se exceder o limite (Vercel Hobby = 60s). */
+const JOB_TIMEOUT_MS = 50_000; // 50s para ter margem antes do hard kill de 60s
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timeout: ${label} excedeu ${ms / 1000}s`)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
 async function finalizeJobProcessing(running: AsyncJobRow): Promise<ProcessedJobResult> {
   try {
-    const result = await dispatchJob(running);
+    const result = await withTimeout(
+      dispatchJob(running),
+      JOB_TIMEOUT_MS,
+      `job ${running.job_type}`
+    );
     await markJobDone(running.id, result);
     return {
       jobId: running.id,
