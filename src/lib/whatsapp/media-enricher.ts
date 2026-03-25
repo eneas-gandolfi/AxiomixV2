@@ -49,7 +49,15 @@ function http2Get(
 ): Promise<{ base64: string; mimetype: string; status: number }> {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(urlStr);
-    const client = http2.connect(parsedUrl.origin, { rejectUnauthorized: false });
+    // Sofia CRM (Hostinger/BitNinja) rejeita TLS via hostname — conectar por IP
+    // com SNI via servername, igual ao sofia-crm/client.ts
+    const hostOverride = parsedUrl.hostname === "crm.getlead.capital"
+      ? "82.25.68.119"
+      : parsedUrl.hostname;
+    const client = http2.connect(`https://${hostOverride}`, {
+      servername: parsedUrl.hostname,
+      rejectUnauthorized: false,
+    });
 
     client.on("error", (err) => {
       client.close();

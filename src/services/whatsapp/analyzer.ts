@@ -18,21 +18,38 @@ import {
 import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 import { enrichMediaMessages } from "@/lib/whatsapp/media-enricher";
 
-/** Normaliza acentos comuns retornados pela IA nos enums. */
-function normalizeAccents(value: unknown): unknown {
+/** Normaliza variações comuns retornadas pela IA nos enums. */
+function normalizeEnum(value: unknown, map: Record<string, string>): unknown {
   if (typeof value !== "string") return value;
-  const map: Record<string, string> = {
-    "reclamação": "reclamacao",
-    "dúvida": "duvida",
-    "duvída": "duvida",
-  };
-  return map[value.toLowerCase()] ?? value;
+  const lower = value.toLowerCase().trim();
+  return map[lower] ?? lower;
 }
 
+const sentimentMap: Record<string, string> = {
+  positive: "positivo",
+  negative: "negativo",
+  neutral: "neutro",
+};
+
+const intentMap: Record<string, string> = {
+  "reclamação": "reclamacao",
+  "dúvida": "duvida",
+  "duvída": "duvida",
+  purchase: "compra",
+  support: "suporte",
+  complaint: "reclamacao",
+  question: "duvida",
+  cancellation: "cancelamento",
+  other: "outro",
+};
+
 const insightSchema = z.object({
-  sentiment: z.enum(["positivo", "neutro", "negativo"]),
+  sentiment: z.preprocess(
+    (v) => normalizeEnum(v, sentimentMap),
+    z.enum(["positivo", "neutro", "negativo"])
+  ),
   intent: z.preprocess(
-    normalizeAccents,
+    (v) => normalizeEnum(v, intentMap),
     z.enum(["compra", "suporte", "reclamacao", "duvida", "cancelamento", "outro"])
   ),
   urgency: z.number().int().min(1).max(5).optional().default(3),
