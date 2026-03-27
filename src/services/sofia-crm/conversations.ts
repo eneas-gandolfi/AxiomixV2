@@ -9,6 +9,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSofiaCrmClient } from "@/services/sofia-crm/client";
 import { getExcludedConversationExternalIds } from "@/services/whatsapp/conversation-exclusions";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 type SyncConversationsResult = {
   syncedConversations: number;
   syncedMessages: number;
@@ -162,16 +169,31 @@ export async function syncConversations(
     }
   }
 
+  // Enriquecer contatos sem nome buscando individualmente (máx 10 por sync)
+  const ENRICH_LIMIT = 10;
+  const toEnrich = Array.from(uniqueConversations.values())
+    .filter((item) => !item.contact?.name && item.contact?.id)
+    .slice(0, ENRICH_LIMIT);
+
+  for (const item of toEnrich) {
+    try {
+      const detail = await sofiaClient.getContact(String(item.contact!.id!));
+      if (detail.name || detail.phone || detail.phone_e164) {
+        item.contact = {
+          id: item.contact!.id,
+          name: detail.name ?? null,
+          phone: detail.phone ?? null,
+          phone_e164: detail.phone_e164 ?? detail.phone ?? null,
+        };
+      }
+    } catch {
+      // Silently skip
+    }
+    await sleep(200);
+  }
+
   const syncRows = Array.from(uniqueConversations.values()).map((item) => {
     const contactName = item.contact?.name ?? null;
-
-    // Log para debug - ver o que está vindo da API
-    if (!contactName && item.id) {
-      console.log(
-        `[SYNC DEBUG] Conversa ${item.id} sem nome. Contact:`,
-        JSON.stringify(item.contact, null, 2)
-      );
-    }
 
     return {
       company_id: companyId,
@@ -185,7 +207,7 @@ export async function syncConversations(
           : `${sofiaClient.baseUrl}${item.profile_picture.startsWith("/") ? "" : "/"}${item.profile_picture}`
         : null,
       contact_external_id: item.contact?.id ?? null,
-      assigned_to: item.assignee_id ?? null,
+      assigned_to: isValidUuid(item.assignee_id) ? item.assignee_id : null,
       status: item.status ?? "open",
       last_message_at: conversationLastMessageDate(item),
       last_synced_at: new Date().toISOString(),
@@ -325,7 +347,6 @@ export async function syncConversations(
   let processedConversations = 0;
   const totalConversations = rows.length;
   const syncedList: Array<{ id: string; externalId: string }> = [];
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   onProgress?.({
     phase: "messages",
