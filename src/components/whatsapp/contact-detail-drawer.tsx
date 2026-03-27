@@ -9,8 +9,9 @@
 
 import { useState, useEffect } from "react";
 import { Drawer, Tag } from "antd";
-import { Phone, Mail, X, Plus, Loader2 } from "lucide-react";
+import { Phone, Mail, X, Plus, Loader2, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ContactProfile360 } from "./contact-profile-360";
 
 type ContactLabel = {
   id: string;
@@ -31,6 +32,7 @@ export function ContactDetailDrawer({ open, onClose, companyId, contactId }: Con
   const [allLabels, setAllLabels] = useState<ContactLabel[]>([]);
   const [loading, setLoading] = useState(false);
   const [addingLabel, setAddingLabel] = useState(false);
+  const [activeTab, setActiveTab] = useState<"info" | "360">("info");
 
   useEffect(() => {
     if (!open || !contactId) return;
@@ -156,43 +158,86 @@ export function ContactDetailDrawer({ open, onClose, companyId, contactId }: Con
               )}
             </div>
 
-            <div>
-              <h4 className="mb-2 text-sm font-medium text-text">Labels</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {labels.map((label) => (
-                  <Tag
-                    key={label.id}
-                    color={label.color ?? undefined}
-                    closable
-                    onClose={() => handleRemoveLabel(label.id)}
-                  >
-                    {label.name}
-                  </Tag>
-                ))}
-                {labels.length === 0 && (
-                  <span className="text-xs text-muted">Nenhum label</span>
+            {/* Tabs: Info / 360° */}
+            <div className="flex gap-1 border-b border-border">
+              <button
+                type="button"
+                onClick={() => setActiveTab("info")}
+                className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                  activeTab === "info"
+                    ? "border-[#2EC4B6] text-[#2EC4B6]"
+                    : "border-transparent text-muted hover:text-text"
+                }`}
+              >
+                Labels
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("360")}
+                className={`flex items-center gap-1 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                  activeTab === "360"
+                    ? "border-[#2EC4B6] text-[#2EC4B6]"
+                    : "border-transparent text-muted hover:text-text"
+                }`}
+              >
+                <BarChart3 className="h-3 w-3" />
+                Perfil 360°
+              </button>
+            </div>
+
+            {activeTab === "info" && (
+              <div>
+                <h4 className="mb-2 text-sm font-medium text-text">Labels</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {labels.map((label) => (
+                    <Tag
+                      key={label.id}
+                      color={label.color ?? undefined}
+                      closable
+                      onClose={() => handleRemoveLabel(label.id)}
+                    >
+                      {label.name}
+                    </Tag>
+                  ))}
+                  {labels.length === 0 && (
+                    <span className="text-xs text-muted">Nenhum label</span>
+                  )}
+                </div>
+
+                {availableLabels.length > 0 && (
+                  <div className="mt-3">
+                    <p className="mb-1 text-xs text-muted">Adicionar label:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {availableLabels.map((label) => (
+                        <button
+                          key={label.id}
+                          onClick={() => handleAddLabel(label.name ?? "")}
+                          disabled={addingLabel}
+                          className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted hover:bg-sidebar transition-colors"
+                        >
+                          <Plus className="h-2.5 w-2.5" />
+                          {label.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
+            )}
 
-              {availableLabels.length > 0 && (
-                <div className="mt-3">
-                  <p className="mb-1 text-xs text-muted">Adicionar label:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {availableLabels.map((label) => (
-                      <button
-                        key={label.id}
-                        onClick={() => handleAddLabel(label.name ?? "")}
-                        disabled={addingLabel}
-                        className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted hover:bg-sidebar transition-colors"
-                      >
-                        <Plus className="h-2.5 w-2.5" />
-                        {label.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {activeTab === "360" && (
+              <ContactProfile360
+                companyId={companyId}
+                contactPhone={
+                  typeof contact.phone_e164 === "string"
+                    ? contact.phone_e164
+                    : typeof contact.phone === "string"
+                      ? contact.phone
+                      : ""
+                }
+                contactName={typeof contact.name === "string" ? contact.name : undefined}
+              />
+            )}
           </div>
         ) : (
           <p className="text-sm text-muted">Contato não encontrado.</p>

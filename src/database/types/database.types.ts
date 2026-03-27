@@ -156,6 +156,124 @@ export type Database = {
           },
         ];
       };
+      campaigns: {
+        Row: {
+          id: string;
+          company_id: string;
+          name: string;
+          template_name: string;
+          language: string;
+          body_params_template: Json;
+          header_params_template: Json;
+          inbox_id: string;
+          status: string;
+          scheduled_at: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          stats: Json;
+          filters: Json;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+          qstash_message_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          name: string;
+          template_name: string;
+          language?: string;
+          body_params_template?: Json;
+          header_params_template?: Json;
+          inbox_id: string;
+          status?: string;
+          scheduled_at?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          stats?: Json;
+          filters?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          qstash_message_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          name?: string;
+          template_name?: string;
+          language?: string;
+          body_params_template?: Json;
+          header_params_template?: Json;
+          inbox_id?: string;
+          status?: string;
+          scheduled_at?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          stats?: Json;
+          filters?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          qstash_message_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaign_recipients: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          contact_id: string;
+          contact_name: string | null;
+          contact_phone: string;
+          status: string;
+          sent_at: string | null;
+          error_message: string | null;
+          variables: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          contact_id: string;
+          contact_name?: string | null;
+          contact_phone: string;
+          status?: string;
+          sent_at?: string | null;
+          error_message?: string | null;
+          variables?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          campaign_id?: string;
+          contact_id?: string;
+          contact_name?: string | null;
+          contact_phone?: string;
+          status?: string;
+          sent_at?: string | null;
+          error_message?: string | null;
+          variables?: Json;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       conversations: {
         Row: {
           assigned_to: string | null;

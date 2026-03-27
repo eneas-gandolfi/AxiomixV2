@@ -15,6 +15,7 @@ import { roleLabel } from "@/components/whatsapp/team-members-table";
 import { WorkloadChart } from "@/components/whatsapp/workload-chart";
 import { ContactAvatar } from "@/components/whatsapp/contact-avatar";
 import { MemberDetailDrawer } from "@/components/whatsapp/member-detail-drawer";
+import { AutoAssignButton } from "@/components/whatsapp/auto-assign-button";
 
 export const dynamic = "force-dynamic";
 
@@ -150,6 +151,16 @@ export default function EquipePage() {
 
   return (
     <div className="space-y-6">
+      {/* Auto-Assignment */}
+      <AutoAssignButton
+        companyId={companyId}
+        agents={users.filter((u) => u.name).map((u) => ({ id: u.id, name: u.name! }))}
+        onAssigned={() => {
+          // Re-fetch data after assignment
+          window.location.reload();
+        }}
+      />
+
       {/* Stat cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="rounded-xl border border-border bg-card">

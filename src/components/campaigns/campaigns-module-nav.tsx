@@ -1,68 +1,37 @@
 /**
- * Arquivo: src/components/whatsapp/whatsapp-module-nav.tsx
- * Propósito: Navegação por abas do módulo WhatsApp Intelligence.
+ * Arquivo: src/components/campaigns/campaigns-module-nav.tsx
+ * Propósito: Navegacao por abas do modulo Campanhas em Massa.
  * Autor: AXIOMIX
- * Data: 2026-03-13
+ * Data: 2026-03-27
  */
 
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Clock,
-  LayoutDashboard,
-  MessageSquare,
-  Users,
-  Kanban,
-  UserCog,
-} from "lucide-react";
+import { List, PlusCircle } from "lucide-react";
 
 type TabItem = {
   key: string;
   label: string;
   href: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof List;
   exact?: boolean;
 };
 
 const TABS: TabItem[] = [
   {
-    key: "dashboard",
-    label: "Dashboard",
-    href: "/whatsapp-intelligence",
-    icon: LayoutDashboard,
+    key: "campanhas",
+    label: "Campanhas",
+    href: "/campanhas",
+    icon: List,
     exact: true,
   },
   {
-    key: "conversas",
-    label: "Conversas",
-    href: "/whatsapp-intelligence/conversas",
-    icon: MessageSquare,
-  },
-  {
-    key: "contatos",
-    label: "Contatos",
-    href: "/whatsapp-intelligence/contatos",
-    icon: Users,
-  },
-  {
-    key: "pipeline",
-    label: "Pipeline",
-    href: "/whatsapp-intelligence/pipeline",
-    icon: Kanban,
-  },
-  {
-    key: "sessoes",
-    label: "Sessões",
-    href: "/whatsapp-intelligence/sessoes",
-    icon: Clock,
-  },
-  {
-    key: "equipe",
-    label: "Equipe",
-    href: "/whatsapp-intelligence/equipe",
-    icon: UserCog,
+    key: "nova",
+    label: "Nova Campanha",
+    href: "/campanhas/nova",
+    icon: PlusCircle,
   },
 ];
 
@@ -73,7 +42,7 @@ function isTabActive(pathname: string, tab: TabItem) {
   return pathname.startsWith(tab.href);
 }
 
-export function WhatsAppModuleNav() {
+export function CampaignsModuleNav() {
   const pathname = usePathname();
 
   return (
@@ -89,7 +58,7 @@ export function WhatsAppModuleNav() {
               href={tab.href}
               className={`flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm rounded-t-lg transition-all border-b-2 ${
                 active
-                  ? "border-[#2EC4B6] text-[#2EC4B6] font-medium bg-[#E0FAF7]/40"
+                  ? "border-[#25D366] text-[#25D366] font-medium bg-[#E8F8EE]/40"
                   : "border-transparent text-muted hover:text-text hover:bg-sidebar"
               }`}
             >
