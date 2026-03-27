@@ -18,19 +18,24 @@ import {
 import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
 import { enrichMediaMessages } from "@/lib/whatsapp/media-enricher";
 
-/** Normaliza variações comuns retornadas pela IA nos enums. */
-function normalizeEnum(value: unknown, map: Record<string, string>): unknown {
-  if (typeof value !== "string") return value;
+/** Normaliza variações e aplica fallback quando a IA retorna valor fora do enum. */
+function normalizeEnum(value: unknown, map: Record<string, string>, validValues: string[], fallback: string): string {
+  if (typeof value !== "string") return fallback;
   const lower = value.toLowerCase().trim();
-  return map[lower] ?? lower;
+  const mapped = map[lower] ?? lower;
+  return validValues.includes(mapped) ? mapped : fallback;
 }
 
+const SENTIMENTS = ["positivo", "neutro", "negativo"] as const;
 const sentimentMap: Record<string, string> = {
   positive: "positivo",
   negative: "negativo",
   neutral: "neutro",
+  mixed: "neutro",
+  misto: "neutro",
 };
 
+const INTENTS = ["compra", "suporte", "reclamacao", "duvida", "cancelamento", "outro"] as const;
 const intentMap: Record<string, string> = {
   "reclamação": "reclamacao",
   "dúvida": "duvida",
@@ -41,16 +46,21 @@ const intentMap: Record<string, string> = {
   question: "duvida",
   cancellation: "cancelamento",
   other: "outro",
+  personal: "outro",
+  pessoal: "outro",
+  greeting: "outro",
+  saudacao: "outro",
+  "saudação": "outro",
 };
 
 const insightSchema = z.object({
   sentiment: z.preprocess(
-    (v) => normalizeEnum(v, sentimentMap),
-    z.enum(["positivo", "neutro", "negativo"])
+    (v) => normalizeEnum(v, sentimentMap, [...SENTIMENTS], "neutro"),
+    z.enum(SENTIMENTS)
   ),
   intent: z.preprocess(
-    (v) => normalizeEnum(v, intentMap),
-    z.enum(["compra", "suporte", "reclamacao", "duvida", "cancelamento", "outro"])
+    (v) => normalizeEnum(v, intentMap, [...INTENTS], "outro"),
+    z.enum(INTENTS)
   ),
   urgency: z.number().int().min(1).max(5).optional().default(3),
   sales_stage: z
