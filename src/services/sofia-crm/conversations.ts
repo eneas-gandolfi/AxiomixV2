@@ -132,7 +132,16 @@ export async function syncConversations(
 ): Promise<SyncConversationsResult> {
   const supabase = createSupabaseAdminClient();
   const sofiaClient = await getSofiaCrmClient(companyId);
-  const remoteConversations = await sofiaClient.listConversations(SOFIA_SYNC_CONVERSATION_LIMIT);
+  // Priorizar conversas abertas/pendentes — reduz volume e foca no que importa
+  // Se syncInboxIds configurado, filtrar por inbox específica
+  const syncFilters: { status: string; inbox_id?: string } = { status: "open" };
+  if (sofiaClient.syncInboxIds?.[0]) {
+    syncFilters.inbox_id = sofiaClient.syncInboxIds[0];
+  }
+  const remoteConversations = await sofiaClient.listConversations(
+    SOFIA_SYNC_CONVERSATION_LIMIT,
+    syncFilters
+  );
   const excludedExternalIds = await getExcludedConversationExternalIds(
     companyId,
     remoteConversations.map((conversation) => conversation.id).filter(Boolean)
@@ -175,7 +184,8 @@ export async function syncConversations(
           ? item.profile_picture
           : `${sofiaClient.baseUrl}${item.profile_picture.startsWith("/") ? "" : "/"}${item.profile_picture}`
         : null,
-      assigned_to: null, // assignee_id do Sofia CRM é inteiro, não UUID do Supabase
+      contact_external_id: item.contact?.id ?? null,
+      assigned_to: item.assignee_id ?? null,
       status: item.status ?? "open",
       last_message_at: conversationLastMessageDate(item),
       last_synced_at: new Date().toISOString(),
@@ -273,6 +283,7 @@ export async function syncConversations(
           contact_name: row.contact_name,
           contact_phone: row.contact_phone,
           contact_avatar_url: row.contact_avatar_url,
+          contact_external_id: row.contact_external_id,
           assigned_to: row.assigned_to,
           status: row.status,
           last_message_at: row.last_message_at,
@@ -360,6 +371,30 @@ export async function syncConversations(
 
     // Pequeno delay para proteger contra rate limit do Sofia CRM (max 60 a cada 1 min geralmente)
     await sleep(400);
+  }
+
+  // Sync bidirecional de labels — buscar labels dos contatos que foram atualizados
+  // Limitado a 10 contatos por sync para respeitar rate limit
+  const LABEL_SYNC_LIMIT = 10;
+  const contactIdsToSync = Array.from(uniqueConversations.values())
+    .filter((item) => item.contact?.id && messageSyncExternalIds.has(item.id))
+    .slice(0, LABEL_SYNC_LIMIT);
+
+  for (const item of contactIdsToSync) {
+    const contactId = item.contact?.id;
+    if (!contactId) continue;
+    try {
+      const labels = await sofiaClient.listContactLabels(String(contactId));
+      const labelsJson = labels.map((l) => ({ id: l.id, name: l.name, color: l.color }));
+      await supabase
+        .from("conversations")
+        .update({ contact_labels: labelsJson })
+        .eq("company_id", companyId)
+        .eq("external_id", item.id);
+    } catch {
+      // Silently skip — labels são complementares
+    }
+    await sleep(200);
   }
 
   return {

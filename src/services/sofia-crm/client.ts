@@ -62,6 +62,7 @@ type SofiaLabelApi = {
 type SofiaSessionStatus = {
   active: boolean;
   expires_at?: string | null;
+  seconds_remaining?: number | null;
 };
 
 type SofiaKanbanBoard = {
@@ -129,11 +130,12 @@ type SofiaCrmClient = {
   baseUrl: string;
   apiToken: string;
   inboxId?: string;
+  syncInboxIds?: string[];
   buildConversationUrl: (externalConversationId: string) => string;
   // Conversas
-  listConversations: (limit?: number) => Promise<SofiaConversationApi[]>;
+  listConversations: (limit?: number, filters?: { status?: string; filter?: string; inbox_id?: string }) => Promise<SofiaConversationApi[]>;
   listMessages: (externalConversationId: string, limit?: number) => Promise<SofiaMessageApi[]>;
-  sendMessage: (conversationId: string, content: string) => Promise<void>;
+  sendMessage: (conversationId: string, content: string, options?: { checkSession?: boolean }) => Promise<void>;
   sendTemplate: (payload: { to: string; templateName: string; language?: string; components?: Json }) => Promise<void>;
   getSessionStatus: (conversationId: string) => Promise<SofiaSessionStatus>;
   assignConversation: (conversationId: string, payload: { assigneeId?: string; teamId?: string }) => Promise<void>;
@@ -570,9 +572,12 @@ function parseSessionStatusResponse(payload: unknown): SofiaSessionStatus | null
             : null;
 
     if (active !== null || expiresAt !== null) {
+      const rawSeconds = candidate.seconds_remaining ?? candidate.secondsRemaining;
+      const secondsRemaining = typeof rawSeconds === "number" ? rawSeconds : null;
       return {
         active: active ?? false,
         expires_at: expiresAt,
+        seconds_remaining: secondsRemaining,
       };
     }
   }
@@ -743,14 +748,15 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     });
   }
 
-  return {
+  const sofiaClient: SofiaCrmClient = {
     baseUrl,
     apiToken: config.apiToken,
     inboxId: config.inboxId || undefined,
+    syncInboxIds: config.syncInboxIds?.length ? config.syncInboxIds : undefined,
     buildConversationUrl(externalConversationId: string) {
       return `${baseUrl}/conversations/${encodeURIComponent(externalConversationId)}`;
     },
-    async listConversations(limit = 50) {
+    async listConversations(limit = 50, filters?: { status?: string; filter?: string; inbox_id?: string }) {
       const targetTotal = Math.max(limit, 1);
       const pageSize = Math.min(50, targetTotal);
       const collected: SofiaConversationApi[] = [];
@@ -765,8 +771,9 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         const payload = await requestJson<unknown>("/api/conversations", {
           searchParams: {
             limit: requestLimit,
-            status: "all",
-            filter: "all",
+            status: filters?.status ?? "all",
+            filter: filters?.filter ?? "all",
+            ...(filters?.inbox_id ? { inbox_id: filters.inbox_id } : {}),
             ...(typeof cursor !== "undefined" ? { cursor } : { page }),
           },
         });
@@ -878,7 +885,15 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
 
     // --- Fase 2: Conversas aprimoradas ---
 
-    async sendMessage(conversationId: string, content: string) {
+    async sendMessage(conversationId: string, content: string, options?: { checkSession?: boolean }) {
+      if (options?.checkSession) {
+        const session = await sofiaClient.getSessionStatus(conversationId);
+        if (!session.active) {
+          throw new Error(
+            "Sessão WhatsApp expirada (janela de 24h fechada). Use um template para reabrir a conversa."
+          );
+        }
+      }
       await requestJson<unknown>(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
         method: "POST",
         body: { content },
@@ -1315,6 +1330,8 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       })) as SofiaInboxApi[];
     },
   };
+
+  return sofiaClient;
 }
 
 export type {

@@ -16,7 +16,7 @@ type SessionStatusBadgeProps = {
 };
 
 export function SessionStatusBadge({ companyId, conversationExternalId }: SessionStatusBadgeProps) {
-  const [status, setStatus] = useState<{ active: boolean; expires_at: string | null } | null>(null);
+  const [status, setStatus] = useState<{ active: boolean; expires_at: string | null; seconds_remaining: number | null } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,16 +42,26 @@ export function SessionStatusBadge({ companyId, conversationExternalId }: Sessio
 
   if (loading || !status) return null;
 
-  const timeLeft = status.expires_at
-    ? Math.max(0, Math.floor((new Date(status.expires_at).getTime() - Date.now()) / 3600000))
-    : null;
+  const timeLeft = (() => {
+    if (typeof status.seconds_remaining === "number" && status.seconds_remaining > 0) {
+      const hours = Math.floor(status.seconds_remaining / 3600);
+      const minutes = Math.floor((status.seconds_remaining % 3600) / 60);
+      if (hours > 0) return `${hours}h${minutes > 0 ? `${minutes}min` : ""}`;
+      return `${minutes}min`;
+    }
+    if (status.expires_at) {
+      const hours = Math.max(0, Math.floor((new Date(status.expires_at).getTime() - Date.now()) / 3600000));
+      return hours > 0 ? `${hours}h` : null;
+    }
+    return null;
+  })();
 
   if (status.active) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-2.5 py-1 text-xs font-medium text-success">
         <CheckCircle2 className="h-3 w-3" />
         Sessão ativa
-        {timeLeft !== null && ` (${timeLeft}h)`}
+        {timeLeft && ` (${timeLeft})`}
       </span>
     );
   }
@@ -59,7 +69,7 @@ export function SessionStatusBadge({ companyId, conversationExternalId }: Sessio
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-warning-light px-2.5 py-1 text-xs font-medium text-warning">
       <XCircle className="h-3 w-3" />
-      Sessão expirada
+      Sessão expirada — use template
     </span>
   );
 }

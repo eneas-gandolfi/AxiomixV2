@@ -323,31 +323,97 @@ async function generateConversationInsight(companyId: string, messages: Conversa
   }
 }
 
+/** Resolve o contactId real do Sofia CRM via telefone (necessário para labels). */
+async function resolveSofiaContactId(
+  client: Awaited<ReturnType<typeof getSofiaCrmClient>>,
+  phone: string | null
+): Promise<string | null> {
+  if (!phone) return null;
+  try {
+    const contact = await client.findContactByPhone(phone);
+    return contact?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Mapeia urgência numérica (1-5) para prioridade do Kanban. */
+function urgencyToPriority(urgency: number): "low" | "normal" | "high" {
+  if (urgency >= 4) return "high";
+  if (urgency <= 2) return "low";
+  return "normal";
+}
+
 async function executeAutomaticActions(
   companyId: string,
   conversation: {
     external_id: string | null;
+    contact_name: string | null;
     contact_phone: string | null;
     remote_jid: string;
   },
   insight: {
     sentiment: "positivo" | "neutro" | "negativo";
     intent: string;
+    urgency: number;
+    sales_stage: string;
     summary: string;
+    key_topics: string[];
   }
 ) {
   const client = await getSofiaCrmClient(companyId);
   const actions: string[] = [];
 
-  if (insight.intent === "compra" && conversation.external_id) {
+  // Resolver contact ID real do Sofia CRM para labels
+  const sofiaContactId = await resolveSofiaContactId(client, conversation.contact_phone);
+  const contactIdForLabel = sofiaContactId ?? conversation.contact_phone ?? conversation.remote_jid;
+
+  // --- Auto-labels baseados na análise IA ---
+  const labelsToApply: string[] = [];
+
+  if (insight.sentiment === "negativo") labelsToApply.push("Atencao");
+  if (insight.intent === "compra") labelsToApply.push("Compra");
+  if (insight.intent === "suporte") labelsToApply.push("Suporte");
+  if (insight.intent === "cancelamento") labelsToApply.push("Cancelamento");
+  if (insight.intent === "reclamacao") labelsToApply.push("Reclamacao");
+  if (insight.urgency >= 4) labelsToApply.push("Urgente");
+  if (insight.sales_stage === "negotiation") labelsToApply.push("Negociacao");
+  if (insight.sales_stage === "closing") labelsToApply.push("Fechamento");
+
+  for (const label of labelsToApply) {
+    try {
+      await client.addContactLabel({ contactId: contactIdForLabel, label });
+      actions.push(`label_${label}_added`);
+    } catch {
+      actions.push(`label_${label}_failed`);
+    }
+  }
+
+  // --- Auto-kanban para oportunidades, cancelamentos e riscos ---
+  const shouldCreateCard =
+    (insight.intent === "compra") ||
+    (insight.intent === "cancelamento" && insight.urgency >= 3) ||
+    (insight.sentiment === "negativo" && insight.urgency >= 4);
+
+  if (shouldCreateCard && conversation.external_id) {
     try {
       const boards = await client.listBoards();
       const board = boards[0];
       if (board) {
+        const displayName = conversation.contact_name || conversation.remote_jid;
+        const prefix =
+          insight.intent === "compra" ? "Oportunidade" :
+          insight.intent === "cancelamento" ? "Retenção" : "Risco";
+
         await client.createKanbanCard({
           boardId: String(board.id),
-          title: `Oportunidade: ${conversation.remote_jid}`,
+          title: `${prefix}: ${displayName}`,
           description: insight.summary,
+          phone: conversation.contact_phone ?? undefined,
+          conversation_id: conversation.external_id,
+          contact_id: sofiaContactId ?? undefined,
+          priority: urgencyToPriority(insight.urgency),
+          tags: insight.key_topics.slice(0, 3),
         });
         actions.push("kanban_card_created");
       } else {
@@ -355,19 +421,6 @@ async function executeAutomaticActions(
       }
     } catch {
       actions.push("kanban_card_failed");
-    }
-  }
-
-  if (insight.sentiment === "negativo") {
-    const contactId = conversation.contact_phone ?? conversation.remote_jid;
-    try {
-      await client.addContactLabel({
-        contactId,
-        label: "Atencao",
-      });
-      actions.push("negative_label_added");
-    } catch {
-      actions.push("negative_label_failed");
     }
   }
 
@@ -381,7 +434,7 @@ export async function analyzeConversation(
   const supabase = createSupabaseAdminClient();
   const { data: conversation, error: conversationError } = await supabase
     .from("conversations")
-    .select("id, company_id, external_id, contact_name, contact_phone, remote_jid")
+    .select("id, company_id, external_id, contact_name, contact_phone, remote_jid, assigned_to")
     .eq("id", conversationId)
     .eq("company_id", companyId)
     .single();
@@ -414,7 +467,10 @@ export async function analyzeConversation(
   await executeAutomaticActions(companyId, conversation, {
     sentiment: insight.sentiment,
     intent: insight.intent,
+    urgency: insight.urgency,
+    sales_stage: insight.sales_stage,
     summary: insight.summary,
+    key_topics: insight.key_topics,
   });
 
   const generatedAt = new Date().toISOString();

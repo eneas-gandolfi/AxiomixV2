@@ -14,6 +14,8 @@ export type SofiaCrmConfig = {
   baseUrl: string;
   apiToken: string;
   inboxId?: string;
+  /** IDs de inboxes a sincronizar. Vazio = todas. */
+  syncInboxIds?: string[];
 };
 
 export type EvolutionVendorStatus = "pending" | "connected" | "error";

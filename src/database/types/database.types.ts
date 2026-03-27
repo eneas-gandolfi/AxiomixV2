@@ -161,6 +161,9 @@ export type Database = {
           assigned_to: string | null;
           company_id: string | null;
           contact_avatar_url: string | null;
+          contact_email: string | null;
+          contact_external_id: string | null;
+          contact_labels: Json | null;
           contact_name: string | null;
           contact_phone: string | null;
           created_at: string | null;
@@ -175,6 +178,9 @@ export type Database = {
           assigned_to?: string | null;
           company_id?: string | null;
           contact_avatar_url?: string | null;
+          contact_email?: string | null;
+          contact_external_id?: string | null;
+          contact_labels?: Json | null;
           contact_name?: string | null;
           contact_phone?: string | null;
           created_at?: string | null;
@@ -189,6 +195,9 @@ export type Database = {
           assigned_to?: string | null;
           company_id?: string | null;
           contact_avatar_url?: string | null;
+          contact_email?: string | null;
+          contact_external_id?: string | null;
+          contact_labels?: Json | null;
           contact_name?: string | null;
           contact_phone?: string | null;
           created_at?: string | null;
