@@ -24,7 +24,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp, Search, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanCardItem } from "./kanban-card-item";
 import { KanbanCardDrawer } from "./kanban-card-drawer";
@@ -53,6 +53,17 @@ function formatStageCurrency(total: number) {
   return `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
+function countPriorities(cards: RichKanbanCard[]) {
+  let alta = 0, media = 0, baixa = 0;
+  for (const c of cards) {
+    const p = c.priority?.toLowerCase() ?? "";
+    if (p === "alta" || p === "high") alta++;
+    else if (p === "media" || p === "média" || p === "medium") media++;
+    else if (p === "baixa" || p === "low") baixa++;
+  }
+  return { alta, media, baixa };
+}
+
 function StageColumn({
   stage,
   colorClass,
@@ -71,37 +82,65 @@ function StageColumn({
 
   const cards = stage.cards ?? [];
   const stageTotal = cards.reduce((sum, c) => sum + (c.value_amount ?? 0), 0);
+  const priorities = countPriorities(cards);
 
   return (
     <div
       ref={setNodeRef}
-      className={`w-64 shrink-0 rounded-xl border border-border bg-sidebar border-t-4 sm:w-72 ${colorClass} transition-colors ${
+      className={`w-72 shrink-0 rounded-xl border border-border bg-sidebar border-t-4 sm:w-80 ${colorClass} transition-colors ${
         isOver ? "bg-[#E0FAF7]/30" : ""
       }`}
     >
       {/* Stage header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-text">{stage.name ?? "Sem nome"}</span>
             <span className="rounded-full bg-background px-2 py-0.5 text-xs text-muted">
               {cards.length}
             </span>
           </div>
-          {stageTotal > 0 && (
-            <span className="text-xs font-medium text-[#2EC4B6]">
-              {formatStageCurrency(stageTotal)}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {stageTotal > 0 && (
+              <span className="text-xs font-medium text-[#2EC4B6]">
+                {formatStageCurrency(stageTotal)}
+              </span>
+            )}
+            {(priorities.alta > 0 || priorities.media > 0 || priorities.baixa > 0) && (
+              <div className="flex items-center gap-1.5">
+                {priorities.alta > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-red-600">
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                    {priorities.alta}
+                  </span>
+                )}
+                {priorities.media > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-amber-600">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                    {priorities.media}
+                  </span>
+                )}
+                {priorities.baixa > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-green-600">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                    {priorities.baixa}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Cards */}
-      <div className="space-y-2 p-2 min-h-[100px]">
-        {children}
+      <div className="space-y-2 p-2 min-h-[200px]">
         {cards.length === 0 && (
-          <p className="py-4 text-center text-xs text-muted-light">Sem cards</p>
+          <div className="flex flex-col items-center justify-center py-8 text-muted-light">
+            <div className="mb-2 h-8 w-8 rounded-lg border-2 border-dashed border-border" />
+            <p className="text-xs">Arraste cards aqui</p>
+          </div>
         )}
+        {children}
       </div>
     </div>
   );
@@ -298,10 +337,75 @@ export function KanbanBoard({
     setNewCardPhone("");
   };
 
+  // Board metrics
+  const allCards = sortedStages.flatMap((s) => s.cards ?? []);
+  const totalCards = allCards.length;
+  const totalValue = allCards.reduce((sum, c) => sum + (c.value_amount ?? 0), 0);
+  const boardPriorities = countPriorities(allCards);
+
+  // Search filter
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredStages = useMemo(() => {
+    if (!searchQuery.trim()) return sortedStages;
+    const q = searchQuery.toLowerCase();
+    return sortedStages.map((stage) => ({
+      ...stage,
+      cards: (stage.cards ?? []).filter(
+        (c) =>
+          c.title?.toLowerCase().includes(q) ||
+          c.description?.toLowerCase().includes(q) ||
+          c.phone?.includes(q)
+      ),
+    }));
+  }, [sortedStages, searchQuery]);
+
   return (
     <>
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-text">{boardName ?? "Pipeline"}</h2>
+        {/* Board header with metrics */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold text-text">{boardName ?? "Pipeline"}</h2>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+            <span className="rounded-md bg-sidebar px-2 py-1 font-medium">{totalCards} cards</span>
+            {totalValue > 0 && (
+              <span className="flex items-center gap-1 rounded-md bg-sidebar px-2 py-1 font-medium text-[#2EC4B6]">
+                <DollarSign className="h-3 w-3" />
+                {formatStageCurrency(totalValue)}
+              </span>
+            )}
+            {boardPriorities.alta > 0 && (
+              <span className="flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 font-medium text-red-600">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                {boardPriorities.alta} Alta
+              </span>
+            )}
+            {boardPriorities.media > 0 && (
+              <span className="flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 font-medium text-amber-600">
+                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                {boardPriorities.media} Média
+              </span>
+            )}
+            {boardPriorities.baixa > 0 && (
+              <span className="flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 font-medium text-green-600">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                {boardPriorities.baixa} Baixa
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar cards..."
+            className="w-full rounded-lg border border-border bg-background py-1.5 pl-8 pr-3 text-sm text-text placeholder:text-muted focus:border-[#2EC4B6] focus:outline-none"
+          />
+        </div>
 
         <DndContext
           sensors={sensors}
@@ -311,7 +415,7 @@ export function KanbanBoard({
           onDragEnd={handleDragEnd}
         >
           <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 sm:mx-0 sm:px-0">
-            {sortedStages.map((stage, index) => {
+            {filteredStages.map((stage, index) => {
               const cards = stage.cards ?? [];
               const colorClass = STAGE_COLORS[index % STAGE_COLORS.length];
               const cardIds = cards.map((c) => c.id);
@@ -323,7 +427,18 @@ export function KanbanBoard({
                   colorClass={colorClass}
                   isOver={overStageId === stage.id}
                 >
-                  {/* Create card form */}
+                  <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
+                    {cards.map((card) => (
+                      <KanbanCardItem
+                        key={card.id}
+                        card={card}
+                        teamMembers={teamMembers}
+                        onClick={(id) => setSelectedCardId(id)}
+                      />
+                    ))}
+                  </SortableContext>
+
+                  {/* Create card — footer position (Trello/Linear pattern) */}
                   {creatingInStage === stage.id ? (
                     <div className="rounded-lg border border-[#2EC4B6] bg-card p-2 space-y-2">
                       <input
@@ -342,7 +457,6 @@ export function KanbanBoard({
                         className="w-full resize-none rounded border border-border bg-background px-2 py-1 text-xs text-text placeholder:text-muted focus:outline-none"
                       />
 
-                      {/* Toggle more fields */}
                       <button
                         onClick={() => setShowMoreFields(!showMoreFields)}
                         className="flex items-center gap-1 text-xs text-[#2EC4B6] hover:underline"
@@ -420,16 +534,6 @@ export function KanbanBoard({
                       Novo card
                     </button>
                   )}
-
-                  <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-                    {cards.map((card) => (
-                      <KanbanCardItem
-                        key={card.id}
-                        card={card}
-                        onClick={(id) => setSelectedCardId(id)}
-                      />
-                    ))}
-                  </SortableContext>
                 </StageColumn>
               );
             })}
@@ -452,6 +556,11 @@ export function KanbanBoard({
         companyId={companyId}
         boardId={boardId}
         teamMembers={teamMembers}
+        stageName={
+          selectedCardId
+            ? sortedStages.find((s) => s.cards?.some((c) => c.id === selectedCardId))?.name ?? null
+            : null
+        }
         onRefresh={onRefresh}
       />
     </>

@@ -35,6 +35,7 @@ type KanbanCardDrawerProps = {
   companyId: string;
   boardId: string;
   teamMembers: TeamMember[];
+  stageName?: string | null;
   onRefresh: () => void;
 };
 
@@ -68,6 +69,7 @@ export function KanbanCardDrawer({
   companyId,
   boardId,
   teamMembers,
+  stageName,
   onRefresh,
 }: KanbanCardDrawerProps) {
   const router = useRouter();
@@ -214,7 +216,7 @@ export function KanbanCardDrawer({
   return (
     <div className="antd-scope">
       <Drawer
-        title={null}
+        title={stageName ? <span className="text-sm text-muted font-normal">Card em: <span className="font-medium text-text">{stageName}</span></span> : null}
         open={open}
         onClose={onClose}
         placement="right"

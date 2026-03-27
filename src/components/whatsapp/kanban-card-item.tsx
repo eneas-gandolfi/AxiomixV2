@@ -9,11 +9,12 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, MessageSquare, User, DollarSign, Calendar } from "lucide-react";
-import type { RichKanbanCard } from "./kanban-types";
+import { GripVertical, MessageSquare, User, DollarSign, Calendar, Sparkles } from "lucide-react";
+import type { RichKanbanCard, TeamMember } from "./kanban-types";
 
 type KanbanCardItemProps = {
   card: RichKanbanCard;
+  teamMembers?: TeamMember[];
   onClick?: (cardId: string) => void;
   isDraggingOverlay?: boolean;
 };
@@ -32,7 +33,7 @@ function formatCurrency(value: number) {
   return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export function KanbanCardItem({ card, onClick, isDraggingOverlay }: KanbanCardItemProps) {
+export function KanbanCardItem({ card, teamMembers, onClick, isDraggingOverlay }: KanbanCardItemProps) {
   const {
     attributes,
     listeners,
@@ -119,21 +120,27 @@ export function KanbanCardItem({ card, onClick, isDraggingOverlay }: KanbanCardI
               </div>
             )}
 
-            {/* Footer: source + assignee + conversation + date */}
+            {/* Footer */}
             <div className="mt-2 flex items-center gap-2 flex-wrap">
-              {card.source && (
+              {card.source === "axiomix" && (
+                <span className="flex items-center gap-0.5 rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-600">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  IA
+                </span>
+              )}
+              {card.source && card.source !== "axiomix" && (
                 <span className="rounded bg-[#E0FAF7] px-1.5 py-0.5 text-[10px] text-[#2EC4B6]">
                   {card.source}
                 </span>
               )}
               {card.assigned_to && (
-                <span className="flex items-center gap-0.5 text-[10px] text-muted">
+                <span className="flex items-center gap-0.5 text-[10px] text-muted" title={card.assigned_to}>
                   <User className="h-2.5 w-2.5" />
-                  {card.assigned_to}
+                  {teamMembers?.find((m) => m.id === card.assigned_to)?.name ?? card.assigned_to}
                 </span>
               )}
               {card.conversation_id && (
-                <span className="flex items-center gap-0.5 text-[10px] text-[#2EC4B6]">
+                <span className="flex items-center gap-0.5 text-[10px] text-[#2EC4B6]" title="Vinculado a conversa">
                   <MessageSquare className="h-2.5 w-2.5" />
                 </span>
               )}
