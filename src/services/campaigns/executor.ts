@@ -120,7 +120,7 @@ export async function processCampaignBatch(
     const headerParams = resolveBodyParams(campaign.header_params_template, variables);
 
     try {
-      await sofiaClient.sendTemplate({
+      const sendResult = await sofiaClient.sendTemplate({
         to: recipient.contact_phone as string,
         templateName: campaign.template_name,
         language: campaign.language,
@@ -128,7 +128,12 @@ export async function processCampaignBatch(
       });
 
       await recipientsTable()
-        .update({ status: "sent", sent_at: new Date().toISOString() })
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          delivery_status: "sent_to_provider",
+          ...(sendResult.messageId ? { provider_message_id: sendResult.messageId } : {}),
+        })
         .eq("id", recipient.id as string);
 
       stats.sent++;

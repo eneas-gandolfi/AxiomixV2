@@ -395,7 +395,7 @@ export default async function SettingsPage({
       title=""
       description=""
     >
-      <SettingsLayout companyId={companyId} initialStats={initialStats} reportData={reportData} initialTab={tabParam as "overview" | "company" | "integrations" | "social" | "reports" | "alerts" | "group-agent" | undefined} />
+      <SettingsLayout companyId={companyId} initialStats={initialStats} reportData={reportData} initialTab={tabParam as "overview" | "company" | "integrations" | "social" | "reports" | "alerts" | "group-agent" | "usage" | undefined} userRole={userRole as "owner" | "admin" | "member"} />
     </PageContainer>
     </div>
   );

@@ -12,6 +12,7 @@ import {
   Bell,
   Bot,
   Building2,
+  Coins,
   FileText,
   Plug,
   Share2,
@@ -35,8 +36,9 @@ import {
 } from "@/components/dashboard/recent-reports-card";
 import { AlertsSettings } from "@/components/settings/alerts-settings";
 import { GroupAgentSettings } from "@/components/settings/group-agent-settings";
+import { AiUsagePanel } from "@/components/settings/ai-usage-panel";
 
-type TabKey = "overview" | "company" | "integrations" | "social" | "reports" | "alerts" | "group-agent";
+type TabKey = "overview" | "company" | "integrations" | "social" | "reports" | "alerts" | "group-agent" | "usage";
 
 type SettingsStats = {
   companyConfigured: boolean;
@@ -90,7 +92,14 @@ const TABS = [
     icon: Bot,
     description: "IA para grupos WhatsApp",
   },
-];
+  {
+    key: "usage" as const,
+    label: "Uso & Custos",
+    icon: Coins,
+    description: "Consumo de IA e custos estimados",
+    ownerOnly: true,
+  },
+] as const;
 
 type ReportData = {
   integrations: IntegrationStatusItem[];
@@ -110,11 +119,13 @@ type SettingsLayoutProps = {
   initialStats?: Partial<SettingsStats>;
   reportData?: ReportData;
   initialTab?: TabKey;
+  userRole?: "owner" | "admin" | "member";
 };
 
-const VALID_TABS: TabKey[] = ["overview", "company", "integrations", "social", "reports", "alerts", "group-agent"];
+const VALID_TABS: TabKey[] = ["overview", "company", "integrations", "social", "reports", "alerts", "group-agent", "usage"];
 
-export function SettingsLayout({ companyId, initialStats, reportData, initialTab }: SettingsLayoutProps) {
+export function SettingsLayout({ companyId, initialStats, reportData, initialTab, userRole }: SettingsLayoutProps) {
+  const isOwner = userRole === "owner";
   const [activeTab, setActiveTab] = useState<TabKey>(
     initialTab && VALID_TABS.includes(initialTab) ? initialTab : "overview"
   );
@@ -169,7 +180,7 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
       <div className="flex flex-col md:flex-row gap-6">
         {/* Sidebar Tabs (desktop) */}
         <div className="hidden md:flex md:flex-col md:w-56 md:shrink-0 border-r border-border pr-4 space-y-1">
-          {TABS.map((tab) => {
+          {TABS.filter((tab) => !("ownerOnly" in tab && tab.ownerOnly) || isOwner).map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
 
@@ -193,7 +204,7 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
         {/* Mobile Tabs (horizontal scroll) */}
         <div className="md:hidden border-b border-border -mx-4 px-4 mb-4">
           <div className="flex gap-1 overflow-x-auto">
-            {TABS.map((tab) => {
+            {TABS.filter((tab) => !("ownerOnly" in tab && tab.ownerOnly) || isOwner).map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.key;
 
@@ -224,6 +235,7 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
           {activeTab === "reports" && reportData && <ReportsTab data={reportData} />}
           {activeTab === "alerts" && <AlertsTab />}
           {activeTab === "group-agent" && <GroupAgentTab companyId={companyId} />}
+          {activeTab === "usage" && isOwner && <AiUsagePanel />}
         </div>
       </div>
     </div>

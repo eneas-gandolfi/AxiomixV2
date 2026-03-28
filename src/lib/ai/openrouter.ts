@@ -9,6 +9,8 @@ import "server-only";
 
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logAiUsage } from "@/services/usage/log";
+import type { AiModule } from "@/types/modules/usage.types";
 
 type OpenRouterConfig = {
   apiKey: string;
@@ -30,6 +32,11 @@ type OpenRouterResponse = {
       content?: string;
     };
   }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 };
 
 type OpenRouterOptions = {
@@ -37,10 +44,20 @@ type OpenRouterOptions = {
   temperature?: number;
   model?: string;
   skipFallback?: boolean;
+  /** Modulo que originou a chamada (para tracking de uso) */
+  module?: string;
+  /** Operacao especifica dentro do modulo */
+  operation?: string;
+};
+
+type TokenUsage = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
 };
 
 type AttemptResult =
-  | { ok: true; content: string }
+  | { ok: true; content: string; usage: TokenUsage; model: string }
   | { ok: false; status: number; detail: string };
 
 /* ── Fallback para modelos gratuitos ── */
@@ -150,7 +167,13 @@ async function attemptChatCompletion(
     return { ok: false, status: 0, detail: "Resposta sem conteúdo." };
   }
 
-  return { ok: true, content };
+  const usage: TokenUsage = {
+    prompt_tokens: payload.usage?.prompt_tokens ?? 0,
+    completion_tokens: payload.usage?.completion_tokens ?? 0,
+    total_tokens: payload.usage?.total_tokens ?? 0,
+  };
+
+  return { ok: true, content, usage, model };
 }
 
 export async function openRouterChatCompletion(
@@ -170,6 +193,16 @@ export async function openRouterChatCompletion(
   );
 
   if (primary.ok) {
+    void logAiUsage({
+      companyId,
+      module: (options?.module ?? "unknown") as AiModule,
+      operation: options?.operation ?? "chat_completion",
+      model: primary.model,
+      promptTokens: primary.usage.prompt_tokens,
+      completionTokens: primary.usage.completion_tokens,
+      totalTokens: primary.usage.total_tokens,
+      isFallback: false,
+    }).catch(() => {});
     return primary.content;
   }
 
@@ -194,6 +227,16 @@ export async function openRouterChatCompletion(
 
     if (attempt.ok) {
       console.warn(`[openrouter] Fallback bem-sucedido com modelo "${freeModel}".`);
+      void logAiUsage({
+        companyId,
+        module: (options?.module ?? "unknown") as AiModule,
+        operation: options?.operation ?? "chat_completion",
+        model: attempt.model,
+        promptTokens: attempt.usage.prompt_tokens,
+        completionTokens: attempt.usage.completion_tokens,
+        totalTokens: attempt.usage.total_tokens,
+        isFallback: true,
+      }).catch(() => {});
       return attempt.content;
     }
 
@@ -207,6 +250,16 @@ export async function openRouterChatCompletion(
         console.warn(
           `[openrouter] Fallback bem-sucedido com modelo "${freeModel}" (sem response_format json).`,
         );
+        void logAiUsage({
+          companyId,
+          module: (options?.module ?? "unknown") as AiModule,
+          operation: options?.operation ?? "chat_completion",
+          model: retryNoJson.model,
+          promptTokens: retryNoJson.usage.prompt_tokens,
+          completionTokens: retryNoJson.usage.completion_tokens,
+          totalTokens: retryNoJson.usage.total_tokens,
+          isFallback: true,
+        }).catch(() => {});
         return retryNoJson.content;
       }
     }
@@ -247,7 +300,7 @@ export async function openRouterAudioTranscription(
         ],
       },
     ],
-    { responseFormat: "text", temperature: 0.1, model: "google/gemini-2.0-flash-001" }
+    { responseFormat: "text", temperature: 0.1, model: "google/gemini-2.0-flash-001", module: "whatsapp", operation: "audio_transcription" }
   );
 
   if (!transcription || transcription.trim().length === 0) {

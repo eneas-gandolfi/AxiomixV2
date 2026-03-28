@@ -138,6 +138,8 @@ export async function processGroupAgentResponse(
     ], {
       responseFormat: "text",
       temperature: 0.3,
+      module: "group_agent",
+      operation: "respond",
     });
     modelUsed = process.env.OPENROUTER_MODEL ?? "unknown";
   } catch (error) {

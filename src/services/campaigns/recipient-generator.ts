@@ -81,6 +81,79 @@ export async function generateRecipients(
   const seenPhones = new Set<string>();
   let generated = 0;
   let skipped = 0;
+
+  // Se importedPhones presente, usar lista direta em vez de paginar o CRM
+  if (filters.importedPhones && filters.importedPhones.length > 0) {
+    const insertRows: Array<{
+      campaign_id: string;
+      contact_id: string;
+      contact_name: string | null;
+      contact_phone: string;
+      status: string;
+      variables: Record<string, string>;
+    }> = [];
+
+    for (let i = 0; i < filters.importedPhones.length; i++) {
+      const phone = filters.importedPhones[i];
+      if (seenPhones.has(phone)) { skipped++; continue; }
+      seenPhones.add(phone);
+
+      let contactName = "";
+      let contactId = phone;
+      let email = "";
+
+      try {
+        const existing = await sofiaClient.findContactByPhone(phone);
+        if (existing) {
+          contactName = existing.name ?? "";
+          contactId = String(existing.id);
+          email = existing.email ?? "";
+        }
+      } catch {
+        // Nao falhar se busca nao funcionar
+      }
+
+      insertRows.push({
+        campaign_id: campaignId,
+        contact_id: contactId,
+        contact_name: contactName || null,
+        contact_phone: phone,
+        status: "pending",
+        variables: { name: contactName, phone, email },
+      });
+
+      // Rate limit a cada 10 buscas
+      if ((i + 1) % 10 === 0) {
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    }
+
+    if (insertRows.length > 0) {
+      const { error } = await recipientsTable()
+        .upsert(insertRows, { onConflict: "campaign_id,contact_phone", ignoreDuplicates: true });
+      if (error) {
+        console.error(`[CAMPAIGN] Falha ao inserir recipients importados:`, error.message);
+      } else {
+        generated = insertRows.length;
+      }
+    }
+
+    // Atualizar stats.total
+    const { count } = await recipientsTable()
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId);
+
+    await updateCampaignStats(campaignId, {
+      total: count ?? generated,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+    });
+
+    return { generated, skipped };
+  }
+
+  // Fluxo padrao: paginar contatos do CRM com filtros
   let page = 1;
   let hasMore = true;
 
@@ -208,6 +281,9 @@ export async function listRecipients(
     error_message: (row.error_message as string) ?? null,
     variables: (row.variables as Record<string, string>) ?? {},
     created_at: row.created_at as string,
+    delivery_status: (row.delivery_status as string) ?? null,
+    delivery_updated_at: (row.delivery_updated_at as string) ?? null,
+    provider_message_id: (row.provider_message_id as string) ?? null,
   }));
 
   return { recipients, total: count ?? 0 };

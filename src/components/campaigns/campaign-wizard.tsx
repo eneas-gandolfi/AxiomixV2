@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { Steps, Select, AutoComplete } from "antd";
 import {
   FileText,
+  Upload,
   Users,
   Settings2,
   Clock,
@@ -19,6 +20,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
+import { CsvImportModal } from "./csv-import-modal";
 
 type InboxOption = { id: string; name: string };
 type LabelOption = { id: string; name: string; color?: string };
@@ -76,6 +78,8 @@ export function CampaignWizard({ companyId }: CampaignWizardProps) {
   const [saving, setSaving] = useState(false);
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [importedPhones, setImportedPhones] = useState<string[]>([]);
 
   // Buscar inboxes e labels ao montar
   useEffect(() => {
@@ -173,6 +177,7 @@ export function CampaignWizard({ companyId }: CampaignWizardProps) {
               gender: data.gender || undefined,
               createdAfter: data.createdAfter || undefined,
               createdBefore: data.createdBefore || undefined,
+              importedPhones: importedPhones.length > 0 ? importedPhones : undefined,
             },
           }),
         });
@@ -197,6 +202,7 @@ export function CampaignWizard({ companyId }: CampaignWizardProps) {
               gender: data.gender || undefined,
               createdAfter: data.createdAfter || undefined,
               createdBefore: data.createdBefore || undefined,
+              importedPhones: importedPhones.length > 0 ? importedPhones : undefined,
             },
           }),
         });
@@ -246,6 +252,7 @@ export function CampaignWizard({ companyId }: CampaignWizardProps) {
           filters: {
             labelIds: data.labelIds.length > 0 ? data.labelIds : undefined,
             gender: data.gender || undefined,
+            importedPhones: importedPhones.length > 0 ? importedPhones : undefined,
           },
         }),
       });
@@ -489,9 +496,21 @@ export function CampaignWizard({ companyId }: CampaignWizardProps) {
                 {generating ? "Gerando lista..." : "Gerar Lista de Destinatários"}
               </button>
 
+              <span className="text-xs text-[var(--color-text-tertiary)]">ou</span>
+
+              <button
+                type="button"
+                onClick={() => setCsvModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-sidebar)] transition-colors"
+              >
+                <Upload className="h-4 w-4" />
+                Importar CSV
+              </button>
+
               {recipientCount !== null && (
                 <span className="text-sm font-medium text-[var(--color-text)]">
                   {recipientCount} contato{recipientCount !== 1 ? "s" : ""} encontrado{recipientCount !== 1 ? "s" : ""}
+                  {importedPhones.length > 0 && " (via CSV)"}
                 </span>
               )}
             </div>
@@ -730,6 +749,16 @@ export function CampaignWizard({ companyId }: CampaignWizardProps) {
           )}
         </div>
       </div>
+      <CsvImportModal
+        open={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        onImportComplete={(phones) => {
+          setImportedPhones(phones);
+          setRecipientCount(phones.length);
+          updateData({ labelIds: [] });
+          setCsvModalOpen(false);
+        }}
+      />
     </div>
   );
 }

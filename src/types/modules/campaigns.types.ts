@@ -15,11 +15,15 @@ export type CampaignStatus =
 
 export type RecipientStatus = "pending" | "sent" | "failed" | "skipped";
 
+export type DeliveryStatus = "sent_to_provider" | "delivered" | "read" | "failed_delivery";
+
 export type CampaignStats = {
   total: number;
   sent: number;
   failed: number;
   skipped: number;
+  delivered?: number;
+  read?: number;
 };
 
 export type CampaignFilters = {
@@ -27,6 +31,7 @@ export type CampaignFilters = {
   gender?: string;
   createdAfter?: string;
   createdBefore?: string;
+  importedPhones?: string[];
 };
 
 export type Campaign = {
@@ -61,6 +66,9 @@ export type CampaignRecipient = {
   error_message: string | null;
   variables: Record<string, string>;
   created_at: string;
+  delivery_status: DeliveryStatus | null;
+  delivery_updated_at: string | null;
+  provider_message_id: string | null;
 };
 
 export type CreateCampaignInput = {
@@ -122,9 +130,25 @@ export const RECIPIENT_STATUS_COLORS: Record<RecipientStatus, string> = {
   skipped: "#FADB14",
 };
 
+export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
+  sent_to_provider: "Enviado",
+  delivered: "Entregue",
+  read: "Lido",
+  failed_delivery: "Falha na entrega",
+};
+
+export const DELIVERY_STATUS_COLORS: Record<DeliveryStatus, string> = {
+  sent_to_provider: "#1677FF",
+  delivered: "#52C41A",
+  read: "#2EC4B6",
+  failed_delivery: "#FF4D4F",
+};
+
 export const DEFAULT_CAMPAIGN_STATS: CampaignStats = {
   total: 0,
   sent: 0,
   failed: 0,
   skipped: 0,
+  delivered: 0,
+  read: 0,
 };

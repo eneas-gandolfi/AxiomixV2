@@ -312,7 +312,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
           content: prompt,
         },
       ],
-      { model: process.env.OPENROUTER_MODEL_LIGHT }
+      { model: process.env.OPENROUTER_MODEL_LIGHT, module: "whatsapp", operation: "batch_analyze" }
     );
 
     const jsonMatch = rawJson.match(/```(?:json)?\s*([\s\S]*?)```/);

@@ -313,6 +313,8 @@ export async function generateDailyReport(
       {
         responseFormat: "text",
         temperature: 0.3,
+        module: "reports",
+        operation: "generate_daily",
       }
     );
 

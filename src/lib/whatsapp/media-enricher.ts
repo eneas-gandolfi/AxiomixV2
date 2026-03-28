@@ -173,7 +173,7 @@ async function describeImage(
         ],
       },
     ],
-    { responseFormat: "text", temperature: 0.2, model: "openai/gpt-4o-mini" }
+    { responseFormat: "text", temperature: 0.2, model: "openai/gpt-4o-mini", module: "whatsapp", operation: "describe_media" }
   );
 }
 

@@ -318,6 +318,8 @@ export async function generateWeeklyReport(
       {
         responseFormat: "text",
         temperature: 0.3,
+        module: "reports",
+        operation: "generate_weekly",
       }
     );
 

@@ -134,6 +134,8 @@ async function generateCompetitorInsight(
       },
     ], {
       model: process.env.OPENROUTER_MODEL_LIGHT,
+      module: "intelligence",
+      operation: "competitor_insight",
     });
 
     const parsedUnknown: unknown = JSON.parse(rawJson);

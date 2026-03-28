@@ -133,7 +133,7 @@ export async function queryKnowledgeBase(
   const answer = await openRouterChatCompletion(
     companyId,
     [{ role: "user", content: prompt }],
-    { responseFormat: "text", temperature: 0.3 }
+    { responseFormat: "text", temperature: 0.3, module: "rag", operation: "query" }
   );
 
   return { answer, sources: chunks };

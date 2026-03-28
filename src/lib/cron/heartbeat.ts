@@ -8,6 +8,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { recoverAllStaleJobs, markAllStaleJobsFailed, enqueueJob } from "@/lib/jobs/queue";
 import { enqueueAutoAnalyses } from "@/services/whatsapp/auto-analyze";
+import { aggregateUsageForDate } from "@/services/usage/aggregate";
 
 const MIN_SYNC_INTERVAL_MINUTES = 15;
 
@@ -16,6 +17,7 @@ type HeartbeatResult = {
   staleMarkedFailed: number;
   autoAnalyses: { companies: number; totalEnqueued: number; errors: number };
   synced: { enqueued: number; skippedRecent: number };
+  usageAggregated: number;
 };
 
 export async function runHeartbeat(): Promise<HeartbeatResult> {
@@ -31,11 +33,22 @@ export async function runHeartbeat(): Promise<HeartbeatResult> {
   // 4. Enfileirar syncs pendentes para empresas ativas com Sofia CRM
   const synced = await enqueuePendingSyncs();
 
+  // 5. Agregar uso de IA do dia anterior (roda apenas no primeiro heartbeat de cada hora)
+  let usageAggregated = 0;
+  if (new Date().getMinutes() === 0) {
+    try {
+      usageAggregated = await aggregateUsageForDate();
+    } catch (error) {
+      console.error("[heartbeat] Falha na agregação de uso de IA:", error);
+    }
+  }
+
   return {
     recovered,
     staleMarkedFailed,
     autoAnalyses,
     synced,
+    usageAggregated,
   };
 }
 

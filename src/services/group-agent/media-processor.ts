@@ -75,6 +75,8 @@ async function describeImage(
   ], {
     responseFormat: "text",
     temperature: 0.2,
+    module: "group_agent",
+    operation: "describe_image",
   });
 
   console.log(LOG_PREFIX, `Descrição da imagem: ${description.length} chars`);

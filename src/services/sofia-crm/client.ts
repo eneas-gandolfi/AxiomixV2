@@ -136,7 +136,7 @@ type SofiaCrmClient = {
   listConversations: (limit?: number, filters?: { status?: string; filter?: string; inbox_id?: string }) => Promise<SofiaConversationApi[]>;
   listMessages: (externalConversationId: string, limit?: number) => Promise<SofiaMessageApi[]>;
   sendMessage: (conversationId: string, content: string, options?: { checkSession?: boolean }) => Promise<void>;
-  sendTemplate: (payload: { to: string; templateName: string; language?: string; components?: Json }) => Promise<void>;
+  sendTemplate: (payload: { to: string; templateName: string; language?: string; components?: Json }) => Promise<{ messageId?: string }>;
   getSessionStatus: (conversationId: string) => Promise<SofiaSessionStatus>;
   assignConversation: (conversationId: string, payload: { assigneeId?: string; teamId?: string }) => Promise<void>;
   startConversation: (phone: string) => Promise<{ conversationId: string }>;
@@ -904,7 +904,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       if (!config.inboxId) {
         throw new Error("Inbox ID não configurado. Não é possível enviar template.");
       }
-      await requestJson<unknown>(`/api/whatsapp-cloud/inboxes/${encodeURIComponent(config.inboxId)}/send-template`, {
+      const result = await requestJson<Record<string, unknown>>(`/api/whatsapp-cloud/inboxes/${encodeURIComponent(config.inboxId)}/send-template`, {
         method: "POST",
         body: {
           to: payload.to,
@@ -913,6 +913,10 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
           ...(payload.components ? { components: payload.components } : {}),
         },
       });
+      const messageId = (result as Record<string, unknown>)?.message_id
+        ?? (result as Record<string, unknown>)?.messageId
+        ?? (result as Record<string, unknown>)?.id;
+      return { messageId: typeof messageId === "string" ? messageId : undefined };
     },
 
     async getSessionStatus(conversationId: string) {

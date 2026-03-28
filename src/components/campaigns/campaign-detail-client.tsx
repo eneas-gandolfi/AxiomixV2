@@ -18,6 +18,8 @@ import {
   Trash2,
   Loader2,
   CheckCircle,
+  CheckCheck,
+  Eye,
   XCircle,
   Clock,
   Users,
@@ -29,6 +31,11 @@ import type {
   CampaignRecipient,
   CampaignStats,
   RecipientStatus,
+  DeliveryStatus,
+} from "@/types/modules/campaigns.types";
+import {
+  DELIVERY_STATUS_LABELS,
+  DELIVERY_STATUS_COLORS,
 } from "@/types/modules/campaigns.types";
 
 type CampaignDetailClientProps = {
@@ -224,6 +231,27 @@ export function CampaignDetailClient({
         ),
     },
     {
+      title: "Entrega",
+      dataIndex: "delivery_status",
+      key: "delivery_status",
+      width: 120,
+      render: (status: DeliveryStatus | null) =>
+        status ? (
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+            style={{
+              backgroundColor: `${DELIVERY_STATUS_COLORS[status]}15`,
+              color: DELIVERY_STATUS_COLORS[status],
+            }}
+          >
+            {status === "read" ? "✓✓" : status === "delivered" ? "✓✓" : "✓"}
+            {" "}{DELIVERY_STATUS_LABELS[status]}
+          </span>
+        ) : (
+          <span className="text-xs text-[var(--color-text-tertiary)]">—</span>
+        ),
+    },
+    {
       title: "Erro",
       dataIndex: "error_message",
       key: "error_message",
@@ -325,9 +353,11 @@ export function CampaignDetailClient({
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4 lg:grid-cols-6">
         <StatCard label="Total" value={stats.total} total={stats.total} icon={Users} color="#8A8A8A" />
         <StatCard label="Enviados" value={stats.sent} total={stats.total} icon={CheckCircle} color="#52C41A" />
+        <StatCard label="Entregues" value={stats.delivered ?? 0} total={stats.total} icon={CheckCheck} color="#1677FF" />
+        <StatCard label="Lidos" value={stats.read ?? 0} total={stats.total} icon={Eye} color="#2EC4B6" />
         <StatCard label="Falhas" value={stats.failed} total={stats.total} icon={XCircle} color="#FF4D4F" />
         <StatCard label="Ignorados" value={stats.skipped} total={stats.total} icon={Clock} color="#FADB14" />
       </div>

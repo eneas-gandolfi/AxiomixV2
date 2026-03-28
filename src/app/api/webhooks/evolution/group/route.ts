@@ -224,6 +224,61 @@ async function fetchGroupNameFromApi(
 }
 
 /**
+ * Status map da Evolution API.
+ * 1=PENDING, 2=SENT (server ACK), 3=DELIVERED (device), 4=READ (blue ticks)
+ */
+const EVOLUTION_STATUS_MAP: Record<number, string> = {
+  2: "sent_to_provider",
+  3: "delivered",
+  4: "read",
+};
+
+/**
+ * Trata evento messages.update — atualiza delivery_status em campaign_recipients.
+ */
+async function handleMessageStatusUpdate(
+  rawData: unknown,
+  supabase: ReturnType<typeof createSupabaseAdminClient>
+): Promise<NextResponse> {
+  const items = Array.isArray(rawData) ? rawData : [rawData];
+  let updated = 0;
+
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+
+    const key = rec.key as Record<string, unknown> | undefined;
+    const statusNum = typeof rec.status === "number" ? rec.status : null;
+
+    if (!key || !statusNum) continue;
+
+    const messageId = typeof key.id === "string" ? key.id : null;
+    if (!messageId) continue;
+
+    const deliveryStatus = EVOLUTION_STATUS_MAP[statusNum];
+    if (!deliveryStatus) continue;
+
+    const { error, count } = await supabase
+      .from("campaign_recipients")
+      .update({
+        delivery_status: deliveryStatus,
+        delivery_updated_at: new Date().toISOString(),
+      })
+      .eq("provider_message_id", messageId);
+
+    if (!error && count && count > 0) {
+      updated++;
+    }
+  }
+
+  if (updated > 0) {
+    console.log(LOG_PREFIX, `Delivery status atualizado para ${updated} recipient(s)`);
+  }
+
+  return NextResponse.json({ ok: true, delivery_updated: updated });
+}
+
+/**
  * Trata evento groups.upsert — atualiza o nome do grupo no banco.
  */
 async function handleGroupsUpsert(
@@ -311,6 +366,12 @@ export async function POST(request: NextRequest) {
       console.log(LOG_PREFIX, "Evento GROUPS_UPSERT recebido");
       const supabase = createSupabaseAdminClient();
       return handleGroupsUpsert((rawBody as Record<string, unknown>).data, supabase);
+    }
+
+    // --- Handle messages.update event (delivery status tracking) ---
+    if (rawEvent === "messages.update") {
+      const supabase = createSupabaseAdminClient();
+      return handleMessageStatusUpdate((rawBody as Record<string, unknown>).data, supabase);
     }
 
     // --- Normalize payload ---
