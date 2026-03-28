@@ -28,9 +28,19 @@ import {
 const MAX_CONVERSATIONS_PER_BATCH = 20;
 const MESSAGES_PER_CONVERSATION = 5;
 
+function normalizeSentiment(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  return normalized;
+}
+
 const batchAnalysisItemSchema = z.object({
   conversationId: z.string(),
-  sentiment: z.enum(["positivo", "neutro", "negativo"]),
+  sentiment: z.preprocess(normalizeSentiment, z.enum(["positivo", "neutro", "negativo"])),
   intent: z.preprocess(
     (value) =>
       typeof value === "string" ? normalizeConversationIntent(value) ?? value : value,

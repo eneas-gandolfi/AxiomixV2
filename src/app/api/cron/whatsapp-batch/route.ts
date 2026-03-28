@@ -14,7 +14,7 @@ import { runBatchAnalysis, type BatchAnalysisResult } from "@/services/whatsapp/
 import { isCronAuthorized } from "@/lib/auth/cron-auth";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const manualSchema = z.object({
   companyId: z.string().uuid("companyId inválido."),
@@ -52,13 +52,20 @@ export async function GET(request: NextRequest) {
     try {
       const companyIds = await getAllActiveCompanyIds();
 
-      for (const companyId of companyIds) {
-        try {
-          const result = await runBatchAnalysis(companyId);
-          console.log("[whatsapp-batch cron] Empresa processada:", JSON.stringify(result));
-        } catch (error) {
-          const detail = error instanceof Error ? error.message : "Erro inesperado.";
-          console.error(`[whatsapp-batch cron] Erro na empresa ${companyId}:`, detail);
+      const results = await Promise.allSettled(
+        companyIds.map((companyId) =>
+          runBatchAnalysis(companyId).then((result) => {
+            console.log("[whatsapp-batch cron] Empresa processada:", JSON.stringify(result));
+            return result;
+          })
+        )
+      );
+
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (result.status === "rejected") {
+          const detail = result.reason instanceof Error ? result.reason.message : "Erro inesperado.";
+          console.error(`[whatsapp-batch cron] Erro na empresa ${companyIds[i]}:`, detail);
         }
       }
     } catch (error) {
