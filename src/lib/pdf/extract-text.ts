@@ -8,7 +8,16 @@
 import "./polyfill";
 
 export async function extractTextFromPdf(buffer: Buffer, maxLength?: number): Promise<string> {
+  // Suprimir warning de @napi-rs/canvas durante o import —
+  // pdfjs-dist tenta carregar canvas opcionalmente, mas usamos apenas extração de texto.
+  const _warn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].includes("@napi-rs/canvas")) return;
+    _warn.apply(console, args);
+  };
+
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  console.warn = _warn;
 
   // No Node.js, pdfjs-dist desabilita web workers automaticamente e usa "fake worker",
   // mas precisa do workerSrc apontando para o arquivo real. Usar require.resolve
@@ -20,7 +29,7 @@ export async function extractTextFromPdf(buffer: Buffer, maxLength?: number): Pr
   } catch {
     // Se não encontrar, manter o valor default — pdfjs usará fake worker
   }
-  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true, verbosity: 0 }).promise;
   const pages: string[] = [];
 
   for (let i = 1; i <= doc.numPages; i++) {
