@@ -16,6 +16,93 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_usage_log: {
+        Row: {
+          id: string;
+          company_id: string;
+          module: string;
+          operation: string;
+          model: string;
+          prompt_tokens: number;
+          completion_tokens: number;
+          total_tokens: number;
+          estimated_cost_usd: number;
+          is_fallback: boolean;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          module: string;
+          operation: string;
+          model: string;
+          prompt_tokens: number;
+          completion_tokens: number;
+          total_tokens: number;
+          estimated_cost_usd?: number;
+          is_fallback?: boolean;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          module?: string;
+          operation?: string;
+          model?: string;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+          estimated_cost_usd?: number;
+          is_fallback?: boolean;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_usage_daily_summary: {
+        Row: {
+          id: string;
+          company_id: string;
+          date: string;
+          module: string;
+          model: string;
+          total_calls: number;
+          total_prompt_tokens: number;
+          total_completion_tokens: number;
+          total_tokens: number;
+          total_cost_usd: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          date: string;
+          module: string;
+          model: string;
+          total_calls?: number;
+          total_prompt_tokens?: number;
+          total_completion_tokens?: number;
+          total_tokens?: number;
+          total_cost_usd?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          date?: string;
+          module?: string;
+          model?: string;
+          total_calls?: number;
+          total_prompt_tokens?: number;
+          total_completion_tokens?: number;
+          total_tokens?: number;
+          total_cost_usd?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       companies: {
         Row: {
           created_at: string | null;

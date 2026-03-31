@@ -88,7 +88,7 @@ export async function logAiUsage(params: LogAiUsageParams): Promise<void> {
       total_tokens: params.totalTokens,
       estimated_cost_usd: estimatedCost,
       is_fallback: params.isFallback ?? false,
-      metadata: params.metadata ?? {},
+      metadata: (params.metadata ?? {}) as import("@/database/types/database.types").Json,
     });
   } catch (error) {
     console.error(
