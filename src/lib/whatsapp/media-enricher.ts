@@ -299,6 +299,9 @@ function needsEnrichment(message: MessageToEnrich): boolean {
   return true;
 }
 
+const MEDIA_CONCURRENCY = 3; // máximo de mídias processadas em paralelo
+const MEDIA_MAX_PER_RUN = 10; // máximo de mídias por execução (evita timeout)
+
 /**
  * Enriquece mensagens de mídia com conteúdo extraído por IA.
  * Atualiza o content no banco de dados para cache (evita reprocessamento).
@@ -308,9 +311,15 @@ export async function enrichMediaMessages<T extends MessageToEnrich>(
   companyId: string,
   messages: T[]
 ): Promise<T[]> {
-  const toProcess = messages.filter(needsEnrichment);
+  const allToProcess = messages.filter(needsEnrichment);
 
-  if (toProcess.length === 0) return messages;
+  if (allToProcess.length === 0) return messages;
+
+  // Limitar quantidade por execução para evitar timeout
+  const toProcess = allToProcess.slice(0, MEDIA_MAX_PER_RUN);
+  if (allToProcess.length > MEDIA_MAX_PER_RUN) {
+    console.log(LOG_PREFIX, `${allToProcess.length} mídias pendentes, processando ${MEDIA_MAX_PER_RUN} nesta execução`);
+  }
 
   console.log(LOG_PREFIX, `Processando ${toProcess.length} mensagem(ns) de mídia`);
 
@@ -328,21 +337,25 @@ export async function enrichMediaMessages<T extends MessageToEnrich>(
   const supabase = createSupabaseAdminClient();
   const updatedContents = new Map<string, string>();
 
-  await Promise.allSettled(
-    toProcess.map(async (message) => {
-      const extracted = await processMediaMessage(companyId, message, sofiaBaseUrl, sofiaToken);
-      if (extracted) {
-        updatedContents.set(message.id, extracted);
+  // Processar em lotes com concorrência limitada
+  for (let i = 0; i < toProcess.length; i += MEDIA_CONCURRENCY) {
+    const batch = toProcess.slice(i, i + MEDIA_CONCURRENCY);
+    await Promise.allSettled(
+      batch.map(async (message) => {
+        const extracted = await processMediaMessage(companyId, message, sofiaBaseUrl, sofiaToken);
+        if (extracted) {
+          updatedContents.set(message.id, extracted);
 
-        // Persiste no DB para evitar reprocessamento futuro
-        await supabase
-          .from("messages")
-          .update({ content: extracted })
-          .eq("id", message.id)
-          .eq("company_id", companyId);
-      }
-    })
-  );
+          // Persiste no DB para evitar reprocessamento futuro
+          await supabase
+            .from("messages")
+            .update({ content: extracted })
+            .eq("id", message.id)
+            .eq("company_id", companyId);
+        }
+      })
+    );
+  }
 
   return messages.map((msg) => {
     const updated = updatedContents.get(msg.id);
