@@ -103,46 +103,64 @@ function http2Get(
   });
 }
 
+const DOWNLOAD_MAX_RETRIES = 2;
+const DOWNLOAD_RETRY_DELAYS = [2_000, 5_000];
+
 async function downloadMediaFromUrl(
   url: string,
   sofiaBaseUrl?: string,
   sofiaToken?: string
 ): Promise<{ base64: string; mimetype: string } | null> {
-  try {
-    const absoluteUrl = ensureAbsoluteUrl(url, sofiaBaseUrl);
-    const isSofiaRelative = !url.startsWith("http");
+  const absoluteUrl = ensureAbsoluteUrl(url, sofiaBaseUrl);
+  const isSofiaRelative = !url.startsWith("http");
 
-    // URLs internas do Sofia CRM: usar HTTP/2 com SSL flexível (mesmo protocolo do client Sofia)
-    if (isSofiaRelative && absoluteUrl.startsWith("https://")) {
-      const result = await http2Get(absoluteUrl, sofiaToken);
-      if (result.status < 200 || result.status >= 300) {
-        console.warn(LOG_PREFIX, `Falha ao baixar mídia (HTTP ${result.status}): ${url}`);
+  for (let attempt = 0; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
+    try {
+      // URLs internas do Sofia CRM: usar HTTP/2 com SSL flexível (mesmo protocolo do client Sofia)
+      if (isSofiaRelative && absoluteUrl.startsWith("https://")) {
+        const result = await http2Get(absoluteUrl, sofiaToken);
+        if (result.status < 200 || result.status >= 300) {
+          console.warn(LOG_PREFIX, `Falha ao baixar mídia (HTTP ${result.status}): ${url}`);
+          return null;
+        }
+        return { base64: result.base64, mimetype: result.mimetype };
+      }
+
+      // URLs externas: fetch padrão
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000);
+      const response = await fetch(absoluteUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        console.warn(LOG_PREFIX, `Falha ao baixar mídia (HTTP ${response.status}): ${url}`);
         return null;
       }
-      return { base64: result.base64, mimetype: result.mimetype };
-    }
 
-    // URLs externas: fetch padrão
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30_000);
-    const response = await fetch(absoluteUrl, { signal: controller.signal });
-    clearTimeout(timeout);
+      const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+      const mimetype = contentType.split(";")[0].trim();
+      const buffer = await response.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString("base64");
 
-    if (!response.ok) {
-      console.warn(LOG_PREFIX, `Falha ao baixar mídia (HTTP ${response.status}): ${url}`);
+      return { base64, mimetype };
+    } catch (error) {
+      const isTimeout =
+        error instanceof Error &&
+        (error.message.includes("Timeout") || error.name === "AbortError");
+
+      if (isTimeout && attempt < DOWNLOAD_MAX_RETRIES) {
+        const delay = DOWNLOAD_RETRY_DELAYS[attempt];
+        console.warn(LOG_PREFIX, `Timeout ao baixar mídia (tentativa ${attempt + 1}/${DOWNLOAD_MAX_RETRIES + 1}), retentando em ${delay}ms...`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      console.warn(LOG_PREFIX, "Erro ao baixar mídia:", error);
       return null;
     }
-
-    const contentType = response.headers.get("content-type") ?? "application/octet-stream";
-    const mimetype = contentType.split(";")[0].trim();
-    const buffer = await response.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-
-    return { base64, mimetype };
-  } catch (error) {
-    console.warn(LOG_PREFIX, "Erro ao baixar mídia:", error);
-    return null;
   }
+
+  return null;
 }
 
 /**
@@ -234,9 +252,15 @@ async function processMediaMessage(
         const text = await extractPdfText(base64);
         return `[Documento] ${text}`;
       } catch {
-        // PDF sem texto extraível (escaneado/imagem) — ignorar silenciosamente
-        console.log(LOG_PREFIX, "PDF sem texto extraível, pulando.");
-        return null;
+        // PDF sem texto extraível (escaneado/imagem) — tentar OCR via Vision
+        console.log(LOG_PREFIX, "PDF sem texto extraível, tentando OCR via Vision...");
+        try {
+          const description = await describeImage(companyId, base64, "application/pdf");
+          return `[Documento OCR] ${description}`;
+        } catch (ocrError) {
+          console.warn(LOG_PREFIX, "OCR do PDF falhou:", ocrError);
+          return null;
+        }
       }
     }
   } catch (error) {
