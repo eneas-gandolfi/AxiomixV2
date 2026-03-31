@@ -10,7 +10,7 @@ import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSofiaCrmClient } from "@/services/sofia-crm/client";
 import { getCampaign, updateCampaignStats } from "@/services/campaigns/manager";
-import type { CampaignFilters, CampaignRecipient, RecipientStatus } from "@/types/modules/campaigns.types";
+import type { CampaignFilters, CampaignRecipient, DeliveryStatus, RecipientStatus } from "@/types/modules/campaigns.types";
 
 function recipientsTable() {
   return createSupabaseAdminClient().from("campaign_recipients");
@@ -281,7 +281,7 @@ export async function listRecipients(
     error_message: (row.error_message as string) ?? null,
     variables: (row.variables as Record<string, string>) ?? {},
     created_at: row.created_at as string,
-    delivery_status: (row.delivery_status as string) ?? null,
+    delivery_status: (row.delivery_status as DeliveryStatus) ?? null,
     delivery_updated_at: (row.delivery_updated_at as string) ?? null,
     provider_message_id: (row.provider_message_id as string) ?? null,
   }));
