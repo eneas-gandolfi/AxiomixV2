@@ -252,15 +252,9 @@ async function processMediaMessage(
         const text = await extractPdfText(base64);
         return `[Documento] ${text}`;
       } catch {
-        // PDF sem texto extraível (escaneado/imagem) — tentar OCR via Vision
-        console.log(LOG_PREFIX, "PDF sem texto extraível, tentando OCR via Vision...");
-        try {
-          const description = await describeImage(companyId, base64, "application/pdf");
-          return `[Documento OCR] ${description}`;
-        } catch (ocrError) {
-          console.warn(LOG_PREFIX, "OCR do PDF falhou:", ocrError);
-          return null;
-        }
+        // PDF sem texto extraível (escaneado/imagem) — registrar como documento escaneado
+        console.log(LOG_PREFIX, "PDF sem texto extraível (escaneado/imagem), registrando como documento.");
+        return `[Documento] (PDF escaneado/imagem — sem texto extraível)`;
       }
     }
   } catch (error) {
