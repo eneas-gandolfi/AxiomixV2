@@ -18,8 +18,9 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const response = NextResponse.next();
   try {
-    const supabase = await createSupabaseRouteHandlerClient();
+    const supabase = createSupabaseRouteHandlerClient(req, response);
     const access = await resolveCompanyAccess(supabase);
 
     if (access.role !== "owner") {
