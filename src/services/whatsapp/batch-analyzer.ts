@@ -28,14 +28,20 @@ import {
 const MAX_CONVERSATIONS_PER_BATCH = 20;
 const MESSAGES_PER_CONVERSATION = 5;
 
+const SENTIMENT_MAP: Record<string, string> = {
+  positivo: "positivo", positive: "positivo", bom: "positivo", otimo: "positivo",
+  neutro: "neutro", neutral: "neutro", mixed: "neutro", misto: "neutro", indefinido: "neutro",
+  negativo: "negativo", negative: "negativo", ruim: "negativo", pessimo: "negativo",
+};
+
 function normalizeSentiment(value: unknown): unknown {
-  if (typeof value !== "string") return value;
+  if (typeof value !== "string") return "neutro";
   const normalized = value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
-  return normalized;
+  return SENTIMENT_MAP[normalized] ?? "neutro";
 }
 
 const batchAnalysisItemSchema = z.object({
