@@ -239,6 +239,9 @@ export type Database = {
           error_message: string | null;
           variables: Json;
           created_at: string;
+          provider_message_id: string | null;
+          delivery_status: string | null;
+          delivery_updated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -251,6 +254,9 @@ export type Database = {
           error_message?: string | null;
           variables?: Json;
           created_at?: string;
+          provider_message_id?: string | null;
+          delivery_status?: string | null;
+          delivery_updated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -263,6 +269,9 @@ export type Database = {
           error_message?: string | null;
           variables?: Json;
           created_at?: string;
+          provider_message_id?: string | null;
+          delivery_status?: string | null;
+          delivery_updated_at?: string | null;
         };
         Relationships: [
           {
