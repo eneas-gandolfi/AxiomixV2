@@ -252,9 +252,18 @@ async function processMediaMessage(
         const text = await extractPdfText(base64);
         return `[Documento] ${text}`;
       } catch {
-        // PDF sem texto extraível (escaneado/imagem) — registrar como documento escaneado
-        console.log(LOG_PREFIX, "PDF sem texto extraível (escaneado/imagem), registrando como documento.");
-        return `[Documento] (PDF escaneado/imagem — sem texto extraível)`;
+        // PDF sem texto extraível (escaneado/imagem) — renderizar como imagem e enviar ao Vision
+        console.log(LOG_PREFIX, "PDF sem texto extraível, renderizando como imagem para OCR...");
+        try {
+          const { renderFirstPageAsPng } = await import("@/lib/pdf/render-page");
+          const pdfBuffer = Buffer.from(base64, "base64");
+          const pngBase64 = await renderFirstPageAsPng(pdfBuffer);
+          const description = await describeImage(companyId, pngBase64, "image/png");
+          return `[Documento OCR] ${description}`;
+        } catch (ocrError) {
+          console.warn(LOG_PREFIX, "OCR do PDF falhou:", ocrError);
+          return `[Documento] (PDF escaneado/imagem — OCR indisponível)`;
+        }
       }
     }
   } catch (error) {
