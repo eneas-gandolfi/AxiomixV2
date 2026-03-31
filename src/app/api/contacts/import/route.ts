@@ -15,8 +15,9 @@ export const dynamic = "force-dynamic";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(req: NextRequest) {
+  const response = NextResponse.next();
   try {
-    const supabase = await createSupabaseRouteHandlerClient();
+    const supabase = createSupabaseRouteHandlerClient(req, response);
     const access = await resolveCompanyAccess(supabase);
 
     const formData = await req.formData();
