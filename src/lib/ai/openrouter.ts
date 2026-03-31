@@ -62,7 +62,7 @@ type AttemptResult =
 
 /* ── Fallback para modelos gratuitos ── */
 
-const FALLBACK_STATUS_CODES = new Set([402, 429, 500, 502, 503]);
+const FALLBACK_STATUS_CODES = new Set([0, 402, 429, 500, 502, 503]);
 
 const DEFAULT_FREE_MODELS = [
   "openrouter/free",
