@@ -163,6 +163,43 @@ async function downloadMediaFromUrl(
   return null;
 }
 
+const IMAGE_MAX_DIMENSION = 1024; // pixels — GPT-4o-mini aceita até 2048, mas 1024 é suficiente e mais rápido
+const IMAGE_MAX_BASE64_LENGTH = 500_000; // ~375KB — acima disso, redimensionar
+
+/**
+ * Redimensiona imagem se for muito grande (evita timeout no OpenRouter).
+ */
+async function resizeImageIfNeeded(base64: string, mimetype: string): Promise<{ base64: string; mimetype: string }> {
+  // Se o base64 é pequeno o suficiente, não precisa redimensionar
+  if (base64.length <= IMAGE_MAX_BASE64_LENGTH) {
+    return { base64, mimetype };
+  }
+
+  try {
+    const { createCanvas, loadImage } = await import("@napi-rs/canvas");
+    const buffer = Buffer.from(base64, "base64");
+    const img = await loadImage(buffer);
+
+    let { width, height } = img;
+    if (width > IMAGE_MAX_DIMENSION || height > IMAGE_MAX_DIMENSION) {
+      const ratio = Math.min(IMAGE_MAX_DIMENSION / width, IMAGE_MAX_DIMENSION / height);
+      width = Math.floor(width * ratio);
+      height = Math.floor(height * ratio);
+    }
+
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const jpegBuffer = canvas.toBuffer("image/jpeg");
+    console.log(LOG_PREFIX, `Imagem redimensionada: ${base64.length} → ${jpegBuffer.length} bytes (${width}x${height})`);
+    return { base64: Buffer.from(jpegBuffer).toString("base64"), mimetype: "image/jpeg" };
+  } catch (error) {
+    console.warn(LOG_PREFIX, "Falha ao redimensionar imagem, usando original:", error);
+    return { base64, mimetype };
+  }
+}
+
 /**
  * Descreve uma imagem via Vision (GPT-4o).
  */
@@ -171,7 +208,8 @@ async function describeImage(
   base64: string,
   mimetype: string
 ): Promise<string> {
-  const dataUrl = `data:${mimetype};base64,${base64}`;
+  const resized = await resizeImageIfNeeded(base64, mimetype);
+  const dataUrl = `data:${resized.mimetype};base64,${resized.base64}`;
 
   return openRouterChatCompletion(
     companyId,
