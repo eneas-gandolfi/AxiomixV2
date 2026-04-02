@@ -17,7 +17,7 @@ import { analyzeConversation } from "@/services/whatsapp/analyzer";
 import { isCronAuthorized } from "@/lib/auth/cron-auth";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const CRON_MAX_ANALYSES = 3;
 const JOB_SELECT_FIELDS =

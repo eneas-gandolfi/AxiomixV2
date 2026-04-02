@@ -44,6 +44,8 @@ type OpenRouterOptions = {
   temperature?: number;
   model?: string;
   skipFallback?: boolean;
+  /** Limite de tokens na resposta (evita 402 quando créditos são baixos) */
+  maxTokens?: number;
   /** Modulo que originou a chamada (para tracking de uso) */
   module?: string;
   /** Operacao especifica dentro do modulo */
@@ -125,8 +127,13 @@ async function attemptChatCompletion(
   messages: OpenRouterMessage[],
   temperature: number,
   useJsonFormat: boolean,
+  maxTokens?: number,
 ): Promise<AttemptResult> {
   const body: Record<string, unknown> = { model, temperature, messages };
+
+  if (maxTokens) {
+    body.max_tokens = maxTokens;
+  }
 
   if (useJsonFormat) {
     body.response_format = { type: "json_object" };
@@ -186,10 +193,11 @@ export async function openRouterChatCompletion(
   const temperature = options?.temperature ?? 0.2;
   const primaryModel = options?.model || config.model;
   const useJson = responseFormat === "json";
+  const maxTokens = options?.maxTokens;
 
   /* ── Tentativa primária ── */
   const primary = await attemptChatCompletion(
-    config.apiKey, primaryModel, messages, temperature, useJson,
+    config.apiKey, primaryModel, messages, temperature, useJson, maxTokens,
   );
 
   if (primary.ok) {
@@ -222,7 +230,7 @@ export async function openRouterChatCompletion(
 
   for (const freeModel of freeModels) {
     const attempt = await attemptChatCompletion(
-      config.apiKey, freeModel, messages, temperature, useJson,
+      config.apiKey, freeModel, messages, temperature, useJson, maxTokens,
     );
 
     if (attempt.ok) {
@@ -243,7 +251,7 @@ export async function openRouterChatCompletion(
     /* Se pediu JSON e falhou, tentar sem response_format (o system prompt já pede JSON) */
     if (useJson) {
       const retryNoJson = await attemptChatCompletion(
-        config.apiKey, freeModel, messages, temperature, false,
+        config.apiKey, freeModel, messages, temperature, false, maxTokens,
       );
 
       if (retryNoJson.ok) {
@@ -300,7 +308,7 @@ export async function openRouterAudioTranscription(
         ],
       },
     ],
-    { responseFormat: "text", temperature: 0.1, model: "google/gemini-2.0-flash-001", module: "whatsapp", operation: "audio_transcription" }
+    { responseFormat: "text", temperature: 0.1, model: "google/gemini-2.0-flash-001", maxTokens: 2048, module: "whatsapp", operation: "audio_transcription" }
   );
 
   if (!transcription || transcription.trim().length === 0) {

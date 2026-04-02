@@ -163,8 +163,8 @@ async function downloadMediaFromUrl(
   return null;
 }
 
-const IMAGE_MAX_DIMENSION = 1024; // pixels — GPT-4o-mini aceita até 2048, mas 1024 é suficiente e mais rápido
-const IMAGE_MAX_BASE64_LENGTH = 500_000; // ~375KB — acima disso, redimensionar
+const IMAGE_MAX_DIMENSION = 768; // pixels — reduzido para diminuir tokens de entrada e evitar 402 com créditos baixos
+const IMAGE_MAX_BASE64_LENGTH = 300_000; // ~225KB — reduzido para economizar tokens no OpenRouter
 
 /**
  * Redimensiona imagem se for muito grande (evita timeout no OpenRouter).
@@ -229,7 +229,7 @@ async function describeImage(
         ],
       },
     ],
-    { responseFormat: "text", temperature: 0.2, model: "openai/gpt-4o-mini", module: "whatsapp", operation: "describe_media" }
+    { responseFormat: "text", temperature: 0.2, model: "openai/gpt-4o-mini", maxTokens: 512, module: "whatsapp", operation: "describe_media" }
   );
 }
 
