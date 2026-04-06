@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { enqueueJob, markStaleJobsFailed } from "@/lib/jobs/queue";
-import { processJobById } from "@/lib/jobs/processor";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -89,35 +87,12 @@ export async function POST(request: NextRequest) {
 
     const queued = await enqueueJob(parsed.data.type, {}, access.companyId, undefined, 1);
 
-    // Processar exatamente o job recém-criado (não depender de cron externo)
-    const result = await processJobById(queued.id);
-
-    if (!result) {
-      return NextResponse.json(
-        {
-          error: "Falha ao processar o relatório. Tente novamente.",
-          code: "JOB_NOT_PROCESSED",
-          jobId: queued.id,
-        },
-        { status: 500 }
-      );
-    }
-
-    revalidatePath("/dashboard");
-    revalidatePath("/settings");
-
-    if (result.status === "failed") {
-      return NextResponse.json(
-        {
-          error: result.error ?? "Falha ao processar o relatório.",
-          code: "JOB_EXECUTION_FAILED",
-          jobId: queued.id,
-        },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ jobId: queued.id, status: result.status });
+    // Job enfileirado — será processado pelo cron process-jobs (a cada 1 min)
+    return NextResponse.json({
+      jobId: queued.id,
+      status: "pending",
+      message: "Relatório enfileirado. Será processado em até 1 minuto.",
+    });
   } catch (error) {
     if (error instanceof CompanyAccessError) {
       return NextResponse.json({ error: "Erro ao carregar dados. Tente novamente." }, { status: error.status });
