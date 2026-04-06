@@ -49,6 +49,6 @@ export const config = {
      * - /_next/* (assets do Next.js)
      * - /favicon.ico, arquivos estaticos com extensao
      */
-    "/((?!login|register|auth|onboarding|alertas|api|_next/static|_next/image|favicon\\.ico|.*\\..*).*)",
+    "/((?!login|register|auth|onboarding|alertas|forgot-password|reset-password|api|_next/static|_next/image|favicon\\.ico|.*\\..*).*)",
   ],
 };
