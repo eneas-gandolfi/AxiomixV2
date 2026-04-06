@@ -7,11 +7,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 
 export const dynamic = "force-dynamic";
 
 // Signed URL válida por 5 minutos
 const SIGNED_URL_EXPIRY_SECONDS = 300;
+
+/**
+ * Extrai o company_id do path do storage.
+ * Formato esperado: "{companyId}/weekly-{start}-{end}.pdf"
+ */
+function extractCompanyIdFromPath(pathInBucket: string): string | null {
+  const segments = pathInBucket.split("/");
+  if (segments.length < 2) return null;
+  const candidate = segments[0];
+  // UUID v4 pattern
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate)) {
+    return candidate;
+  }
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,27 +41,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verificar autenticação do usuário
+    // Verificar autenticação e acesso à empresa
     const response = NextResponse.next();
     const supabase = createSupabaseRouteHandlerClient(request, response);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Não autenticado.", code: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
 
     // O storagePath vem no formato "reports/{companyId}/weekly-{start}-{end}.pdf"
-    // Precisamos separar o bucket do caminho dentro do bucket
     const BUCKET = "reports";
     const bucketPrefix = `${BUCKET}/`;
     const pathInBucket = storagePath.startsWith(bucketPrefix)
       ? storagePath.slice(bucketPrefix.length)
       : storagePath;
+
+    // Extrair e validar company_id do path
+    const pathCompanyId = extractCompanyIdFromPath(pathInBucket);
+    if (!pathCompanyId) {
+      return NextResponse.json(
+        { error: "Caminho do arquivo inválido.", code: "INVALID_PATH" },
+        { status: 400 }
+      );
+    }
+
+    // Verificar que o usuário pertence à empresa do relatório
+    await resolveCompanyAccess(supabase, pathCompanyId);
 
     // Gerar signed URL via admin client (sem restrição de RLS)
     const adminSupabase = createSupabaseAdminClient();
@@ -65,6 +82,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ url: signedUrlData.signedUrl });
   } catch (error) {
+    if (error instanceof CompanyAccessError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
     return NextResponse.json({ error: detail, code: "PDF_ROUTE_ERROR" }, { status: 500 });
   }
