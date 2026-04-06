@@ -75,6 +75,7 @@ async function describeImage(
   ], {
     responseFormat: "text",
     temperature: 0.2,
+    model: "google/gemini-2.0-flash-001",
     maxTokens: 1024,
     module: "group_agent",
     operation: "describe_image",

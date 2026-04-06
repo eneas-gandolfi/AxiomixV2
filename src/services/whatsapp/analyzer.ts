@@ -313,6 +313,7 @@ async function generateConversationInsight(companyId: string, messages: Conversa
       ],
       {
         model: process.env.OPENROUTER_MODEL_LIGHT,
+        maxTokens: 1024,
         module: "whatsapp",
         operation: "analyze_conversation",
       }

@@ -137,6 +137,7 @@ export async function generateResponseSuggestion(
       responseFormat: "text",
       model: process.env.OPENROUTER_MODEL_LIGHT,
       temperature: 0.4,
+      maxTokens: 512,
       module: "whatsapp",
       operation: "suggest_response",
     }

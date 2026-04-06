@@ -229,7 +229,7 @@ async function describeImage(
         ],
       },
     ],
-    { responseFormat: "text", temperature: 0.2, model: "openai/gpt-4o-mini", maxTokens: 512, module: "whatsapp", operation: "describe_media" }
+    { responseFormat: "text", temperature: 0.2, model: "google/gemini-2.0-flash-001", maxTokens: 512, module: "whatsapp", operation: "describe_media" }
   );
 }
 

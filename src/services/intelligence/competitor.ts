@@ -134,6 +134,7 @@ async function generateCompetitorInsight(
       },
     ], {
       model: process.env.OPENROUTER_MODEL_LIGHT,
+      maxTokens: 1024,
       module: "intelligence",
       operation: "competitor_insight",
     });

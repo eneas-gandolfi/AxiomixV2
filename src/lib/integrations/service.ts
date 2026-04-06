@@ -78,7 +78,7 @@ const uploadPostSchema: z.ZodType<UploadPostConfig> = z.object({
 
 const openRouterSchema: z.ZodType<OpenRouterConfig> = z.object({
   apiKey: requiredSecretSchema,
-  model: z.string().trim().min(3, "Modelo inválido.").default("openai/gpt-4o"),
+  model: z.string().trim().min(3, "Modelo inválido.").default("openai/gpt-5-nano"),
 });
 
 function assertObjectPayload(payload: unknown) {
@@ -319,7 +319,7 @@ export function decodeIntegrationConfig<T extends IntegrationType>(
     }
     case "openrouter":
       return {
-        model: String(config.model ?? "openai/gpt-4o"),
+        model: String(config.model ?? "openai/gpt-5-nano"),
         apiKey: decryptIfEncrypted(config.api_key_encrypted ?? config.api_key),
       } as IntegrationConfigByType[T];
     default:
@@ -387,7 +387,7 @@ export function sanitizeIntegrationConfig(type: IntegrationType, payload: Json |
     }
     case "openrouter":
       return {
-        model: typeof config.model === "string" ? config.model : "openai/gpt-4o",
+        model: typeof config.model === "string" ? config.model : "openai/gpt-5-nano",
         apiKey:
           typeof config.api_key_encrypted === "string" || typeof config.api_key === "string"
             ? "********"

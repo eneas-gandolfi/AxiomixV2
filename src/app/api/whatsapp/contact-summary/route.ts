@@ -106,7 +106,7 @@ ${messagesContext || "Nenhuma mensagem disponível."}
         { role: "system", content: "Voce é um assistente de CRM que gera resumos concisos em portugues." },
         { role: "user", content: prompt },
       ],
-      { responseFormat: "text", temperature: 0.3, module: "whatsapp", operation: "contact_summary" }
+      { responseFormat: "text", temperature: 0.3, maxTokens: 512, module: "whatsapp", operation: "contact_summary" }
     );
 
     return NextResponse.json({ summary: aiResponse ?? "Não foi possível gerar o resumo." });

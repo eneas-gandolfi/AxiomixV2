@@ -138,6 +138,7 @@ export async function processGroupAgentResponse(
     ], {
       responseFormat: "text",
       temperature: 0.3,
+      maxTokens: 1024,
       module: "group_agent",
       operation: "respond",
     });

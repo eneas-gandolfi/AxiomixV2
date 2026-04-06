@@ -90,7 +90,7 @@ function resolveOpenRouterEnvConfig(): OpenRouterConfig | null {
 
   return {
     apiKey,
-    model: process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-4o",
+    model: process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-5-nano",
   };
 }
 
@@ -108,7 +108,7 @@ async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterCon
     if (decoded.apiKey) {
       return {
         apiKey: decoded.apiKey,
-        model: decoded.model || process.env.OPENROUTER_MODEL || "openai/gpt-4o",
+        model: decoded.model || process.env.OPENROUTER_MODEL || "openai/gpt-5-nano",
       };
     }
   }
