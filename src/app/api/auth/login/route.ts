@@ -10,9 +10,23 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { Database } from "@/database/types/database.types";
 import { getSupabaseEnv } from "@/lib/supabase/config";
 import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "@/lib/auth/constants";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
+
+    const ipLimit = checkRateLimit(`login:ip:${clientIp}`, 10, 900);
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { error: `Muitas tentativas. Tente novamente em ${ipLimit.retryAfterSeconds}s.` },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { email, password, rememberMe } = body;
 
@@ -20,6 +34,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "E-mail e senha são obrigatórios." },
         { status: 400 }
+      );
+    }
+
+    const emailLimit = checkRateLimit(`login:email:${email.toLowerCase()}`, 5, 900);
+    if (!emailLimit.allowed) {
+      return NextResponse.json(
+        { error: `Muitas tentativas para este e-mail. Tente novamente em ${emailLimit.retryAfterSeconds}s.` },
+        { status: 429 }
       );
     }
 
@@ -53,7 +75,7 @@ export async function POST(request: NextRequest) {
     const isSecure = request.nextUrl.protocol === "https:";
     const cookieOptions: Record<string, unknown> = {
       path: "/",
-      httpOnly: false,
+      httpOnly: true,
       sameSite: "lax" as const,
       secure: isSecure,
     };

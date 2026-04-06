@@ -50,6 +50,7 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
   const [configs, setConfigs] = useState<GroupAgentConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const { toast } = useToast();
@@ -69,9 +70,16 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
 
   useEffect(() => { fetchConfigs(); }, [fetchConfigs]);
 
-  const webhookUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/api/webhooks/evolution/group?token=${process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_TOKEN ?? "SEU_TOKEN"}&cid=${companyId}`
-    : "";
+  useEffect(() => {
+    fetch("/api/settings/group-agent/webhook-token")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.token) {
+          setWebhookUrl(`${window.location.origin}/api/webhooks/evolution/group?token=${data.token}&cid=${companyId}`);
+        }
+      })
+      .catch(() => {});
+  }, [companyId]);
 
   const handleCopyWebhook = () => {
     navigator.clipboard.writeText(webhookUrl);

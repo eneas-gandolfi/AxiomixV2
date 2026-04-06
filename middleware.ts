@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
     const isSecure = request.nextUrl.protocol === "https:";
     response.cookies.set(REMEMBER_ME_COOKIE, "1", {
       path: "/",
-      httpOnly: false,
+      httpOnly: true,
       sameSite: "lax" as const,
       secure: isSecure,
       maxAge: REMEMBER_ME_MAX_AGE,
