@@ -10,6 +10,7 @@
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { z } from "zod";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,32 +43,25 @@ export default function ForgotPasswordPage() {
     }
 
     setIsLoading(true);
-    try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: parsed.data.email }),
-      });
-      const data = await res.json();
 
-      if (res.status === 429) {
-        setError(data.error);
-        setIsLoading(false);
-        return;
-      }
+    const baseUrl = (
+      process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
+    ).replace(/\/$/, "");
+    const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent("/reset-password")}`;
 
-      if (!res.ok && data.error) {
-        setError(data.error);
-        setIsLoading(false);
-        return;
-      }
-    } catch {
-      setError("Erro de conexão. Tente novamente.");
-      setIsLoading(false);
+    const supabase = createSupabaseBrowserClient();
+    const { error: supaError } = await supabase.auth.resetPasswordForEmail(
+      parsed.data.email,
+      { redirectTo },
+    );
+
+    setIsLoading(false);
+
+    if (supaError) {
+      setError(supaError.message);
       return;
     }
 
-    setIsLoading(false);
     setSent(true);
   };
 
