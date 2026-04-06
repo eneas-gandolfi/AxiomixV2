@@ -1,8 +1,8 @@
 /**
  * Arquivo: src/app/auth/callback/route.ts
- * Propósito: Processar callback de magic link e trocar code por sessão Supabase.
+ * Propósito: Processar callback de magic link, OAuth e recovery (reset de senha).
  * Autor: AXIOMIX
- * Data: 2026-03-11
+ * Data: 2026-04-06
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,16 +14,33 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const tokenHash = requestUrl.searchParams.get("token_hash");
+  const type = requestUrl.searchParams.get("type");
   const nextPath = requestUrl.searchParams.get("next") ?? "/dashboard";
   const safeNextPath = nextPath.startsWith("/") ? nextPath : "/dashboard";
 
-  if (!code) {
+  if (!code && !tokenHash) {
     return NextResponse.redirect(new URL("/login", requestUrl.origin));
   }
 
-  const response = NextResponse.redirect(new URL(safeNextPath, requestUrl.origin));
+  const isRecovery = type === "recovery";
+  const redirectPath = isRecovery ? "/reset-password" : safeNextPath;
+
+  const response = NextResponse.redirect(new URL(redirectPath, requestUrl.origin));
   const supabase = createSupabaseRouteHandlerClient(request, response);
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+  let error: Error | null = null;
+
+  if (code) {
+    const result = await supabase.auth.exchangeCodeForSession(code);
+    error = result.error;
+  } else if (tokenHash && type) {
+    const result = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type as "recovery" | "email",
+    });
+    error = result.error;
+  }
 
   if (error) {
     return NextResponse.redirect(new URL("/login", requestUrl.origin));
