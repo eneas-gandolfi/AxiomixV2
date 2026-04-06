@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { analyzeConversation } from "@/services/whatsapp/analyzer";
+import { applyIpRateLimit } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,9 @@ const analyzeSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimited = applyIpRateLimit(request, "ai:analyze", 30, 60);
+    if (rateLimited) return rateLimited;
+
     const response = NextResponse.json({ ok: true });
     const supabase = createSupabaseRouteHandlerClient(request, response);
     const rawBody: unknown = await request.json();

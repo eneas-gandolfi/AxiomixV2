@@ -21,6 +21,7 @@ import {
   isPdfDocument,
   processMediaMessage,
 } from "@/services/group-agent/media-processor";
+import { applyIpRateLimit } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -314,6 +315,9 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
+    const rateLimited = applyIpRateLimit(request, "webhook:group", 120, 60);
+    if (rateLimited) return rateLimited;
+
     const url = request.nextUrl.toString();
     const token = request.nextUrl.searchParams.get("token");
     const cidParam = request.nextUrl.searchParams.get("cid");

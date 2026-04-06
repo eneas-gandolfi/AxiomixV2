@@ -10,22 +10,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { Database } from "@/database/types/database.types";
 import { getSupabaseEnv } from "@/lib/supabase/config";
 import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "@/lib/auth/constants";
-import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { checkRateLimit, applyIpRateLimit } from "@/lib/auth/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
-    const clientIp =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("x-real-ip") ??
-      "unknown";
-
-    const ipLimit = checkRateLimit(`login:ip:${clientIp}`, 10, 900);
-    if (!ipLimit.allowed) {
-      return NextResponse.json(
-        { error: `Muitas tentativas. Tente novamente em ${ipLimit.retryAfterSeconds}s.` },
-        { status: 429 }
-      );
-    }
+    const rateLimited = applyIpRateLimit(request, "login:ip", 10, 900);
+    if (rateLimited) return rateLimited;
 
     const body = await request.json();
     const { email, password, rememberMe } = body;

@@ -11,6 +11,7 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
+import { applyIpRateLimit } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,9 @@ const summarySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimited = applyIpRateLimit(request, "ai:summary", 20, 60);
+    if (rateLimited) return rateLimited;
+
     const response = NextResponse.json({ ok: true });
     const supabase = createSupabaseRouteHandlerClient(request, response);
     const rawBody: unknown = await request.json();

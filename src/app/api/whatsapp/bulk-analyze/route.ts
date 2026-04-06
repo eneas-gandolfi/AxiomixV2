@@ -11,6 +11,7 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { processJobs } from "@/lib/jobs/processor";
 import { enqueueAutoAnalyses } from "@/services/whatsapp/auto-analyze";
+import { applyIpRateLimit } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,9 @@ const bulkAnalyzeSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimited = applyIpRateLimit(request, "ai:bulk-analyze", 5, 60);
+    if (rateLimited) return rateLimited;
+
     const response = NextResponse.json({ ok: true });
     const supabase = createSupabaseRouteHandlerClient(request, response);
     const rawBody: unknown = await request.json().catch(() => ({}));
