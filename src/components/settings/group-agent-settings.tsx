@@ -212,7 +212,9 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
     });
   };
 
-  const visibleConfigs = configs.filter((c) => !c.is_hidden);
+  const visibleConfigs = configs
+    .filter((c) => !c.is_hidden)
+    .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1));
   const hiddenConfigs = configs.filter((c) => c.is_hidden);
   const currentConfigs = activeTab === "visible" ? visibleConfigs : hiddenConfigs;
 
