@@ -565,11 +565,11 @@ function GroupCard({
                       onChange={(e) => setLocalProactiveSummary(e.target.checked)}
                       className="rounded border-border"
                     />
-                    Resumo diario automatico
+                    Resumo diário automático
                   </label>
                   {localProactiveSummary && (
                     <div>
-                      <label className="block text-xs font-medium text-text mb-1">Horario (UTC)</label>
+                      <label className="block text-xs font-medium text-text mb-1">Horário (UTC)</label>
                       <select
                         value={localProactiveSummaryHour}
                         onChange={(e) => setLocalProactiveSummaryHour(Number(e.target.value))}
@@ -590,9 +590,9 @@ function GroupCard({
                       onChange={(e) => setLocalProactiveSalesAlert(e.target.checked)}
                       className="rounded border-border"
                     />
-                    Alertas de vendas (variacao &gt;20%)
+                    Alertas de vendas
                   </label>
-                  <p className="text-xs text-muted mt-1">Envia alerta quando as conversas variam significativamente.</p>
+                  <p className="text-xs text-muted mt-1">Compara o volume de conversas de hoje com ontem. Se houver variação acima de 20%, envia um alerta ao grupo com os números.</p>
                 </div>
               </div>
             </div>

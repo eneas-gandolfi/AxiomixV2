@@ -26,26 +26,26 @@ type GroupAgentPromptInput = {
 
 const TONE_INSTRUCTIONS: Record<AgentTone, string> = {
   profissional:
-    "Mantenha um tom profissional e objetivo. Use linguagem corporativa clara e direta.",
+    "IMPORTANTE: Adote um tom estritamente profissional e corporativo. Use linguagem formal, objetiva e direta. Evite gírias, emojis ou informalidades. Estruture suas respostas de forma clara com tópicos quando apropriado. Trate todos por 'você' de forma respeitosa.",
   casual:
-    "Seja amigável e acessível. Use linguagem natural e descontraída, mas sem perder a precisão.",
+    "IMPORTANTE: Adote um tom casual e amigável. Use linguagem natural, descontraída e acessível. Pode usar emojis com moderação e expressões coloquiais. Seja simpático e próximo, como um colega de trabalho conversando no café. Mantenha a precisão das informações mesmo sendo informal.",
   tecnico:
-    "Seja preciso e detalhado. Use terminologia técnica quando relevante, com dados e números.",
+    "IMPORTANTE: Adote um tom técnico e analítico. Seja preciso, detalhado e use terminologia técnica quando relevante. Priorize dados, números e métricas. Estruture com listas e categorias. Evite linguagem vaga — prefira termos específicos e quantificáveis.",
 };
 
 const INTENT_INSTRUCTIONS: Record<GroupAgentIntent, string> = {
   summary:
-    "O usuario pediu um resumo. Sintetize as mensagens recentes do grupo de forma clara, destacando os pontos principais, decisoes e pendencias.",
+    "O usuário pediu um resumo. Sintetize as mensagens recentes do grupo de forma clara, destacando os pontos principais, decisões e pendências.",
   sales_data:
-    "O usuario pediu dados de vendas. Apresente metricas, numeros e status do pipeline de forma organizada. Use listas e destaque tendencias.",
+    "O usuário pediu dados de vendas. Apresente métricas, números e status do pipeline de forma organizada. Use listas e destaque tendências.",
   report:
-    "O usuario pediu um relatorio. Gere um relatorio estruturado com secoes claras: visao geral, metricas, destaques e proximos passos.",
+    "O usuário pediu um relatório. Gere um relatório estruturado com seções claras: visão geral, métricas, destaques e próximos passos.",
   rag_query:
-    "O usuario fez uma pergunta. Consulte a base de conhecimento para responder com precisao. Cite as fontes quando possivel.",
+    "O usuário fez uma pergunta. Consulte a base de conhecimento para responder com precisão. Cite as fontes quando possível.",
   suggestion:
-    "O usuario pediu uma sugestao. Analise o contexto e ofereca recomendacoes praticas e acionaveis baseadas nos dados disponiveis.",
+    "O usuário pediu uma sugestão. Analise o contexto e ofereça recomendações práticas e acionáveis baseadas nos dados disponíveis.",
   general:
-    "Responda a solicitacao do usuario de forma completa e util, usando todo o contexto disponivel.",
+    "Responda à solicitação do usuário de forma completa e útil, usando todo o contexto disponível.",
 };
 
 function formatRecentMessages(
@@ -76,16 +76,16 @@ export function buildGroupAgentSystemPrompt(
   sections.push(TONE_INSTRUCTIONS[input.agentTone]);
 
   sections.push(`## Regras
-1. Responda em portugues brasileiro, maximo 600 palavras.
-2. Use formatacao WhatsApp: *negrito*, _italico_. Nao use markdown com # ou [links].
-3. Seja conciso e pratico. Priorize informacoes acionaveis.
-4. Se nao souber a resposta, diga claramente. Nunca invente dados ou metricas.
+1. Responda em português brasileiro, máximo 600 palavras.
+2. Use formatação WhatsApp: *negrito*, _itálico_. Não use markdown com # ou [links].
+3. Seja conciso e prático. Priorize informações acionáveis.
+4. Se não souber a resposta, diga claramente. Nunca invente dados ou métricas.
 5. Cite fontes da base de conhecimento quando usar.
-6. Nao repita informacoes que ja estao visiveis no historico do grupo.
-7. Mensagens com prefixo [PDF], [AUDIO] ou [IMAGEM] contem conteudo extraido de midia. Trate como contexto real e responda com base nesse conteudo.
-8. Para transcricoes de audio ([AUDIO]), responda a pergunta ou solicitacao que o usuario fez no audio.
-9. Para conteudo de PDF ([PDF]), analise o texto extraido e responda perguntas sobre o documento.
-10. Para descricoes de imagem ([IMAGEM]), use a descricao para responder sobre o que aparece na imagem.`);
+6. Não repita informações que já estão visíveis no histórico do grupo.
+7. Mensagens com prefixo [PDF], [ÁUDIO] ou [IMAGEM] contêm conteúdo extraído de mídia. Trate como contexto real e responda com base nesse conteúdo.
+8. Para transcrições de áudio ([ÁUDIO]), responda a pergunta ou solicitação que o usuário fez no áudio.
+9. Para conteúdo de PDF ([PDF]), analise o texto extraído e responda perguntas sobre o documento.
+10. Para descrições de imagem ([IMAGEM]), use a descrição para responder sobre o que aparece na imagem.`);
 
   sections.push(INTENT_INSTRUCTIONS[input.intent]);
 
@@ -109,7 +109,7 @@ export function buildGroupAgentSystemPrompt(
       return `${label}: ${m.content}`;
     });
     sections.push(
-      `## Historico da conversa com este usuario\nUse este historico para manter coerencia. Se o usuario referencia algo anterior, consulte o historico.\n${historyLines.join("\n")}`
+      `## Histórico da conversa com este usuário\nUse este histórico para manter coerência. Se o usuário referencia algo anterior, consulte o histórico.\n${historyLines.join("\n")}`
     );
   }
 
