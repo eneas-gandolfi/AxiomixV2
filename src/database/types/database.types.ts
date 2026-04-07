@@ -899,7 +899,8 @@ export type Database = {
             | "rag_process"
             | "daily_report"
             | "group_agent_respond"
-            | "group_rag_batch";
+            | "group_rag_batch"
+            | "group_proactive";
           max_attempts: number | null;
           payload: Json | null;
           result: Json | null;
@@ -923,7 +924,8 @@ export type Database = {
             | "rag_process"
             | "daily_report"
             | "group_agent_respond"
-            | "group_rag_batch";
+            | "group_rag_batch"
+            | "group_proactive";
           max_attempts?: number | null;
           payload?: Json | null;
           result?: Json | null;
@@ -947,7 +949,8 @@ export type Database = {
             | "rag_process"
             | "daily_report"
             | "group_agent_respond"
-            | "group_rag_batch";
+            | "group_rag_batch"
+            | "group_proactive";
           max_attempts?: number | null;
           payload?: Json | null;
           result?: Json | null;
@@ -1598,6 +1601,10 @@ export type Database = {
           max_responses_per_hour: number;
           cooldown_seconds: number;
           evolution_instance_name: string | null;
+          is_hidden: boolean;
+          proactive_summary: boolean;
+          proactive_summary_hour: number;
+          proactive_sales_alert: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -1616,6 +1623,10 @@ export type Database = {
           max_responses_per_hour?: number;
           cooldown_seconds?: number;
           evolution_instance_name?: string | null;
+          is_hidden?: boolean;
+          proactive_summary?: boolean;
+          proactive_summary_hour?: number;
+          proactive_sales_alert?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -1634,6 +1645,10 @@ export type Database = {
           max_responses_per_hour?: number;
           cooldown_seconds?: number;
           evolution_instance_name?: string | null;
+          is_hidden?: boolean;
+          proactive_summary?: boolean;
+          proactive_summary_hour?: number;
+          proactive_sales_alert?: boolean;
           updated_at?: string;
         };
         Relationships: [
@@ -1642,6 +1657,57 @@ export type Database = {
             columns: ["company_id"];
             isOneToOne: false;
             referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      group_agent_sessions: {
+        Row: {
+          id: string;
+          company_id: string;
+          config_id: string;
+          group_jid: string;
+          sender_jid: string;
+          messages: Json;
+          created_at: string;
+          updated_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          config_id: string;
+          group_jid: string;
+          sender_jid: string;
+          messages?: Json;
+          created_at?: string;
+          updated_at?: string;
+          expires_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          config_id?: string;
+          group_jid?: string;
+          sender_jid?: string;
+          messages?: Json;
+          created_at?: string;
+          updated_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "group_agent_sessions_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "group_agent_sessions_config_id_fkey";
+            columns: ["config_id"];
+            isOneToOne: false;
+            referencedRelation: "group_agent_configs";
             referencedColumns: ["id"];
           },
         ];
@@ -1720,7 +1786,7 @@ export type Database = {
           trigger_message_id: string | null;
           group_jid: string;
           response_text: string;
-          response_type: "reply" | "summary" | "rag_query" | "sales_data" | "report" | "error";
+          response_type: "reply" | "summary" | "rag_query" | "sales_data" | "report" | "error" | "proactive_summary" | "proactive_alert";
           rag_sources_used: number | null;
           model_used: string | null;
           processing_time_ms: number | null;
@@ -1734,7 +1800,7 @@ export type Database = {
           trigger_message_id?: string | null;
           group_jid: string;
           response_text: string;
-          response_type?: "reply" | "summary" | "rag_query" | "sales_data" | "report" | "error";
+          response_type?: "reply" | "summary" | "rag_query" | "sales_data" | "report" | "error" | "proactive_summary" | "proactive_alert";
           rag_sources_used?: number | null;
           model_used?: string | null;
           processing_time_ms?: number | null;
@@ -1748,7 +1814,7 @@ export type Database = {
           trigger_message_id?: string | null;
           group_jid?: string;
           response_text?: string;
-          response_type?: "reply" | "summary" | "rag_query" | "sales_data" | "report" | "error";
+          response_type?: "reply" | "summary" | "rag_query" | "sales_data" | "report" | "error" | "proactive_summary" | "proactive_alert";
           rag_sources_used?: number | null;
           model_used?: string | null;
           processing_time_ms?: number | null;

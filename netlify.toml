@@ -4,3 +4,7 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Cron: mensagens proativas do agente de grupo (a cada hora, filtra por horario configurado)
+[functions."api/cron/group-proactive"]
+  schedule = "0 * * * *"

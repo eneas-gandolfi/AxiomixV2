@@ -17,11 +17,17 @@ import {
 import { detectGroupAgentIntent } from "@/services/group-agent/intent-detector";
 import { buildAgentContext } from "@/services/group-agent/context-builder";
 import { sendGroupAgentResponse } from "@/services/group-agent/sender";
+import {
+  getActiveSession,
+  upsertSession,
+  appendAgentResponse as appendToSession,
+} from "@/services/group-agent/session-manager";
 import { resolvePreferredEvolutionInstance } from "@/services/integrations/evolution";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import type {
   GroupAgentResponseResult,
   GroupAgentResponseType,
+  SessionMessage,
 } from "@/types/modules/group-agent.types";
 
 export const groupAgentRespondPayloadSchema = z.object({
@@ -112,6 +118,36 @@ export async function processGroupAgentResponse(
     intent
   );
 
+  // Multi-turno: buscar sessao ativa e registrar mensagem do usuario
+  let sessionId: string | null = null;
+  try {
+    const existingSession = await getActiveSession(
+      config.id,
+      message.sender_jid,
+      message.group_jid
+    );
+
+    const userSessionMessage: SessionMessage = {
+      role: "user",
+      content: cleanedQuery,
+      timestamp: new Date().toISOString(),
+    };
+
+    sessionId = await upsertSession(
+      companyId,
+      config.id,
+      message.sender_jid,
+      message.group_jid,
+      userSessionMessage
+    );
+
+    if (existingSession?.messages) {
+      context.sessionHistory = existingSession.messages as SessionMessage[];
+    }
+  } catch (sessionErr) {
+    console.error("[group-agent/responder] Sessao falhou (continuando sem multi-turno):", sessionErr instanceof Error ? sessionErr.message : sessionErr);
+  }
+
   const systemPrompt = buildGroupAgentSystemPrompt({
     agentName: config.agent_name,
     agentTone: config.agent_tone,
@@ -122,6 +158,7 @@ export async function processGroupAgentResponse(
     recentMessages: context.recentMessages,
     knowledgeBaseContext: context.knowledgeBaseContext,
     salesDataContext: context.salesDataContext,
+    sessionHistory: context.sessionHistory,
   });
 
   const userPrompt = buildGroupAgentUserPrompt(
@@ -169,6 +206,13 @@ export async function processGroupAgentResponse(
       processingTimeMs: Date.now() - startTime,
       evolutionStatus: "llm_failed",
     };
+  }
+
+  // Multi-turno: salvar resposta do agente na sessao
+  if (sessionId) {
+    appendToSession(sessionId, responseText).catch((err) =>
+      console.error("[group-agent/responder] Falha ao salvar resposta na sessao:", err instanceof Error ? err.message : err)
+    );
   }
 
   // Resolver instance name: config > integração DB (vendor preferido) > env var

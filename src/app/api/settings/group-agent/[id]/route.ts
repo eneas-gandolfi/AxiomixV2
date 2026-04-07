@@ -27,6 +27,10 @@ const updateSchema = z.object({
   maxResponsesPerHour: z.number().int().min(1).max(100).optional(),
   cooldownSeconds: z.number().int().min(0).optional(),
   evolutionInstanceName: z.string().nullable().optional(),
+  isHidden: z.boolean().optional(),
+  proactiveSummary: z.boolean().optional(),
+  proactiveSummaryHour: z.number().int().min(0).max(23).optional(),
+  proactiveSalesAlert: z.boolean().optional(),
 });
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -61,6 +65,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (parsed.data.maxResponsesPerHour !== undefined) updateData.max_responses_per_hour = parsed.data.maxResponsesPerHour;
     if (parsed.data.cooldownSeconds !== undefined) updateData.cooldown_seconds = parsed.data.cooldownSeconds;
     if (parsed.data.evolutionInstanceName !== undefined) updateData.evolution_instance_name = parsed.data.evolutionInstanceName;
+    if (parsed.data.isHidden !== undefined) updateData.is_hidden = parsed.data.isHidden;
+    if (parsed.data.proactiveSummary !== undefined) updateData.proactive_summary = parsed.data.proactiveSummary;
+    if (parsed.data.proactiveSummaryHour !== undefined) updateData.proactive_summary_hour = parsed.data.proactiveSummaryHour;
+    if (parsed.data.proactiveSalesAlert !== undefined) updateData.proactive_sales_alert = parsed.data.proactiveSalesAlert;
 
     const { data: config, error } = await admin
       .from("group_agent_configs")

@@ -76,6 +76,7 @@ export async function buildAgentContext(
     knowledgeBaseContext,
     salesDataContext,
     previousResponses,
+    sessionHistory: [],
   };
 }
 

@@ -33,7 +33,15 @@ export type GroupAgentResponseType =
   | "rag_query"
   | "sales_data"
   | "report"
-  | "error";
+  | "error"
+  | "proactive_summary"
+  | "proactive_alert";
+
+export type SessionMessage = {
+  role: "user" | "agent";
+  content: string;
+  timestamp: string;
+};
 
 export type GroupAgentContext = {
   recentMessages: Array<{
@@ -48,7 +56,10 @@ export type GroupAgentContext = {
     responseType: string;
     createdAt: string;
   }>;
+  sessionHistory: SessionMessage[];
 };
+
+export type ProactiveAction = "daily_summary" | "sales_alert";
 
 export type GroupAgentMediaType = "pdf" | "audio" | "image";
 

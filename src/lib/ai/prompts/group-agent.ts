@@ -5,7 +5,7 @@
  * Data: 2026-03-21
  */
 
-import type { AgentTone, GroupAgentIntent } from "@/types/modules/group-agent.types";
+import type { AgentTone, GroupAgentIntent, SessionMessage } from "@/types/modules/group-agent.types";
 
 type GroupAgentPromptInput = {
   agentName: string;
@@ -21,6 +21,7 @@ type GroupAgentPromptInput = {
   }>;
   knowledgeBaseContext: string;
   salesDataContext: string;
+  sessionHistory?: SessionMessage[];
 };
 
 const TONE_INSTRUCTIONS: Record<AgentTone, string> = {
@@ -100,6 +101,16 @@ export function buildGroupAgentSystemPrompt(
 
   if (input.salesDataContext) {
     sections.push(`## Dados de vendas\n${input.salesDataContext}`);
+  }
+
+  if (input.sessionHistory && input.sessionHistory.length > 0) {
+    const historyLines = input.sessionHistory.map((m) => {
+      const label = m.role === "user" ? input.senderName : input.agentName;
+      return `${label}: ${m.content}`;
+    });
+    sections.push(
+      `## Historico da conversa com este usuario\nUse este historico para manter coerencia. Se o usuario referencia algo anterior, consulte o historico.\n${historyLines.join("\n")}`
+    );
   }
 
   return sections.join("\n\n");

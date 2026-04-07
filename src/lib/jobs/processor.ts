@@ -53,6 +53,11 @@ const groupRagBatchPayloadSchema = z.object({
   configId: z.string().uuid("configId inválido."),
 });
 
+const groupProactivePayloadSchema = z.object({
+  configId: z.string().uuid("configId inválido."),
+  action: z.enum(["daily_summary", "sales_alert"]),
+});
+
 function normalizeError(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -141,6 +146,11 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
       const parsed = groupRagBatchPayloadSchema.parse(payload);
       const { processGroupRagBatch } = await import("@/services/group-agent/rag-feeder");
       return processGroupRagBatch(job.company_id, parsed.configId);
+    }
+    case "group_proactive": {
+      const parsed = groupProactivePayloadSchema.parse(payload);
+      const { processProactiveJob } = await import("@/services/group-agent/proactive");
+      return processProactiveJob(job.company_id, parsed);
     }
     default:
       throw new Error(`job_type não suportado: ${job.job_type}`);
