@@ -8,8 +8,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import {
   resolveEvolutionCredentials,
+  resolvePreferredEvolutionInstance,
   fetchEvolutionGroups,
 } from "@/services/integrations/evolution";
 
@@ -19,12 +22,35 @@ export async function GET(request: NextRequest) {
   try {
     const response = NextResponse.json({ ok: true });
     const supabase = createSupabaseRouteHandlerClient(request, response);
-    await resolveCompanyAccess(supabase);
+    const access = await resolveCompanyAccess(supabase);
 
-    const instanceName =
-      process.env.EVOLUTION_INSTANCE_NAME?.trim() || "axiomix-default";
+    const admin = createSupabaseAdminClient();
 
-    const credentials = resolveEvolutionCredentials();
+    // Tentar carregar credenciais do banco (integração configurada pela UI)
+    let credentials;
+    let instanceName = process.env.EVOLUTION_INSTANCE_NAME?.trim() || "axiomix-default";
+
+    const { data: integration } = await admin
+      .from("integrations")
+      .select("config")
+      .eq("company_id", access.companyId)
+      .eq("type", "evolution_api")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (integration?.config) {
+      const decoded = decodeIntegrationConfig("evolution_api", integration.config);
+      credentials = resolveEvolutionCredentials({
+        baseUrl: decoded.baseUrl,
+        apiKey: decoded.apiKey,
+      });
+      instanceName =
+        resolvePreferredEvolutionInstance(decoded.vendors) ??
+        instanceName;
+    } else {
+      credentials = resolveEvolutionCredentials();
+    }
+
     const groups = await fetchEvolutionGroups({ credentials, instanceName });
 
     return NextResponse.json({ groups });

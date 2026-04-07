@@ -20,6 +20,7 @@ import {
   PowerOff,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +54,7 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
 
   const fetchConfigs = useCallback(async () => {
@@ -69,6 +71,31 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
   }, [toast]);
 
   useEffect(() => { fetchConfigs(); }, [fetchConfigs]);
+
+  const handleSyncGroups = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/settings/group-agent/sync", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Falha ao sincronizar.");
+      }
+      const data = await res.json();
+      toast({
+        title: "Grupos sincronizados",
+        description: `${data.created} novo(s), ${data.updated} atualizado(s) de ${data.total} grupo(s).`,
+      });
+      fetchConfigs();
+    } catch (err) {
+      toast({
+        title: "Erro",
+        description: err instanceof Error ? err.message : "Não foi possível sincronizar os grupos.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/settings/group-agent/webhook-token")
@@ -170,6 +197,21 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
         </CardContent>
       </Card>
 
+      {/* Sincronizar grupos */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted">
+          {configs.length} grupo(s) detectado(s)
+        </p>
+        <button
+          onClick={handleSyncGroups}
+          disabled={syncing}
+          className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-muted hover:text-text hover:bg-sidebar transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Sincronizando..." : "Sincronizar Grupos"}
+        </button>
+      </div>
+
       {/* Lista de grupos detectados */}
       {configs.length > 0 ? (
         <div className="space-y-3">
@@ -191,9 +233,17 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
           <CardContent className="flex flex-col items-center gap-3 py-8">
             <Bot className="h-10 w-10 text-muted" />
             <p className="text-sm text-muted text-center max-w-md">
-              Nenhum grupo detectado ainda. Quando mensagens forem enviadas em grupos WhatsApp,
-              eles aparecerão aqui automaticamente para você ativar.
+              Nenhum grupo detectado ainda. Clique em &quot;Sincronizar Grupos&quot; para buscar os grupos
+              da Evolution API, ou aguarde mensagens chegarem via webhook.
             </p>
+            <button
+              onClick={handleSyncGroups}
+              disabled={syncing}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando..." : "Sincronizar Grupos"}
+            </button>
           </CardContent>
         </Card>
       )}
