@@ -157,8 +157,8 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
   }
 }
 
-/** Timeout guard — aborta job se exceder o limite (Vercel Hobby = 60s). */
-const JOB_TIMEOUT_MS = 50_000; // 50s para ter margem antes do hard kill de 60s
+/** Timeout guard — aborta job se exceder o limite. */
+const JOB_TIMEOUT_MS = Number(process.env.JOB_TIMEOUT_MS) || 120_000; // 120s para self-hosted, ajustável via env
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
