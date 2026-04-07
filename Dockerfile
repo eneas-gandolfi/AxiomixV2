@@ -37,6 +37,12 @@ ENV QSTASH_URL=$QSTASH_URL
 
 RUN npm run build
 
+# Debug: verificar estrutura do standalone
+RUN ls -la .next/standalone/ && \
+    if [ -d ".next/standalone/axiomix" ]; then echo "FOUND: axiomix subdir"; \
+    elif [ -f ".next/standalone/server.js" ]; then echo "FOUND: server.js at root"; \
+    else echo "LISTING:" && find .next/standalone -name "server.js" -type f; fi
+
 # --- Runner ---
 FROM base AS runner
 WORKDIR /app
@@ -50,8 +56,14 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/axiomix ./
+# Copiar todo o standalone e ajustar se necessario
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Se server.js estiver em subpasta, mover para raiz
+RUN if [ ! -f "server.js" ] && [ -f "axiomix/server.js" ]; then \
+      cp -r axiomix/* . && rm -rf axiomix; \
+    fi
 
 USER nextjs
 EXPOSE 3000
