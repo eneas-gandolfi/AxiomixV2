@@ -1,28 +1,18 @@
 /**
  * Arquivo: src/lib/cron/scheduler.ts
  * Proposito: Scheduler de crons interno para deploy self-hosted (Docker/VPS).
- * Substitui os crons do vercel.json e netlify.toml.
+ *            Chama as funcoes diretamente (sem HTTP) para compatibilidade com
+ *            ambientes que bloqueiam self-requests (ex: Hostinger).
  * Autor: AXIOMIX
  * Data: 2026-04-07
  */
 
 import cron from "node-cron";
 
-const PORT = process.env.PORT || "3000";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${PORT}`;
-const CRON_SECRET = process.env.CRON_SECRET || "";
-
-async function callCronEndpoint(path: string, label: string): Promise<void> {
+async function safeRun(label: string, fn: () => Promise<unknown>): Promise<void> {
   try {
-    const url = `${APP_URL}${path}`;
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${CRON_SECRET}`,
-        "x-cron-secret": CRON_SECRET,
-      },
-    });
-    console.log(`[cron] ${label} → ${res.status}`);
+    const result = await fn();
+    console.log(`[cron] ${label} → ok`, typeof result === "object" ? JSON.stringify(result) : "");
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Erro desconhecido";
     console.error(`[cron] ${label} falhou:`, detail);
@@ -37,44 +27,52 @@ export function startCronScheduler(): void {
 
   console.log("[cron] Iniciando scheduler de crons...");
 
-  // Heartbeat: a cada 5 minutos (housekeeping + process jobs)
-  cron.schedule("*/5 * * * *", () => {
-    callCronEndpoint("/api/cron/heartbeat", "heartbeat");
+  // Heartbeat: a cada 5 minutos (housekeeping + recover + enqueue)
+  cron.schedule("*/5 * * * *", async () => {
+    const { runHeartbeat } = await import("@/lib/cron/heartbeat");
+    await safeRun("heartbeat", runHeartbeat);
   });
 
   // Process jobs: a cada 2 minutos
-  cron.schedule("*/2 * * * *", () => {
-    callCronEndpoint("/api/cron/process-jobs", "process-jobs");
+  cron.schedule("*/2 * * * *", async () => {
+    const { processJobs } = await import("@/lib/jobs/processor");
+    await safeRun("process-jobs", () => processJobs({ maxJobs: 1 }));
   });
 
   // Group proactive: a cada hora
-  cron.schedule("0 * * * *", () => {
-    callCronEndpoint("/api/cron/group-proactive", "group-proactive");
+  cron.schedule("0 * * * *", async () => {
+    const { runGroupProactiveCron } = await import("@/lib/cron/group-proactive");
+    await safeRun("group-proactive", runGroupProactiveCron);
   });
 
   // Group RAG batch: diario as 03:00 UTC
-  cron.schedule("0 3 * * *", () => {
-    callCronEndpoint("/api/cron/group-rag-batch", "group-rag-batch");
+  cron.schedule("0 3 * * *", async () => {
+    const { runGroupRagBatchCron } = await import("@/lib/cron/group-rag-batch");
+    await safeRun("group-rag-batch", runGroupRagBatchCron);
   });
 
   // Relatorio diario: diario as 22:00 UTC
-  cron.schedule("0 22 * * *", () => {
-    callCronEndpoint("/api/report/daily", "report-daily");
+  cron.schedule("0 22 * * *", async () => {
+    const { runDailyReportCron } = await import("@/lib/cron/report-daily");
+    await safeRun("report-daily", runDailyReportCron);
   });
 
   // Relatorio semanal: segunda as 11:00 UTC
-  cron.schedule("0 11 * * 1", () => {
-    callCronEndpoint("/api/report/send", "report-send");
+  cron.schedule("0 11 * * 1", async () => {
+    const { runWeeklyReportCron } = await import("@/lib/cron/report-send");
+    await safeRun("report-send", runWeeklyReportCron);
   });
 
   // WhatsApp sync: a cada 15 minutos
-  cron.schedule("*/15 * * * *", () => {
-    callCronEndpoint("/api/cron/whatsapp-sync", "whatsapp-sync");
+  cron.schedule("*/15 * * * *", async () => {
+    const { runWhatsappSyncCron } = await import("@/lib/cron/whatsapp-sync");
+    await safeRun("whatsapp-sync", runWhatsappSyncCron);
   });
 
   // WhatsApp batch analyze: a cada 10 minutos
-  cron.schedule("*/10 * * * *", () => {
-    callCronEndpoint("/api/cron/whatsapp-batch", "whatsapp-batch");
+  cron.schedule("*/10 * * * *", async () => {
+    const { runWhatsappBatchCron } = await import("@/lib/cron/whatsapp-batch");
+    await safeRun("whatsapp-batch", runWhatsappBatchCron);
   });
 
   console.log("[cron] 8 crons agendados com sucesso.");
