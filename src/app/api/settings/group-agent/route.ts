@@ -10,6 +10,8 @@ import { z } from "zod";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { decodeIntegrationConfig } from "@/lib/integrations/service";
+import { resolvePreferredEvolutionInstance } from "@/services/integrations/evolution";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +23,32 @@ export async function GET(request: NextRequest) {
 
     const admin = createSupabaseAdminClient();
 
+    // --- Resolver instância Evolution conectada ---
+    let currentInstance: string | null = null;
+
+    const { data: integration } = await admin
+      .from("integrations")
+      .select("config")
+      .eq("company_id", access.companyId)
+      .eq("type", "evolution_api")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (integration?.config) {
+      const decoded = decodeIntegrationConfig("evolution_api", integration.config);
+      currentInstance = resolvePreferredEvolutionInstance(decoded.vendors) ?? null;
+    }
+
+    if (!currentInstance) {
+      currentInstance = process.env.EVOLUTION_INSTANCE_NAME?.trim() || "axiomix-default";
+    }
+
+    // --- Buscar apenas grupos da instância atual + grupos sem instância (legado) ---
     const { data: configs, error } = await admin
       .from("group_agent_configs")
       .select("*")
       .eq("company_id", access.companyId)
+      .or(`evolution_instance_name.eq.${currentInstance},evolution_instance_name.is.null`)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -111,7 +135,7 @@ export async function POST(request: NextRequest) {
         trigger_keywords: parsed.data.triggerKeywords ?? ["@axiomix", "/ia"],
         agent_name: parsed.data.agentName ?? "Axiomix IA",
         agent_tone: parsed.data.agentTone ?? "profissional",
-        feed_to_rag: parsed.data.feedToRag ?? true,
+        feed_to_rag: parsed.data.feedToRag ?? false,
         rag_min_message_length: parsed.data.ragMinMessageLength ?? 50,
         rag_batch_interval_minutes: parsed.data.ragBatchIntervalMinutes ?? 30,
         max_responses_per_hour: parsed.data.maxResponsesPerHour ?? 20,
