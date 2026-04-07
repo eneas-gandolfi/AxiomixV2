@@ -8,7 +8,8 @@
 
 import cron from "node-cron";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const PORT = process.env.PORT || "3000";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${PORT}`;
 const CRON_SECRET = process.env.CRON_SECRET || "";
 
 async function callCronEndpoint(path: string, label: string): Promise<void> {

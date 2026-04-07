@@ -49,14 +49,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-# Copiar todo o standalone e ajustar se necessario
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
@@ -66,6 +64,6 @@ RUN if [ ! -f "server.js" ] && [ -f "axiomix/server.js" ]; then \
     fi
 
 USER nextjs
-EXPOSE 3000
+EXPOSE 80
 
 CMD ["node", "server.js"]
