@@ -624,13 +624,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       }
     }
 
-    // Dentro do Docker, DNS pode não resolver crm.getlead.capital corretamente.
-    // Conecta direto no IP e usa header Host para o TLS/SNI funcionar.
-    const hostOverride = url.hostname === "crm.getlead.capital" ? "82.25.68.119" : null;
-    const fetchUrl = hostOverride
-      ? url.toString().replace(url.hostname, hostOverride)
-      : url.toString();
-
+    const fetchUrl = url.toString();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), SOFIA_HTTP2_TIMEOUT_MS);
 
@@ -639,7 +633,6 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       res = await fetch(fetchUrl, {
         method,
         headers: {
-          "host": url.hostname,
           "authorization": `Bearer ${config.apiToken}`,
           "content-type": "application/json",
           "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
