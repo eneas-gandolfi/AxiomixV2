@@ -61,12 +61,14 @@ export async function POST(request: NextRequest) {
     // --- Buscar configs existentes ---
     const { data: existingConfigs } = await admin
       .from("group_agent_configs")
-      .select("group_jid")
+      .select("id, group_jid, evolution_instance_name")
       .eq("company_id", companyId);
 
     const existingJids = new Set(
       (existingConfigs ?? []).map((c) => c.group_jid)
     );
+
+    const currentGroupJids = new Set(groups.map((g) => g.id));
 
     // --- Separar novos vs existentes ---
     const newGroups = groups.filter((g) => !existingJids.has(g.id));
@@ -74,8 +76,9 @@ export async function POST(request: NextRequest) {
 
     let created = 0;
     let updated = 0;
+    let hidden = 0;
 
-    // Inserir novos grupos (is_active: false por padrão)
+    // Inserir novos grupos (is_active: false por padrão, vinculados à instância)
     if (newGroups.length > 0) {
       const { error } = await admin.from("group_agent_configs").insert(
         newGroups.map((g) => ({
@@ -83,6 +86,8 @@ export async function POST(request: NextRequest) {
           group_jid: g.id,
           group_name: g.subject,
           is_active: false,
+          is_hidden: false,
+          evolution_instance_name: instanceName,
         }))
       );
 
@@ -91,11 +96,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Atualizar nomes dos grupos existentes (preservar demais configurações)
+    // Atualizar grupos existentes: nome + instância atual
     for (const group of existingGroups) {
       const { error } = await admin
         .from("group_agent_configs")
-        .update({ group_name: group.subject })
+        .update({
+          group_name: group.subject,
+          evolution_instance_name: instanceName,
+          is_hidden: false,
+        })
         .eq("company_id", companyId)
         .eq("group_jid", group.id);
 
@@ -104,10 +113,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Ocultar grupos que não existem mais na instância atual
+    const staleConfigs = (existingConfigs ?? []).filter(
+      (c) => !currentGroupJids.has(c.group_jid) && !c.evolution_instance_name?.length
+        || (c.evolution_instance_name === instanceName && !currentGroupJids.has(c.group_jid))
+    );
+
+    if (staleConfigs.length > 0) {
+      const staleIds = staleConfigs.map((c) => c.id);
+      const { error } = await admin
+        .from("group_agent_configs")
+        .update({ is_hidden: true, is_active: false })
+        .in("id", staleIds)
+        .eq("company_id", companyId);
+
+      if (!error) {
+        hidden = staleConfigs.length;
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       created,
       updated,
+      hidden,
       total: groups.length,
     });
   } catch (error) {
