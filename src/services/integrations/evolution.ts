@@ -358,20 +358,95 @@ export function createEvolutionVendor(input: {
   };
 }
 
+function buildWebhookUrl(companyId?: string): string | null {
+  const token = process.env.EVOLUTION_WEBHOOK_API_KEY?.trim() || process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_TOKEN?.trim();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.EVOLUTION_WEBHOOK_URL?.trim();
+
+  if (!appUrl || !token) return null;
+
+  // Sempre usar o endpoint correto do grupo, independente do que estiver na env
+  const origin = appUrl.replace(/\/api\/.*$/, "").replace(/\/+$/, "");
+  const webhookBase = `${origin}/api/webhooks/evolution/group`;
+
+  const url = new URL(webhookBase);
+  url.searchParams.set("token", token);
+  if (companyId) url.searchParams.set("cid", companyId);
+  return url.toString();
+}
+
+const WEBHOOK_EVENTS = [
+  "MESSAGES_UPSERT",
+  "CONNECTION_UPDATE",
+  "GROUPS_UPSERT",
+];
+
+export async function setEvolutionWebhook(input: {
+  credentials: EvolutionCredentials;
+  instanceName: string;
+  companyId?: string;
+}): Promise<boolean> {
+  const webhookUrl = buildWebhookUrl(input.companyId);
+  if (!webhookUrl) {
+    console.warn("[evolution] Webhook URL não pôde ser construída — EVOLUTION_WEBHOOK_URL ou token ausente");
+    return false;
+  }
+
+  try {
+    const result = await callEvolution(input.credentials, {
+      source: "set_webhook",
+      method: "POST",
+      url: `${input.credentials.baseUrl}/webhook/set/${encodeURIComponent(input.instanceName)}`,
+      body: {
+        webhook: {
+          enabled: true,
+          url: webhookUrl,
+          webhookByEvents: true,
+          events: WEBHOOK_EVENTS,
+        },
+      },
+    });
+
+    if (!result.ok) {
+      console.error("[evolution] Falha ao configurar webhook:", result.status, result.text.slice(0, 200));
+      return false;
+    }
+
+    console.log("[evolution] Webhook configurado com sucesso para", input.instanceName, "→", webhookUrl.replace(/token=[^&]+/, "token=***"));
+    return true;
+  } catch (error) {
+    console.error("[evolution] Erro ao configurar webhook:", error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
 export async function generateEvolutionQrCode(input: {
   credentials: EvolutionCredentials;
   instanceName: string;
+  companyId?: string;
 }): Promise<EvolutionQrResult> {
+  const webhookUrl = buildWebhookUrl(input.companyId);
+
+  const createBody: Record<string, unknown> = {
+    instanceName: input.instanceName,
+    integration: "WHATSAPP-BAILEYS",
+    qrcode: true,
+  };
+
+  if (webhookUrl) {
+    createBody.webhook = {
+      enabled: true,
+      url: webhookUrl,
+      webhookByEvents: true,
+      events: WEBHOOK_EVENTS,
+    };
+  }
+
   const attempts: EvolutionAttempt[] = [
     {
       source: "create_instance",
       method: "POST",
       url: `${input.credentials.baseUrl}/instance/create`,
-      body: {
-        instanceName: input.instanceName,
-        integration: "WHATSAPP-BAILEYS",
-        qrcode: true,
-      },
+      body: createBody,
     },
     {
       source: "connect_instance",

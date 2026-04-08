@@ -24,6 +24,7 @@ import {
   generateEvolutionQrCode,
   mergeVendorStatuses,
   resolveEvolutionCredentials,
+  setEvolutionWebhook,
 } from "@/services/integrations/evolution";
 
 export const dynamic = "force-dynamic";
@@ -102,6 +103,17 @@ export async function GET(request: NextRequest) {
         vendors,
         statuses,
       });
+
+      // Garantir webhook configurado para instâncias conectadas
+      for (const vendor of syncedVendors) {
+        if (vendor.status === "connected") {
+          void setEvolutionWebhook({
+            credentials,
+            instanceName: vendor.instanceName,
+            companyId: access.companyId,
+          });
+        }
+      }
 
       const changed =
         JSON.stringify(vendors.map((item) => [item.instanceName, item.status, item.connectedAt])) !==
@@ -202,6 +214,7 @@ export async function POST(request: NextRequest) {
     const qr = await generateEvolutionQrCode({
       credentials,
       instanceName: vendor.instanceName,
+      companyId: access.companyId,
     });
 
     const vendorWithQr: EvolutionVendor = {

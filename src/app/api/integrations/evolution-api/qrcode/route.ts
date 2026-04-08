@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     const qr = await generateEvolutionQrCode({
       credentials,
       instanceName: vendor.instanceName,
+      companyId: access.companyId,
     });
 
     return NextResponse.json({
