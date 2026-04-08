@@ -5,7 +5,6 @@
  * Data: 2026-03-17
  */
 
-import http2 from "http2";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { resolveCompanyAccess, CompanyAccessError } from "@/lib/auth/resolve-company-access";
@@ -70,8 +69,8 @@ export async function GET(request: NextRequest) {
       return new NextResponse("URL não pertence ao domínio do Sofia CRM.", { status: 403 });
     }
 
-    // Buscar imagem via HTTP/2 autenticado (mesma técnica do client.ts)
-    const imageBuffer = await fetchImageViaHttp2(targetUrl, config.apiToken);
+    // Buscar imagem via fetch autenticado (roteamento Docker interno quando disponível)
+    const imageBuffer = await fetchImageViaHttp(targetUrl, config.apiToken);
 
     if (!imageBuffer) {
       return new NextResponse(null, { status: 404 });
@@ -104,71 +103,30 @@ function detectImageContentType(buffer: Buffer): string {
   return "image/jpeg"; // fallback
 }
 
-function fetchImageViaHttp2(url: URL, apiToken: string): Promise<Buffer | null> {
-  const hostOverride = url.hostname === "crm.getlead.capital" ? "82.25.68.119" : url.hostname;
+async function fetchImageViaHttp(url: URL, apiToken: string): Promise<Buffer | null> {
+  const internalBase = process.env.SOFIA_CRM_INTERNAL_URL;
+  const fetchUrl = internalBase && url.hostname === "crm.getlead.capital"
+    ? url.toString().replace(url.origin, internalBase.replace(/\/+$/, ""))
+    : url.toString();
 
-  return new Promise((resolve, reject) => {
-    const client = http2.connect(`https://${hostOverride}`, {
-      servername: url.hostname,
-      rejectUnauthorized: false,
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(fetchUrl, {
+      headers: {
+        "authorization": `Bearer ${apiToken}`,
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+      signal: controller.signal,
     });
 
-    let settled = false;
+    if (res.status >= 400) return null;
 
-    const succeed = (result: Buffer | null) => {
-      if (settled) return;
-      settled = true;
-      try { client.close(); } catch {}
-      resolve(result);
-    };
-
-    const fail = (err: Error) => {
-      if (settled) return;
-      settled = true;
-      try { client.destroy(); } catch {}
-      reject(err);
-    };
-
-    client.on("error", (err) => {
-      fail(new Error(`Falha HTTP/2 no proxy de avatar: ${err.message}`));
-    });
-    client.setTimeout(PROXY_TIMEOUT_MS, () => {
-      fail(new Error("Timeout no proxy de avatar."));
-    });
-
-    const req = client.request({
-      ":method": "GET",
-      ":path": `${url.pathname}${url.search}`,
-      "authorization": `Bearer ${apiToken}`,
-      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    });
-
-    const chunks: Buffer[] = [];
-    let statusCode = 0;
-
-    req.on("response", (headers) => {
-      statusCode = Number(headers[":status"]);
-    });
-
-    req.on("data", (chunk: Buffer) => {
-      chunks.push(chunk);
-    });
-
-    req.on("end", () => {
-      if (statusCode >= 400) {
-        return succeed(null);
-      }
-      succeed(Buffer.concat(chunks));
-    });
-
-    req.on("error", () => {
-      succeed(null);
-    });
-
-    req.setTimeout(PROXY_TIMEOUT_MS, () => {
-      fail(new Error("Timeout no proxy de avatar."));
-    });
-
-    req.end();
-  });
+    return Buffer.from(await res.arrayBuffer());
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }

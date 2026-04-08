@@ -8,7 +8,6 @@
 
 import "server-only";
 
-import http2 from "node:http2";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   openRouterChatCompletion,
@@ -39,68 +38,38 @@ function ensureAbsoluteUrl(url: string, baseUrl?: string): string {
 }
 
 /**
- * Baixa mídia via HTTP/2 com rejectUnauthorized=false.
- * Usa o mesmo protocolo que o Sofia CRM client (que funciona), pois
- * HTTP/1.1 (node:https) falha com EPROTO no TLS do servidor Sofia.
+ * Baixa mídia via fetch. Usa SOFIA_CRM_INTERNAL_URL quando disponível
+ * para rotear pela rede interna Docker.
  */
-function http2Get(
+async function fetchMedia(
   urlStr: string,
   token?: string
 ): Promise<{ base64: string; mimetype: string; status: number }> {
-  return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(urlStr);
-    // Sofia CRM (Hostinger/BitNinja) rejeita TLS via hostname — conectar por IP
-    // com SNI via servername, igual ao sofia-crm/client.ts
-    const hostOverride = parsedUrl.hostname === "crm.getlead.capital"
-      ? "82.25.68.119"
-      : parsedUrl.hostname;
-    const client = http2.connect(`https://${hostOverride}`, {
-      servername: parsedUrl.hostname,
-      rejectUnauthorized: false,
+  const internalBase = process.env.SOFIA_CRM_INTERNAL_URL;
+  const fetchUrl = internalBase
+    ? urlStr.replace(/^https?:\/\/crm\.getlead\.capital(:\d+)?/, internalBase.replace(/\/+$/, ""))
+    : urlStr;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+
+  try {
+    const res = await fetch(fetchUrl, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
     });
 
-    client.on("error", (err) => {
-      client.close();
-      reject(err);
-    });
+    const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+    const buffer = await res.arrayBuffer();
 
-    client.setTimeout(30_000, () => {
-      client.close();
-      reject(new Error("Timeout ao baixar mídia."));
-    });
-
-    const reqHeaders: http2.OutgoingHttpHeaders = {
-      ":method": "GET",
-      ":path": parsedUrl.pathname + parsedUrl.search,
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    return {
+      base64: Buffer.from(buffer).toString("base64"),
+      mimetype: contentType.split(";")[0].trim(),
+      status: res.status,
     };
-
-    const req = client.request(reqHeaders);
-    const chunks: Buffer[] = [];
-    let statusCode = 0;
-    let contentType = "application/octet-stream";
-
-    req.on("response", (headers) => {
-      statusCode = Number(headers[":status"]);
-      contentType = (headers["content-type"] as string) ?? contentType;
-    });
-
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", () => {
-      client.close();
-      const buffer = Buffer.concat(chunks);
-      resolve({
-        base64: buffer.toString("base64"),
-        mimetype: contentType.split(";")[0].trim(),
-        status: statusCode,
-      });
-    });
-
-    req.on("error", (err) => {
-      client.close();
-      reject(err);
-    });
-  });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 const DOWNLOAD_MAX_RETRIES = 2;
@@ -116,9 +85,9 @@ async function downloadMediaFromUrl(
 
   for (let attempt = 0; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
     try {
-      // URLs internas do Sofia CRM: usar HTTP/2 com SSL flexível (mesmo protocolo do client Sofia)
-      if (isSofiaRelative && absoluteUrl.startsWith("https://")) {
-        const result = await http2Get(absoluteUrl, sofiaToken);
+      // URLs internas do Sofia CRM: usar fetch com roteamento Docker interno
+      if (isSofiaRelative) {
+        const result = await fetchMedia(absoluteUrl, sofiaToken);
         if (result.status < 200 || result.status >= 300) {
           console.warn(LOG_PREFIX, `Falha ao baixar mídia (HTTP ${result.status}): ${url}`);
           return null;
