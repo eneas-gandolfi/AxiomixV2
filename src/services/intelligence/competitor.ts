@@ -9,6 +9,7 @@ import { z } from "zod";
 import type { Database } from "@/database/types/database.types";
 import { buildCompetitorInsightPrompt } from "@/lib/ai/prompts/competitor";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
+import { parseAiJson } from "@/lib/ai/parse-ai-json";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   CollectedPostDraft,
@@ -139,7 +140,7 @@ async function generateCompetitorInsight(
       operation: "competitor_insight",
     });
 
-    const parsedUnknown: unknown = JSON.parse(rawJson);
+    const parsedUnknown: unknown = parseAiJson(rawJson);
     const parsed = competitorInsightSchema.parse(parsedUnknown);
     return {
       content: parsed.summary,

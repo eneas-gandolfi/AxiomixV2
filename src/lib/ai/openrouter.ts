@@ -46,6 +46,8 @@ type OpenRouterOptions = {
   skipFallback?: boolean;
   /** Limite de tokens na resposta (evita 402 quando créditos são baixos) */
   maxTokens?: number;
+  /** Timeout em ms para a requisição (default: 30000) */
+  timeout?: number;
   /** Modulo que originou a chamada (para tracking de uso) */
   module?: string;
   /** Operacao especifica dentro do modulo */
@@ -62,16 +64,45 @@ type AttemptResult =
   | { ok: true; content: string; usage: TokenUsage; model: string }
   | { ok: false; status: number; detail: string };
 
+/* ── Circuit breaker simples por modelo ── */
+
+const modelFailures = new Map<string, { count: number; lastFailAt: number }>();
+const CIRCUIT_BREAKER_THRESHOLD = 3;
+const CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos
+
+function isModelCircuitOpen(model: string): boolean {
+  const entry = modelFailures.get(model);
+  if (!entry) return false;
+  if (entry.count < CIRCUIT_BREAKER_THRESHOLD) return false;
+  if (Date.now() - entry.lastFailAt > CIRCUIT_BREAKER_COOLDOWN_MS) {
+    modelFailures.delete(model);
+    return false;
+  }
+  return true;
+}
+
+function recordModelFailure(model: string): void {
+  const entry = modelFailures.get(model) ?? { count: 0, lastFailAt: 0 };
+  entry.count += 1;
+  entry.lastFailAt = Date.now();
+  modelFailures.set(model, entry);
+}
+
+function recordModelSuccess(model: string): void {
+  modelFailures.delete(model);
+}
+
 /* ── Fallback para modelos gratuitos ── */
 
 const FALLBACK_STATUS_CODES = new Set([0, 402, 429, 500, 502, 503]);
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 const DEFAULT_FREE_MODELS = [
-  "openrouter/free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-coder:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
   "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "qwen/qwen3-coder:free",
+  "openrouter/free",
 ];
 
 function getFreeFallbackModels(): string[] {
@@ -90,7 +121,7 @@ function resolveOpenRouterEnvConfig(): OpenRouterConfig | null {
 
   return {
     apiKey,
-    model: process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-5-nano",
+    model: process.env.OPENROUTER_MODEL?.trim() || "google/gemini-2.0-flash-lite-001",
   };
 }
 
@@ -108,7 +139,7 @@ async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterCon
     if (decoded.apiKey) {
       return {
         apiKey: decoded.apiKey,
-        model: decoded.model || process.env.OPENROUTER_MODEL || "openai/gpt-5-nano",
+        model: decoded.model || process.env.OPENROUTER_MODEL || "google/gemini-2.0-flash-lite-001",
       };
     }
   }
@@ -128,6 +159,7 @@ async function attemptChatCompletion(
   temperature: number,
   useJsonFormat: boolean,
   maxTokens?: number,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<AttemptResult> {
   const body: Record<string, unknown> = { model, temperature, messages };
 
@@ -140,7 +172,7 @@ async function attemptChatCompletion(
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
   try {
@@ -156,7 +188,7 @@ async function attemptChatCompletion(
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === "AbortError") {
-      return { ok: false, status: 0, detail: "Timeout: requisição excedeu 60s." };
+      return { ok: false, status: 0, detail: "Timeout: requisição excedeu o limite." };
     }
     throw error;
   }
@@ -194,43 +226,56 @@ export async function openRouterChatCompletion(
   const primaryModel = options?.model || config.model;
   const useJson = responseFormat === "json";
   const maxTokens = options?.maxTokens;
+  const timeoutMs = options?.timeout ?? DEFAULT_TIMEOUT_MS;
 
-  /* ── Tentativa primária ── */
-  const primary = await attemptChatCompletion(
-    config.apiKey, primaryModel, messages, temperature, useJson, maxTokens,
-  );
+  /* ── Tentativa primária (com circuit breaker) ── */
+  if (!isModelCircuitOpen(primaryModel)) {
+    const primary = await attemptChatCompletion(
+      config.apiKey, primaryModel, messages, temperature, useJson, maxTokens, timeoutMs,
+    );
 
-  if (primary.ok) {
-    void logAiUsage({
-      companyId,
-      module: (options?.module ?? "unknown") as AiModule,
-      operation: options?.operation ?? "chat_completion",
-      model: primary.model,
-      promptTokens: primary.usage.prompt_tokens,
-      completionTokens: primary.usage.completion_tokens,
-      totalTokens: primary.usage.total_tokens,
-      isFallback: false,
-    }).catch(() => {});
-    return primary.content;
+    if (primary.ok) {
+      recordModelSuccess(primaryModel);
+      void logAiUsage({
+        companyId,
+        module: (options?.module ?? "unknown") as AiModule,
+        operation: options?.operation ?? "chat_completion",
+        model: primary.model,
+        promptTokens: primary.usage.prompt_tokens,
+        completionTokens: primary.usage.completion_tokens,
+        totalTokens: primary.usage.total_tokens,
+        isFallback: false,
+      }).catch(() => {});
+      return primary.content;
+    }
+
+    recordModelFailure(primaryModel);
+    const { status: primaryStatus, detail: primaryDetail } = primary;
+
+    /* ── Decidir se deve tentar fallback ── */
+    if (options?.skipFallback || !FALLBACK_STATUS_CODES.has(primaryStatus)) {
+      throw new Error(`OpenRouter error ${primaryStatus}: ${primaryDetail}`);
+    }
+
+    console.warn(
+      `[openrouter] Modelo primário "${primaryModel}" falhou (HTTP ${primaryStatus}). Iniciando fallback para modelo gratuito.`,
+    );
+  } else {
+    console.warn(
+      `[openrouter] Circuit breaker aberto para "${primaryModel}". Pulando direto para fallback.`,
+    );
+
+    if (options?.skipFallback) {
+      throw new Error(`OpenRouter: circuit breaker aberto para modelo "${primaryModel}".`);
+    }
   }
-
-  const { status: primaryStatus, detail: primaryDetail } = primary;
-
-  /* ── Decidir se deve tentar fallback ── */
-  if (options?.skipFallback || !FALLBACK_STATUS_CODES.has(primaryStatus)) {
-    throw new Error(`OpenRouter error ${primaryStatus}: ${primaryDetail}`);
-  }
-
-  console.warn(
-    `[openrouter] Modelo primário "${primaryModel}" falhou (HTTP ${primaryStatus}). Iniciando fallback para modelo gratuito.`,
-  );
 
   /* ── Fallback: tentar cada modelo gratuito ── */
   const freeModels = getFreeFallbackModels();
 
   for (const freeModel of freeModels) {
     const attempt = await attemptChatCompletion(
-      config.apiKey, freeModel, messages, temperature, useJson, maxTokens,
+      config.apiKey, freeModel, messages, temperature, useJson, maxTokens, timeoutMs,
     );
 
     if (attempt.ok) {
@@ -251,7 +296,7 @@ export async function openRouterChatCompletion(
     /* Se pediu JSON e falhou, tentar sem response_format (o system prompt já pede JSON) */
     if (useJson) {
       const retryNoJson = await attemptChatCompletion(
-        config.apiKey, freeModel, messages, temperature, false, maxTokens,
+        config.apiKey, freeModel, messages, temperature, false, maxTokens, timeoutMs,
       );
 
       if (retryNoJson.ok) {
@@ -275,7 +320,7 @@ export async function openRouterChatCompletion(
 
   /* ── Todos os fallbacks falharam ── */
   throw new Error(
-    `OpenRouter error ${primaryStatus}: ${primaryDetail} (fallback com modelos gratuitos também falhou)`,
+    `OpenRouter: modelo "${primaryModel}" e todos os fallbacks gratuitos falharam.`,
   );
 }
 

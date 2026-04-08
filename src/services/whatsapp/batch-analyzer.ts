@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/whatsapp/batch-analyzer.ts
- * Propósito: Análise batch horária de conversas WhatsApp — classificação leve + resumo geral.
+ * Propósito: Análise batch horária de conversas WhatsApp - classificação leve + resumo geral.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -9,6 +9,7 @@ import "server-only";
 
 import { z } from "zod";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
+import { parseAiJson } from "@/lib/ai/parse-ai-json";
 import {
   buildBatchAnalysisPrompt,
   type BatchConversation,
@@ -177,7 +178,7 @@ async function getEligibleConversations(companyId: string): Promise<EligibleConv
   // Filtrar: conversas sem insight OU com novas mensagens desde o último insight
   const eligible = conversations.filter((conv) => {
     const lastInsight = insightMap.get(conv.id);
-    if (!lastInsight) return true; // Sem insight — elegível
+    if (!lastInsight) return true; // Sem insight - elegível
     if (!conv.last_message_at) return false;
     // Novas mensagens desde o último insight
     return new Date(conv.last_message_at) > new Date(lastInsight);
@@ -321,9 +322,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
       { model: process.env.OPENROUTER_MODEL_LIGHT, maxTokens: 2048, module: "whatsapp", operation: "batch_analyze" }
     );
 
-    const jsonMatch = rawJson.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const cleanedJson = jsonMatch?.[1]?.trim() ?? rawJson.trim();
-    const parsed: unknown = JSON.parse(cleanedJson);
+    const parsed: unknown = parseAiJson(rawJson);
     const parsedAnalyses = batchAnalysisResponseSchema.parse(parsed);
     analyses = {
       ...parsedAnalyses,
@@ -333,7 +332,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
     };
   } catch (error) {
     // Fallback: classificação heurística para cada conversa
-    console.error("[batch-analyzer] Falha na chamada IA â€” usando fallback:", error);
+    console.error("[batch-analyzer] Falha na chamada IA - usando fallback:", error);
     const fallbackAnalyses = conversationsWithMessages.map((conv) => {
       const msgs = messagesMap.get(conv.id) ?? [];
       const classification = fallbackClassification(msgs);

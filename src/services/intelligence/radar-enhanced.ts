@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { buildRadarInsightPrompt } from "@/lib/ai/prompts/competitor";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
+import { parseAiJson } from "@/lib/ai/parse-ai-json";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   scrapeInstagramHashtag,
@@ -217,7 +218,7 @@ async function generateRadarInsight(
       operation: "radar_insight",
     });
 
-    const parsedUnknown: unknown = JSON.parse(rawJson);
+    const parsedUnknown: unknown = parseAiJson(rawJson);
     const parsed = radarInsightSchema.parse(parsedUnknown);
     return {
       content: parsed.summary,

@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
+import { parseAiJson } from "@/lib/ai/parse-ai-json";
 import { buildWhatsAppAnalysisPrompt } from "@/lib/ai/prompts/whatsapp";
 import { assessConversationGuardrails } from "@/lib/whatsapp/conversation-guardrails";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -260,14 +261,8 @@ function applyInsightGuardrails(
   };
 }
 
-function extractJson(text: string): string {
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  return match?.[1]?.trim() ?? text.trim();
-}
-
 function parseAiResponse(rawContent: string) {
-  const cleaned = extractJson(rawContent);
-  const parsedUnknown: unknown = JSON.parse(cleaned);
+  const parsedUnknown: unknown = parseAiJson(rawContent);
   return insightSchema.parse(parsedUnknown);
 }
 
