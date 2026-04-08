@@ -360,11 +360,12 @@ export function createEvolutionVendor(input: {
 
 function buildWebhookUrl(companyId?: string): string | null {
   const token = process.env.EVOLUTION_WEBHOOK_API_KEY?.trim() || process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_TOKEN?.trim();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.EVOLUTION_WEBHOOK_URL?.trim();
+  // Prioridade: EVOLUTION_WEBHOOK_URL (explícita) > NEXT_PUBLIC_APP_URL (genérica)
+  const appUrl = process.env.EVOLUTION_WEBHOOK_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim();
 
   if (!appUrl || !token) return null;
 
-  // Sempre usar o endpoint correto do grupo, independente do que estiver na env
+  // Extrair origin e sempre usar o endpoint correto do grupo
   const origin = appUrl.replace(/\/api\/.*$/, "").replace(/\/+$/, "");
   const webhookBase = `${origin}/api/webhooks/evolution/group`;
 
