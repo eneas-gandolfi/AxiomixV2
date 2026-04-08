@@ -312,7 +312,7 @@ export async function DELETE(request: NextRequest) {
         instanceName: targetVendor.instanceName,
       });
     } catch (error) {
-      if (error instanceof EvolutionApiRequestError && error.status === 404) {
+      if (error instanceof EvolutionApiRequestError && (error.status === 404 || error.status === 0)) {
         instanceAlreadyMissing = true;
       } else {
         throw error;
