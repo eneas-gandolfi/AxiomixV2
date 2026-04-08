@@ -272,6 +272,7 @@ export function IntegrationsSettingsForm() {
   const [isConnectingSofia, setIsConnectingSofia] = useState(false);
   const [isConnectingEvolution, setIsConnectingEvolution] = useState(false);
   const [deletingEvolutionInstance, setDeletingEvolutionInstance] = useState<string | null>(null);
+  const [confirmingDeleteInstance, setConfirmingDeleteInstance] = useState<string | null>(null);
   const [isResettingSofia, setIsResettingSofia] = useState(false);
 
   useEffect(() => {
@@ -625,15 +626,8 @@ export function IntegrationsSettingsForm() {
   }, [evolutionManagerPhone]);
 
   const deleteEvolutionVendor = async (vendor: EvolutionVendor) => {
-    const confirmed = window.confirm(
-      `Isso vai excluir a instância ${vendor.instanceName} da Evolution API. Deseja continuar?`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     setDeletingEvolutionInstance(vendor.instanceName);
+    setConfirmingDeleteInstance(null);
     setEvolutionFeedback(null);
     setErrors((previous) => ({ ...previous, evolution: { ...previous.evolution, form: undefined } }));
 
@@ -867,21 +861,45 @@ export function IntegrationsSettingsForm() {
                     </p>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void deleteEvolutionVendor(vendor)}
-                    disabled={deletingEvolutionInstance === vendor.instanceName}
-                    className="shrink-0 text-danger hover:bg-danger-light hover:text-danger"
-                  >
-                    {deletingEvolutionInstance === vendor.instanceName ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
+                  {confirmingDeleteInstance === vendor.instanceName ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => void deleteEvolutionVendor(vendor)}
+                        disabled={deletingEvolutionInstance === vendor.instanceName}
+                      >
+                        {deletingEvolutionInstance === vendor.instanceName ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                        Confirmar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmingDeleteInstance(null)}
+                        disabled={deletingEvolutionInstance === vendor.instanceName}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfirmingDeleteInstance(vendor.instanceName)}
+                      disabled={deletingEvolutionInstance != null}
+                      className="shrink-0 text-danger hover:bg-danger-light hover:text-danger"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                    Excluir
-                  </Button>
+                      Excluir
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
