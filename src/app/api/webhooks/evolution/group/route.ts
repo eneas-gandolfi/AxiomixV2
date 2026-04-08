@@ -378,6 +378,11 @@ export async function POST(request: NextRequest) {
       return handleMessageStatusUpdate((rawBody as Record<string, unknown>).data, supabase);
     }
 
+    // --- Ignore connection.update events (no message payload) ---
+    if (rawEvent === "connection.update") {
+      return NextResponse.json({ ok: true, skipped: "connection_update" });
+    }
+
     // --- Normalize payload ---
     const normalizedBody = typeof rawBody === "object" && rawBody !== null
       ? normalizeEvolutionPayload(rawBody as Record<string, unknown>)

@@ -5,7 +5,6 @@
  * Data: 2026-03-11
  */
 
-import http2 from "http2";
 import type { Json } from "@/database/types/database.types";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -625,127 +624,63 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       }
     }
 
-    const hostOverride = url.hostname === "crm.getlead.capital" ? "82.25.68.119" : url.hostname;
+    const fetchUrl = url.toString();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SOFIA_HTTP2_TIMEOUT_MS);
 
-    return new Promise((resolve, reject) => {
-      // O servidor do CRM (Hostinger/BitNinja) exige HTTP/2 para rotas /api/ e falha no TLS em HTTP/1.1
-      const client = http2.connect(`https://${hostOverride}`, {
-        servername: url.hostname,
-        rejectUnauthorized: false,
+    let res: Response;
+    try {
+      res = await fetch(fetchUrl, {
+        method,
+        headers: {
+          "authorization": `Bearer ${config.apiToken}`,
+          "content-type": "application/json",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+        body: options?.body ? JSON.stringify(options.body) : undefined,
+        signal: controller.signal,
       });
-      let settled = false;
+    } catch (err) {
+      clearTimeout(timeout);
+      const detail = describeFetchError(err);
+      throw new Error(`Falha ao conectar com o Sofia CRM (${url.origin}): ${detail}`);
+    } finally {
+      clearTimeout(timeout);
+    }
 
-      const succeed = (payload: T) => {
-        if (settled) {
-          return;
-        }
+    const responseBody = await res.text();
 
-        settled = true;
-        try {
-          client.close();
-        } catch {}
-        resolve(payload);
-      };
+    if (res.status === 429) {
+      let retryMessage = "Limite de requisições excedido. Tente novamente em alguns minutos.";
+      try {
+        const parsed = JSON.parse(responseBody);
+        if (parsed.error) retryMessage = parsed.error;
+      } catch {}
+      throw new Error(`Sofia CRM Rate Limit (429): ${retryMessage}`);
+    }
 
-      const fail = (error: Error) => {
-        if (settled) {
-          return;
-        }
+    if (res.status >= 400) {
+      throw new Error(`Sofia CRM ${method} ${path} falhou: ${res.status} ${responseBody.slice(0, 180)}`);
+    }
 
-        settled = true;
-        try {
-          client.destroy();
-        } catch {}
-        reject(error);
-      };
+    if (res.status === 204 || !responseBody.trim()) {
+      return {} as T;
+    }
 
-      client.on("error", (err) => {
-        const detail = describeFetchError(err);
-        fail(new Error(`Falha ao conectar via HTTP/2 no Sofia CRM (${url.origin}): ${detail}`));
-      });
-      client.setTimeout(SOFIA_HTTP2_TIMEOUT_MS, () => {
-        fail(new Error(`Timeout HTTP/2 ao conectar com o Sofia CRM (${url.origin}).`));
-      });
+    const bodyLower = responseBody.toLowerCase();
+    if (bodyLower.includes("parked domain") || bodyLower.includes("hostinger dns")) {
+      throw new Error(`URL base do Sofia CRM inválida (${url.origin}): domínio estacionado detectado.`);
+    }
 
-      const reqHeaders: http2.OutgoingHttpHeaders = {
-        ":method": method,
-        ":path": `${url.pathname}${url.search}`,
-        "authorization": `Bearer ${config.apiToken}`,
-        "content-type": "application/json",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      };
+    if (responseBody.trim().startsWith("<")) {
+      throw new Error(`Sofia CRM retornou HTML em vez de JSON (${url.origin}). Verifique a URL base da API.`);
+    }
 
-      const req = client.request(reqHeaders);
-      let responseBody = "";
-      let statusCode = 0;
-
-      req.on("response", (headers) => {
-        statusCode = Number(headers[":status"]);
-      });
-
-      req.on("data", (chunk) => {
-        responseBody += chunk;
-      });
-
-      req.on("end", () => {
-
-        if (statusCode === 429) {
-          let retryMessage = "Limite de requisições excedido. Tente novamente em alguns minutos.";
-          try {
-             const parsed = JSON.parse(responseBody);
-             if (parsed.error) retryMessage = parsed.error;
-          } catch {}
-          return fail(
-            new Error(`Sofia CRM Rate Limit (429): ${retryMessage}`)
-          );
-        }
-
-        if (statusCode >= 400) {
-          return fail(
-            new Error(`Sofia CRM ${method} ${path} falhou: ${statusCode} ${responseBody.slice(0, 180)}`)
-          );
-        }
-
-        if (statusCode === 204 || !responseBody.trim()) {
-          return succeed({} as T);
-        }
-
-        const bodyLower = responseBody.toLowerCase();
-        if (bodyLower.includes("parked domain") || bodyLower.includes("hostinger dns")) {
-          return fail(
-            new Error(`URL base do Sofia CRM inválida (${url.origin}): domínio estacionado detectado.`)
-          );
-        }
-
-        if (responseBody.trim().startsWith("<")) {
-          return fail(
-            new Error(`Sofia CRM retornou HTML em vez de JSON (${url.origin}). Verifique a URL base da API.`)
-          );
-        }
-
-        try {
-          succeed(JSON.parse(responseBody) as T);
-        } catch {
-          fail(new Error(`Resposta inválida do Sofia CRM (${url.origin}). JSON malformado.`));
-        }
-      });
-
-      req.on("error", (error) => {
-        fail(new Error(`Falha na requisição HTTP/2 para o Sofia CRM (${url.origin}): ${describeFetchError(error)}`));
-      });
-      req.setTimeout(SOFIA_HTTP2_TIMEOUT_MS, () => {
-        fail(new Error(`Timeout HTTP/2 ao conectar com o Sofia CRM (${url.origin}).`));
-      });
-      req.on("timeout", () => {
-        fail(new Error(`Timeout HTTP/2 ao conectar com o Sofia CRM (${url.origin}).`));
-      });
-
-      if (options?.body) {
-        req.write(JSON.stringify(options.body));
-      }
-
-      req.end();
-    });
+    try {
+      return JSON.parse(responseBody) as T;
+    } catch {
+      throw new Error(`Resposta inválida do Sofia CRM (${url.origin}). JSON malformado.`);
+    }
   }
 
   const sofiaClient: SofiaCrmClient = {

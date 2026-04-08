@@ -158,6 +158,23 @@ async function enqueuePendingSyncs(): Promise<{ enqueued: number; skippedRecent:
       continue;
     }
 
+    // Cooldown de 30min após falha — evita loop infinito de jobs falhando
+    const failedCooloff = new Date(Date.now() - 30 * 60_000).toISOString();
+    const { data: recentFailedJobs } = await supabase
+      .from("async_jobs")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("job_type", "sofia_crm_sync")
+      .eq("status", "failed")
+      .gte("completed_at", failedCooloff)
+      .order("completed_at", { ascending: false })
+      .limit(1);
+
+    if (recentFailedJobs && recentFailedJobs.length > 0) {
+      skippedRecent += 1;
+      continue;
+    }
+
     await enqueueJob("sofia_crm_sync", {}, companyId, undefined, 1);
     enqueued += 1;
   }
