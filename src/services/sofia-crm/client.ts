@@ -624,7 +624,12 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       }
     }
 
-    const fetchUrl = url.toString();
+    // Em Docker, crm.getlead.capital não é alcançável pelo IP público.
+    // SOFIA_CRM_INTERNAL_URL (ex: http://sofiacrm_crm_api:3000) roteia pela rede interna.
+    const internalBase = process.env.SOFIA_CRM_INTERNAL_URL;
+    const fetchUrl = internalBase
+      ? url.toString().replace(baseUrl, internalBase.replace(/\/+$/, ""))
+      : url.toString();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), SOFIA_HTTP2_TIMEOUT_MS);
 
