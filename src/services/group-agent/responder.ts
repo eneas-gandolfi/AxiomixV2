@@ -22,6 +22,7 @@ import {
   upsertSession,
   appendAgentResponse as appendToSession,
 } from "@/services/group-agent/session-manager";
+import { extractAndSaveNotes } from "@/services/group-agent/note-extractor";
 import { resolvePreferredEvolutionInstance } from "@/services/integrations/evolution";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import type {
@@ -159,6 +160,7 @@ export async function processGroupAgentResponse(
     knowledgeBaseContext: context.knowledgeBaseContext,
     salesDataContext: context.salesDataContext,
     sessionHistory: context.sessionHistory,
+    agentNotes: context.agentNotes,
   });
 
   const userPrompt = buildGroupAgentUserPrompt(
@@ -262,6 +264,19 @@ export async function processGroupAgentResponse(
     .from("group_messages")
     .update({ agent_responded: true })
     .eq("id", message.id);
+
+  // Extrair notas em background (best-effort, não bloqueia resposta)
+  extractAndSaveNotes({
+    companyId,
+    configId: config.id,
+    groupJid: message.group_jid,
+    userMessage: cleanedQuery,
+    senderName: message.sender_name ?? "Usuário",
+    agentResponse: responseText,
+    recentMessages: context.recentMessages,
+  }).catch((err) =>
+    console.error("[group-agent/responder] Falha na extração de notas:", err instanceof Error ? err.message : err)
+  );
 
   return {
     success: sendResult.success,

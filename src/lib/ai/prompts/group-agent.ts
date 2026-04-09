@@ -5,7 +5,7 @@
  * Data: 2026-03-21
  */
 
-import type { AgentTone, GroupAgentIntent, SessionMessage } from "@/types/modules/group-agent.types";
+import type { AgentNote, AgentTone, GroupAgentIntent, SessionMessage } from "@/types/modules/group-agent.types";
 
 type GroupAgentPromptInput = {
   agentName: string;
@@ -22,6 +22,7 @@ type GroupAgentPromptInput = {
   knowledgeBaseContext: string;
   salesDataContext: string;
   sessionHistory?: SessionMessage[];
+  agentNotes?: AgentNote[];
 };
 
 const TONE_INSTRUCTIONS: Record<AgentTone, string> = {
@@ -110,6 +111,24 @@ export function buildGroupAgentSystemPrompt(
     });
     sections.push(
       `## Histórico da conversa com este usuário\nUse este histórico para manter coerência. Se o usuário referencia algo anterior, consulte o histórico.\n${historyLines.join("\n")}`
+    );
+  }
+
+  if (input.agentNotes && input.agentNotes.length > 0) {
+    const categoryLabels: Record<string, string> = {
+      fact: "Fato",
+      preference: "Preferência",
+      decision: "Decisão",
+      action_item: "Pendência",
+      contact_info: "Contato",
+    };
+    const noteLines = input.agentNotes.map((n) => {
+      const label = categoryLabels[n.category] ?? n.category;
+      const sender = n.source_sender ? ` (de ${n.source_sender})` : "";
+      return `- [${label}]${sender} ${n.content}`;
+    });
+    sections.push(
+      `## Sua memória (notas salvas)\nEstas são informações que você guardou de conversas anteriores. Use-as para dar respostas mais contextualizadas e personalizadas. Se alguma informação parece desatualizada, ignore-a.\n${noteLines.join("\n")}`
     );
   }
 

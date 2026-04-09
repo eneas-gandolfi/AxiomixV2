@@ -57,6 +57,7 @@ export type GroupAgentContext = {
     createdAt: string;
   }>;
   sessionHistory: SessionMessage[];
+  agentNotes: AgentNote[];
 };
 
 export type ProactiveAction = "daily_summary" | "sales_alert";
@@ -78,4 +79,30 @@ export type GroupAgentResponseResult = {
   modelUsed: string;
   processingTimeMs: number;
   evolutionStatus: string;
+};
+
+export type AgentNoteCategory =
+  | "fact"
+  | "preference"
+  | "decision"
+  | "action_item"
+  | "contact_info";
+
+export type AgentNote = {
+  id: string;
+  config_id: string;
+  group_jid: string;
+  category: AgentNoteCategory;
+  content: string;
+  source_sender: string | null;
+  relevance_score: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type ExtractedNote = {
+  category: AgentNoteCategory;
+  content: string;
+  source_sender: string | null;
+  relevance_score: number;
 };

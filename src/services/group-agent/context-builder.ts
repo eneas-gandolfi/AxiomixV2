@@ -9,6 +9,7 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getKnowledgeBaseContext } from "@/services/rag/kb-context";
+import { getActiveNotes } from "@/services/group-agent/note-extractor";
 import type { GroupAgentContext, GroupAgentIntent } from "@/types/modules/group-agent.types";
 
 export async function buildAgentContext(
@@ -49,12 +50,15 @@ export async function buildAgentContext(
       ? buildSalesDataContext(companyId)
       : Promise.resolve("");
 
-  const [recentResult, previousResult, knowledgeBaseContext, salesDataContext] =
+  const notesPromise = getActiveNotes(configId, 20);
+
+  const [recentResult, previousResult, knowledgeBaseContext, salesDataContext, agentNotes] =
     await Promise.all([
       recentMessagesPromise,
       previousResponsesPromise,
       ragPromise,
       salesDataPromise,
+      notesPromise,
     ]);
 
   const recentMessages = (recentResult.data ?? [])
@@ -77,6 +81,7 @@ export async function buildAgentContext(
     salesDataContext,
     previousResponses,
     sessionHistory: [],
+    agentNotes,
   };
 }
 

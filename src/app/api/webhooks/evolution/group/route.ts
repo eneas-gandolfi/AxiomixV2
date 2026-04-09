@@ -401,23 +401,6 @@ export async function POST(request: NextRequest) {
     const { data } = parsed.data;
     let remoteJid = data.key.remoteJid;
 
-    // DEBUG: Para mensagens fromMe com JID individual, logar payload completo
-    // para descobrir onde a Evolution API coloca o group JID
-    if (data.key.fromMe && !isGroupJid(remoteJid)) {
-      const rawData = typeof rawBody === "object" && rawBody !== null
-        ? (rawBody as Record<string, unknown>).data
-        : undefined;
-      console.log(LOG_PREFIX, "DEBUG fromMe + JID individual — payload completo:", {
-        topLevelKeys: typeof rawBody === "object" && rawBody !== null ? Object.keys(rawBody) : [],
-        rawDataKeys: typeof rawData === "object" && rawData !== null ? Object.keys(rawData as Record<string, unknown>) : [],
-        fullKey: JSON.stringify((rawData as Record<string, unknown>)?.key ?? null),
-        contextInfo: JSON.stringify((rawData as Record<string, unknown>)?.contextInfo ?? null),
-        remoteJid,
-        participant: data.key.participant,
-        fullRawBody: JSON.stringify(rawBody).slice(0, 2000),
-      });
-    }
-
     console.log(LOG_PREFIX, "Parse OK", {
       event: parsed.data.event,
       instance: parsed.data.instance,

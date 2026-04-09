@@ -10,7 +10,7 @@ import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { chunkText } from "@/services/rag/chunker";
 import { generateEmbeddings } from "@/lib/ai/embeddings";
-import { isRagWorthy } from "@/services/group-agent/message-filter";
+import { isRagWorthy, filterMessagesWithAI } from "@/services/group-agent/message-filter";
 
 export const GROUP_CHAT_CHUNK_SIZE = 1500;
 export const GROUP_CHAT_CHUNK_OVERLAP = 200;
@@ -54,17 +54,41 @@ export async function processGroupRagBatch(
     return { configId, messagesProcessed: 0, chunksCreated: 0, ragDocumentId: null };
   }
 
-  const worthyMessages = messages.filter(
+  // Etapa 1: filtro rápido baseado em regras
+  const ruleFilteredMessages = messages.filter(
     (m) =>
       m.content &&
       m.content.length >= (config.rag_min_message_length ?? 50) &&
       isRagWorthy(m.content)
   );
 
-  if (worthyMessages.length < MIN_BATCH_MESSAGES) {
+  if (ruleFilteredMessages.length < MIN_BATCH_MESSAGES) {
     const allIds = messages.map((m) => m.id);
     await markProcessed(supabase, allIds);
     return { configId, messagesProcessed: messages.length, chunksCreated: 0, ragDocumentId: null };
+  }
+
+  // Etapa 2: filtro por IA (remove lixo que passou pelo filtro de regras)
+  let worthyMessages = ruleFilteredMessages;
+  try {
+    const candidates = ruleFilteredMessages.map((m, i) => ({
+      index: i,
+      sender: m.sender_name ?? "Desconhecido",
+      content: m.content!,
+    }));
+
+    const keepIndices = await filterMessagesWithAI(companyId, candidates);
+    const keepSet = new Set(keepIndices);
+    worthyMessages = ruleFilteredMessages.filter((_, i) => keepSet.has(i));
+
+    if (worthyMessages.length < MIN_BATCH_MESSAGES) {
+      const allIds = messages.map((m) => m.id);
+      await markProcessed(supabase, allIds);
+      return { configId, messagesProcessed: messages.length, chunksCreated: 0, ragDocumentId: null };
+    }
+  } catch (err) {
+    console.warn("[rag-feeder] Filtro IA falhou, usando filtro de regras:", err instanceof Error ? err.message : err);
+    // Continua com ruleFilteredMessages
   }
 
   const firstDate = new Date(worthyMessages[0].sent_at).toLocaleDateString("pt-BR");
