@@ -401,20 +401,21 @@ export async function POST(request: NextRequest) {
     const { data } = parsed.data;
     let remoteJid = data.key.remoteJid;
 
-    // Para mensagens fromMe em grupo, a Evolution API pode enviar o JID individual
-    // em remoteJid e o JID do grupo em "destination" (top-level)
-    const rawDestination =
-      typeof rawBody === "object" && rawBody !== null
-        ? (rawBody as Record<string, unknown>).destination
+    // DEBUG: Para mensagens fromMe com JID individual, logar payload completo
+    // para descobrir onde a Evolution API coloca o group JID
+    if (data.key.fromMe && !isGroupJid(remoteJid)) {
+      const rawData = typeof rawBody === "object" && rawBody !== null
+        ? (rawBody as Record<string, unknown>).data
         : undefined;
-    const destination = typeof rawDestination === "string" ? rawDestination : null;
-
-    if (data.key.fromMe && !isGroupJid(remoteJid) && destination && isGroupJid(destination)) {
-      console.log(LOG_PREFIX, "fromMe com remoteJid individual, usando destination como grupo", {
-        originalRemoteJid: remoteJid,
-        destination,
+      console.log(LOG_PREFIX, "DEBUG fromMe + JID individual — payload completo:", {
+        topLevelKeys: typeof rawBody === "object" && rawBody !== null ? Object.keys(rawBody) : [],
+        rawDataKeys: typeof rawData === "object" && rawData !== null ? Object.keys(rawData as Record<string, unknown>) : [],
+        fullKey: JSON.stringify((rawData as Record<string, unknown>)?.key ?? null),
+        contextInfo: JSON.stringify((rawData as Record<string, unknown>)?.contextInfo ?? null),
+        remoteJid,
+        participant: data.key.participant,
+        fullRawBody: JSON.stringify(rawBody).slice(0, 2000),
       });
-      remoteJid = destination;
     }
 
     console.log(LOG_PREFIX, "Parse OK", {
@@ -427,12 +428,11 @@ export async function POST(request: NextRequest) {
       messageType: data.messageType,
       participant: data.key.participant,
       pushName: data.pushName,
-      destination,
     });
 
     // --- Group check ---
     if (!isGroupJid(remoteJid)) {
-      console.log(LOG_PREFIX, "Ignorando: não é grupo", { remoteJid, destination });
+      console.log(LOG_PREFIX, "Ignorando: não é grupo", { remoteJid });
       return NextResponse.json({ ok: true, skipped: "not_group" });
     }
 
