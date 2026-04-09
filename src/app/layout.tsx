@@ -10,6 +10,7 @@ import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
 import localFont from "next/font/local";
 import Script from "next/script";
 import type { ReactNode } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
         </Script>
         {children}
         <Toaster />
+        <SpeedInsights />
       </body>
     </html>
   );
