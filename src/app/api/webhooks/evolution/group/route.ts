@@ -399,7 +399,23 @@ export async function POST(request: NextRequest) {
     }
 
     const { data } = parsed.data;
-    const remoteJid = data.key.remoteJid;
+    let remoteJid = data.key.remoteJid;
+
+    // Para mensagens fromMe em grupo, a Evolution API pode enviar o JID individual
+    // em remoteJid e o JID do grupo em "destination" (top-level)
+    const rawDestination =
+      typeof rawBody === "object" && rawBody !== null
+        ? (rawBody as Record<string, unknown>).destination
+        : undefined;
+    const destination = typeof rawDestination === "string" ? rawDestination : null;
+
+    if (data.key.fromMe && !isGroupJid(remoteJid) && destination && isGroupJid(destination)) {
+      console.log(LOG_PREFIX, "fromMe com remoteJid individual, usando destination como grupo", {
+        originalRemoteJid: remoteJid,
+        destination,
+      });
+      remoteJid = destination;
+    }
 
     console.log(LOG_PREFIX, "Parse OK", {
       event: parsed.data.event,
@@ -411,11 +427,12 @@ export async function POST(request: NextRequest) {
       messageType: data.messageType,
       participant: data.key.participant,
       pushName: data.pushName,
+      destination,
     });
 
     // --- Group check ---
     if (!isGroupJid(remoteJid)) {
-      console.log(LOG_PREFIX, "Ignorando: não é grupo", { remoteJid });
+      console.log(LOG_PREFIX, "Ignorando: não é grupo", { remoteJid, destination });
       return NextResponse.json({ ok: true, skipped: "not_group" });
     }
 
