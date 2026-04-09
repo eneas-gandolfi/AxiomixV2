@@ -12,8 +12,6 @@ import {
   Bot,
   Trash2,
   Loader2,
-  Copy,
-  CheckCircle2,
   MessageSquare,
   Database,
   Power,
@@ -24,7 +22,7 @@ import {
   EyeOff,
   Eye,
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 type GroupAgentConfig = {
@@ -56,8 +54,6 @@ type GroupAgentConfig = {
 export function GroupAgentSettings({ companyId }: { companyId: string }) {
   const [configs, setConfigs] = useState<GroupAgentConfig[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -103,23 +99,6 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
     } finally {
       setSyncing(false);
     }
-  };
-
-  useEffect(() => {
-    fetch("/api/settings/group-agent/webhook-token")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.token) {
-          setWebhookUrl(`${window.location.origin}/api/webhooks/evolution/group?token=${data.token}&cid=${companyId}`);
-        }
-      })
-      .catch(() => {});
-  }, [companyId]);
-
-  const handleCopyWebhook = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleToggle = async (configId: string, isActive: boolean) => {
@@ -234,29 +213,6 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
           A IA detecta automaticamente os grupos. Ative os que deseja monitorar.
         </p>
       </div>
-
-      {/* Webhook URL */}
-      <Card className="border border-border rounded-xl">
-        <CardHeader>
-          <CardTitle className="text-sm text-text">URL do Webhook</CardTitle>
-          <CardDescription className="text-muted">
-            Configure este URL na Evolution API para receber mensagens de grupo.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 rounded-lg bg-sidebar px-3 py-2 text-xs text-text font-mono break-all">
-              {webhookUrl}
-            </code>
-            <button
-              onClick={handleCopyWebhook}
-              className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs text-muted hover:text-text hover:bg-sidebar transition-colors"
-            >
-              {copied ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
-            </button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Sincronizar grupos */}
       <div className="flex items-center justify-between">
