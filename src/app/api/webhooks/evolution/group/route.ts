@@ -420,8 +420,37 @@ export async function POST(request: NextRequest) {
     }
 
     if (data.key.fromMe) {
-      console.log(LOG_PREFIX, "Ignorando: fromMe=true", { remoteJid });
-      return NextResponse.json({ ok: true, skipped: "from_me" });
+      // Verificar se é eco de resposta do bot (anti-loop) ou mensagem manual do dono
+      const msgContent = extractTextContent(data.message);
+      const supabaseCheck = createSupabaseAdminClient();
+      const thirtySecondsAgo = new Date(Date.now() - 30_000).toISOString();
+
+      const { data: recentBotResponse } = await supabaseCheck
+        .from("group_agent_responses")
+        .select("response_text")
+        .eq("group_jid", remoteJid)
+        .gte("created_at", thirtySecondsAgo)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentBotResponse && msgContent) {
+        const normalizedMsg = msgContent.trim().toLowerCase();
+        const normalizedBot = recentBotResponse.response_text.trim().toLowerCase();
+
+        if (normalizedBot.includes(normalizedMsg) || normalizedMsg.includes(normalizedBot)) {
+          console.log(LOG_PREFIX, "Ignorando: eco de resposta do bot (fromMe + match)", { remoteJid });
+          return NextResponse.json({ ok: true, skipped: "bot_echo" });
+        }
+      }
+
+      // Sem conteúdo de texto (sticker, etc) e fromMe → ignorar
+      if (!msgContent) {
+        console.log(LOG_PREFIX, "Ignorando: fromMe sem conteúdo de texto", { remoteJid });
+        return NextResponse.json({ ok: true, skipped: "from_me_no_content" });
+      }
+
+      console.log(LOG_PREFIX, "fromMe=true mas não é eco do bot, processando como mensagem do dono", { remoteJid });
     }
 
     const senderJid = data.key.participant ?? data.key.remoteJid;
