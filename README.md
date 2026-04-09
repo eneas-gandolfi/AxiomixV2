@@ -76,5 +76,23 @@ As migrations SQL ficam em `database/migrations/`.
 
 ## Deploy
 
-O projeto inclui `vercel.json` para deploy na Vercel.
-O deploy de producao e acionado automaticamente pela Vercel a cada push na branch `main`.
+O projeto esta hospedado em VPS na Hostinger com deploy via webhook.
+
+## Documentacao
+
+A documentacao completa esta organizada em `docs/`:
+
+- `docs/produto/` -- PRD e Design System
+- `docs/intelligence/` -- Modulo de inteligencia competitiva
+- `docs/whatsapp/` -- WhatsApp Intelligence
+- `docs/social-publisher/` -- Social Publisher
+- `docs/campanhas/` -- Gestao de campanhas
+- `docs/setup/` -- Guias de instalacao e configuracao
+- `docs/testes/` -- Checklists de testes manuais
+
+## Testes
+
+```bash
+npm run test        # roda todos os testes
+npm run test:watch  # modo watch
+```
