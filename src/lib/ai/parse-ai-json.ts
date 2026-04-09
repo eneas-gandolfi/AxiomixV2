@@ -18,19 +18,14 @@ export function parseAiJson<T = unknown>(raw: string): T {
   const cleaned = stripMarkdownAndExtractJson(raw);
 
   // Tentativa 1: parse direto após limpeza
-  try {
-    return JSON.parse(sanitizeJson(cleaned)) as T;
-  } catch {
-    // Tentativa 2: truncar no último } ou ] válido
-  }
+  const parsed = tryParse<T>(sanitizeJson(cleaned));
+  if (parsed !== undefined) return unwrapArray(parsed) as T;
 
+  // Tentativa 2: truncar no último } ou ] válido
   const truncated = truncateToLastClosingBrace(cleaned);
   if (truncated) {
-    try {
-      return JSON.parse(sanitizeJson(truncated)) as T;
-    } catch {
-      // Cai para o erro final
-    }
+    const parsedTruncated = tryParse<T>(sanitizeJson(truncated));
+    if (parsedTruncated !== undefined) return unwrapArray(parsedTruncated) as T;
   }
 
   // Erro descritivo com trecho do conteúdo original
@@ -38,6 +33,23 @@ export function parseAiJson<T = unknown>(raw: string): T {
   throw new SyntaxError(
     `Falha ao fazer parse do JSON da IA. Início da resposta: "${preview}..."`,
   );
+}
+
+/** Tenta parse sem lançar exceção. */
+function tryParse<T>(text: string): T | undefined {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Se a IA retornar um array com um único objeto, extrair o primeiro elemento. */
+function unwrapArray<T>(value: T): T {
+  if (Array.isArray(value) && value.length === 1 && typeof value[0] === "object" && value[0] !== null) {
+    return value[0] as T;
+  }
+  return value;
 }
 
 function stripMarkdownAndExtractJson(text: string): string {

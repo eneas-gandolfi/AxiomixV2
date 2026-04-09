@@ -612,6 +612,9 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     throw new Error("URL base do Sofia CRM inválida.");
   }
 
+  const RATE_LIMIT_MAX_RETRIES = 2;
+  const RATE_LIMIT_BASE_DELAY_MS = 15_000; // 15s base, com backoff: 15s, 30s
+
   async function requestJson<T>(path: string, options?: SofiaRequestOptions): Promise<T> {
     const method = options?.method ?? "GET";
     const url = new URL(`${baseUrl}${path.startsWith("/") ? path : `/${path}`}`);
@@ -630,6 +633,8 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     const fetchUrl = internalBase
       ? url.toString().replace(baseUrl, internalBase.replace(/\/+$/, ""))
       : url.toString();
+
+    for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRIES; attempt++) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), SOFIA_HTTP2_TIMEOUT_MS);
 
@@ -656,7 +661,13 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     const responseBody = await res.text();
 
     if (res.status === 429) {
-      let retryMessage = "Limite de requisições excedido. Tente novamente em alguns minutos.";
+      if (attempt < RATE_LIMIT_MAX_RETRIES) {
+        const delay = RATE_LIMIT_BASE_DELAY_MS * (attempt + 1);
+        console.warn(`[Sofia CRM] Rate limit 429 em ${method} ${path}. Retry ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES} em ${delay / 1000}s...`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      let retryMessage = "Muitas requisições deste IP, tente novamente em 15 minutos";
       try {
         const parsed = JSON.parse(responseBody);
         if (parsed.error) retryMessage = parsed.error;
@@ -686,6 +697,10 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     } catch {
       throw new Error(`Resposta inválida do Sofia CRM (${url.origin}). JSON malformado.`);
     }
+    } // fim do for (retry loop)
+
+    // Nunca deveria chegar aqui, mas satisfaz o TypeScript
+    throw new Error(`Sofia CRM: esgotou retries para ${method} ${path}`);
   }
 
   const sofiaClient: SofiaCrmClient = {
