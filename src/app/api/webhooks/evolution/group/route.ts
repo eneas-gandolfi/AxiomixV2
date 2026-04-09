@@ -732,7 +732,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, skipped: "insert_error" });
     }
 
-    if (finalIsTrigger && processedContent) {
+    // Verificar sessão ativa para multi-turno (responder sem trigger)
+    let isSessionContinuation = false;
+    if (!finalIsTrigger && processedContent && config.is_active) {
+      const { data: activeSession } = await supabase
+        .from("group_agent_sessions")
+        .select("id")
+        .eq("config_id", config.id)
+        .eq("sender_jid", senderJid)
+        .eq("group_jid", remoteJid)
+        .gt("expires_at", new Date().toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      if (activeSession) {
+        isSessionContinuation = true;
+        console.log(LOG_PREFIX, "Sessão ativa encontrada, continuando multi-turno sem trigger", {
+          sessionId: activeSession.id,
+          senderJid,
+          groupJid: remoteJid,
+        });
+      }
+    }
+
+    if ((finalIsTrigger || isSessionContinuation) && processedContent) {
       const { data: insertedMsg } = await supabase
         .from("group_messages")
         .select("id")
@@ -741,7 +764,9 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (insertedMsg) {
-        console.log(LOG_PREFIX, "Processando trigger inline (resposta imediata)", {
+        console.log(LOG_PREFIX, isSessionContinuation
+          ? "Processando multi-turno (sessão ativa)"
+          : "Processando trigger inline (resposta imediata)", {
           msgDbId: insertedMsg.id,
           configId: config.id,
           hasMedia,
