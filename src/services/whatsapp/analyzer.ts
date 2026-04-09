@@ -54,6 +54,29 @@ const intentMap: Record<string, string> = {
   "saudação": "outro",
 };
 
+const SALES_STAGES = ["discovery", "qualification", "proposal", "negotiation", "closing", "post_sale", "unknown"] as const;
+const salesStageMap: Record<string, string> = {
+  // português
+  "descoberta": "discovery",
+  "qualificação": "qualification",
+  "qualificacao": "qualification",
+  "proposta": "proposal",
+  "negociação": "negotiation",
+  "negociacao": "negotiation",
+  "fechamento": "closing",
+  "pós-venda": "post_sale",
+  "pos-venda": "post_sale",
+  "pós_venda": "post_sale",
+  "pos_venda": "post_sale",
+  "posvenda": "post_sale",
+  "desconhecido": "unknown",
+  // inglês variações
+  "close": "closing",
+  "post-sale": "post_sale",
+  "postsale": "post_sale",
+  "post sale": "post_sale",
+};
+
 const insightSchema = z.object({
   sentiment: z.preprocess(
     (v) => normalizeEnum(v, sentimentMap, [...SENTIMENTS], "neutro"),
@@ -64,10 +87,10 @@ const insightSchema = z.object({
     z.enum(INTENTS)
   ),
   urgency: z.number().int().min(1).max(5).optional().default(3),
-  sales_stage: z
-    .enum(["discovery", "qualification", "proposal", "negotiation", "closing", "post_sale", "unknown"])
-    .optional()
-    .default("unknown"),
+  sales_stage: z.preprocess(
+    (v) => normalizeEnum(v, salesStageMap, [...SALES_STAGES], "unknown"),
+    z.enum(SALES_STAGES).optional().default("unknown")
+  ),
   summary: z.string().trim().min(5),
   implicit_need: z.string().trim().optional().default(""),
   explicit_need: z.string().trim().optional().default(""),
