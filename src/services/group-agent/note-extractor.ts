@@ -13,6 +13,13 @@ import { parseAiJson } from "@/lib/ai/parse-ai-json";
 import type { AgentNote, AgentNoteCategory, ExtractedNote } from "@/types/modules/group-agent.types";
 
 const MAX_NOTES_PER_GROUP = 50;
+const TABLE = "group_agent_notes";
+
+// Helper: query tipada para tabela ainda não gerada nos types do Supabase
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function notesTable(supabase: ReturnType<typeof createSupabaseAdminClient>) {
+  return supabase.from(TABLE) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+}
 
 const EXTRACTION_SYSTEM_PROMPT = `Você é um assistente que extrai fatos-chave de conversas de grupo WhatsApp.
 
@@ -112,8 +119,7 @@ Extraia fatos-chave para lembrar em conversas futuras.`;
       for (const obsoleteContent of parsed.obsolete_notes) {
         if (typeof obsoleteContent !== "string" || obsoleteContent.length < 5) continue;
 
-        const { data: matchingNotes } = await supabase
-          .from("group_agent_notes")
+        const { data: matchingNotes } = await notesTable(supabase)
           .select("id, content")
           .eq("config_id", input.configId)
           .eq("is_active", true)
@@ -121,10 +127,9 @@ Extraia fatos-chave para lembrar em conversas futuras.`;
           .limit(3);
 
         if (matchingNotes && matchingNotes.length > 0) {
-          await supabase
-            .from("group_agent_notes")
+          await notesTable(supabase)
             .update({ is_active: false, updated_at: new Date().toISOString() })
-            .in("id", matchingNotes.map((n) => n.id));
+            .in("id", (matchingNotes as Array<{ id: string }>).map((n) => n.id));
 
           console.log("[note-extractor] Notas desativadas:", matchingNotes.length);
         }
@@ -143,8 +148,7 @@ Extraia fatos-chave para lembrar em conversas futuras.`;
     }> = [];
 
     for (const note of validNotes) {
-      const { count } = await supabase
-        .from("group_agent_notes")
+      const { count } = await notesTable(supabase)
         .select("id", { count: "exact", head: true })
         .eq("config_id", input.configId)
         .eq("is_active", true)
@@ -164,7 +168,7 @@ Extraia fatos-chave para lembrar em conversas futuras.`;
     }
 
     if (newNotes.length > 0) {
-      await supabase.from("group_agent_notes").insert(newNotes);
+      await notesTable(supabase).insert(newNotes);
       console.log("[note-extractor] Notas salvas:", newNotes.length);
     }
 
@@ -184,8 +188,7 @@ export async function getActiveNotes(
 ): Promise<AgentNote[]> {
   const supabase = createSupabaseAdminClient();
 
-  const { data } = await supabase
-    .from("group_agent_notes")
+  const { data } = await notesTable(supabase)
     .select("id, config_id, group_jid, category, content, source_sender, relevance_score, is_active, created_at")
     .eq("config_id", configId)
     .eq("is_active", true)
@@ -199,8 +202,7 @@ export async function getActiveNotes(
 async function pruneOldNotes(configId: string): Promise<void> {
   const supabase = createSupabaseAdminClient();
 
-  const { count } = await supabase
-    .from("group_agent_notes")
+  const { count } = await notesTable(supabase)
     .select("id", { count: "exact", head: true })
     .eq("config_id", configId)
     .eq("is_active", true);
@@ -209,8 +211,7 @@ async function pruneOldNotes(configId: string): Promise<void> {
 
   // Desativar notas mais antigas e com menor relevância
   const excess = (count ?? 0) - MAX_NOTES_PER_GROUP;
-  const { data: toRemove } = await supabase
-    .from("group_agent_notes")
+  const { data: toRemove } = await notesTable(supabase)
     .select("id")
     .eq("config_id", configId)
     .eq("is_active", true)
@@ -219,10 +220,9 @@ async function pruneOldNotes(configId: string): Promise<void> {
     .limit(excess);
 
   if (toRemove && toRemove.length > 0) {
-    await supabase
-      .from("group_agent_notes")
+    await notesTable(supabase)
       .update({ is_active: false, updated_at: new Date().toISOString() })
-      .in("id", toRemove.map((n) => n.id));
+      .in("id", (toRemove as Array<{ id: string }>).map((n) => n.id));
 
     console.log("[note-extractor] Notas prunadas:", toRemove.length);
   }
