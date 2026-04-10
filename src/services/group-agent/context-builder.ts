@@ -45,10 +45,12 @@ export async function buildAgentContext(
           maxChars: 3000,
         });
 
-  const salesDataPromise =
-    intent === "sales_data" || intent === "report"
-      ? buildSalesDataContext(companyId)
-      : Promise.resolve("");
+  // Incluir dados de vendas/CRM para intents que podem precisar
+  const needsSalesData = intent === "sales_data" || intent === "report" ||
+    intent === "general" || intent === "rag_query" || intent === "suggestion";
+  const salesDataPromise = needsSalesData
+    ? buildSalesDataContext(companyId)
+    : Promise.resolve("");
 
   const notesPromise = getActiveNotes(configId, 20);
 
@@ -91,11 +93,18 @@ async function buildSalesDataContext(companyId: string): Promise<string> {
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString();
 
+  // Buscar insights COM dados da conversa (join)
   const { data: insights } = await supabase
     .from("conversation_insights")
-    .select("sentiment, intent, sales_stage, summary")
+    .select(`
+      sentiment, intent, sales_stage, summary,
+      next_commitment, action_items, stall_reason,
+      generated_at,
+      conversations!inner(contact_name, contact_phone, status, last_message_at)
+    `)
     .eq("company_id", companyId)
-    .gte("generated_at", sevenDaysAgo);
+    .gte("generated_at", sevenDaysAgo)
+    .order("generated_at", { ascending: false });
 
   if (insights && insights.length > 0) {
     const sentimentCounts = { positivo: 0, neutro: 0, negativo: 0 };
@@ -135,6 +144,45 @@ async function buildSalesDataContext(companyId: string): Promise<string> {
         .map(([k, v]) => `${k}: ${v}`)
         .join(", ");
       sections.push(`Estagios de venda: ${stages}`);
+    }
+
+    // Detalhes individuais das conversas mais relevantes (max 15)
+    const detailedConversations = insights
+      .filter((i) => i.summary && i.conversations)
+      .slice(0, 15)
+      .map((i) => {
+        const conv = i.conversations as unknown as {
+          contact_name: string | null;
+          contact_phone: string | null;
+          status: string | null;
+          last_message_at: string | null;
+        };
+        const name = conv.contact_name ?? "Desconhecido";
+        const stage = i.sales_stage && i.sales_stage !== "unknown" ? i.sales_stage : null;
+        const sentiment = i.sentiment ?? null;
+        const intent = i.intent ?? null;
+
+        const parts: string[] = [`*${name}*`];
+        if (stage) parts.push(`estagio: ${stage}`);
+        if (sentiment) parts.push(`sentimento: ${sentiment}`);
+        if (intent) parts.push(`intencao: ${intent}`);
+
+        let line = parts.join(" | ");
+        if (i.summary) line += `\n  Resumo: ${i.summary.slice(0, 200)}`;
+        if (i.next_commitment) line += `\n  Proximo passo: ${i.next_commitment}`;
+        if (i.stall_reason) line += `\n  Motivo de estagnacao: ${i.stall_reason}`;
+
+        const actions = i.action_items as string[] | null;
+        if (actions && Array.isArray(actions) && actions.length > 0) {
+          line += `\n  Pendencias: ${actions.slice(0, 3).join("; ")}`;
+        }
+
+        return line;
+      });
+
+    if (detailedConversations.length > 0) {
+      sections.push(`\n--- Detalhes das conversas ---`);
+      sections.push(detailedConversations.join("\n\n"));
     }
   }
 
