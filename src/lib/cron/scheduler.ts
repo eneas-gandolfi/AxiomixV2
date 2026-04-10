@@ -63,8 +63,8 @@ export function startCronScheduler(): void {
     await safeRun("report-send", runWeeklyReportCron);
   });
 
-  // WhatsApp sync: a cada 15 minutos
-  cron.schedule("*/15 * * * *", async () => {
+  // WhatsApp sync: a cada 10 minutos
+  cron.schedule("*/10 * * * *", async () => {
     const { runWhatsappSyncCron } = await import("@/lib/cron/whatsapp-sync");
     await safeRun("whatsapp-sync", runWhatsappSyncCron);
   });

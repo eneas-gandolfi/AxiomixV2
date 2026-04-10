@@ -8,7 +8,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { enqueueJob } from "@/lib/jobs/queue";
 
-const MIN_SYNC_INTERVAL_MINUTES = 15;
+const MIN_SYNC_INTERVAL_MINUTES = 10;
 
 export async function runWhatsappSyncCron() {
   const supabase = createSupabaseAdminClient();

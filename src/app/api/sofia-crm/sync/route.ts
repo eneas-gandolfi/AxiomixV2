@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (parsed.data.mode === "messages_only") {
       const { syncRecentMessages } = await import("@/services/sofia-crm/conversations");
       const result = await syncRecentMessages(access.companyId, {
-        conversationLimit: 5,
+        conversationLimit: 15,
         messageLimit: 80,
       });
       return NextResponse.json({
