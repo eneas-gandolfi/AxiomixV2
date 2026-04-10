@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
+  const origin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || requestUrl.origin;
   const code = requestUrl.searchParams.get("code");
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type");
@@ -20,13 +21,13 @@ export async function GET(request: NextRequest) {
   const safeNextPath = nextPath.startsWith("/") ? nextPath : "/dashboard";
 
   if (!code && !tokenHash) {
-    return NextResponse.redirect(new URL("/login", requestUrl.origin));
+    return NextResponse.redirect(new URL("/login", origin));
   }
 
   const isRecovery = type === "recovery";
   const redirectPath = isRecovery ? "/reset-password" : safeNextPath;
 
-  const response = NextResponse.redirect(new URL(redirectPath, requestUrl.origin));
+  const response = NextResponse.redirect(new URL(redirectPath, origin));
   const supabase = createSupabaseRouteHandlerClient(request, response);
 
   let error: Error | null = null;
@@ -43,10 +44,10 @@ export async function GET(request: NextRequest) {
   }
 
   if (error) {
-    return NextResponse.redirect(new URL("/login", requestUrl.origin));
+    return NextResponse.redirect(new URL("/login", origin));
   }
 
-  const isSecure = requestUrl.protocol === "https:";
+  const isSecure = origin.startsWith("https");
   response.cookies.set(REMEMBER_ME_COOKIE, "1", {
     path: "/",
     httpOnly: false,
