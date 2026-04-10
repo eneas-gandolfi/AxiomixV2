@@ -13,7 +13,7 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { isCronAuthorized } from "@/lib/auth/cron-auth";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const allowedJobTypes = [
   "sofia_crm_sync",
