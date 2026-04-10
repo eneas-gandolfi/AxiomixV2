@@ -69,8 +69,8 @@ export function startCronScheduler(): void {
     await safeRun("whatsapp-sync", runWhatsappSyncCron);
   });
 
-  // WhatsApp batch analyze: a cada 10 minutos
-  cron.schedule("*/10 * * * *", async () => {
+  // WhatsApp batch analyze: a cada 30 minutos
+  cron.schedule("*/30 * * * *", async () => {
     const { runWhatsappBatchCron } = await import("@/lib/cron/whatsapp-batch");
     await safeRun("whatsapp-batch", runWhatsappBatchCron);
   });
