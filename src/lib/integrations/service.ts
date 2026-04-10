@@ -576,7 +576,10 @@ export async function testIntegrationConnection<T extends IntegrationType>(
     switch (type) {
       case "sofia_crm": {
         const sofia = config as SofiaCrmConfig;
-        const baseUrl = resolveSofiaBaseUrl(sofia.baseUrl);
+        const configBaseUrl = resolveSofiaBaseUrl(sofia.baseUrl);
+        // Em Docker, usar URL interna se disponível (DNS público não resolve no container)
+        const internalBase = process.env.SOFIA_CRM_INTERNAL_URL?.replace(/\/+$/, "");
+        const baseUrl = internalBase || configBaseUrl;
 
         if (!baseUrl) {
           return { ok: false, detail: "URL base do Sofia CRM não configurada." };
