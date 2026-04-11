@@ -21,7 +21,7 @@ const suggestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const rateLimited = applyIpRateLimit(request, "ai:suggest", 30, 60);
+    const rateLimited = await applyIpRateLimit(request, "ai:suggest", 30, 60);
     if (rateLimited) return rateLimited;
 
     const response = NextResponse.json({ ok: true });

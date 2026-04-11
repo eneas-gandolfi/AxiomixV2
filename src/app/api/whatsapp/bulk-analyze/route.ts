@@ -21,7 +21,7 @@ const bulkAnalyzeSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const rateLimited = applyIpRateLimit(request, "ai:bulk-analyze", 5, 60);
+    const rateLimited = await applyIpRateLimit(request, "ai:bulk-analyze", 5, 60);
     if (rateLimited) return rateLimited;
 
     const response = NextResponse.json({ ok: true });

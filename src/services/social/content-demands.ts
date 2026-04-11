@@ -504,7 +504,7 @@ export async function approveViaToken(
     });
   }
 
-  // Update status and clear token
+  // Update status and clear token — atomic guard via status check to prevent race condition
   const { data: updated, error: updateError } = await supabase
     .from("content_demands")
     .update({
@@ -513,11 +513,20 @@ export async function approveViaToken(
       approval_token_expires_at: null,
     })
     .eq("id", row.id)
+    .eq("status", "em_revisao")
     .select(DEMAND_SELECT)
-    .single();
+    .maybeSingle();
 
   if (updateError) {
     throw new ContentDemandError("Falha ao processar aprovação.", "APPROVAL_ERROR", 500);
+  }
+
+  if (!updated) {
+    throw new ContentDemandError(
+      "Esta demanda já foi processada.",
+      "ALREADY_PROCESSED",
+      409
+    );
   }
 
   return toDemand(updated);

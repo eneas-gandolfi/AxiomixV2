@@ -21,7 +21,7 @@ const analyzeSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const rateLimited = applyIpRateLimit(request, "ai:analyze", 30, 60);
+    const rateLimited = await applyIpRateLimit(request, "ai:analyze", 30, 60);
     if (rateLimited) return rateLimited;
 
     const response = NextResponse.json({ ok: true });

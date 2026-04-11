@@ -32,7 +32,7 @@ function errorResponse(error: unknown) {
 
 export async function POST(request: NextRequest) {
   try {
-    const rateLimited = applyIpRateLimit(request, "ai:rag", 20, 60);
+    const rateLimited = await applyIpRateLimit(request, "ai:rag", 20, 60);
     if (rateLimited) return rateLimited;
 
     const response = NextResponse.json({ ok: true });

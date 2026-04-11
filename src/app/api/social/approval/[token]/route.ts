@@ -33,7 +33,7 @@ function errorResponse(error: unknown) {
  */
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    const rateLimited = applyIpRateLimit(_request, "approval:get", 20, 60);
+    const rateLimited = await applyIpRateLimit(_request, "approval:get", 20, 60);
     if (rateLimited) return rateLimited;
 
     const { token } = await context.params;
@@ -97,7 +97,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
  */
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const rateLimited = applyIpRateLimit(request, "approval:post", 10, 60);
+    const rateLimited = await applyIpRateLimit(request, "approval:post", 10, 60);
     if (rateLimited) return rateLimited;
 
     const { token } = await context.params;

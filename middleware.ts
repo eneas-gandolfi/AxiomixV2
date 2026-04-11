@@ -8,8 +8,26 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveSessionFromMiddleware } from "@/lib/supabase/middleware";
 import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "@/lib/auth/constants";
+import { verifyCsrf } from "@/lib/auth/csrf";
+import { resolveRequestId, REQUEST_ID_HEADER } from "@/lib/observability/request-id";
 
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const requestId = resolveRequestId(request);
+
+  // ── CSRF check para API routes mutantes ──
+  if (path.startsWith("/api/")) {
+    const csrfBlocked = verifyCsrf(request);
+    if (csrfBlocked) {
+      csrfBlocked.headers.set(REQUEST_ID_HEADER, requestId);
+      return csrfBlocked;
+    }
+    const apiResponse = NextResponse.next();
+    apiResponse.headers.set(REQUEST_ID_HEADER, requestId);
+    return apiResponse;
+  }
+
+  // ── Auth check para páginas protegidas ──
   const { response, user } = await resolveSessionFromMiddleware(request);
 
   if (!user) {
@@ -34,6 +52,7 @@ export async function middleware(request: NextRequest) {
     });
   }
 
+  response.headers.set(REQUEST_ID_HEADER, requestId);
   return response;
 }
 
@@ -45,10 +64,12 @@ export const config = {
      * - /auth/* (callback OAuth / magic link)
      * - /onboarding (precisa ser acessivel para usuarios sem empresa)
      * - /alertas/* (links publicos assinados enviados por WhatsApp)
-     * - /api/* (APIs ja tem sua propria auth)
      * - /_next/* (assets do Next.js)
      * - /favicon.ico, arquivos estaticos com extensao
+     *
+     * NOTA: /api/* agora entra no matcher para CSRF check,
+     * mas autenticação das APIs continua nos route handlers.
      */
-    "/((?!login|register|auth|onboarding|alertas|forgot-password|reset-password|api|_next/static|_next/image|favicon\\.ico|.*\\..*).*)",
+    "/((?!login|register|auth|onboarding|alertas|forgot-password|reset-password|_next/static|_next/image|favicon\\.ico|.*\\..*).*)",
   ],
 };

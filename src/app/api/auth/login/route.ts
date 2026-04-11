@@ -14,7 +14,7 @@ import { checkRateLimit, applyIpRateLimit } from "@/lib/auth/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
-    const rateLimited = applyIpRateLimit(request, "login:ip", 10, 900);
+    const rateLimited = await applyIpRateLimit(request, "login:ip", 10, 900);
     if (rateLimited) return rateLimited;
 
     const body = await request.json();
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const emailLimit = checkRateLimit(`login:email:${email.toLowerCase()}`, 5, 900);
+    const emailLimit = await checkRateLimit(`login:email:${email.toLowerCase()}`, 5, 900);
     if (!emailLimit.allowed) {
       return NextResponse.json(
         { error: `Muitas tentativas para este e-mail. Tente novamente em ${emailLimit.retryAfterSeconds}s.` },

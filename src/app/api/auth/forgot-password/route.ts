@@ -13,7 +13,7 @@ import { applyIpRateLimit, checkRateLimit } from "@/lib/auth/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
-    const rateLimited = applyIpRateLimit(request, "forgot-pwd:ip", 5, 900);
+    const rateLimited = await applyIpRateLimit(request, "forgot-pwd:ip", 5, 900);
     if (rateLimited) return rateLimited;
 
     const body = await request.json();
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const emailLimit = checkRateLimit(`forgot-pwd:email:${email.toLowerCase()}`, 3, 900);
+    const emailLimit = await checkRateLimit(`forgot-pwd:email:${email.toLowerCase()}`, 3, 900);
     if (!emailLimit.allowed) {
       return NextResponse.json(
         { error: `Muitas tentativas para este e-mail. Tente novamente em ${emailLimit.retryAfterSeconds}s.` },
