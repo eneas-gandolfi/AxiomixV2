@@ -50,26 +50,46 @@ async function fetchMedia(
     ? urlStr.replace(/^https?:\/\/crm\.getlead\.capital(:\d+)?/, internalBase.replace(/\/+$/, ""))
     : urlStr;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  // Retry com delay para DNS intermitente no Docker Swarm
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY = 2_000;
 
-  try {
-    const res = await fetch(fetchUrl, {
-      headers: token ? { authorization: `Bearer ${token}` } : {},
-      signal: controller.signal,
-    });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
 
-    const contentType = res.headers.get("content-type") ?? "application/octet-stream";
-    const buffer = await res.arrayBuffer();
+    try {
+      const res = await fetch(fetchUrl, {
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+        signal: controller.signal,
+      });
 
-    return {
-      base64: Buffer.from(buffer).toString("base64"),
-      mimetype: contentType.split(";")[0].trim(),
-      status: res.status,
-    };
-  } finally {
-    clearTimeout(timeout);
+      const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+      const buffer = await res.arrayBuffer();
+
+      return {
+        base64: Buffer.from(buffer).toString("base64"),
+        mimetype: contentType.split(";")[0].trim(),
+        status: res.status,
+      };
+    } catch (err) {
+      clearTimeout(timeout);
+      const isNotFound =
+        err instanceof Error &&
+        (err as NodeJS.ErrnoException).cause &&
+        ((err as NodeJS.ErrnoException).cause as Record<string, unknown>)?.code === "ENOTFOUND";
+
+      if (isNotFound && attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY));
+        continue;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+
+  throw new Error(`fetchMedia: max retries exceeded for ${fetchUrl}`);
 }
 
 const DOWNLOAD_MAX_RETRIES = 2;
