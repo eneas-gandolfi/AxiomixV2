@@ -279,6 +279,7 @@ export function ConversationChat({
                       <p className="flex items-center gap-1.5 text-muted italic">
                         <Icon className="h-3.5 w-3.5" />
                         {media.label}
+                        <span className="text-xs opacity-60">(processando...)</span>
                       </p>
                     );
                   }

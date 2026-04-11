@@ -307,7 +307,7 @@ function needsEnrichment(message: MessageToEnrich): boolean {
 }
 
 const MEDIA_CONCURRENCY = 3; // máximo de mídias processadas em paralelo
-const MEDIA_MAX_PER_RUN = 10; // máximo de mídias por execução (evita timeout)
+const MEDIA_MAX_PER_RUN = 25; // máximo de mídias por execução
 
 /**
  * Enriquece mensagens de mídia com conteúdo extraído por IA.
@@ -322,7 +322,16 @@ export async function enrichMediaMessages<T extends MessageToEnrich>(
 
   if (allToProcess.length === 0) return messages;
 
-  // Limitar quantidade por execução para evitar timeout
+  // Priorizar áudios (conversas em andamento são mais urgentes)
+  allToProcess.sort((a, b) => {
+    const typeA = (a.message_type ?? "").toLowerCase();
+    const typeB = (b.message_type ?? "").toLowerCase();
+    const isAudioA = MEDIA_TYPES_AUDIO.has(typeA) ? 0 : 1;
+    const isAudioB = MEDIA_TYPES_AUDIO.has(typeB) ? 0 : 1;
+    return isAudioA - isAudioB;
+  });
+
+  // Limitar quantidade por execução
   const toProcess = allToProcess.slice(0, MEDIA_MAX_PER_RUN);
   if (allToProcess.length > MEDIA_MAX_PER_RUN) {
     console.log(LOG_PREFIX, `${allToProcess.length} mídias pendentes, processando ${MEDIA_MAX_PER_RUN} nesta execução`);

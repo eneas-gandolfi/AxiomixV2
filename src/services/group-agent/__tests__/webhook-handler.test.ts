@@ -10,8 +10,8 @@ import {
 } from "../webhook-handler";
 
 describe("extractTextContent", () => {
-  it("retorna null para message null", () => {
-    expect(extractTextContent(null)).toBeNull();
+  it("retorna null para message null/undefined", () => {
+    expect(extractTextContent(null as unknown as undefined)).toBeNull();
     expect(extractTextContent(undefined)).toBeNull();
   });
 
@@ -59,7 +59,7 @@ describe("extractTextContent", () => {
 
 describe("isMediaMessage", () => {
   it("retorna false para null", () => {
-    expect(isMediaMessage(null)).toBe(false);
+    expect(isMediaMessage(null as unknown as undefined)).toBe(false);
   });
 
   it("detecta imageMessage", () => {
@@ -85,7 +85,7 @@ describe("isMediaMessage", () => {
 
 describe("extractMediaMimetype", () => {
   it("retorna null para null", () => {
-    expect(extractMediaMimetype(null)).toBeNull();
+    expect(extractMediaMimetype(null as unknown as undefined)).toBeNull();
   });
 
   it("extrai de imageMessage", () => {
