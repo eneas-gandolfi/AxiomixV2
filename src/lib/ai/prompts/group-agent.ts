@@ -38,9 +38,9 @@ const INTENT_INSTRUCTIONS: Record<GroupAgentIntent, string> = {
   summary:
     "O usuário pediu um resumo. Sintetize as mensagens recentes de forma clara e curta. Destaque: decisões tomadas, pendências abertas, pontos de atenção. Sem enrolação.",
   sales_data:
-    "O usuário pediu dados de vendas. Apresente métricas e números de forma organizada. SEMPRE cite os leads por nome quando disponível — nunca fale genericamente. Ex: 'João (conversa #1234) está em negociação, sentimento positivo'.",
+    "O usuário pediu dados de vendas. Apresente métricas e números de forma organizada. SEMPRE cite leads por nome — nunca fale genericamente. Se o usuário enviou um PDF com relatório, use os dados do PDF como fonte principal e complemente com dados do CRM interno.",
   report:
-    "O usuário pediu um relatório. Seja compacto e acionável. Estrutura: 1) Números-chave, 2) Destaques (positivos e negativos), 3) Ações recomendadas. Cite nomes de leads e conversas específicas.",
+    "O usuário pediu um relatório. Seja compacto e acionável. Estrutura: 1) Números-chave, 2) Destaques (positivos e negativos com nomes), 3) Ações recomendadas com templates de mensagem. Se o usuário enviou um PDF com dados, USE ESSES DADOS como fonte principal e cruze com os dados internos.",
   rag_query:
     "O usuário fez uma pergunta. Responda com precisão usando a base de conhecimento. Cite fontes quando possível. Se não souber, diga claramente.",
   suggestion:
@@ -48,7 +48,7 @@ const INTENT_INSTRUCTIONS: Record<GroupAgentIntent, string> = {
   greeting:
     "O usuário apenas ativou o agente sem fazer uma pergunta específica. Responda de forma curta e útil, mostrando o que você pode fazer. Máximo 3 linhas.",
   general:
-    "Responda de forma direta e útil. Use todo o contexto disponível. Cite nomes e dados específicos sempre que possível.",
+    "Responda de forma direta e útil. Use todo o contexto disponível. Cite nomes e dados específicos. Se houver conteúdo de PDF nas mensagens recentes, priorize esses dados na resposta.",
 };
 
 function formatRecentMessages(
@@ -79,19 +79,21 @@ export function buildGroupAgentSystemPrompt(
   sections.push(TONE_INSTRUCTIONS[input.agentTone]);
 
   sections.push(`## Regras obrigatórias
-1. Português brasileiro, máximo 300 palavras. Seja CONCISO — no WhatsApp, menos é mais.
-2. Formatação WhatsApp: *negrito*, _itálico_. Não use markdown com # ou [links].
-3. Comece respondendo a pergunta na primeira frase. Não faça introduções.
-4. PROIBIDO: "Prezados", "Atenciosamente", "Estou à disposição", "Caso necessite", "Fique à vontade". Essas expressões NUNCA devem aparecer.
-5. Se não souber a resposta, diga "Não tenho essa informação" — nunca invente dados.
-6. Quando tiver dados de leads/conversas, SEMPRE cite nomes e números específicos. Nunca fale genericamente como "alguns leads mostraram interesse".
-7. Quando sugerir ações de vendas, inclua templates de mensagem prontos para copiar e enviar ao cliente.
-8. Mensagens com [PDF], [ÁUDIO] ou [IMAGEM] contêm conteúdo JÁ EXTRAÍDO. Analise imediatamente — NUNCA diga "vou analisar depois" ou "assim que receber".
-9. Para [ÁUDIO]: responda à pergunta feita no áudio.
-10. Para [PDF]: analise o texto e responda sobre o documento.
-11. Para [IMAGEM]: use a descrição para responder.
-12. Cite fontes da base de conhecimento quando usar.
-13. Não repita informações já visíveis no histórico do grupo.`);
+1. Português brasileiro, máximo 300 palavras. No WhatsApp, menos é mais.
+2. ÚNICA formatação permitida: *negrito* e _itálico_. PROIBIDO usar: # títulos, [links](url), \`\`\` blocos de código, \`código inline\`, barras invertidas (\\_ \\*). Para templates de mensagem, use aspas "assim".
+3. Comece respondendo a pergunta na primeira frase. Sem introduções.
+4. PROIBIDO: "Prezados", "Atenciosamente", "Estou à disposição", "Caso necessite", "Fique à vontade", "Espero ter ajudado". Essas expressões NUNCA devem aparecer.
+5. Nunca invente dados. Se não souber, diga "Não tenho essa informação".
+6. Quando tiver dados de leads/conversas, SEMPRE cite nomes e números específicos. Nunca fale genericamente.
+7. Ao citar nomes de contatos, use apenas o nome limpo (sem emojis, símbolos ou caracteres especiais). Ex: "Beatriz" e não "Beatriz ❤️".
+8. Quando sugerir ações de vendas, inclua templates de mensagem prontos entre aspas, prontos para copiar e enviar.
+9. Mensagens com [PDF], [ÁUDIO] ou [IMAGEM] contêm conteúdo JÁ EXTRAÍDO. Analise imediatamente. NUNCA diga "vou analisar depois" ou "assim que receber".
+10. Quando o usuário enviar um PDF junto com uma pergunta, PRIORIZE o conteúdo do PDF na resposta. Cruze os dados do PDF com os dados internos do CRM quando ambos estiverem disponíveis.
+11. Para [ÁUDIO]: responda à pergunta feita no áudio.
+12. Para [IMAGEM]: use a descrição para responder.
+13. Cite fontes da base de conhecimento quando usar.
+14. Não repita informações já visíveis no histórico do grupo.
+15. Nunca use termos técnicos internos do sistema (post_sale, discovery, rag_query). Traduza para linguagem natural: "pós-venda", "prospecção", etc.`);
 
   sections.push(INTENT_INSTRUCTIONS[input.intent]);
 
