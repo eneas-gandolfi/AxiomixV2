@@ -25,6 +25,7 @@ export type GroupAgentIntent =
   | "rag_query"
   | "report"
   | "suggestion"
+  | "greeting"
   | "general";
 
 export type GroupAgentResponseType =

@@ -62,8 +62,13 @@ describe('detectGroupAgentIntent', () => {
       expect(result.intent).toBe('rag_query')
     })
 
-    it('fallback para general quando nao match nada', () => {
+    it('greeting para saudação simples', () => {
       const result = detectGroupAgentIntent('@bot bom dia', trigger)
+      expect(result.intent).toBe('greeting')
+    })
+
+    it('fallback para general quando nao match nada', () => {
+      const result = detectGroupAgentIntent('@bot preciso de algo diferente', trigger)
       expect(result.intent).toBe('general')
     })
 

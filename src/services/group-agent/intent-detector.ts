@@ -12,6 +12,11 @@ type IntentResult = {
   cleanedQuery: string;
 };
 
+const GREETING_PATTERNS = new Set([
+  "", "oi", "olá", "ola", "bom dia", "boa tarde", "boa noite",
+  "hey", "eai", "e ai", "fala", "salve",
+]);
+
 const INTENT_KEYWORDS: Record<GroupAgentIntent, string[]> = {
   summary: [
     "resumo", "resumir", "resuma", "ultimas mensagens", "o que rolou",
@@ -29,6 +34,7 @@ const INTENT_KEYWORDS: Record<GroupAgentIntent, string[]> = {
     "sugestao", "sugestão", "sugira", "o que fazer", "proximo passo",
     "próximo passo", "recomendacao", "recomendação", "dica", "conselho",
   ],
+  greeting: [],
   rag_query: [],
   general: [],
 };
@@ -54,7 +60,12 @@ export function detectGroupAgentIntent(
   triggerKeywords: string[]
 ): IntentResult {
   const cleanedQuery = stripTrigger(messageContent, triggerKeywords);
-  const lower = cleanedQuery.toLowerCase();
+  const lower = cleanedQuery.toLowerCase().trim();
+
+  // Trigger vazio ou saudação simples
+  if (GREETING_PATTERNS.has(lower)) {
+    return { intent: "greeting", cleanedQuery };
+  }
 
   for (const [intent, keywords] of Object.entries(INTENT_KEYWORDS) as Array<[GroupAgentIntent, string[]]>) {
     if (keywords.length === 0) continue;

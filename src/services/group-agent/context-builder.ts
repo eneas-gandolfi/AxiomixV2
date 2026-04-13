@@ -36,7 +36,7 @@ export async function buildAgentContext(
     .limit(3);
 
   const ragPromise =
-    intent === "summary"
+    intent === "summary" || intent === "greeting"
       ? Promise.resolve("")
       : getKnowledgeBaseContext(companyId, query, {
           includeGlobal: true,
