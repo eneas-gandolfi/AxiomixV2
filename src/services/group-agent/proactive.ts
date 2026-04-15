@@ -58,6 +58,7 @@ export async function generateDailySummary(
     .maybeSingle();
 
   if (!config || !config.is_active) {
+    console.log("[proactive] daily_summary skip", { configId, reason: "config inativa" });
     return { success: false, action: "daily_summary", responseText: "", error: "Config inativa" };
   }
 
@@ -71,16 +72,36 @@ export async function generateDailySummary(
     .order("sent_at", { ascending: true })
     .limit(100);
 
-  if (!messages || messages.length < 3) {
-    return {
-      success: false,
-      action: "daily_summary",
-      responseText: "",
-      error: "Poucas mensagens para resumir",
-    };
+  const messageCount = messages?.length ?? 0;
+  const lowActivity = messageCount < 3;
+
+  console.log("[proactive] daily_summary", {
+    configId,
+    messages: messageCount,
+    lowActivity,
+  });
+
+  // Piso absoluto: se nem nos ultimos 7 dias houve mensagens, nao mandar nada.
+  if (messageCount === 0) {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString();
+    const { count: weeklyCount } = await supabase
+      .from("group_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("config_id", configId)
+      .gte("sent_at", sevenDaysAgo);
+
+    if (!weeklyCount || weeklyCount === 0) {
+      console.log("[proactive] daily_summary skip", { configId, reason: "grupo inativo 7d" });
+      return {
+        success: false,
+        action: "daily_summary",
+        responseText: "",
+        error: "Grupo sem atividade ha 7 dias",
+      };
+    }
   }
 
-  const messagesText = messages
+  const messagesText = (messages ?? [])
     .map((m) => {
       const time = new Date(m.sent_at).toLocaleTimeString("pt-BR", {
         hour: "2-digit",
@@ -90,24 +111,45 @@ export async function generateDailySummary(
     })
     .join("\n");
 
-  const systemPrompt = `Voce e ${config.agent_name}, assistente de IA do grupo WhatsApp "${config.group_name ?? "Grupo"}".
-Gere um resumo diario conciso das conversas das ultimas 24 horas.
+  const today = new Date().toLocaleDateString("pt-BR");
+  const agentTone = config.agent_tone ?? "Profissional";
+  const groupName = config.group_name ?? "Grupo";
 
-## Regras
-1. Responda em portugues brasileiro, maximo 400 palavras.
-2. Use formatacao WhatsApp: *negrito*, _italico_.
-3. Estruture com: principais topicos discutidos, decisoes tomadas, pendencias.
-4. Comece com uma saudacao breve como "*Resumo do dia* - ${new Date().toLocaleDateString("pt-BR")}".
-5. Nao invente informacoes que nao estao nas mensagens.`;
+  const systemPrompt = `Voce e ${config.agent_name}, assistente de IA do grupo WhatsApp "${groupName}".
+Tom de voz: ${agentTone}.
+
+Seu objetivo NAO e apenas informar — e engajar o grupo e estimular conversa.
+Gere uma mensagem com DUAS partes, sempre nesta ordem:
+
+## PARTE 1 — *Resumo do dia* - ${today}
+- Maximo 250 palavras, portugues brasileiro, formatacao WhatsApp (*negrito*, _italico_).
+- Cubra: principais topicos discutidos, decisoes tomadas, pendencias em aberto.
+- Nao invente nada que nao esteja nas mensagens.
+- Se o historico for escasso (poucas mensagens), faca a PARTE 1 bem curta (1-2 linhas tipo "_Dia mais quieto por aqui._") e va direto para a PARTE 2.
+
+## PARTE 2 — *Bora conversar?*
+- Gere de 2 a 3 perguntas ABERTAS, curtas e instigantes, conectadas aos topicos do resumo (ou ao tema do grupo, se o dia foi quieto).
+- Direcione ao grupo usando "voces", "alguem", "quem ai…", "algum de voces ja…".
+- Evite perguntas de sim/nao. Prefira perguntas que puxem experiencia, opiniao ou historia.
+- Feche com um convite claro para responderem ali mesmo no grupo (ex.: "_Manda ai nas mensagens, quero saber!_").
+
+## Regras gerais
+- Nunca se apresente como "IA" ou "bot" — voce e ${config.agent_name}, parte do grupo.
+- Nao use emojis em excesso (maximo 2-3 na mensagem inteira).
+- Nao invente fatos, nomes ou numeros que nao estejam nas mensagens fornecidas.`;
+
+  const userContent = lowActivity
+    ? `Mensagens do grupo nas ultimas 24h (baixa atividade — ${messageCount} mensagens):\n${messagesText || "(sem mensagens)"}\n\nO dia foi quieto: faca PARTE 1 bem curta e foque em PARTE 2 com perguntas de aquecimento sobre o tema do grupo "${groupName}".`
+    : `Mensagens do grupo nas ultimas 24h:\n${messagesText}`;
 
   try {
     const responseText = await openRouterChatCompletion(companyId, [
       { role: "system", content: systemPrompt },
-      { role: "user", content: `Mensagens do grupo nas ultimas 24h:\n${messagesText}` },
+      { role: "user", content: userContent },
     ], {
       responseFormat: "text",
-      temperature: 0.3,
-      maxTokens: 512,
+      temperature: 0.6,
+      maxTokens: 700,
       module: "group_agent",
       operation: "proactive_summary",
     });
@@ -119,6 +161,11 @@ Gere um resumo diario conciso das conversas das ultimas 24 horas.
       groupJid: config.group_jid,
       responseText,
     });
+
+    await supabase
+      .from("group_agent_configs")
+      .update({ last_summary_sent_at: new Date().toISOString() })
+      .eq("id", configId);
 
     await supabase.from("group_agent_responses").insert({
       company_id: companyId,
@@ -212,6 +259,11 @@ _Gerado automaticamente por ${config.agent_name}_`;
       groupJid: config.group_jid,
       responseText: alertText,
     });
+
+    await supabase
+      .from("group_agent_configs")
+      .update({ last_sales_alert_sent_at: new Date().toISOString() })
+      .eq("id", configId);
 
     await supabase.from("group_agent_responses").insert({
       company_id: companyId,

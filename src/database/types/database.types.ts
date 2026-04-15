@@ -1611,6 +1611,8 @@ export type Database = {
           proactive_summary: boolean;
           proactive_summary_hour: number;
           proactive_sales_alert: boolean;
+          last_summary_sent_at: string | null;
+          last_sales_alert_sent_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1633,6 +1635,8 @@ export type Database = {
           proactive_summary?: boolean;
           proactive_summary_hour?: number;
           proactive_sales_alert?: boolean;
+          last_summary_sent_at?: string | null;
+          last_sales_alert_sent_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1655,6 +1659,8 @@ export type Database = {
           proactive_summary?: boolean;
           proactive_summary_hour?: number;
           proactive_sales_alert?: boolean;
+          last_summary_sent_at?: string | null;
+          last_sales_alert_sent_at?: string | null;
           updated_at?: string;
         };
         Relationships: [
