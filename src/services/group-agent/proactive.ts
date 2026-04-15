@@ -156,11 +156,21 @@ Gere uma mensagem com DUAS partes, sempre nesta ordem:
 
     const instanceName = await resolveInstanceName(companyId, config.evolution_instance_name ?? null);
 
-    await sendGroupAgentResponse({
+    console.log("[proactive] daily_summary send", {
+      configId,
+      instanceName,
+      groupJid: config.group_jid,
+    });
+
+    const sendResult = await sendGroupAgentResponse({
       instanceName,
       groupJid: config.group_jid,
       responseText,
     });
+
+    if (!sendResult.success) {
+      throw new Error(`Evolution falhou: ${sendResult.evolutionStatus}`);
+    }
 
     await supabase
       .from("group_agent_configs")
@@ -177,7 +187,7 @@ Gere uma mensagem com DUAS partes, sempre nesta ordem:
       rag_sources_used: 0,
       model_used: process.env.OPENROUTER_MODEL ?? "unknown",
       processing_time_ms: 0,
-      evolution_status: "sent",
+      evolution_status: sendResult.evolutionStatus,
     });
 
     return { success: true, action: "daily_summary", responseText };
@@ -270,11 +280,21 @@ _Gerado automaticamente por ${config.agent_name}_`;
   try {
     const instanceName = await resolveInstanceName(companyId, config.evolution_instance_name ?? null);
 
-    await sendGroupAgentResponse({
+    console.log("[proactive] sales_alert send", {
+      configId,
+      instanceName,
+      groupJid: config.group_jid,
+    });
+
+    const sendResult = await sendGroupAgentResponse({
       instanceName,
       groupJid: config.group_jid,
       responseText: alertText,
     });
+
+    if (!sendResult.success) {
+      throw new Error(`Evolution falhou: ${sendResult.evolutionStatus}`);
+    }
 
     await supabase
       .from("group_agent_configs")
@@ -291,7 +311,7 @@ _Gerado automaticamente por ${config.agent_name}_`;
       rag_sources_used: 0,
       model_used: "none",
       processing_time_ms: 0,
-      evolution_status: "sent",
+      evolution_status: sendResult.evolutionStatus,
     });
 
     return { success: true, action: "sales_alert", responseText: alertText };
