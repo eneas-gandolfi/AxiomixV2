@@ -21,6 +21,8 @@ import {
   getActiveSession,
   upsertSession,
   appendAgentResponse as appendToSession,
+  resetSession,
+  isResetCommand,
 } from "@/services/group-agent/session-manager";
 import { extractAndSaveNotes } from "@/services/group-agent/note-extractor";
 import { resolvePreferredEvolutionInstance } from "@/services/integrations/evolution";
@@ -112,6 +114,58 @@ export async function processGroupAgentResponse(
     config.trigger_keywords
   );
 
+  // Comando explícito de reset de sessão
+  if (isResetCommand(cleanedQuery)) {
+    await resetSession(config.id, message.sender_jid, message.group_jid);
+
+    // Resolver instance para enviar confirmação
+    let resetInstance = config.evolution_instance_name ?? null;
+    if (!resetInstance) {
+      const { data: integration } = await supabase
+        .from("integrations")
+        .select("config")
+        .eq("company_id", companyId)
+        .eq("type", "evolution_api")
+        .eq("is_active", true)
+        .maybeSingle();
+      if (integration?.config) {
+        const decoded = decodeIntegrationConfig("evolution_api", integration.config);
+        resetInstance = resolvePreferredEvolutionInstance(decoded.vendors) ?? null;
+      }
+    }
+    resetInstance = resetInstance ?? process.env.EVOLUTION_INSTANCE_NAME ?? "axiomix-default";
+
+    const resetText = "Ok, comecei uma conversa nova. O que você precisa?";
+    const resetResult = await sendGroupAgentResponse({
+      instanceName: resetInstance,
+      groupJid: message.group_jid,
+      responseText: resetText,
+    });
+
+    await recordResponse(supabase, {
+      companyId,
+      configId: config.id,
+      triggerMessageId: message.id,
+      groupJid: message.group_jid,
+      responseText: resetText,
+      responseType: "reply",
+      ragSourcesUsed: 0,
+      modelUsed: "",
+      processingTimeMs: Date.now() - startTime,
+      evolutionStatus: resetResult.evolutionStatus,
+    });
+
+    return {
+      success: resetResult.success,
+      responseText: resetText,
+      responseType: "reply",
+      ragSourcesUsed: 0,
+      modelUsed: "",
+      processingTimeMs: Date.now() - startTime,
+      evolutionStatus: resetResult.evolutionStatus,
+    };
+  }
+
   const context = await buildAgentContext(
     companyId,
     config.id,
@@ -186,27 +240,58 @@ export async function processGroupAgentResponse(
     const detail = error instanceof Error ? error.message : "Erro IA";
     console.error("[group-agent/responder] Falha na geração:", detail);
 
+    // Resolver instance para enviar fallback amigável ao grupo
+    let fallbackInstance = config.evolution_instance_name ?? null;
+    if (!fallbackInstance) {
+      const { data: integration } = await supabase
+        .from("integrations")
+        .select("config")
+        .eq("company_id", companyId)
+        .eq("type", "evolution_api")
+        .eq("is_active", true)
+        .maybeSingle();
+      if (integration?.config) {
+        const decoded = decodeIntegrationConfig("evolution_api", integration.config);
+        fallbackInstance = resolvePreferredEvolutionInstance(decoded.vendors) ?? null;
+      }
+    }
+    fallbackInstance = fallbackInstance ?? process.env.EVOLUTION_INSTANCE_NAME ?? "axiomix-default";
+
+    const fallbackText = "Tive uma dificuldade técnica agora. Pode tentar de novo em alguns segundos?";
+
+    let fallbackStatus = "llm_failed";
+    try {
+      const sendResult = await sendGroupAgentResponse({
+        instanceName: fallbackInstance,
+        groupJid: message.group_jid,
+        responseText: fallbackText,
+      });
+      fallbackStatus = sendResult.success ? "llm_failed_fallback_sent" : "llm_failed_fallback_send_failed";
+    } catch (sendErr) {
+      console.error("[group-agent/responder] Falha ao enviar fallback:", sendErr instanceof Error ? sendErr.message : sendErr);
+    }
+
     await recordResponse(supabase, {
       companyId,
       configId: config.id,
       triggerMessageId: message.id,
       groupJid: message.group_jid,
-      responseText: detail,
+      responseText: fallbackText,
       responseType: "error",
       ragSourcesUsed: 0,
       modelUsed: "",
       processingTimeMs: Date.now() - startTime,
-      evolutionStatus: "llm_failed",
+      evolutionStatus: fallbackStatus,
     });
 
     return {
       success: false,
-      responseText: detail,
+      responseText: fallbackText,
       responseType: "error",
       ragSourcesUsed: 0,
       modelUsed: "",
       processingTimeMs: Date.now() - startTime,
-      evolutionStatus: "llm_failed",
+      evolutionStatus: fallbackStatus,
     };
   }
 
@@ -309,16 +394,22 @@ async function checkCooldown(
   configId: string,
   cooldownSeconds: number
 ): Promise<boolean> {
+  if (cooldownSeconds <= 0) return true;
+
   const supabase = createSupabaseAdminClient();
-  const cooldownAgo = new Date(Date.now() - cooldownSeconds * 1000).toISOString();
 
-  const { count } = await supabase
+  const { data } = await supabase
     .from("group_agent_responses")
-    .select("id", { count: "exact", head: true })
+    .select("created_at")
     .eq("config_id", configId)
-    .gte("created_at", cooldownAgo);
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  return (count ?? 0) === 0;
+  if (!data) return true;
+
+  const elapsedMs = Date.now() - new Date(data.created_at).getTime();
+  return elapsedMs >= cooldownSeconds * 1000;
 }
 
 type RecordInput = {

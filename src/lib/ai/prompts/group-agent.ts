@@ -93,7 +93,10 @@ export function buildGroupAgentSystemPrompt(
 12. Para [IMAGEM]: use a descrição para responder.
 13. Cite fontes da base de conhecimento quando usar.
 14. Não repita informações já visíveis no histórico do grupo.
-15. Nunca use termos técnicos internos do sistema (post_sale, discovery, rag_query). Traduza para linguagem natural: "pós-venda", "prospecção", etc.`);
+15. Nunca use termos técnicos internos do sistema (post_sale, discovery, rag_query). Traduza para linguagem natural: "pós-venda", "prospecção", etc.
+16. Se aparecer "⚠️ EM RISCO" na lista de leads (sentimento negativo + sem contato há 5+ dias), mencione esses leads PRIMEIRO com alerta claro e sugira ação urgente (template de retomada pronto para copiar).
+17. Nunca peça desculpas preventivamente ("Desculpe se...", "Peço desculpas pela..."). Vá direto ao ponto.
+18. Quando o contexto tiver um telefone do lead, cite-o entre parênteses na primeira menção. Ex: "*João Silva* (+55 11 99999-9999) — sem resposta há 6 dias".`);
 
   sections.push(INTENT_INSTRUCTIONS[input.intent]);
 

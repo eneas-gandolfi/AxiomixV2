@@ -139,6 +139,45 @@ export async function appendAgentResponse(
   }
 }
 
+/**
+ * Deleta a sessão ativa (se existir) deste usuário neste grupo.
+ * Usado quando o usuário explicitamente pede para reiniciar a conversa.
+ */
+export async function resetSession(
+  configId: string,
+  senderJid: string,
+  groupJid: string
+): Promise<boolean> {
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("group_agent_sessions")
+    .delete()
+    .eq("config_id", configId)
+    .eq("sender_jid", senderJid)
+    .eq("group_jid", groupJid);
+
+  if (error) {
+    console.error("[session-manager] Erro ao resetar sessão:", error.message);
+    return false;
+  }
+  return true;
+}
+
+const RESET_KEYWORDS = [
+  "reiniciar", "reinicia", "recomeçar", "recomeca",
+  "nova conversa", "limpar conversa", "limpar sessao", "limpar sessão",
+  "esquecer tudo", "comecar de novo", "começar de novo",
+];
+
+/**
+ * Detecta se a mensagem do usuário é um pedido explícito de reset de sessão.
+ */
+export function isResetCommand(cleanedQuery: string): boolean {
+  const normalized = cleanedQuery.toLowerCase().trim();
+  if (!normalized) return false;
+  return RESET_KEYWORDS.some((kw) => normalized === kw || normalized.startsWith(`${kw} `) || normalized.endsWith(` ${kw}`));
+}
+
 export async function cleanExpiredSessions(): Promise<number> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase

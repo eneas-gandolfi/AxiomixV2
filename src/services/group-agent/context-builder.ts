@@ -146,10 +146,24 @@ async function buildSalesDataContext(companyId: string): Promise<string> {
       sections.push(`Estagios de venda: ${stages}`);
     }
 
-    // Detalhes individuais das conversas mais relevantes (max 15)
-    const detailedConversations = insights
+    // Enriquecer cada insight com telefone, dias desde último contato e flag de risco
+    type EnrichedInsight = {
+      name: string;
+      phone: string | null;
+      stage: string | null;
+      sentiment: string | null;
+      intent: string | null;
+      summary: string | null;
+      nextCommitment: string | null;
+      stallReason: string | null;
+      actionItems: string[];
+      daysSinceLastContact: number | null;
+      atRisk: boolean;
+    };
+
+    const now = Date.now();
+    const enriched: EnrichedInsight[] = insights
       .filter((i) => i.summary && i.conversations)
-      .slice(0, 15)
       .map((i) => {
         const conv = i.conversations as unknown as {
           contact_name: string | null;
@@ -157,32 +171,76 @@ async function buildSalesDataContext(companyId: string): Promise<string> {
           status: string | null;
           last_message_at: string | null;
         };
-        const name = conv.contact_name ?? "Desconhecido";
-        const stage = i.sales_stage && i.sales_stage !== "unknown" ? i.sales_stage : null;
-        const sentiment = i.sentiment ?? null;
-        const intent = i.intent ?? null;
 
-        const parts: string[] = [`*${name}*`];
-        if (stage) parts.push(`estagio: ${stage}`);
-        if (sentiment) parts.push(`sentimento: ${sentiment}`);
-        if (intent) parts.push(`intencao: ${intent}`);
+        const daysSinceLastContact = conv.last_message_at
+          ? Math.floor((now - new Date(conv.last_message_at).getTime()) / (24 * 60 * 60_000))
+          : null;
 
-        let line = parts.join(" | ");
-        if (i.summary) line += `\n  Resumo: ${i.summary.slice(0, 200)}`;
-        if (i.next_commitment) line += `\n  Proximo passo: ${i.next_commitment}`;
-        if (i.stall_reason) line += `\n  Motivo de estagnacao: ${i.stall_reason}`;
+        // Em risco: sentimento negativo E sem contato há 5+ dias
+        const atRisk =
+          i.sentiment === "negativo" &&
+          daysSinceLastContact !== null &&
+          daysSinceLastContact >= 5;
 
         const actions = i.action_items as string[] | null;
-        if (actions && Array.isArray(actions) && actions.length > 0) {
-          line += `\n  Pendencias: ${actions.slice(0, 3).join("; ")}`;
-        }
+        const actionItems = Array.isArray(actions) ? actions : [];
 
-        return line;
+        return {
+          name: conv.contact_name ?? "Desconhecido",
+          phone: conv.contact_phone,
+          stage: i.sales_stage && i.sales_stage !== "unknown" ? i.sales_stage : null,
+          sentiment: i.sentiment ?? null,
+          intent: i.intent ?? null,
+          summary: i.summary,
+          nextCommitment: i.next_commitment,
+          stallReason: i.stall_reason,
+          actionItems,
+          daysSinceLastContact,
+          atRisk,
+        };
       });
 
-    if (detailedConversations.length > 0) {
+    const formatInsight = (e: EnrichedInsight, flag: string): string => {
+      const nameLine = e.phone ? `${flag}*${e.name}* (${e.phone})` : `${flag}*${e.name}*`;
+      const parts: string[] = [nameLine];
+
+      const meta: string[] = [];
+      if (e.stage) meta.push(`estágio: ${e.stage}`);
+      if (e.sentiment) meta.push(`sentimento: ${e.sentiment}`);
+      if (e.intent) meta.push(`intenção: ${e.intent}`);
+      if (e.daysSinceLastContact !== null) {
+        meta.push(
+          e.daysSinceLastContact === 0
+            ? "último contato: hoje"
+            : `último contato: há ${e.daysSinceLastContact} dia(s)`
+        );
+      }
+      if (meta.length > 0) parts.push(meta.join(" | "));
+
+      if (e.summary) parts.push(`  Resumo: ${e.summary.slice(0, 200)}`);
+      if (e.nextCommitment) parts.push(`  Próximo passo: ${e.nextCommitment}`);
+      if (e.stallReason) parts.push(`  Motivo de estagnação: ${e.stallReason}`);
+      if (e.actionItems.length > 0) {
+        parts.push(`  Pendências: ${e.actionItems.slice(0, 3).join("; ")}`);
+      }
+
+      return parts.join("\n");
+    };
+
+    // Seção de leads em risco (topo, destacada)
+    const atRiskLeads = enriched.filter((e) => e.atRisk).slice(0, 10);
+    if (atRiskLeads.length > 0) {
+      sections.push(`\n--- ⚠️ Leads em risco (sentimento negativo + sem contato há 5+ dias) ---`);
+      sections.push(atRiskLeads.map((e) => formatInsight(e, "⚠️ EM RISCO: ")).join("\n\n"));
+    }
+
+    // Detalhes das demais conversas (max 15 no total, descontando as em risco)
+    const remainingSlots = Math.max(0, 15 - atRiskLeads.length);
+    const otherLeads = enriched.filter((e) => !e.atRisk).slice(0, remainingSlots);
+
+    if (otherLeads.length > 0) {
       sections.push(`\n--- Detalhes das conversas ---`);
-      sections.push(detailedConversations.join("\n\n"));
+      sections.push(otherLeads.map((e) => formatInsight(e, "")).join("\n\n"));
     }
   }
 

@@ -7,10 +7,31 @@
 
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
 import { parseAiJson } from "@/lib/ai/parse-ai-json";
 import type { AgentNote, AgentNoteCategory, ExtractedNote } from "@/types/modules/group-agent.types";
+
+/**
+ * Normaliza o conteúdo de uma nota para comparação: lowercase, remove
+ * acentos, pontuação e múltiplos espaços. Usado para detectar duplicatas
+ * mesmo quando o texto foi levemente reescrito.
+ */
+export function canonicalizeNoteContent(content: string): string {
+  return content
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .replace(/[^\w\s]/g, " ")         // remove pontuação
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function canonicalNoteHash(content: string): string {
+  const normalized = canonicalizeNoteContent(content);
+  return createHash("sha256").update(normalized).digest("hex").slice(0, 16);
+}
 
 const MAX_NOTES_PER_GROUP = 50;
 const TABLE = "group_agent_notes";
@@ -114,29 +135,45 @@ Extraia fatos-chave para lembrar em conversas futuras.`;
 
     const supabase = createSupabaseAdminClient();
 
-    // Desativar notas obsoletas
+    // Carregar todas as notas ativas uma única vez para comparar por hash
+    const { data: activeRows } = await notesTable(supabase)
+      .select("id, content")
+      .eq("config_id", input.configId)
+      .eq("is_active", true)
+      .limit(MAX_NOTES_PER_GROUP + 10);
+
+    const activeNotes: Array<{ id: string; content: string; hash: string }> = (
+      (activeRows ?? []) as Array<{ id: string; content: string }>
+    ).map((n) => ({
+      id: n.id,
+      content: n.content,
+      hash: canonicalNoteHash(n.content),
+    }));
+
+    // Desativar notas obsoletas por hash canônico
     if (Array.isArray(parsed.obsolete_notes) && parsed.obsolete_notes.length > 0) {
-      for (const obsoleteContent of parsed.obsolete_notes) {
-        if (typeof obsoleteContent !== "string" || obsoleteContent.length < 5) continue;
+      const obsoleteHashes = new Set(
+        parsed.obsolete_notes
+          .filter((c): c is string => typeof c === "string" && c.length >= 5)
+          .map((c) => canonicalNoteHash(c))
+      );
 
-        const { data: matchingNotes } = await notesTable(supabase)
-          .select("id, content")
-          .eq("config_id", input.configId)
-          .eq("is_active", true)
-          .ilike("content", `%${obsoleteContent.slice(0, 50)}%`)
-          .limit(3);
+      const toDeactivate = activeNotes
+        .filter((n) => obsoleteHashes.has(n.hash))
+        .map((n) => n.id);
 
-        if (matchingNotes && matchingNotes.length > 0) {
-          await notesTable(supabase)
-            .update({ is_active: false, updated_at: new Date().toISOString() })
-            .in("id", (matchingNotes as Array<{ id: string }>).map((n) => n.id));
-
-          console.log("[note-extractor] Notas desativadas:", matchingNotes.length);
-        }
+      if (toDeactivate.length > 0) {
+        await notesTable(supabase)
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .in("id", toDeactivate);
+        console.log("[note-extractor] Notas desativadas:", toDeactivate.length);
       }
     }
 
-    // Verificar duplicatas antes de inserir
+    // Dedupe por hash + evitar duplicatas entre as próprias novas notas
+    const existingHashes = new Set(activeNotes.map((n) => n.hash));
+    const newNoteHashes = new Set<string>();
+
     const newNotes: Array<{
       company_id: string;
       config_id: string;
@@ -148,23 +185,19 @@ Extraia fatos-chave para lembrar em conversas futuras.`;
     }> = [];
 
     for (const note of validNotes) {
-      const { count } = await notesTable(supabase)
-        .select("id", { count: "exact", head: true })
-        .eq("config_id", input.configId)
-        .eq("is_active", true)
-        .ilike("content", `%${note.content.slice(0, 60)}%`);
+      const hash = canonicalNoteHash(note.content);
+      if (existingHashes.has(hash) || newNoteHashes.has(hash)) continue;
 
-      if ((count ?? 0) === 0) {
-        newNotes.push({
-          company_id: input.companyId,
-          config_id: input.configId,
-          group_jid: input.groupJid,
-          category: note.category,
-          content: note.content,
-          source_sender: note.source_sender,
-          relevance_score: Math.min(1, Math.max(0.5, note.relevance_score)),
-        });
-      }
+      newNoteHashes.add(hash);
+      newNotes.push({
+        company_id: input.companyId,
+        config_id: input.configId,
+        group_jid: input.groupJid,
+        category: note.category,
+        content: note.content,
+        source_sender: note.source_sender,
+        relevance_score: Math.min(1, Math.max(0.5, note.relevance_score)),
+      });
     }
 
     if (newNotes.length > 0) {

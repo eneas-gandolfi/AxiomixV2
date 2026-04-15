@@ -14,7 +14,48 @@ import {
 
 const MAX_WHATSAPP_LENGTH = 4000;
 
-function splitResponse(text: string): string[] {
+/**
+ * Verifica se um corte na posição `index` (exclusivo) deixaria
+ * um par de formatação WhatsApp aberto (`*negrito*` ou `_itálico_`).
+ * Retorna true se o corte está dentro de formatação ainda não fechada.
+ */
+export function isInsideFormatting(text: string, index: number): boolean {
+  let insideBold = false;
+  let insideItalic = false;
+  let prev = "";
+
+  for (let i = 0; i < index; i++) {
+    const ch = text[i];
+    // Considerar apenas caracteres não precedidos por \ (escape)
+    const isEscaped = prev === "\\";
+    if (!isEscaped) {
+      if (ch === "*") insideBold = !insideBold;
+      else if (ch === "_") insideItalic = !insideItalic;
+    }
+    prev = ch;
+  }
+
+  return insideBold || insideItalic;
+}
+
+/**
+ * Acha a posição segura para cortar o texto perto de `target`
+ * sem quebrar formatação. Recua até achar um ponto seguro.
+ */
+function findSafeSplit(text: string, target: number): number {
+  if (target >= text.length) return text.length;
+  if (!isInsideFormatting(text, target)) return target;
+
+  // Recua até achar ponto seguro
+  for (let i = target - 1; i > target * 0.5; i--) {
+    if (!isInsideFormatting(text, i)) return i;
+  }
+
+  // Se não achou, corta exatamente no target (último recurso)
+  return target;
+}
+
+export function splitResponse(text: string): string[] {
   if (text.length <= MAX_WHATSAPP_LENGTH) {
     return [text];
   }
@@ -23,16 +64,21 @@ function splitResponse(text: string): string[] {
   let remaining = text;
 
   while (remaining.length > MAX_WHATSAPP_LENGTH) {
+    // Tentar cortar em \n (preferido)
     let splitIndex = remaining.lastIndexOf("\n", MAX_WHATSAPP_LENGTH);
     if (splitIndex < MAX_WHATSAPP_LENGTH * 0.5) {
       splitIndex = remaining.lastIndexOf(". ", MAX_WHATSAPP_LENGTH);
+      if (splitIndex > 0) splitIndex += 1; // incluir o ponto no chunk anterior
     }
     if (splitIndex < MAX_WHATSAPP_LENGTH * 0.3) {
       splitIndex = MAX_WHATSAPP_LENGTH;
     }
 
-    chunks.push(remaining.slice(0, splitIndex + 1).trim());
-    remaining = remaining.slice(splitIndex + 1).trim();
+    // Garantir que o corte não quebra formatação
+    splitIndex = findSafeSplit(remaining, splitIndex);
+
+    chunks.push(remaining.slice(0, splitIndex).trim());
+    remaining = remaining.slice(splitIndex).trim();
   }
 
   if (remaining.length > 0) {
