@@ -27,7 +27,6 @@ type ScheduledHistoryItem = {
   errorDetails: PublishErrorMap;
   publishedAt: string | null;
   createdAt: string;
-  qstashMessageId: string | null;
   mediaFileIds: string[];
   thumbnailUrl: string | null;
   thumbnailType: string | null;
@@ -167,7 +166,12 @@ export function SocialPublisherHistory({
         </CardContent>
       </Card>
 
-      <PostDetailsModal details={details} onClose={() => setDetails(null)} />
+      <PostDetailsModal
+        details={details}
+        companyId={companyId}
+        onClose={() => setDetails(null)}
+        onRefresh={() => fetchHistory(page)}
+      />
     </div>
   );
 }

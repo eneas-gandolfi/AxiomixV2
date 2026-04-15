@@ -59,6 +59,7 @@ import { STATUS_COLORS, STATUS_LABELS } from "@/types/modules/social-publisher.t
 type SocialPublisherDashboardProps = {
   companyId: string;
   initialHistory: HistoryResponse;
+  companyTimezone: string;
 };
 
 const POST_TYPE_META: Record<
@@ -97,6 +98,7 @@ function getThumbnailFallback(item: ScheduledHistoryItem) {
 export function SocialPublisherDashboard({
   companyId,
   initialHistory,
+  companyTimezone,
 }: SocialPublisherDashboardProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -719,6 +721,7 @@ export function SocialPublisherDashboard({
         open={drawerOpen}
         onClose={handleCloseDrawer}
         companyId={companyId}
+        companyTimezone={companyTimezone}
         initialPostType={drawerPostType}
         initialMediaFiles={drawerMediaFiles}
         onSuccess={refreshHistory}
@@ -733,7 +736,12 @@ export function SocialPublisherDashboard({
         onSelect={handleLibrarySelect}
       />
 
-      <PostDetailsModal details={details} onClose={() => setDetails(null)} />
+      <PostDetailsModal
+        details={details}
+        companyId={companyId}
+        onClose={() => setDetails(null)}
+        onRefresh={refreshHistory}
+      />
     </div>
   );
 }

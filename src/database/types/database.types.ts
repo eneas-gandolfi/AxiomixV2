@@ -113,6 +113,7 @@ export type Database = {
           settings: Json | null;
           slug: string;
           sub_niche: string | null;
+          timezone: string;
           website_url: string | null;
         };
         Insert: {
@@ -124,6 +125,7 @@ export type Database = {
           settings?: Json | null;
           slug: string;
           sub_niche?: string | null;
+          timezone?: string;
           website_url?: string | null;
         };
         Update: {
@@ -135,6 +137,7 @@ export type Database = {
           settings?: Json | null;
           slug?: string;
           sub_niche?: string | null;
+          timezone?: string;
           website_url?: string | null;
         };
         Relationships: [];
@@ -1231,9 +1234,9 @@ export type Database = {
           post_type: "photo" | "video" | "carousel";
           progress: Json | null;
           published_at: string | null;
-          qstash_message_id: string | null;
           scheduled_at: string;
           status: "scheduled" | "processing" | "published" | "partial" | "failed" | "cancelled";
+          updated_at: string;
         };
         Insert: {
           attempt_count?: number;
@@ -1248,9 +1251,9 @@ export type Database = {
           post_type: "photo" | "video" | "carousel";
           progress?: Json | null;
           published_at?: string | null;
-          qstash_message_id?: string | null;
           scheduled_at: string;
           status?: "scheduled" | "processing" | "published" | "partial" | "failed" | "cancelled";
+          updated_at?: string;
         };
         Update: {
           attempt_count?: number;
@@ -1265,9 +1268,9 @@ export type Database = {
           post_type?: "photo" | "video" | "carousel";
           progress?: Json | null;
           published_at?: string | null;
-          qstash_message_id?: string | null;
           scheduled_at?: string;
           status?: "scheduled" | "processing" | "published" | "partial" | "failed" | "cancelled";
+          updated_at?: string;
         };
         Relationships: [
           {
@@ -1851,6 +1854,16 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      claim_due_scheduled_posts: {
+        Args: {
+          p_batch_size?: number;
+        };
+        Returns: Array<{
+          id: string;
+          company_id: string;
+          attempt_count: number;
+        }>;
+      };
       match_rag_chunks: {
         Args: {
           query_embedding: string;

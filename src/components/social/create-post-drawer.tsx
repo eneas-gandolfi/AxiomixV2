@@ -83,6 +83,7 @@ export type CreatePostDrawerProps = {
   open: boolean;
   onClose: () => void;
   companyId: string;
+  companyTimezone: string;
   initialPostType: SocialPostType;
   initialMediaFiles?: MediaFile[];
   onSuccess: () => void;
@@ -160,6 +161,7 @@ export function CreatePostDrawer({
   open,
   onClose,
   companyId,
+  companyTimezone,
   initialPostType,
   initialMediaFiles = [],
   onSuccess,
@@ -1005,6 +1007,7 @@ export function CreatePostDrawer({
                       selectedDate={scheduledDate}
                       onDateChange={setScheduledDate}
                       selectedPlatforms={platforms}
+                      companyTimezone={companyTimezone}
                     />
                   ) : null}
 

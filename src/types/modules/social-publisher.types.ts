@@ -88,7 +88,6 @@ export type ScheduledHistoryItem = {
   errorDetails: PublishErrorMap;
   publishedAt: string | null;
   createdAt: string;
-  qstashMessageId: string | null;
   mediaFileIds: string[];
   thumbnailUrl: string | null;
   thumbnailType: string | null;

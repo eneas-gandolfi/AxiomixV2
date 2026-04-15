@@ -8,13 +8,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, ChevronLeft, ChevronRight, Calendar, Loader2 } from "lucide-react";
+import { AlertCircle, CheckSquare, ChevronLeft, ChevronRight, Calendar, Loader2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CalendarDayCell } from "./calendar-day-cell";
 import { CalendarWeekView } from "./calendar-week-view";
 import { CalendarAgendaView } from "./calendar-agenda-view";
 import { PostDetailsModal } from "./post-details-modal";
+import {
+  DEFAULT_COMPANY_TIMEZONE,
+  utcIsoToZonedLocalDate,
+  zonedLocalToUtcIso,
+} from "@/lib/social/timezone";
 import type {
   CalendarPostItem,
   SocialPlatform,
@@ -25,6 +30,7 @@ type CalendarView = "month" | "week" | "agenda";
 
 type EditorialCalendarProps = {
   companyId: string;
+  companyTimezone?: string;
   initialMonth?: { year: number; month: number };
   onCreatePost?: (date: Date) => void;
 };
@@ -59,9 +65,11 @@ const VIEW_OPTIONS: Array<{ value: CalendarView; label: string }> = [
 
 export function EditorialCalendar({
   companyId,
+  companyTimezone = DEFAULT_COMPANY_TIMEZONE,
   initialMonth,
   onCreatePost,
 }: EditorialCalendarProps) {
+  const tz = companyTimezone;
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(initialMonth?.year ?? now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(initialMonth?.month ?? now.getMonth() + 1);
@@ -73,6 +81,9 @@ export function EditorialCalendar({
   const [selectedPost, setSelectedPost] = useState<CalendarPostItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [isBulkWorking, setIsBulkWorking] = useState(false);
   const [weekStart, setWeekStart] = useState<Date>(() => {
     const d = new Date();
     d.setDate(d.getDate() - d.getDay());
@@ -190,28 +201,45 @@ export function EditorialCalendar({
     );
   }, [posts, platformFilter]);
 
-  // Group posts by date string
+  // Group posts by date string — usando o dia visivel no TZ da empresa.
   const postsByDate = useMemo(() => {
     const map = new Map<string, CalendarPostItem[]>();
     for (const post of filteredPosts) {
-      const dateKey = new Date(post.scheduledAt).toISOString().slice(0, 10);
+      const zoned = utcIsoToZonedLocalDate(post.scheduledAt, tz);
+      const dateKey = `${zoned.getFullYear()}-${String(zoned.getMonth() + 1).padStart(2, "0")}-${String(zoned.getDate()).padStart(2, "0")}`;
       const existing = map.get(dateKey) ?? [];
       existing.push(post);
       map.set(dateKey, existing);
     }
     return map;
-  }, [filteredPosts]);
+  }, [filteredPosts, tz]);
 
   const handleDropPost = async (postId: string, newDate: Date) => {
     setDraggedPostId(null);
     setError(null);
     try {
+      // Preserva a hora original do post, muda apenas o dia (no TZ da empresa).
+      const original = posts.find((p) => p.id === postId);
+      const originalZoned = original
+        ? utcIsoToZonedLocalDate(original.scheduledAt, tz)
+        : null;
+      const hour = originalZoned?.getHours() ?? 12;
+      const minute = originalZoned?.getMinutes() ?? 0;
+      const newIso = zonedLocalToUtcIso(
+        newDate.getFullYear(),
+        newDate.getMonth(),
+        newDate.getDate(),
+        hour,
+        minute,
+        tz
+      );
+
       const res = await fetch(`/api/social/schedule/${postId}/reschedule`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
-          newScheduledAt: newDate.toISOString(),
+          newScheduledAt: newIso,
         }),
       });
 
@@ -233,6 +261,88 @@ export function EditorialCalendar({
         : [...prev, platform]
     );
   };
+
+  const toggleSelection = (postId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkCancel = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Cancelar ${selectedIds.size} post(s) agendado(s)?`)) return;
+    setIsBulkWorking(true);
+    setError(null);
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map((id) =>
+        fetch(`/api/social/schedule/${id}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyId }),
+        })
+      )
+    );
+    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
+    if (failed > 0) {
+      setError(`${failed} de ${ids.length} cancelamento(s) falharam.`);
+    }
+    await fetchPosts();
+    exitSelectionMode();
+    setIsBulkWorking(false);
+  };
+
+  const handleBulkReschedule = async (deltaDays: number) => {
+    if (selectedIds.size === 0) return;
+    setIsBulkWorking(true);
+    setError(null);
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map((id) => {
+        const post = posts.find((p) => p.id === id);
+        if (!post) return Promise.reject(new Error("post-not-found"));
+        const zoned = utcIsoToZonedLocalDate(post.scheduledAt, tz);
+        const newZoned = new Date(zoned);
+        newZoned.setDate(newZoned.getDate() + deltaDays);
+        const newIso = zonedLocalToUtcIso(
+          newZoned.getFullYear(),
+          newZoned.getMonth(),
+          newZoned.getDate(),
+          newZoned.getHours(),
+          newZoned.getMinutes(),
+          tz
+        );
+        return fetch(`/api/social/schedule/${id}/reschedule`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyId, newScheduledAt: newIso }),
+        });
+      })
+    );
+    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)).length;
+    if (failed > 0) {
+      setError(`${failed} de ${ids.length} reagendamento(s) falharam.`);
+    }
+    await fetchPosts();
+    exitSelectionMode();
+    setIsBulkWorking(false);
+  };
+
+  const scheduledPostsInView = useMemo(
+    () => filteredPosts.filter((p) => p.status === "scheduled"),
+    [filteredPosts]
+  );
 
   const isToday = (date: Date) => {
     return (
@@ -362,7 +472,125 @@ export function EditorialCalendar({
               );
             })}
           </div>
+
+          <div className="ml-auto">
+            <Button
+              type="button"
+              size="sm"
+              variant={selectionMode ? "default" : "secondary"}
+              onClick={() => {
+                if (selectionMode) {
+                  exitSelectionMode();
+                } else {
+                  setSelectionMode(true);
+                }
+              }}
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              {selectionMode ? "Sair da seleção" : "Selecionar múltiplos"}
+            </Button>
+          </div>
         </div>
+
+        {/* Bulk actions panel */}
+        {selectionMode && (
+          <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <p className="text-sm font-medium text-[var(--color-text)]">
+                {selectedIds.size} selecionado(s) de {scheduledPostsInView.length} agendado(s)
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setSelectedIds(new Set(scheduledPostsInView.map((p) => p.id)))
+                  }
+                  disabled={scheduledPostsInView.length === 0}
+                >
+                  Selecionar todos
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleBulkReschedule(1)}
+                  disabled={selectedIds.size === 0 || isBulkWorking}
+                >
+                  +1 dia
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleBulkReschedule(7)}
+                  disabled={selectedIds.size === 0 || isBulkWorking}
+                >
+                  +1 semana
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleBulkCancel}
+                  disabled={selectedIds.size === 0 || isBulkWorking}
+                  className="bg-[var(--color-danger)] text-white hover:bg-[var(--color-danger)]/80"
+                >
+                  {isBulkWorking ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  Cancelar selecionados
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={exitSelectionMode}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {scheduledPostsInView.length === 0 ? (
+              <p className="text-xs text-[var(--color-text-tertiary)]">
+                Nenhum post agendado no período atual.
+              </p>
+            ) : (
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {scheduledPostsInView.map((post) => {
+                  const checked = selectedIds.has(post.id);
+                  const when = utcIsoToZonedLocalDate(post.scheduledAt, tz);
+                  const label = `${when.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} ${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+                  return (
+                    <label
+                      key={post.id}
+                      className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--color-surface)] cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSelection(post.id)}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-xs text-[var(--color-text-tertiary)] min-w-[80px]">
+                        {label}
+                      </span>
+                      <span className="text-xs text-[var(--color-text-secondary)] truncate flex-1">
+                        {post.caption?.slice(0, 80) ?? "(sem legenda)"}
+                      </span>
+                      <span className="text-xs text-[var(--color-text-tertiary)]">
+                        {post.platforms.join(", ")}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </CardHeader>
 
       <CardContent>
@@ -394,7 +622,7 @@ export function EditorialCalendar({
             {/* Calendar grid */}
             <div className="grid grid-cols-7 gap-1">
               {calendarDays.map((date, index) => {
-                const dateKey = date.toISOString().slice(0, 10);
+                const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
                 const dayPosts = postsByDate.get(dateKey) ?? [];
 
                 return (
@@ -443,11 +671,15 @@ export function EditorialCalendar({
             errorDetails: {},
             publishedAt: null,
             createdAt: selectedPost.scheduledAt,
-            qstashMessageId: null,
             thumbnailUrl: selectedPost.thumbnailUrl,
             thumbnailType: null,
           }}
+          companyId={companyId}
           onClose={() => setSelectedPost(null)}
+          onRefresh={() => {
+            fetchPosts();
+            setSelectedPost(null);
+          }}
         />
       )}
     </Card>

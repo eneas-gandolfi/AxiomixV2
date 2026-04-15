@@ -9,7 +9,12 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
-import { cancelScheduledPost, SocialPublisherError } from "@/services/social/publisher";
+import {
+  cancelScheduledPost,
+  SocialPublisherError,
+  updateScheduledPost,
+} from "@/services/social/publisher";
+import type { SocialPlatform } from "@/types/modules/social-publisher.types";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +43,48 @@ function socialErrorResponse(error: unknown) {
 
   const detail = error instanceof Error ? error.message : "Erro inesperado.";
   return NextResponse.json({ error: detail, code: "SOCIAL_CANCEL_ERROR" }, { status: 500 });
+}
+
+const patchSchema = z.object({
+  companyId: z.string().uuid("companyId invalido.").optional(),
+  caption: z.string().nullable().optional(),
+  platforms: z.array(z.enum(["instagram", "linkedin", "tiktok", "facebook"])).optional(),
+});
+
+export async function PATCH(request: NextRequest, context: RouteContext) {
+  try {
+    const response = NextResponse.json({ ok: true });
+    const supabase = createSupabaseRouteHandlerClient(request, response);
+    const params = await context.params;
+    const parsedParams = routeParamsSchema.safeParse(params);
+    if (!parsedParams.success) {
+      return NextResponse.json(
+        { error: parsedParams.error.issues[0]?.message ?? "Parametro invalido.", code: "VALIDATION_ERROR" },
+        { status: 400 }
+      );
+    }
+
+    const raw: unknown = await request.json().catch(() => ({}));
+    const parsed = patchSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Payload invalido.", code: "VALIDATION_ERROR" },
+        { status: 400 }
+      );
+    }
+
+    const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
+    const updated = await updateScheduledPost({
+      companyId: access.companyId,
+      scheduledPostId: parsedParams.data.id,
+      caption: parsed.data.caption,
+      platforms: parsed.data.platforms as SocialPlatform[] | undefined,
+    });
+
+    return NextResponse.json({ companyId: access.companyId, post: updated });
+  } catch (error) {
+    return socialErrorResponse(error);
+  }
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {

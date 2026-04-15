@@ -22,10 +22,45 @@ import type {
   SocialPublishStatus,
 } from "@/types/modules/social-publisher.types";
 
-const MEDIA_BUCKET = "Axiomix - v2";
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const VIDEO_TYPES = new Set(["video/mp4", "video/quicktime"]);
 const SUPPORTED_PLATFORMS = new Set<SocialPlatform>(["instagram", "linkedin", "tiktok", "facebook"]);
+
+// Limites de midia por plataforma (fonte: docs publicas das redes / Upload-Post).
+// bytes: maximo em bytes; videoSeconds: [min, max]; aspect: [min, max] (width/height).
+type PlatformMediaLimits = {
+  imageBytes: number;
+  videoBytes: number;
+  videoSeconds: [number, number];
+  aspect: [number, number];
+};
+
+const PLATFORM_LIMITS: Record<SocialPlatform, PlatformMediaLimits> = {
+  instagram: {
+    imageBytes: 8 * 1024 * 1024,
+    videoBytes: 100 * 1024 * 1024,
+    videoSeconds: [3, 90],
+    aspect: [0.8, 1.91],
+  },
+  tiktok: {
+    imageBytes: 20 * 1024 * 1024,
+    videoBytes: 287 * 1024 * 1024,
+    videoSeconds: [3, 600],
+    aspect: [0.5, 1.78],
+  },
+  linkedin: {
+    imageBytes: 10 * 1024 * 1024,
+    videoBytes: 200 * 1024 * 1024,
+    videoSeconds: [3, 600],
+    aspect: [0.4, 2.4],
+  },
+  facebook: {
+    imageBytes: 30 * 1024 * 1024,
+    videoBytes: 1024 * 1024 * 1024,
+    videoSeconds: [1, 14400],
+    aspect: [0.25, 4],
+  },
+};
 
 export class SocialPublisherError extends Error {
   code: string;
@@ -76,7 +111,6 @@ type ScheduledPostSummary = {
   errorDetails: PublishErrorMap;
   publishedAt: string | null;
   createdAt: string;
-  qstashMessageId: string | null;
   mediaFileIds: string[];
 };
 
@@ -124,11 +158,6 @@ function normalizeIsoDate(value: string) {
     return new Date().toISOString();
   }
   return parsed.toISOString();
-}
-
-function sanitizeFileName(fileName: string) {
-  const normalized = fileName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  return normalized.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
 function safeJsonObject(value: unknown): Record<string, Json> {
@@ -271,25 +300,65 @@ function ensurePostTypeMediaRules(postType: SocialPostType, mediaFiles: Uploaded
   }
 }
 
-async function ensureStorageBucket() {
-  const supabase = createSupabaseAdminClient();
-  const { data: existingBucket } = await supabase.storage.getBucket(MEDIA_BUCKET);
+type MediaMetadata = {
+  fileSize: number;
+  fileType: string;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+};
 
-  if (existingBucket?.name) {
-    return;
-  }
+function formatBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)}GB` : `${mb.toFixed(0)}MB`;
+}
 
-  const { error: createError } = await supabase.storage.createBucket(MEDIA_BUCKET, {
-    public: true,
-    fileSizeLimit: 60 * 1024 * 1024,
-  });
+function validateMediaForPlatforms(
+  platforms: SocialPlatform[],
+  metas: MediaMetadata[]
+) {
+  for (const platform of platforms) {
+    const limits = PLATFORM_LIMITS[platform];
+    for (const meta of metas) {
+      const isVideo = meta.fileType.startsWith("video/");
+      const maxBytes = isVideo ? limits.videoBytes : limits.imageBytes;
 
-  if (createError && !createError.message.toLowerCase().includes("already exists")) {
-    throw new SocialPublisherError(
-      "Falha ao preparar bucket de mídia.",
-      "MEDIA_BUCKET_ERROR",
-      500
-    );
+      if (meta.fileSize > maxBytes) {
+        throw new SocialPublisherError(
+          `Arquivo acima do limite da ${platform}: ${formatBytes(meta.fileSize)} (max ${formatBytes(maxBytes)}).`,
+          "INVALID_MEDIA_SIZE",
+          400
+        );
+      }
+
+      if (isVideo && typeof meta.duration === "number" && meta.duration > 0) {
+        const [minS, maxS] = limits.videoSeconds;
+        if (meta.duration < minS || meta.duration > maxS) {
+          throw new SocialPublisherError(
+            `Duracao fora do limite da ${platform}: ${Math.round(meta.duration)}s (permitido ${minS}-${maxS}s).`,
+            "INVALID_MEDIA_DURATION",
+            400
+          );
+        }
+      }
+
+      if (
+        typeof meta.width === "number" &&
+        typeof meta.height === "number" &&
+        meta.width > 0 &&
+        meta.height > 0
+      ) {
+        const aspect = meta.width / meta.height;
+        const [minA, maxA] = limits.aspect;
+        if (aspect < minA || aspect > maxA) {
+          throw new SocialPublisherError(
+            `Aspect ratio incompativel com ${platform}: ${aspect.toFixed(2)} (permitido ${minA}-${maxA}).`,
+            "INVALID_MEDIA_ASPECT",
+            400
+          );
+        }
+      }
+    }
   }
 }
 
@@ -297,63 +366,37 @@ async function storeMediaFiles(
   companyId: string,
   mediaFiles: UploadedMediaFile[]
 ): Promise<StoredMediaRow[]> {
-  await ensureStorageBucket();
   const supabase = createSupabaseAdminClient();
 
-  // 1. Upload ao Supabase Storage (backup)
-  const supabaseResults: Array<{ storagePath: string; publicUrl: string }> = [];
-  for (const mediaFile of mediaFiles) {
-    const timestampPrefix = new Date().toISOString().slice(0, 10);
-    const safeName = sanitizeFileName(mediaFile.fileName);
-    const storagePath = `${companyId}/${timestampPrefix}/${crypto.randomUUID()}-${safeName}`;
-    const uploadBuffer = Buffer.from(mediaFile.arrayBuffer);
+  // Upload ao Cloudinary (unico primario — Supabase Storage removido em 2026-04).
+  const cloudinaryResults = await uploadMediaToCloudinary(companyId, mediaFiles);
 
-    const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(storagePath, uploadBuffer, {
-      contentType: mediaFile.fileType,
-      upsert: false,
-    });
-
-    if (uploadError) {
+  const insertRows: Array<Database["public"]["Tables"]["media_files"]["Insert"]> = [];
+  for (let i = 0; i < mediaFiles.length; i++) {
+    const mediaFile = mediaFiles[i];
+    const cloudinaryItem = cloudinaryResults[i];
+    if (!cloudinaryItem?.secureUrl) {
       throw new SocialPublisherError(
-        "Falha ao enviar arquivo para o Storage.",
+        "Upload do Cloudinary retornou resultado invalido.",
         "MEDIA_UPLOAD_ERROR",
         500
       );
     }
-
-    const { data: publicUrlData } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
-    supabaseResults.push({ storagePath, publicUrl: publicUrlData.publicUrl });
-  }
-
-  // 2. Upload ao Cloudinary (primário — CDN)
-  let cloudinaryResults: Awaited<ReturnType<typeof uploadMediaToCloudinary>> | null = null;
-  try {
-    cloudinaryResults = await uploadMediaToCloudinary(companyId, mediaFiles);
-  } catch (error) {
-    console.error("[SocialPublisher] Cloudinary upload falhou, usando Supabase como fallback:", error);
-  }
-
-  // 3. Inserir no banco — Cloudinary como public_url primária, Supabase como backup
-  const insertRows: Array<Database["public"]["Tables"]["media_files"]["Insert"]> = [];
-  for (let i = 0; i < mediaFiles.length; i++) {
-    const mediaFile = mediaFiles[i];
-    const supabaseItem = supabaseResults[i];
-    const cloudinaryItem = cloudinaryResults?.[i];
 
     insertRows.push({
       company_id: companyId,
       file_name: mediaFile.fileName,
       file_type: mediaFile.fileType,
       file_size: mediaFile.fileSize,
-      storage_path: supabaseItem.storagePath,
-      public_url: cloudinaryItem?.secureUrl ?? supabaseItem.publicUrl,
-      cloudinary_public_id: cloudinaryItem?.publicId ?? null,
-      cloudinary_format: cloudinaryItem?.format ?? null,
-      width: cloudinaryItem?.width ?? null,
-      height: cloudinaryItem?.height ?? null,
-      duration: cloudinaryItem?.duration ?? null,
-      resource_type: cloudinaryItem?.resourceType ?? null,
-      thumbnail_url: cloudinaryItem?.thumbnailUrl ?? null,
+      storage_path: `cloudinary:${cloudinaryItem.publicId}`,
+      public_url: cloudinaryItem.secureUrl,
+      cloudinary_public_id: cloudinaryItem.publicId,
+      cloudinary_format: cloudinaryItem.format ?? null,
+      width: cloudinaryItem.width ?? null,
+      height: cloudinaryItem.height ?? null,
+      duration: cloudinaryItem.duration ?? null,
+      resource_type: cloudinaryItem.resourceType ?? null,
+      thumbnail_url: cloudinaryItem.thumbnailUrl ?? null,
       tags: [companyId, "social-publisher"],
     });
   }
@@ -365,7 +408,7 @@ async function storeMediaFiles(
 
   if (insertError) {
     throw new SocialPublisherError(
-      "Falha ao registrar arquivos de mídia.",
+      "Falha ao registrar arquivos de midia.",
       "MEDIA_REGISTER_ERROR",
       500
     );
@@ -491,6 +534,8 @@ async function getUploadPostConfig(companyId: string): Promise<UploadPostConfig>
   };
 }
 
+const UPLOAD_POST_TIMEOUT_MS = 60_000;
+
 async function publishToPlatform(input: {
   companyId: string;
   scheduledPostId: string;
@@ -501,22 +546,36 @@ async function publishToPlatform(input: {
   config: UploadPostConfig;
 }) {
   const config = input.config;
-  const response = await fetch(`${config.baseUrl}/publish`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      scheduledPostId: input.scheduledPostId,
-      companyId: input.companyId,
-      profileId: config.profileId ?? null,
-      platform: input.platform,
-      postType: input.postType,
-      caption: input.caption ?? "",
-      mediaUrls: input.mediaUrls,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_POST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${config.baseUrl}/publish`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        scheduledPostId: input.scheduledPostId,
+        companyId: input.companyId,
+        profileId: config.profileId ?? null,
+        platform: input.platform,
+        postType: input.postType,
+        caption: input.caption ?? "",
+        mediaUrls: input.mediaUrls,
+      }),
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`Timeout ao publicar em ${input.platform} apos ${UPLOAD_POST_TIMEOUT_MS / 1000}s.`);
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const detail = await response.text();
@@ -559,7 +618,6 @@ function normalizeScheduledPostSummary(
     errorDetails: parseErrorMap(row.error_details),
     publishedAt: row.published_at ?? null,
     createdAt: row.created_at ?? new Date().toISOString(),
-    qstashMessageId: row.qstash_message_id ?? null,
     mediaFileIds: row.media_file_ids,
   };
 }
@@ -580,7 +638,7 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
     const supabase = createSupabaseAdminClient();
     const { data: existingFiles, error: fetchError } = await supabase
       .from("media_files")
-      .select("id")
+      .select("id, file_type, file_size, width, height, duration")
       .eq("company_id", input.companyId)
       .in("id", input.existingMediaFileIds);
 
@@ -600,9 +658,29 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
       );
     }
 
+    validateMediaForPlatforms(
+      input.platforms,
+      existingFiles.map((item) => ({
+        fileType: item.file_type,
+        fileSize: item.file_size,
+        width: item.width,
+        height: item.height,
+        duration: item.duration,
+      }))
+    );
+
     mediaFileIds = input.existingMediaFileIds;
   } else {
     ensurePostTypeMediaRules(input.postType, input.mediaFiles);
+
+    // Pre-validacao usando o tamanho em bytes (aspect/duracao so apos upload ao Cloudinary).
+    validateMediaForPlatforms(
+      input.platforms,
+      input.mediaFiles.map((item) => ({
+        fileType: item.fileType,
+        fileSize: item.fileSize,
+      }))
+    );
 
     const storedMediaFiles = await storeMediaFiles(input.companyId, input.mediaFiles);
     if (storedMediaFiles.length === 0) {
@@ -614,6 +692,32 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
     }
 
     mediaFileIds = storedMediaFiles.map((item) => item.id);
+
+    // Apos upload, validamos novamente com metadados (aspect/duracao) do Cloudinary.
+    const supabaseMeta = createSupabaseAdminClient();
+    const { data: metaRows } = await supabaseMeta
+      .from("media_files")
+      .select("id, file_type, file_size, width, height, duration")
+      .in("id", mediaFileIds);
+
+    if (metaRows && metaRows.length > 0) {
+      try {
+        validateMediaForPlatforms(
+          input.platforms,
+          metaRows.map((item) => ({
+            fileType: item.file_type,
+            fileSize: item.file_size,
+            width: item.width,
+            height: item.height,
+            duration: item.duration,
+          }))
+        );
+      } catch (validationError) {
+        // Rollback: remover os media_files recem-criados
+        await supabaseMeta.from("media_files").delete().in("id", mediaFileIds);
+        throw validationError;
+      }
+    }
   }
 
   const supabase = createSupabaseAdminClient();
@@ -635,7 +739,7 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
       error_details: {},
     })
     .select(
-      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, attempt_count, created_at"
+      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, attempt_count, updated_at, created_at"
     )
     .single();
 
@@ -674,7 +778,7 @@ export async function listScheduledPosts(input: ListScheduledPostsInput): Promis
   let query = supabase
     .from("scheduled_posts")
     .select(
-      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, attempt_count, created_at",
+      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, attempt_count, updated_at, created_at",
       { count: "exact" }
     )
     .eq("company_id", input.companyId)
@@ -780,7 +884,7 @@ export async function cancelScheduledPost(companyId: string, scheduledPostId: st
     .eq("id", row.id)
     .eq("company_id", companyId)
     .select(
-      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, attempt_count, created_at"
+      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, attempt_count, updated_at, created_at"
     )
     .single();
 
@@ -1051,6 +1155,19 @@ export async function publishScheduledPost(input: {
     const delay = BACKOFF_MS[nextAttempt - 1] ?? 60_000;
     retryScheduledAt = new Date(Date.now() + delay).toISOString();
     finalStatus = "scheduled";
+    console.warn("[social-publisher] retry scheduled", {
+      scheduledPostId: processingPostId,
+      attempt: nextAttempt,
+      maxAttempts: MAX_ATTEMPTS,
+      nextRunAt: retryScheduledAt,
+      errors: errorDetails,
+    });
+  } else if (finalStatus === "failed") {
+    console.error("[social-publisher] retries esgotados", {
+      scheduledPostId: processingPostId,
+      attempts: nextAttempt,
+      errors: errorDetails,
+    });
   }
 
   const nowIso = new Date().toISOString();
@@ -1268,7 +1385,7 @@ export async function reschedulePost(input: ReschedulePostInput) {
     .eq("id", row.id)
     .eq("company_id", input.companyId)
     .select(
-      "id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, attempt_count, created_at"
+      "id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, attempt_count, updated_at, created_at"
     )
     .single();
 
@@ -1284,4 +1401,168 @@ export async function reschedulePost(input: ReschedulePostInput) {
     ...updated,
     company_id: input.companyId,
   });
+}
+
+type RetryScheduledPostInput = {
+  companyId: string;
+  scheduledPostId: string;
+};
+
+/**
+ * Reenfileira um post em status `failed` ou `partial` para ser publicado imediatamente pelo poller.
+ * Mantem o `progress` para pular plataformas ja publicadas com sucesso.
+ */
+export async function retryScheduledPost(input: RetryScheduledPostInput) {
+  const supabase = createSupabaseAdminClient();
+  const { data: row, error } = await supabase
+    .from("scheduled_posts")
+    .select("id, company_id, status")
+    .eq("id", input.scheduledPostId)
+    .eq("company_id", input.companyId)
+    .maybeSingle();
+
+  if (error || !row?.id) {
+    throw new SocialPublisherError(
+      "Agendamento nao encontrado.",
+      "SCHEDULE_NOT_FOUND",
+      404
+    );
+  }
+
+  if (row.status !== "failed" && row.status !== "partial") {
+    throw new SocialPublisherError(
+      "Apenas posts com status failed ou partial podem ser reexecutados.",
+      "INVALID_RETRY_STATUS",
+      409
+    );
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("scheduled_posts")
+    .update({
+      status: "scheduled",
+      scheduled_at: new Date().toISOString(),
+      attempt_count: 0,
+    })
+    .eq("id", row.id)
+    .eq("company_id", input.companyId)
+    .select(
+      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, attempt_count, updated_at, created_at"
+    )
+    .single();
+
+  if (updateError || !updated) {
+    throw new SocialPublisherError(
+      "Falha ao reexecutar post.",
+      "RETRY_ERROR",
+      500
+    );
+  }
+
+  return normalizeScheduledPostSummary(updated);
+}
+
+type UpdateScheduledPostInput = {
+  companyId: string;
+  scheduledPostId: string;
+  caption?: string | null;
+  platforms?: SocialPlatform[];
+};
+
+/**
+ * Edita metadados leves (caption, platforms) de um post agendado.
+ * Somente posts com status `scheduled` podem ser editados.
+ */
+export async function updateScheduledPost(input: UpdateScheduledPostInput) {
+  const supabase = createSupabaseAdminClient();
+  const { data: row, error } = await supabase
+    .from("scheduled_posts")
+    .select("id, company_id, status, media_file_ids")
+    .eq("id", input.scheduledPostId)
+    .eq("company_id", input.companyId)
+    .maybeSingle();
+
+  if (error || !row?.id) {
+    throw new SocialPublisherError(
+      "Agendamento nao encontrado.",
+      "SCHEDULE_NOT_FOUND",
+      404
+    );
+  }
+
+  if (row.status !== "scheduled") {
+    throw new SocialPublisherError(
+      "Somente posts com status scheduled podem ser editados.",
+      "INVALID_EDIT_STATUS",
+      409
+    );
+  }
+
+  const update: Database["public"]["Tables"]["scheduled_posts"]["Update"] = {};
+  if (typeof input.caption === "string" || input.caption === null) {
+    update.caption = input.caption;
+  }
+  if (input.platforms && input.platforms.length > 0) {
+    const unique = Array.from(new Set(input.platforms)).filter((p) =>
+      SUPPORTED_PLATFORMS.has(p)
+    );
+    if (unique.length === 0) {
+      throw new SocialPublisherError(
+        "Selecione ao menos uma plataforma valida.",
+        "PLATFORMS_REQUIRED",
+        400
+      );
+    }
+    update.platforms = unique as unknown as Json;
+    // Revalida regras de midia contra as novas plataformas
+    const mediaIds = parseUuidArray(row.media_file_ids);
+    if (mediaIds.length > 0) {
+      const { data: mediaMeta } = await supabase
+        .from("media_files")
+        .select("file_type, file_size, width, height, duration")
+        .in("id", mediaIds);
+      if (mediaMeta && mediaMeta.length > 0) {
+        validateMediaForPlatforms(
+          unique,
+          mediaMeta.map((item) => ({
+            fileType: item.file_type,
+            fileSize: item.file_size,
+            width: item.width,
+            height: item.height,
+            duration: item.duration,
+          }))
+        );
+      }
+    }
+    // Reseta progress para as novas plataformas
+    update.progress = createInitialProgress(unique);
+  }
+
+  if (Object.keys(update).length === 0) {
+    throw new SocialPublisherError(
+      "Nenhum campo para atualizar.",
+      "NO_UPDATE_FIELDS",
+      400
+    );
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("scheduled_posts")
+    .update(update)
+    .eq("id", row.id)
+    .eq("company_id", input.companyId)
+    .select(
+      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, attempt_count, updated_at, created_at"
+    )
+    .single();
+
+  if (updateError || !updated) {
+    throw new SocialPublisherError(
+      "Falha ao atualizar agendamento.",
+      "UPDATE_ERROR",
+      500
+    );
+  }
+
+  return normalizeScheduledPostSummary(updated);
 }

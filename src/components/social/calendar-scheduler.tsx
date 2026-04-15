@@ -12,6 +12,13 @@ import { ChevronLeft, ChevronRight, Calendar, Clock, Globe, TrendingUp } from "l
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlatformIcon, PLATFORM_LABELS } from "./platform-icons";
+import {
+  DEFAULT_COMPANY_TIMEZONE,
+  formatInTimezone,
+  friendlyTimezoneLabel,
+  utcIsoToZonedLocalDate,
+  zonedLocalToUtcIso,
+} from "@/lib/social/timezone";
 import type { SocialPlatform } from "@/types/modules/social-publisher.types";
 
 type CalendarSchedulerProps = {
@@ -19,6 +26,7 @@ type CalendarSchedulerProps = {
   onDateChange: (date: Date) => void;
   scheduledPosts?: Date[];
   selectedPlatforms?: SocialPlatform[];
+  companyTimezone?: string;
 };
 
 const MONTHS = [
@@ -43,39 +51,24 @@ const PLATFORM_BEST_TIMES: Record<SocialPlatform, { ranges: { start: number; end
   facebook: { ranges: [{ start: 13, end: 16 }] },
 };
 
-const FRIENDLY_TZ_NAMES: Record<string, string> = {
-  "America/Sao_Paulo": "Brasília",
-  "America/Fortaleza": "Fortaleza",
-  "America/Manaus": "Manaus",
-  "America/Belem": "Belém",
-  "America/Cuiaba": "Cuiabá",
-  "America/Recife": "Recife",
-  "America/Bahia": "Bahia",
-  "America/Porto_Velho": "Porto Velho",
-  "America/Rio_Branco": "Rio Branco",
-  "America/Noronha": "Fernando de Noronha",
-  "America/Campo_Grande": "Campo Grande",
-};
-
 export function CalendarScheduler({
   selectedDate,
   onDateChange,
   scheduledPosts = [],
   selectedPlatforms = [],
+  companyTimezone = DEFAULT_COMPANY_TIMEZONE,
 }: CalendarSchedulerProps) {
+  const tz = companyTimezone;
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedHour, setSelectedHour] = useState(12);
   const [selectedMinute, setSelectedMinute] = useState(0);
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
 
-  const timezoneInfo = useMemo(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const offset = new Date().getTimezoneOffset();
-    const hours = Math.abs(Math.floor(offset / 60));
-    const sign = offset <= 0 ? "+" : "-";
-    const label = FRIENDLY_TZ_NAMES[tz] || tz.split("/").pop()?.replace(/_/g, " ") || tz;
-    return `${label} (GMT${sign}${hours})`;
-  }, []);
+  const timezoneInfo = useMemo(() => friendlyTimezoneLabel(tz), [tz]);
+
+  // Constroi um Date cujo instante UTC corresponde a `y-mo-d h:mi` no fuso da empresa.
+  const buildZonedDate = (year: number, monthIndex: number, day: number, hour: number, minute: number) =>
+    new Date(zonedLocalToUtcIso(year, monthIndex, day, hour, minute, tz));
 
   const recommendedHours = useMemo(() => {
     if (selectedPlatforms.length === 0) return new Set<number>();
@@ -144,11 +137,11 @@ export function CalendarScheduler({
   };
 
   const isSelectedDay = (date: Date | null) => {
-    if (!date || !selectedDate) return false;
+    if (!date || !zonedSelected) return false;
     return (
-      date.getDate() === selectedDate.getDate() &&
-      date.getMonth() === selectedDate.getMonth() &&
-      date.getFullYear() === selectedDate.getFullYear()
+      date.getDate() === zonedSelected.getDate() &&
+      date.getMonth() === zonedSelected.getMonth() &&
+      date.getFullYear() === zonedSelected.getFullYear()
     );
   };
 
@@ -177,16 +170,35 @@ export function CalendarScheduler({
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   };
 
+  // Extrai os campos locais (no TZ da empresa) de uma data UTC ja selecionada.
+  const zonedSelected = useMemo(
+    () => (selectedDate ? utcIsoToZonedLocalDate(selectedDate.toISOString(), tz) : null),
+    [selectedDate, tz]
+  );
+
   const handleSelectDay = (date: Date | null) => {
     if (!date || isPast(date)) return;
 
-    const newDate = new Date(date);
-    newDate.setHours(selectedHour, selectedMinute, 0, 0);
+    let newDate = buildZonedDate(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      selectedHour,
+      selectedMinute
+    );
 
     const now = new Date();
     if (newDate < now) {
-      const nextHour = now.getHours() + 1;
-      newDate.setHours(nextHour >= 24 ? 23 : nextHour, 0, 0, 0);
+      // Pula para a proxima hora cheia disponivel no TZ da empresa.
+      const zonedNow = utcIsoToZonedLocalDate(now.toISOString(), tz);
+      const nextHour = zonedNow.getHours() + 1 >= 24 ? 23 : zonedNow.getHours() + 1;
+      newDate = buildZonedDate(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        nextHour,
+        0
+      );
     }
 
     onDateChange(newDate);
@@ -196,28 +208,46 @@ export function CalendarScheduler({
     setSelectedHour(hour);
     setSelectedMinute(minute);
 
-    if (selectedDate) {
-      const newDate = new Date(selectedDate);
-      newDate.setHours(hour, minute, 0, 0);
-      onDateChange(newDate);
+    if (zonedSelected) {
+      onDateChange(
+        buildZonedDate(
+          zonedSelected.getFullYear(),
+          zonedSelected.getMonth(),
+          zonedSelected.getDate(),
+          hour,
+          minute
+        )
+      );
     }
   };
 
   const handleHourChange = (hour: number) => {
     setSelectedHour(hour);
-    if (selectedDate) {
-      const newDate = new Date(selectedDate);
-      newDate.setHours(hour, selectedMinute, 0, 0);
-      onDateChange(newDate);
+    if (zonedSelected) {
+      onDateChange(
+        buildZonedDate(
+          zonedSelected.getFullYear(),
+          zonedSelected.getMonth(),
+          zonedSelected.getDate(),
+          hour,
+          selectedMinute
+        )
+      );
     }
   };
 
   const handleMinuteChange = (minute: number) => {
     setSelectedMinute(minute);
-    if (selectedDate) {
-      const newDate = new Date(selectedDate);
-      newDate.setHours(selectedHour, minute, 0, 0);
-      onDateChange(newDate);
+    if (zonedSelected) {
+      onDateChange(
+        buildZonedDate(
+          zonedSelected.getFullYear(),
+          zonedSelected.getMonth(),
+          zonedSelected.getDate(),
+          selectedHour,
+          minute
+        )
+      );
     }
   };
 
@@ -512,14 +542,14 @@ export function CalendarScheduler({
             </div>
           </div>
 
-          {/* Preview do horário selecionado */}
+          {/* Preview do horário selecionado no TZ da empresa */}
           {selectedDate && (
             <div className="rounded-lg bg-primary-light border border-primary p-3">
               <p className="text-xs font-medium text-primary mb-1">
                 Agendado para:
               </p>
               <p className="text-sm font-semibold text-text">
-                {selectedDate.toLocaleDateString("pt-BR", {
+                {formatInTimezone(selectedDate.toISOString(), tz, {
                   weekday: "long",
                   day: "2-digit",
                   month: "long",
@@ -527,7 +557,7 @@ export function CalendarScheduler({
                 })}
               </p>
               <p className="text-sm font-semibold text-text">
-                às {selectedDate.toLocaleTimeString("pt-BR", {
+                às {formatInTimezone(selectedDate.toISOString(), tz, {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
