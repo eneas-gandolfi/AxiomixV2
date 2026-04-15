@@ -201,53 +201,69 @@ export async function generateSalesAlert(
     .maybeSingle();
 
   if (!config || !config.is_active) {
+    console.log("[proactive] sales_alert skip", { configId, reason: "config inativa" });
     return { success: false, action: "sales_alert", responseText: "", error: "Config inativa" };
   }
 
-  const today = new Date();
-  const yesterday = new Date(today.getTime() - 24 * 60 * 60_000);
-  const twoDaysAgo = new Date(today.getTime() - 48 * 60 * 60_000);
+  const now = new Date();
+  const yesterdayStart = new Date(now.getTime() - 24 * 60 * 60_000);
+  const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60_000);
 
   const [todayResult, yesterdayResult] = await Promise.all([
     supabase
-      .from("conversation_insights")
-      .select("sentiment, intent, sales_stage")
-      .eq("company_id", companyId)
-      .gte("generated_at", yesterday.toISOString())
-      .lt("generated_at", today.toISOString()),
+      .from("group_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("config_id", configId)
+      .gte("sent_at", yesterdayStart.toISOString())
+      .lt("sent_at", now.toISOString()),
     supabase
-      .from("conversation_insights")
-      .select("sentiment, intent, sales_stage")
-      .eq("company_id", companyId)
-      .gte("generated_at", twoDaysAgo.toISOString())
-      .lt("generated_at", yesterday.toISOString()),
+      .from("group_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("config_id", configId)
+      .gte("sent_at", twoDaysAgo.toISOString())
+      .lt("sent_at", yesterdayStart.toISOString()),
   ]);
 
-  const todayCount = todayResult.data?.length ?? 0;
-  const yesterdayCount = yesterdayResult.data?.length ?? 0;
+  const todayCount = todayResult.count ?? 0;
+  const yesterdayCount = yesterdayResult.count ?? 0;
 
-  if (yesterdayCount === 0) {
-    return { success: false, action: "sales_alert", responseText: "", error: "Sem dados de comparacao" };
+  console.log("[proactive] sales_alert", { configId, todayCount, yesterdayCount });
+
+  if (todayCount === 0 && yesterdayCount === 0) {
+    return {
+      success: false,
+      action: "sales_alert",
+      responseText: "",
+      error: "Sem mensagens nos ultimos 2 dias",
+    };
   }
 
-  const variation = ((todayCount - yesterdayCount) / yesterdayCount) * 100;
+  // Se ontem nao teve nada mas hoje teve, considera aumento de 100% (evita divisao por zero).
+  const variation =
+    yesterdayCount === 0
+      ? 100
+      : ((todayCount - yesterdayCount) / yesterdayCount) * 100;
 
   if (Math.abs(variation) < 20) {
+    console.log("[proactive] sales_alert skip", {
+      configId,
+      reason: "variacao < 20%",
+      variation: Math.round(variation),
+    });
     return { success: false, action: "sales_alert", responseText: "", error: "Sem variacao significativa" };
   }
-
-  const todayPositive = todayResult.data?.filter((i) => i.sentiment === "positivo").length ?? 0;
-  const yesterdayPositive = yesterdayResult.data?.filter((i) => i.sentiment === "positivo").length ?? 0;
 
   const direction = variation > 0 ? "aumento" : "queda";
   const emoji = variation > 0 ? "\u{1F4C8}" : "\u{1F4C9}";
 
-  const alertText = `*Alerta de Vendas* ${emoji}
+  const alertText = `*Alerta de volume* ${emoji}
 
-${direction.charAt(0).toUpperCase() + direction.slice(1)} de *${Math.abs(Math.round(variation))}%* nas conversas analisadas.
+${direction.charAt(0).toUpperCase() + direction.slice(1)} de *${Math.abs(Math.round(variation))}%* no volume de conversas do grupo.
 
-- Ontem: ${yesterdayCount} conversas (${yesterdayPositive} positivas)
-- Hoje: ${todayCount} conversas (${todayPositive} positivas)
+- Ontem: ${yesterdayCount} mensagens
+- Hoje: ${todayCount} mensagens
+
+${variation > 0 ? "_Bom momento para engajar e puxar conversa com a galera!_" : "_Que tal instigar o grupo com uma pergunta hoje?_"}
 
 _Gerado automaticamente por ${config.agent_name}_`;
 
