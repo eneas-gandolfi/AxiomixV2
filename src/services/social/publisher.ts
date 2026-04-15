@@ -534,73 +534,232 @@ async function getUploadPostConfig(companyId: string): Promise<UploadPostConfig>
   };
 }
 
-const UPLOAD_POST_TIMEOUT_MS = 60_000;
+const UPLOAD_POST_TIMEOUT_MS = 120_000;
 
-async function publishToPlatform(input: {
+type UploadPostPublishResult = {
+  ok: boolean;
+  externalPostId?: string;
+  error?: string;
+};
+
+/**
+ * Baixa uma midia publica (Cloudinary) e retorna como File para multipart.
+ */
+async function downloadMediaAsFile(url: string, fallbackName: string): Promise<File> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Falha ao baixar midia (${res.status}): ${url}`);
+  }
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  const blob = await res.blob();
+  const extFromContent = contentType.split("/")[1]?.split(";")[0] ?? "bin";
+  const nameHasExt = /\.[a-z0-9]+$/i.test(fallbackName);
+  const finalName = nameHasExt ? fallbackName : `${fallbackName}.${extFromContent}`;
+  return new File([blob], finalName, { type: contentType });
+}
+
+function pickEndpoint(postType: SocialPostType): string {
+  // video -> /api/upload ; photo/carousel -> /api/upload_photos
+  return postType === "video" ? "/api/upload" : "/api/upload_photos";
+}
+
+/**
+ * Publica um post em todas as plataformas numa unica chamada a Upload-Post API.
+ * Retorna o mapa {platform -> resultado}, nao lanca erro (falhas viram .error).
+ */
+async function publishToUploadPost(input: {
   companyId: string;
   scheduledPostId: string;
-  platform: SocialPlatform;
+  platforms: SocialPlatform[];
   postType: SocialPostType;
   caption: string | null;
   mediaUrls: string[];
   config: UploadPostConfig;
-}) {
-  const config = input.config;
+}): Promise<Record<SocialPlatform, UploadPostPublishResult>> {
+  const { config, platforms, postType, caption, mediaUrls } = input;
+
+  if (!config.profileId || config.profileId.trim().length === 0) {
+    const err = "Profile Upload-Post nao configurado. Conecte uma rede em Configuracoes > Integracoes.";
+    return Object.fromEntries(platforms.map((p) => [p, { ok: false, error: err }])) as Record<
+      SocialPlatform,
+      UploadPostPublishResult
+    >;
+  }
+
+  if (mediaUrls.length === 0) {
+    const err = "Nenhuma midia disponivel para publicacao.";
+    return Object.fromEntries(platforms.map((p) => [p, { ok: false, error: err }])) as Record<
+      SocialPlatform,
+      UploadPostPublishResult
+    >;
+  }
+
+  const endpoint = pickEndpoint(postType);
+  const url = `${config.baseUrl}${endpoint}`;
+  const isVideo = postType === "video";
+
+  const form = new FormData();
+  form.append("user", config.profileId);
+  form.append("title", caption ?? "");
+  for (const platform of platforms) {
+    form.append("platform[]", platform);
+  }
+
+  try {
+    // Baixa todas as midias em paralelo do Cloudinary.
+    const files = await Promise.all(
+      mediaUrls.map((mediaUrl, idx) =>
+        downloadMediaAsFile(mediaUrl, `${input.scheduledPostId}-${idx}`)
+      )
+    );
+
+    if (isVideo) {
+      // /api/upload aceita um unico video no campo "video".
+      form.append("video", files[0], files[0].name);
+    } else {
+      // /api/upload_photos aceita N imagens no campo "photos[]".
+      for (const file of files) {
+        form.append("photos[]", file, file.name);
+      }
+    }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "erro desconhecido no download da midia";
+    return Object.fromEntries(platforms.map((p) => [p, { ok: false, error: detail }])) as Record<
+      SocialPlatform,
+      UploadPostPublishResult
+    >;
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), UPLOAD_POST_TIMEOUT_MS);
 
   let response: Response;
   try {
-    response = await fetch(`${config.baseUrl}/publish`, {
+    response = await fetch(url, {
       method: "POST",
       signal: controller.signal,
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
+        Authorization: `Apikey ${config.apiKey}`,
+        // NAO definir Content-Type: o runtime cuida do boundary do multipart.
       },
-      body: JSON.stringify({
-        scheduledPostId: input.scheduledPostId,
-        companyId: input.companyId,
-        profileId: config.profileId ?? null,
-        platform: input.platform,
-        postType: input.postType,
-        caption: input.caption ?? "",
-        mediaUrls: input.mediaUrls,
-      }),
+      body: form,
     });
   } catch (err) {
     clearTimeout(timeoutId);
-    if (err instanceof Error && err.name === "AbortError") {
-      throw new Error(`Timeout ao publicar em ${input.platform} apos ${UPLOAD_POST_TIMEOUT_MS / 1000}s.`);
-    }
-    throw err;
+    const msg =
+      err instanceof Error && err.name === "AbortError"
+        ? `Timeout apos ${UPLOAD_POST_TIMEOUT_MS / 1000}s chamando Upload-Post.`
+        : err instanceof Error
+          ? err.message
+          : "Erro de rede ao chamar Upload-Post.";
+    return Object.fromEntries(platforms.map((p) => [p, { ok: false, error: msg }])) as Record<
+      SocialPlatform,
+      UploadPostPublishResult
+    >;
   }
   clearTimeout(timeoutId);
 
+  const rawText = await response.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : null;
+  } catch {
+    parsed = null;
+  }
+
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(
-      `Falha ao publicar em ${input.platform}: ${response.status} ${detail.slice(0, 180)}`
-    );
+    const errorDetail =
+      (parsed && typeof parsed.error === "string" && parsed.error) ||
+      (parsed && typeof parsed.message === "string" && parsed.message) ||
+      rawText.slice(0, 240) ||
+      `HTTP ${response.status}`;
+    return Object.fromEntries(
+      platforms.map((p) => [p, { ok: false, error: `Upload-Post ${response.status}: ${errorDetail}` }])
+    ) as Record<SocialPlatform, UploadPostPublishResult>;
   }
 
-  const payloadUnknown: unknown = await response.json().catch(() => ({}));
-  const payload =
-    typeof payloadUnknown === "object" && payloadUnknown !== null
-      ? (payloadUnknown as Record<string, unknown>)
-      : {};
+  // Payload de sucesso: formato varia entre endpoints. Exemplos observados:
+  //   { success: true, request_id: "...", results: { instagram: { post_id: "..." }, ... } }
+  //   { success: true, message: "...", data: { <platform>: <id>, ... } }
+  // Fazemos best-effort: procuramos algum id por plataforma; senao, marcamos como ok generico.
+  const result: Record<SocialPlatform, UploadPostPublishResult> = {} as Record<
+    SocialPlatform,
+    UploadPostPublishResult
+  >;
+  const requestId =
+    (parsed && typeof parsed.request_id === "string" && parsed.request_id) || undefined;
 
-  const externalPostIdCandidate = payload.externalPostId;
-  if (typeof externalPostIdCandidate === "string" && externalPostIdCandidate.trim().length > 0) {
-    return externalPostIdCandidate;
+  const resultsMap = extractPerPlatformResults(parsed);
+
+  for (const platform of platforms) {
+    const entry = resultsMap.get(platform);
+    if (entry) {
+      if (entry.error) {
+        result[platform] = { ok: false, error: entry.error };
+      } else {
+        result[platform] = {
+          ok: true,
+          externalPostId: entry.externalPostId ?? requestId ?? `${platform}-${Date.now()}`,
+        };
+      }
+    } else {
+      result[platform] = {
+        ok: true,
+        externalPostId: requestId ?? `${platform}-${Date.now()}`,
+      };
+    }
   }
 
-  const postIdCandidate = payload.postId;
-  if (typeof postIdCandidate === "string" && postIdCandidate.trim().length > 0) {
-    return postIdCandidate;
-  }
+  return result;
+}
 
-  return `${input.platform}-${Date.now()}`;
+/**
+ * Extrai resultados por plataforma de um payload Upload-Post, tolerante a variacoes de shape.
+ */
+function extractPerPlatformResults(
+  payload: Record<string, unknown> | null
+): Map<SocialPlatform, { externalPostId?: string; error?: string }> {
+  const out = new Map<SocialPlatform, { externalPostId?: string; error?: string }>();
+  if (!payload) return out;
+
+  const candidateKeys = ["results", "data", "platforms", "uploads"];
+  for (const key of candidateKeys) {
+    const maybe = payload[key];
+    if (maybe && typeof maybe === "object" && !Array.isArray(maybe)) {
+      for (const [rawPlatform, value] of Object.entries(maybe as Record<string, unknown>)) {
+        const platform = rawPlatform.toLowerCase() as SocialPlatform;
+        if (!SUPPORTED_PLATFORMS.has(platform)) continue;
+        if (typeof value === "string") {
+          out.set(platform, { externalPostId: value });
+        } else if (value && typeof value === "object") {
+          const v = value as Record<string, unknown>;
+          const errMaybe =
+            typeof v.error === "string"
+              ? v.error
+              : typeof v.message === "string" && v.success === false
+                ? v.message
+                : undefined;
+          if (errMaybe) {
+            out.set(platform, { error: errMaybe });
+            continue;
+          }
+          const id =
+            typeof v.post_id === "string"
+              ? v.post_id
+              : typeof v.postId === "string"
+                ? v.postId
+                : typeof v.id === "string"
+                  ? v.id
+                  : typeof v.url === "string"
+                    ? v.url
+                    : undefined;
+          out.set(platform, { externalPostId: id });
+        }
+      }
+      if (out.size > 0) return out;
+    }
+  }
+  return out;
 }
 
 function normalizeScheduledPostSummary(
@@ -1087,53 +1246,55 @@ export async function publishScheduledPost(input: {
 
   const uploadPostConfig = await getUploadPostConfig(processingCompanyId);
 
-  let successCount = 0;
+  // Plataformas que ainda precisam ser publicadas (pula as ja com status ok em retry).
+  const platformsToPublish = platforms.filter((platform) => progress[platform]?.status !== "ok");
+  const alreadyOk = platforms.filter((platform) => progress[platform]?.status === "ok");
+
+  let successCount = alreadyOk.length;
   let failureCount = 0;
 
-  for (const platform of platforms) {
-    // Pular plataformas já publicadas com sucesso (retry de post travado)
-    if (progress[platform]?.status === "ok") {
-      successCount += 1;
-      continue;
-    }
-
-    const processingProgress: PlatformProgressItem = {
+  // Marca todas como 'processing' antes da chamada unica.
+  for (const platform of platformsToPublish) {
+    progress[platform] = {
       status: "processing",
       updatedAt: new Date().toISOString(),
     };
-    progress[platform] = processingProgress;
-    await updateProgressRow();
+  }
+  await updateProgressRow();
 
-    try {
-      const externalPostId = await publishToPlatform({
-        companyId: processingCompanyId,
-        scheduledPostId: processingPostId,
-        platform,
-        postType: processingRow.post_type,
-        caption: processingRow.caption,
-        mediaUrls,
-        config: uploadPostConfig,
-      });
+  if (platformsToPublish.length > 0) {
+    const results = await publishToUploadPost({
+      companyId: processingCompanyId,
+      scheduledPostId: processingPostId,
+      platforms: platformsToPublish,
+      postType: processingRow.post_type,
+      caption: processingRow.caption,
+      mediaUrls,
+      config: uploadPostConfig,
+    });
 
-      externalPostIds[platform] = externalPostId;
-      progress[platform] = {
-        status: "ok",
-        externalPostId,
-        updatedAt: new Date().toISOString(),
-      };
-      successCount += 1;
-      delete errorDetails[platform];
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : "Erro inesperado na publicação.";
-      errorDetails[platform] = detail;
-      progress[platform] = {
-        status: "error",
-        error: detail,
-        updatedAt: new Date().toISOString(),
-      };
-      failureCount += 1;
+    for (const platform of platformsToPublish) {
+      const r = results[platform];
+      if (r?.ok && r.externalPostId) {
+        externalPostIds[platform] = r.externalPostId;
+        progress[platform] = {
+          status: "ok",
+          externalPostId: r.externalPostId,
+          updatedAt: new Date().toISOString(),
+        };
+        successCount += 1;
+        delete errorDetails[platform];
+      } else {
+        const detail = r?.error ?? "Erro desconhecido no Upload-Post.";
+        errorDetails[platform] = detail;
+        progress[platform] = {
+          status: "error",
+          error: detail,
+          updatedAt: new Date().toISOString(),
+        };
+        failureCount += 1;
+      }
     }
-
     await updateProgressRow();
   }
 
