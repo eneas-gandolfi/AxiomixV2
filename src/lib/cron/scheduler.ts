@@ -75,5 +75,11 @@ export function startCronScheduler(): void {
     await safeRun("whatsapp-batch", runWhatsappBatchCron);
   });
 
-  console.log("[cron] 8 crons agendados com sucesso.");
+  // Social publisher: a cada minuto (dispara posts agendados vencidos)
+  cron.schedule("* * * * *", async () => {
+    const { processDueScheduledPosts } = await import("@/services/social/poller");
+    await safeRun("social-publisher", processDueScheduledPosts);
+  });
+
+  console.log("[cron] 9 crons agendados com sucesso.");
 }

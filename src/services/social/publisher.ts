@@ -10,7 +10,6 @@ import "server-only";
 import type { Database, Json } from "@/database/types/database.types";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { cancelScheduledMessage, scheduleSocialPublish } from "@/services/social/qstash";
 import { uploadMediaToCloudinary } from "@/services/social/cloudinary-upload";
 import { triggerFailedPostAlert } from "@/services/alerts/alert-triggers";
 import type {
@@ -636,7 +635,7 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
       error_details: {},
     })
     .select(
-      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, created_at"
+      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, attempt_count, created_at"
     )
     .single();
 
@@ -648,48 +647,6 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
     );
   }
 
-  let qstash;
-  try {
-    qstash = await scheduleSocialPublish({
-      scheduledPostId: created.id,
-      companyId: created.company_id,
-      scheduledAtIso: scheduledAt,
-    });
-  } catch (qstashError) {
-    // Rollback: remover registro órfão do banco
-    await supabase
-      .from("scheduled_posts")
-      .delete()
-      .eq("id", created.id)
-      .eq("company_id", created.company_id);
-
-    throw new SocialPublisherError(
-      "Falha ao agendar publicação no QStash. O post não foi criado.",
-      "QSTASH_SCHEDULE_ERROR",
-      500
-    );
-  }
-
-  const { data: updated, error: updateError } = await supabase
-    .from("scheduled_posts")
-    .update({
-      qstash_message_id: qstash.messageId,
-    })
-    .eq("id", created.id)
-    .eq("company_id", created.company_id)
-    .select(
-      "id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, created_at"
-    )
-    .single();
-
-  if (updateError || !updated) {
-    throw new SocialPublisherError(
-      "Falha ao atualizar agendamento com message_id do QStash.",
-      "QSTASH_LINK_ERROR",
-      500
-    );
-  }
-
   // Buscar detalhes dos media files para o retorno
   const { data: mediaRows } = await supabase
     .from("media_files")
@@ -697,10 +654,7 @@ export async function createScheduledPost(input: CreateScheduledPostInput) {
     .in("id", mediaFileIds);
 
   return {
-    scheduledPost: normalizeScheduledPostSummary({
-      ...updated,
-      company_id: created.company_id,
-    }),
+    scheduledPost: normalizeScheduledPostSummary(created),
     mediaFiles: (mediaRows ?? []).map((file) => ({
       id: file.id,
       fileName: file.file_name,
@@ -720,7 +674,7 @@ export async function listScheduledPosts(input: ListScheduledPostsInput): Promis
   let query = supabase
     .from("scheduled_posts")
     .select(
-      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, created_at",
+      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, attempt_count, created_at",
       { count: "exact" }
     )
     .eq("company_id", input.companyId)
@@ -786,7 +740,7 @@ export async function cancelScheduledPost(companyId: string, scheduledPostId: st
   const supabase = createSupabaseAdminClient();
   const { data: row, error } = await supabase
     .from("scheduled_posts")
-    .select("id, company_id, status, qstash_message_id")
+    .select("id, company_id, status")
     .eq("id", scheduledPostId)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -815,14 +769,6 @@ export async function cancelScheduledPost(companyId: string, scheduledPostId: st
     );
   }
 
-  if (row.qstash_message_id) {
-    try {
-      await cancelScheduledMessage(row.qstash_message_id);
-    } catch {
-      // QStash pode já ter despachado; ainda assim o status local será cancelado.
-    }
-  }
-
   const { data: updated, error: updateError } = await supabase
     .from("scheduled_posts")
     .update({
@@ -834,7 +780,7 @@ export async function cancelScheduledPost(companyId: string, scheduledPostId: st
     .eq("id", row.id)
     .eq("company_id", companyId)
     .select(
-      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, created_at"
+      "id, company_id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, attempt_count, created_at"
     )
     .single();
 
@@ -857,7 +803,7 @@ export async function publishScheduledPost(input: {
   const { data: row, error } = await supabase
     .from("scheduled_posts")
     .select(
-      "id, company_id, post_type, caption, media_file_ids, platforms, status, progress, external_post_ids, error_details, published_at"
+      "id, company_id, post_type, caption, media_file_ids, platforms, status, progress, external_post_ids, error_details, published_at, attempt_count"
     )
     .eq("id", input.scheduledPostId)
     .maybeSingle();
@@ -1087,23 +1033,42 @@ export async function publishScheduledPost(input: {
     await updateProgressRow();
   }
 
-  const finalStatus: SocialPublishStatus =
+  let finalStatus: SocialPublishStatus =
     successCount === platforms.length
       ? "published"
       : successCount > 0
         ? "partial"
         : "failed";
 
+  // Retry local (sem QStash): em falha total, reagendar com backoff ate 3 tentativas.
+  const currentAttempt = typeof row.attempt_count === "number" ? row.attempt_count : 0;
+  const nextAttempt = currentAttempt + 1;
+  const MAX_ATTEMPTS = 3;
+  const BACKOFF_MS = [60_000, 5 * 60_000, 15 * 60_000];
+
+  let retryScheduledAt: string | null = null;
+  if (finalStatus === "failed" && nextAttempt < MAX_ATTEMPTS) {
+    const delay = BACKOFF_MS[nextAttempt - 1] ?? 60_000;
+    retryScheduledAt = new Date(Date.now() + delay).toISOString();
+    finalStatus = "scheduled";
+  }
+
   const nowIso = new Date().toISOString();
+  const finalizeUpdate: Database["public"]["Tables"]["scheduled_posts"]["Update"] = {
+    status: finalStatus,
+    progress: progress,
+    external_post_ids: externalPostIds,
+    error_details: errorDetails,
+    published_at: successCount > 0 ? nowIso : null,
+    attempt_count: nextAttempt,
+  };
+  if (retryScheduledAt) {
+    finalizeUpdate.scheduled_at = retryScheduledAt;
+  }
+
   const { error: finalizeError } = await supabase
     .from("scheduled_posts")
-    .update({
-      status: finalStatus,
-      progress: progress,
-      external_post_ids: externalPostIds,
-      error_details: errorDetails,
-      published_at: successCount > 0 ? nowIso : null,
-    })
+    .update(finalizeUpdate)
     .eq("id", processingPostId)
     .eq("company_id", processingCompanyId);
 
@@ -1264,7 +1229,7 @@ export async function reschedulePost(input: ReschedulePostInput) {
 
   const { data: row, error } = await supabase
     .from("scheduled_posts")
-    .select("id, company_id, status, qstash_message_id, scheduled_at")
+    .select("id, company_id, status, scheduled_at")
     .eq("id", input.scheduledPostId)
     .eq("company_id", input.companyId)
     .maybeSingle();
@@ -1294,33 +1259,16 @@ export async function reschedulePost(input: ReschedulePostInput) {
     );
   }
 
-  // Cancel existing QStash message
-  if (row.qstash_message_id) {
-    try {
-      await cancelScheduledMessage(row.qstash_message_id);
-    } catch {
-      // QStash may have already dispatched
-    }
-  }
-
-  // Schedule new QStash message
-  const qstash = await scheduleSocialPublish({
-    scheduledPostId: row.id,
-    companyId: input.companyId,
-    scheduledAtIso: newDate.toISOString(),
-  });
-
-  // Update the post
   const { data: updated, error: updateError } = await supabase
     .from("scheduled_posts")
     .update({
       scheduled_at: newDate.toISOString(),
-      qstash_message_id: qstash.messageId,
+      attempt_count: 0,
     })
     .eq("id", row.id)
     .eq("company_id", input.companyId)
     .select(
-      "id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, created_at"
+      "id, post_type, media_file_ids, caption, platforms, scheduled_at, status, progress, external_post_ids, error_details, published_at, qstash_message_id, attempt_count, created_at"
     )
     .single();
 

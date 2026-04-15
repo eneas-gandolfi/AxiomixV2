@@ -1219,6 +1219,7 @@ export type Database = {
       };
       scheduled_posts: {
         Row: {
+          attempt_count: number;
           caption: string | null;
           company_id: string | null;
           created_at: string | null;
@@ -1235,6 +1236,7 @@ export type Database = {
           status: "scheduled" | "processing" | "published" | "partial" | "failed" | "cancelled";
         };
         Insert: {
+          attempt_count?: number;
           caption?: string | null;
           company_id?: string | null;
           created_at?: string | null;
@@ -1251,6 +1253,7 @@ export type Database = {
           status?: "scheduled" | "processing" | "published" | "partial" | "failed" | "cancelled";
         };
         Update: {
+          attempt_count?: number;
           caption?: string | null;
           company_id?: string | null;
           created_at?: string | null;
