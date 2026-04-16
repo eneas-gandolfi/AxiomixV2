@@ -120,8 +120,24 @@ export async function generateDailySummary(
   const agentTone = config.agent_tone ?? "Profissional";
   const groupName = config.group_name ?? "Grupo";
 
+  // Hora local America/Sao_Paulo (UTC-3) para decidir a saudacao.
+  const spHourStr = new Date().toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    hour12: false,
+  });
+  const spHour = parseInt(spHourStr, 10);
+  const periodo =
+    spHour >= 5 && spHour < 12
+      ? { label: "manha", saudacao: "Bom dia" }
+      : spHour >= 12 && spHour < 18
+      ? { label: "tarde", saudacao: "Boa tarde" }
+      : { label: "noite", saudacao: "Boa noite" };
+
   const systemPrompt = `Voce e ${config.agent_name}, assistente de IA do grupo WhatsApp "${groupName}".
-Tom de voz: ${agentTone}. Data de hoje: ${today}.
+Tom de voz: ${agentTone}. Data de hoje: ${today}. Periodo atual: ${periodo.label} (horario de Sao Paulo: ${spHour}h).
+
+IMPORTANTE: ao saudar o grupo use EXATAMENTE "${periodo.saudacao}" — nao use "Bom dia" a tarde/noite, nem "Boa noite" pela manha.
 
 Seu objetivo NAO e apenas informar — e engajar o grupo com os DADOS REAIS
 de vendas/conversas com leads do Sofia CRM e estimular conversa. Gere uma
