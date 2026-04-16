@@ -6,6 +6,7 @@
  */
 
 import { redirect } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { MessageSquare, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
@@ -24,6 +25,8 @@ type ConversasPageProps = {
 };
 
 export default async function ConversasPage({ searchParams }: ConversasPageProps) {
+  noStore();
+
   const params = await searchParams;
   const companyId = await getUserCompanyId();
   if (!companyId) {
@@ -32,18 +35,31 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
 
   const supabase = await createSupabaseServerClient();
 
-  // Buscar conversas
-  const { data: conversations } = await supabase
-    .from("conversations")
-    .select("id, external_id, contact_name, contact_avatar_url, remote_jid, status, last_message_at, assigned_to")
-    .eq("company_id", companyId)
-    .order("last_message_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(100);
+  // Buscar conversas e agentes Sofia CRM em paralelo
+  const fetchAgents = async (): Promise<Array<{ id: string; name: string | null }>> => {
+    try {
+      const sofiaClient = await getSofiaCrmClient(companyId);
+      const users = await sofiaClient.listUsers();
+      return users.map((u) => ({ id: u.id, name: u.name ?? null }));
+    } catch {
+      return [];
+    }
+  };
+
+  const [{ data: conversations }, agents] = await Promise.all([
+    supabase
+      .from("conversations")
+      .select("id, external_id, contact_name, contact_avatar_url, remote_jid, status, last_message_at, assigned_to")
+      .eq("company_id", companyId)
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(100),
+    fetchAgents(),
+  ]);
 
   const conversationIds = (conversations ?? []).map((conversation) => conversation.id);
 
-  // Buscar insights para as conversas listadas
+  // Buscar insights (depende dos conversationIds)
   const { data: insights } =
     conversationIds.length > 0
       ? await supabase
@@ -61,16 +77,6 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
         intent: insight.intent,
       });
     }
-  }
-
-  // Buscar agentes do Sofia CRM
-  let agents: Array<{ id: string; name: string | null }> = [];
-  try {
-    const sofiaClient = await getSofiaCrmClient(companyId);
-    const users = await sofiaClient.listUsers();
-    agents = users.map((u) => ({ id: u.id, name: u.name ?? null }));
-  } catch {
-    // Sofia CRM pode não estar configurado — filtro de agente fica vazio
   }
 
   // Contar conversas sem análise

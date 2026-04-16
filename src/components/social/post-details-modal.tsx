@@ -145,6 +145,8 @@ export function PostDetailsModal({ details, companyId, onClose, onRefresh }: Pos
           {details.thumbnailUrl && (
             <div className="rounded-lg overflow-hidden border border-border">
               <img
+                loading="lazy"
+                decoding="async"
                 src={details.thumbnailUrl}
                 alt="Post thumbnail"
                 className="w-full max-h-64 object-contain bg-background"

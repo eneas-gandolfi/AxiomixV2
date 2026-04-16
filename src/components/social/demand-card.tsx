@@ -29,6 +29,8 @@ export function DemandCard({ demand, onClick }: DemandCardProps) {
       {/* Thumbnail */}
       {demand.thumbnailUrl && (
         <img
+          loading="lazy"
+          decoding="async"
           src={demand.thumbnailUrl}
           alt=""
           className="w-full h-24 rounded-lg object-cover"

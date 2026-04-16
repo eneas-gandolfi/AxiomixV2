@@ -559,6 +559,8 @@ export function SocialPublisherDashboard({
                 <div className="aspect-video bg-[var(--color-surface-2)]">
                   {item.thumbnailUrl ? (
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={item.thumbnailUrl}
                       alt={item.caption ?? postTypeLabel(item.postType)}
                       className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
@@ -663,6 +665,8 @@ export function SocialPublisherDashboard({
                     <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]">
                       {item.thumbnailUrl ? (
                         <img
+                          loading="lazy"
+                          decoding="async"
                           src={item.thumbnailUrl}
                           alt={item.caption ?? postTypeLabel(item.postType)}
                           className="h-full w-full object-cover"

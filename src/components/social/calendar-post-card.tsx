@@ -68,6 +68,8 @@ export function CalendarPostCard({
       {/* Thumbnail */}
       {post.thumbnailUrl && (
         <img
+          loading="lazy"
+          decoding="async"
           src={post.thumbnailUrl}
           alt=""
           className="w-5 h-5 rounded object-cover flex-shrink-0"

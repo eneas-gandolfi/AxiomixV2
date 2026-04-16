@@ -53,6 +53,8 @@ export function PostHistoryTable({
         <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-background border border-border">
           {record.thumbnailUrl ? (
             <img
+              loading="lazy"
+              decoding="async"
               src={record.thumbnailUrl}
               alt="thumb"
               className="h-full w-full object-cover"

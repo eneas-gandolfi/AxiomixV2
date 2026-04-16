@@ -178,6 +178,8 @@ function InstagramFeedMockup({
       <div className="aspect-square bg-gray-100 relative">
         {imageUrl ? (
           <img
+            loading="lazy"
+            decoding="async"
             src={imageUrl}
             alt="Post preview"
             className="w-full h-full object-cover"
@@ -252,6 +254,8 @@ function InstagramStoryMockup({
       <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
         {imageUrl ? (
           <img
+            loading="lazy"
+            decoding="async"
             src={imageUrl}
             alt="Story preview"
             className="w-full h-full object-cover"
@@ -314,6 +318,8 @@ function LinkedInMockup({
       {imageUrl && (
         <div className="w-full bg-gray-100">
           <img
+            loading="lazy"
+            decoding="async"
             src={imageUrl}
             alt="Post preview"
             className="w-full object-contain max-h-96"
@@ -362,6 +368,8 @@ function TikTokMockup({
       <div className="w-full h-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center">
         {imageUrl ? (
           <img
+            loading="lazy"
+            decoding="async"
             src={imageUrl}
             alt="TikTok preview"
             className="w-full h-full object-cover"
@@ -475,6 +483,8 @@ function FacebookMockup({
       {imageUrl ? (
         <div className="w-full bg-gray-100">
           <img
+            loading="lazy"
+            decoding="async"
             src={imageUrl}
             alt="Post preview"
             className="w-full object-contain max-h-96"

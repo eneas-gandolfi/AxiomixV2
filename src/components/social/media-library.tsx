@@ -553,10 +553,11 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
                 <div className="aspect-square bg-[var(--color-surface-2)] relative overflow-hidden">
                   {thumbnailSrc ? (
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={thumbnailSrc}
                       alt={item.fileName}
                       className="w-full h-full object-cover"
-                      loading="lazy"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full">

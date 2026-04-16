@@ -83,22 +83,29 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   }, []);
 
   useEffect(() => {
-    const fetchCriticalCount = async () => {
-      try {
-        const response = await fetch("/api/company");
-        if (!response.ok) return;
+    let companyIdCache: string | null = null;
 
-        const companyData = (await response.json()) as { company?: { id: string; name?: string } };
-        const companyId = companyData.company?.id;
-        if (companyData.company?.name) {
-          setCompanyName(companyData.company.name);
+    const fetchSidebarData = async () => {
+      if (document.visibilityState === "hidden") return;
+
+      try {
+        // Primeira chamada: buscar companyId (cachear para reusar)
+        if (!companyIdCache) {
+          const response = await fetch("/api/company");
+          if (!response.ok) return;
+
+          const companyData = (await response.json()) as { company?: { id: string; name?: string } };
+          companyIdCache = companyData.company?.id ?? null;
+          if (companyData.company?.name) {
+            setCompanyName(companyData.company.name);
+          }
+          if (!companyIdCache) return;
         }
-        if (!companyId) return;
 
         const countResponse = await fetch("/api/whatsapp/critical-count", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyId }),
+          body: JSON.stringify({ companyId: companyIdCache }),
         });
 
         if (countResponse.ok) {
@@ -110,10 +117,21 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       }
     };
 
-    fetchCriticalCount();
-    const interval = setInterval(fetchCriticalCount, 120000);
-    return () => clearInterval(interval);
-  }, [pathname]);
+    fetchSidebarData();
+    const interval = setInterval(fetchSidebarData, 120000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchSidebarData();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   return (
     <TooltipProvider delayDuration={0}>

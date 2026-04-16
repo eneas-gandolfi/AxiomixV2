@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -208,6 +209,8 @@ function formatContactDisplay(contactName: string | null, remoteJid: string) {
 }
 
 export default async function ConversationDetailsPage({ params }: ConversationDetailsPageProps) {
+  noStore();
+
   const { id } = await params;
   const companyId = await getUserCompanyId();
 

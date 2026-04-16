@@ -784,6 +784,8 @@ export function CreatePostDrawer({
                             >
                               {imageMedia ? (
                                 <img
+                                  loading="lazy"
+                                  decoding="async"
                                   src={getMediaPreviewUrl(mediaFile)}
                                   alt={mediaFile.file.name}
                                   className="h-full w-full object-cover"

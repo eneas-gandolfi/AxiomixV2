@@ -128,6 +128,8 @@ export function CalendarAgendaView({
                   {/* Thumbnail */}
                   {post.thumbnailUrl ? (
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={post.thumbnailUrl}
                       alt=""
                       className="w-10 h-10 rounded-lg object-cover flex-shrink-0"

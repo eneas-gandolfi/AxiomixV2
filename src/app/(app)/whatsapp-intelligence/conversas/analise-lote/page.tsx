@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { ArrowLeft } from "lucide-react";
 import { PageContainer } from "@/components/layouts/page-container";
 import { buttonVariants } from "@/components/ui/button";
@@ -57,6 +58,8 @@ function parseActionItems(raw: unknown): { items: string[]; urgency: number | nu
 }
 
 export default async function AnaliseLotePage({ searchParams }: AnaliseLotePageProps) {
+  noStore();
+
   const params = await searchParams;
   const idsParam = typeof params.ids === "string" ? params.ids : "";
   const ids = idsParam

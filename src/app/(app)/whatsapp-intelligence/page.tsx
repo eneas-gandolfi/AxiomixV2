@@ -6,6 +6,7 @@
  */
 
 import { redirect } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { CheckCircle2, MessageSquare } from "lucide-react";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -16,6 +17,8 @@ import { SyncConversationsButton } from "@/components/whatsapp/sync-conversation
 import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 
 export default async function WhatsAppDashboardPage() {
+  noStore();
+
   const companyId = await getUserCompanyId();
   if (!companyId) {
     redirect("/onboarding");
@@ -28,30 +31,42 @@ export default async function WhatsAppDashboardPage() {
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
 
-  const { data: recentInsights } = await supabase
-    .from("conversation_insights")
-    .select("sentiment, intent, generated_at")
-    .eq("company_id", companyId)
-    .gte("generated_at", sevenDaysAgo.toISOString());
+  const oneDayAgo = new Date(now.getTime() - 86400000);
 
-  const { data: previousInsights } = await supabase
-    .from("conversation_insights")
-    .select("sentiment, intent, generated_at")
-    .eq("company_id", companyId)
-    .gte("generated_at", fourteenDaysAgo.toISOString())
-    .lt("generated_at", sevenDaysAgo.toISOString());
-
-  const { data: thirtyDaysInsights } = await supabase
-    .from("conversation_insights")
-    .select("sentiment, intent, generated_at")
-    .eq("company_id", companyId)
-    .gte("generated_at", thirtyDaysAgo.toISOString());
-
-  // Contagem de conversas sincronizadas (para detectar pós-sync sem análises)
-  const { count: syncedConversationsCount } = await supabase
-    .from("conversations")
-    .select("id", { count: "exact", head: true })
-    .eq("company_id", companyId);
+  const [
+    { data: recentInsights },
+    { data: previousInsights },
+    { data: thirtyDaysInsights },
+    { count: syncedConversationsCount },
+    { data: criticalConversations },
+  ] = await Promise.all([
+    supabase
+      .from("conversation_insights")
+      .select("sentiment, intent, generated_at")
+      .eq("company_id", companyId)
+      .gte("generated_at", sevenDaysAgo.toISOString()),
+    supabase
+      .from("conversation_insights")
+      .select("sentiment, intent, generated_at")
+      .eq("company_id", companyId)
+      .gte("generated_at", fourteenDaysAgo.toISOString())
+      .lt("generated_at", sevenDaysAgo.toISOString()),
+    supabase
+      .from("conversation_insights")
+      .select("sentiment, intent, generated_at")
+      .eq("company_id", companyId)
+      .gte("generated_at", thirtyDaysAgo.toISOString()),
+    supabase
+      .from("conversations")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId),
+    supabase
+      .from("conversation_insights")
+      .select("conversation_id")
+      .eq("company_id", companyId)
+      .eq("sentiment", "negativo")
+      .gte("generated_at", oneDayAgo.toISOString()),
+  ]);
 
   // Métricas
   const totalAnalyzed = (recentInsights ?? []).length;
@@ -68,17 +83,6 @@ export default async function WhatsAppDashboardPage() {
     }
   }
   const topIntent = Object.entries(intentCounts).sort((a, b) => b[1] - a[1])[0];
-
-  // Conversas negativas que precisam de atenção (últimas 24h)
-  const oneDayAgo = new Date();
-  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-
-  const { data: criticalConversations } = await supabase
-    .from("conversation_insights")
-    .select("conversation_id")
-    .eq("company_id", companyId)
-    .eq("sentiment", "negativo")
-    .gte("generated_at", oneDayAgo.toISOString());
 
   const criticalCount = (criticalConversations ?? []).length;
 

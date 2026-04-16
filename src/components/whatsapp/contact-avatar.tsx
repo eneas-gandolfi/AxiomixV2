@@ -126,6 +126,8 @@ export function ContactAvatar({ name, avatarUrl, size = "md", className = "" }: 
       <img
         src={proxiedUrl!}
         alt={name ?? "Contato sem nome"}
+        loading="lazy"
+        decoding="async"
         referrerPolicy="no-referrer"
         onError={() => setImgError(true)}
         className={`shrink-0 rounded-full object-cover ${sizeClasses} ${className}`}

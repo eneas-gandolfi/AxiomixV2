@@ -192,6 +192,8 @@ export function DemandApprovalPage({ token }: DemandApprovalPageProps) {
               <div className="grid grid-cols-2 gap-3">
                 {mediaFiles.map((file) => (
                   <img
+                    loading="lazy"
+                    decoding="async"
                     key={file.id}
                     src={file.publicUrl}
                     alt=""

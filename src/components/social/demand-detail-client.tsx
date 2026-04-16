@@ -198,6 +198,8 @@ export function DemandDetailClient({ demandId, companyId }: DemandDetailClientPr
                     Mídia
                   </p>
                   <img
+                    loading="lazy"
+                    decoding="async"
                     src={demand.thumbnailUrl}
                     alt=""
                     className="w-48 h-48 rounded-xl object-cover border border-[var(--color-border)]"
