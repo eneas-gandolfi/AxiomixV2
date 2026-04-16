@@ -33,10 +33,10 @@ export function startCronScheduler(): void {
     await safeRun("heartbeat", runHeartbeat);
   });
 
-  // Process jobs: a cada 2 minutos
+  // Process jobs: a cada 2 minutos, ate 5 jobs por ciclo para nao estrangular a fila.
   cron.schedule("*/2 * * * *", async () => {
     const { processJobs } = await import("@/lib/jobs/processor");
-    await safeRun("process-jobs", () => processJobs({ maxJobs: 1 }));
+    await safeRun("process-jobs", () => processJobs({ maxJobs: 5 }));
   });
 
   // Group proactive: a cada hora
