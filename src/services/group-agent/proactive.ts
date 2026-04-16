@@ -10,6 +10,7 @@ import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
 import { sendGroupAgentResponse } from "@/services/group-agent/sender";
+import { buildCrmDailySnapshot } from "@/services/group-agent/context-builder";
 import { resolvePreferredEvolutionInstance } from "@/services/integrations/evolution";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import type { ProactiveAction, GroupAgentResponseType } from "@/types/modules/group-agent.types";
@@ -62,6 +63,9 @@ export async function generateDailySummary(
     return { success: false, action: "daily_summary", responseText: "", error: "Config inativa" };
   }
 
+  const crm = await buildCrmDailySnapshot(companyId);
+  console.log("[proactive] daily_summary crm", { configId, ...crm.stats });
+
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
   const { data: messages } = await supabase
     .from("group_messages")
@@ -81,8 +85,9 @@ export async function generateDailySummary(
     lowActivity,
   });
 
-  // Piso absoluto: se nem nos ultimos 7 dias houve mensagens, nao mandar nada.
-  if (messageCount === 0) {
+  // Piso absoluto: so abortamos se NEM o grupo NEM o CRM tiverem dados.
+  // Se o CRM tiver dados, o resumo vale mesmo sem mensagens recentes do grupo.
+  if (messageCount === 0 && !crm.hasData) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString();
     const { count: weeklyCount } = await supabase
       .from("group_messages")
@@ -91,12 +96,12 @@ export async function generateDailySummary(
       .gte("sent_at", sevenDaysAgo);
 
     if (!weeklyCount || weeklyCount === 0) {
-      console.log("[proactive] daily_summary skip", { configId, reason: "grupo inativo 7d" });
+      console.log("[proactive] daily_summary skip", { configId, reason: "grupo inativo 7d e sem CRM" });
       return {
         success: false,
         action: "daily_summary",
         responseText: "",
-        error: "Grupo sem atividade ha 7 dias",
+        error: "Grupo sem atividade ha 7 dias e sem dados de CRM",
       };
     }
   }
@@ -116,31 +121,60 @@ export async function generateDailySummary(
   const groupName = config.group_name ?? "Grupo";
 
   const systemPrompt = `Voce e ${config.agent_name}, assistente de IA do grupo WhatsApp "${groupName}".
-Tom de voz: ${agentTone}.
+Tom de voz: ${agentTone}. Data de hoje: ${today}.
 
-Seu objetivo NAO e apenas informar — e engajar o grupo e estimular conversa.
-Gere uma mensagem com DUAS partes, sempre nesta ordem:
+Seu objetivo NAO e apenas informar — e engajar o grupo com os DADOS REAIS
+de vendas/conversas com leads do Sofia CRM e estimular conversa. Gere uma
+mensagem com TRES partes, sempre nesta ordem:
 
-## PARTE 1 — *Resumo do dia* - ${today}
-- Maximo 250 palavras, portugues brasileiro, formatacao WhatsApp (*negrito*, _italico_).
-- Cubra: principais topicos discutidos, decisoes tomadas, pendencias em aberto.
-- Nao invente nada que nao esteja nas mensagens.
-- Se o historico for escasso (poucas mensagens), faca a PARTE 1 bem curta (1-2 linhas tipo "_Dia mais quieto por aqui._") e va direto para a PARTE 2.
+## PARTE 1 — *Panorama comercial de hoje*
+- Reproduza e comente o bloco "Panorama comercial" que voce recebera.
+- NAO invente numeros. Se um campo nao estiver no panorama, omita.
+- Destaque o que chama atencao (muitos leads quentes? sentimento caindo?
+  negociacao parada ha dias? leads em risco?).
+- Maximo 200 palavras nesta parte.
+- Se NAO houver panorama (empresa sem CRM), pule PARTE 1 inteira.
 
-## PARTE 2 — *Bora conversar?*
-- Gere de 2 a 3 perguntas ABERTAS, curtas e instigantes, conectadas aos topicos do resumo (ou ao tema do grupo, se o dia foi quieto).
-- Direcione ao grupo usando "voces", "alguem", "quem ai…", "algum de voces ja…".
-- Evite perguntas de sim/nao. Prefira perguntas que puxem experiencia, opiniao ou historia.
-- Feche com um convite claro para responderem ali mesmo no grupo (ex.: "_Manda ai nas mensagens, quero saber!_").
+## PARTE 2 — *Resumo do grupo* (opcional)
+- SE houver mensagens do grupo das ultimas 24h no contexto, resuma em
+  ~80 palavras (topicos, decisoes, pendencias).
+- SE NAO houver, NAO escreva nada aqui — pule direto para PARTE 3. NAO
+  escreva "dia mais quieto", "sem novidades", ou similares.
+
+## PARTE 3 — *Bora conversar?*
+- Gere 2 a 3 perguntas ABERTAS, curtas, instigantes.
+- PRIORIZE perguntas conectadas aos DADOS do PANORAMA COMERCIAL, usando
+  NOMES REAIS de leads quando possivel. Exemplos:
+  * Lead em risco: "Alguem ja retomou com a ${"{nome}"}? O que deu pra fazer?"
+  * Negocio parado: "Quem topa revisar juntos a abordagem do ${"{nome}"}?"
+  * Muitos leads quentes: "Com ${"{n}"} leads em proposal hoje, qual voces acham
+    que a gente deveria priorizar?"
+  * Sentimento negativo: "O que voces acham que mudou pra ter ${"{n}"} conversas
+    negativas hoje?"
+- Se NAO tiver panorama, faca perguntas sobre o tema do grupo.
+- Direcione ao grupo ("voces", "alguem", "quem ai…").
+- Evite sim/nao. Feche com convite claro para responderem no grupo.
 
 ## Regras gerais
-- Nunca se apresente como "IA" ou "bot" — voce e ${config.agent_name}, parte do grupo.
-- Nao use emojis em excesso (maximo 2-3 na mensagem inteira).
-- Nao invente fatos, nomes ou numeros que nao estejam nas mensagens fornecidas.`;
+- Portugues brasileiro, formatacao WhatsApp (*negrito*, _italico_).
+- Maximo 2-3 emojis na mensagem inteira.
+- NAO se apresente como "IA" ou "bot" — voce e ${config.agent_name}, parte do grupo.
+- NAO invente fatos, nomes ou numeros fora do panorama e das mensagens.`;
 
-  const userContent = lowActivity
-    ? `Mensagens do grupo nas ultimas 24h (baixa atividade — ${messageCount} mensagens):\n${messagesText || "(sem mensagens)"}\n\nO dia foi quieto: faca PARTE 1 bem curta e foque em PARTE 2 com perguntas de aquecimento sobre o tema do grupo "${groupName}".`
-    : `Mensagens do grupo nas ultimas 24h:\n${messagesText}`;
+  const userContentParts: string[] = [];
+  if (crm.hasData) {
+    userContentParts.push(`Panorama comercial (dados reais do Sofia CRM, ultimas 24h):\n${crm.snapshot}`);
+  } else {
+    userContentParts.push(`Panorama comercial: (nenhum dado de CRM disponivel)`);
+  }
+
+  if (messageCount > 0) {
+    userContentParts.push(`Mensagens do grupo nas ultimas 24h${lowActivity ? ` (baixa atividade — ${messageCount} mensagens)` : ""}:\n${messagesText}`);
+  } else {
+    userContentParts.push(`Mensagens do grupo nas ultimas 24h: (sem mensagens)`);
+  }
+
+  const userContent = userContentParts.join("\n\n");
 
   // Lock atomico: so um processo consegue reivindicar o envio de hoje.
   // Feito aqui (e nao no inicio) para nao queimar o dia em aborts precoces.
@@ -169,7 +203,7 @@ Gere uma mensagem com DUAS partes, sempre nesta ordem:
     ], {
       responseFormat: "text",
       temperature: 0.6,
-      maxTokens: 700,
+      maxTokens: 1000,
       module: "group_agent",
       operation: "proactive_summary",
     });

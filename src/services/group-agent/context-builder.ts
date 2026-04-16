@@ -261,3 +261,191 @@ async function buildSalesDataContext(companyId: string): Promise<string> {
 
   return sections.join("\n");
 }
+
+export type CrmDailySnapshot = {
+  hasData: boolean;
+  snapshot: string;
+  stats: {
+    total: number;
+    positivo: number;
+    neutro: number;
+    negativo: number;
+    hotLeads: number;
+    atRisk: number;
+    stalled: number;
+  };
+};
+
+export async function buildCrmDailySnapshot(companyId: string): Promise<CrmDailySnapshot> {
+  const supabase = createSupabaseAdminClient();
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+
+  const { data: insights } = await supabase
+    .from("conversation_insights")
+    .select(`
+      sentiment, intent, sales_stage, summary, confidence_score,
+      next_commitment, stall_reason, generated_at,
+      conversations!inner(contact_name, contact_phone, last_message_at)
+    `)
+    .eq("company_id", companyId)
+    .gte("generated_at", oneDayAgo)
+    .order("generated_at", { ascending: false });
+
+  const emptyStats = {
+    total: 0,
+    positivo: 0,
+    neutro: 0,
+    negativo: 0,
+    hotLeads: 0,
+    atRisk: 0,
+    stalled: 0,
+  };
+
+  if (!insights || insights.length === 0) {
+    return { hasData: false, snapshot: "", stats: emptyStats };
+  }
+
+  const sentimentCounts: Record<string, number> = { positivo: 0, neutro: 0, negativo: 0 };
+  const stageCounts: Record<string, number> = {};
+
+  type Enriched = {
+    name: string;
+    phone: string | null;
+    sentiment: string | null;
+    intent: string | null;
+    stage: string | null;
+    summary: string | null;
+    stallReason: string | null;
+    nextCommitment: string | null;
+    confidence: number;
+    daysSinceLastContact: number | null;
+    atRisk: boolean;
+  };
+
+  const nowMs = Date.now();
+  const enriched: Enriched[] = [];
+
+  for (const i of insights) {
+    if (i.sentiment && i.sentiment in sentimentCounts) {
+      sentimentCounts[i.sentiment]++;
+    }
+    if (i.sales_stage && i.sales_stage !== "unknown") {
+      stageCounts[i.sales_stage] = (stageCounts[i.sales_stage] ?? 0) + 1;
+    }
+
+    const conv = i.conversations as unknown as {
+      contact_name: string | null;
+      contact_phone: string | null;
+      last_message_at: string | null;
+    } | null;
+
+    if (!conv) continue;
+
+    const daysSinceLastContact = conv.last_message_at
+      ? Math.floor((nowMs - new Date(conv.last_message_at).getTime()) / (24 * 60 * 60_000))
+      : null;
+
+    const atRisk =
+      i.sentiment === "negativo" &&
+      daysSinceLastContact !== null &&
+      daysSinceLastContact >= 5;
+
+    enriched.push({
+      name: conv.contact_name ?? "Desconhecido",
+      phone: conv.contact_phone,
+      sentiment: i.sentiment ?? null,
+      intent: i.intent ?? null,
+      stage: i.sales_stage && i.sales_stage !== "unknown" ? i.sales_stage : null,
+      summary: i.summary ?? null,
+      stallReason: i.stall_reason ?? null,
+      nextCommitment: i.next_commitment ?? null,
+      confidence: typeof i.confidence_score === "number" ? i.confidence_score : 0,
+      daysSinceLastContact,
+      atRisk,
+    });
+  }
+
+  const hotLeads = enriched
+    .filter(
+      (e) =>
+        e.intent === "compra" &&
+        e.stage !== null &&
+        ["proposal", "negotiation", "closing"].includes(e.stage)
+    )
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 3);
+
+  const atRiskLeads = enriched
+    .filter((e) => e.atRisk)
+    .sort((a, b) => (b.daysSinceLastContact ?? 0) - (a.daysSinceLastContact ?? 0))
+    .slice(0, 3);
+
+  const stalledDeals = enriched
+    .filter((e) => e.stallReason && e.stallReason.trim().length > 0 && !e.atRisk)
+    .sort((a, b) => (b.daysSinceLastContact ?? 0) - (a.daysSinceLastContact ?? 0))
+    .slice(0, 3);
+
+  const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const lines: string[] = [];
+  lines.push(`*Panorama comercial* - ${today}`);
+  lines.push("");
+  lines.push(`_Conversas analisadas nas ultimas 24h:_ *${enriched.length}*`);
+  lines.push(
+    `_Sentimento:_ ${sentimentCounts.positivo} positivo, ${sentimentCounts.neutro} neutro, ${sentimentCounts.negativo} negativo`
+  );
+
+  if (Object.keys(stageCounts).length > 0) {
+    const stages = Object.entries(stageCounts)
+      .sort(([, a], [, b]) => b - a)
+      .map(([k, v]) => `${k} ${v}`)
+      .join(" • ");
+    lines.push(`_Estagios:_ ${stages}`);
+  }
+
+  const clip = (s: string | null, max: number) =>
+    s ? (s.length > max ? s.slice(0, max - 1) + "…" : s) : "";
+
+  if (hotLeads.length > 0) {
+    lines.push("");
+    lines.push(`🔥 *Leads quentes (top ${hotLeads.length})*`);
+    for (const e of hotLeads) {
+      const hint = clip(e.nextCommitment || e.summary, 90);
+      lines.push(`- *${e.name}* (${e.stage})${hint ? ` — "${hint}"` : ""}`);
+    }
+  }
+
+  if (atRiskLeads.length > 0) {
+    lines.push("");
+    lines.push(`⚠️ *Em risco*`);
+    for (const e of atRiskLeads) {
+      const days = e.daysSinceLastContact ?? 0;
+      const hint = clip(e.stallReason || e.summary, 90);
+      lines.push(`- *${e.name}* (negativo, sem contato há ${days} dia${days === 1 ? "" : "s"})${hint ? ` — "${hint}"` : ""}`);
+    }
+  }
+
+  if (stalledDeals.length > 0) {
+    lines.push("");
+    lines.push(`⏸️ *Negociacoes paradas*`);
+    for (const e of stalledDeals) {
+      const days = e.daysSinceLastContact;
+      const daysTxt = days !== null ? `há ${days} dia${days === 1 ? "" : "s"}` : "sem data";
+      const hint = clip(e.stallReason, 90);
+      lines.push(`- *${e.name}* (${e.stage ?? "sem estagio"}, ${daysTxt})${hint ? ` — "${hint}"` : ""}`);
+    }
+  }
+
+  return {
+    hasData: true,
+    snapshot: lines.join("\n"),
+    stats: {
+      total: enriched.length,
+      positivo: sentimentCounts.positivo,
+      neutro: sentimentCounts.neutro,
+      negativo: sentimentCounts.negativo,
+      hotLeads: hotLeads.length,
+      atRisk: atRiskLeads.length,
+      stalled: stalledDeals.length,
+    },
+  };
+}
