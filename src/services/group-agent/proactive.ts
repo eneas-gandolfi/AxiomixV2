@@ -142,6 +142,26 @@ Gere uma mensagem com DUAS partes, sempre nesta ordem:
     ? `Mensagens do grupo nas ultimas 24h (baixa atividade — ${messageCount} mensagens):\n${messagesText || "(sem mensagens)"}\n\nO dia foi quieto: faca PARTE 1 bem curta e foque em PARTE 2 com perguntas de aquecimento sobre o tema do grupo "${groupName}".`
     : `Mensagens do grupo nas ultimas 24h:\n${messagesText}`;
 
+  // Lock atomico: so um processo consegue reivindicar o envio de hoje.
+  // Feito aqui (e nao no inicio) para nao queimar o dia em aborts precoces.
+  const dayStartIso = (() => {
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
+
+  const { data: claimed } = await supabase
+    .from("group_agent_configs")
+    .update({ last_summary_sent_at: new Date().toISOString() })
+    .eq("id", configId)
+    .or(`last_summary_sent_at.is.null,last_summary_sent_at.lt.${dayStartIso}`)
+    .select("id");
+
+  if (!claimed || claimed.length === 0) {
+    console.log("[proactive] daily_summary skip", { configId, reason: "ja enviado hoje (lock)" });
+    return { success: false, action: "daily_summary", responseText: "", error: "Ja enviado hoje" };
+  }
+
   try {
     const responseText = await openRouterChatCompletion(companyId, [
       { role: "system", content: systemPrompt },
@@ -169,13 +189,13 @@ Gere uma mensagem com DUAS partes, sempre nesta ordem:
     });
 
     if (!sendResult.success) {
+      // Rollback do lock para permitir reprocessar
+      await supabase
+        .from("group_agent_configs")
+        .update({ last_summary_sent_at: null })
+        .eq("id", configId);
       throw new Error(`Evolution falhou: ${sendResult.evolutionStatus}`);
     }
-
-    await supabase
-      .from("group_agent_configs")
-      .update({ last_summary_sent_at: new Date().toISOString() })
-      .eq("id", configId);
 
     await supabase.from("group_agent_responses").insert({
       company_id: companyId,
@@ -194,6 +214,11 @@ Gere uma mensagem com DUAS partes, sempre nesta ordem:
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Erro desconhecido";
     console.error("[proactive] Falha no resumo diario:", detail);
+    // Garante rollback do lock em qualquer erro (OpenRouter, Evolution, DB)
+    await supabase
+      .from("group_agent_configs")
+      .update({ last_summary_sent_at: null })
+      .eq("id", configId);
     return { success: false, action: "daily_summary", responseText: "", error: detail };
   }
 }
@@ -277,6 +302,25 @@ ${variation > 0 ? "_Bom momento para engajar e puxar conversa com a galera!_" : 
 
 _Gerado automaticamente por ${config.agent_name}_`;
 
+  // Lock atomico no ultimo momento antes de enviar.
+  const dayStartIsoAlert = (() => {
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
+
+  const { data: claimedAlert } = await supabase
+    .from("group_agent_configs")
+    .update({ last_sales_alert_sent_at: new Date().toISOString() })
+    .eq("id", configId)
+    .or(`last_sales_alert_sent_at.is.null,last_sales_alert_sent_at.lt.${dayStartIsoAlert}`)
+    .select("id");
+
+  if (!claimedAlert || claimedAlert.length === 0) {
+    console.log("[proactive] sales_alert skip", { configId, reason: "ja enviado hoje (lock)" });
+    return { success: false, action: "sales_alert", responseText: "", error: "Ja enviado hoje" };
+  }
+
   try {
     const instanceName = await resolveInstanceName(companyId, config.evolution_instance_name ?? null);
 
@@ -293,13 +337,13 @@ _Gerado automaticamente por ${config.agent_name}_`;
     });
 
     if (!sendResult.success) {
+      // Rollback do lock para permitir reprocessar
+      await supabase
+        .from("group_agent_configs")
+        .update({ last_sales_alert_sent_at: null })
+        .eq("id", configId);
       throw new Error(`Evolution falhou: ${sendResult.evolutionStatus}`);
     }
-
-    await supabase
-      .from("group_agent_configs")
-      .update({ last_sales_alert_sent_at: new Date().toISOString() })
-      .eq("id", configId);
 
     await supabase.from("group_agent_responses").insert({
       company_id: companyId,
@@ -318,6 +362,10 @@ _Gerado automaticamente por ${config.agent_name}_`;
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Erro desconhecido";
     console.error("[proactive] Falha no alerta de vendas:", detail);
+    await supabase
+      .from("group_agent_configs")
+      .update({ last_sales_alert_sent_at: null })
+      .eq("id", configId);
     return { success: false, action: "sales_alert", responseText: "", error: detail };
   }
 }
