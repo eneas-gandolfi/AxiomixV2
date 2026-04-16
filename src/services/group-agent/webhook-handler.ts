@@ -497,6 +497,31 @@ export async function triggerAgentResponse(params: {
       console.log(LOG_PREFIX, "Sessão ativa encontrada, continuando multi-turno sem trigger", {
         sessionId: activeSession.id, senderJid, groupJid: remoteJid,
       });
+    } else {
+      // Janela pos-proativo: nos X min seguintes a um resumo/alerta proativo,
+      // qualquer resposta do grupo e tratada como continuacao sem exigir trigger.
+      const PROACTIVE_WINDOW_MINUTES = 60;
+      const windowStart = new Date(
+        Date.now() - PROACTIVE_WINDOW_MINUTES * 60_000
+      ).toISOString();
+
+      const { data: recentProactive } = await supabase
+        .from("group_agent_responses")
+        .select("id, created_at")
+        .eq("config_id", config.id)
+        .in("response_type", ["proactive_summary", "proactive_alert"])
+        .gte("created_at", windowStart)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentProactive) {
+        isSessionContinuation = true;
+        console.log(LOG_PREFIX, "Janela pos-proativo: processando sem trigger", {
+          configId: config.id, senderJid, proactiveId: recentProactive.id,
+          proactiveAt: recentProactive.created_at,
+        });
+      }
     }
   }
 
