@@ -1,6 +1,6 @@
 /**
- * Arquivo: src/app/api/whatsapp/sofia-actions/kanban/route.ts
- * Propósito: Criar card no kanban do Sofia CRM a partir de uma conversa.
+ * Arquivo: src/app/api/whatsapp/evo-actions/kanban/route.ts
+ * Propósito: Criar card no kanban do Evo CRM a partir de uma conversa.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 const createKanbanCardSchema = z.object({
   companyId: z.string().uuid(),
@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
     description += `\nID Conversa: ${conversation.external_id ?? conversation.id}`;
     description += `\nCriado via Axiomix WhatsApp Intelligence`;
 
-    // Criar card no Sofia CRM
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    // Criar card no Evo CRM
+    const evoClient = await getEvoCrmClient(access.companyId);
 
-    await sofiaClient.createKanbanCard({
+    await evoClient.createKanbanCard({
       boardId: parsed.data.boardId,
       title: parsed.data.title,
       description,
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      message: "Card criado com sucesso no Sofia CRM.",
+      message: "Card criado com sucesso no Evo CRM.",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao criar card no kanban.";

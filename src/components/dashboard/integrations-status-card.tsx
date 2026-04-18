@@ -3,7 +3,7 @@ import { Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type IntegrationStatusItem = {
-  type: "sofia_crm" | "evolution_api" | "upload_post" | "openrouter";
+  type: "evo_crm" | "evolution_api" | "upload_post" | "openrouter";
   status: "connected" | "error" | "missing";
   lastTestedAt: string | null;
 };
@@ -13,7 +13,7 @@ type IntegrationsStatusCardProps = {
 };
 
 const integrationLabels: Record<IntegrationStatusItem["type"], string> = {
-  sofia_crm: "Sofia CRM",
+  evo_crm: "Evo CRM",
   evolution_api: "Evolution API",
   upload_post: "Upload-Post API",
   openrouter: "OpenRouter",

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/start-conversation/route.ts
- * Propósito: Iniciar nova conversa WhatsApp via Sofia CRM.
+ * Propósito: Iniciar nova conversa WhatsApp via Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
-    const result = await sofiaClient.startConversation(parsed.data.phone);
+    const evoClient = await getEvoCrmClient(access.companyId);
+    const result = await evoClient.startConversation(parsed.data.phone);
 
     return NextResponse.json(result);
   } catch (error) {

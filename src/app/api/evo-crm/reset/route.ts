@@ -1,6 +1,6 @@
 /**
- * Arquivo: src/app/api/sofia-crm/reset/route.ts
- * Propósito: Limpar dados sincronizados do Sofia CRM para a empresa autenticada.
+ * Arquivo: src/app/api/evo-crm/reset/route.ts
+ * Propósito: Limpar dados sincronizados do Evo CRM para a empresa autenticada.
  * Autor: AXIOMIX
  * Data: 2026-03-14
  */
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { clearSofiaCrmCompanyData } from "@/lib/integrations/sofia-crm-maintenance";
+import { clearEvoCrmCompanyData } from "@/lib/integrations/evo-crm-maintenance";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -35,19 +35,19 @@ export async function POST(request: NextRequest) {
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
     if (access.role !== "owner" && access.role !== "admin") {
       return NextResponse.json(
-        { error: "Apenas owner/admin podem limpar os dados do Sofia CRM.", code: "FORBIDDEN" },
+        { error: "Apenas owner/admin podem limpar os dados do Evo CRM.", code: "FORBIDDEN" },
         { status: 403 }
       );
     }
 
-    await clearSofiaCrmCompanyData(access.companyId);
+    await clearEvoCrmCompanyData(access.companyId);
     revalidatePath("/settings");
     revalidatePath("/whatsapp-intelligence");
     revalidatePath("/whatsapp-intelligence/conversas");
 
     return NextResponse.json({
       companyId: access.companyId,
-      message: "Dados sincronizados do Sofia CRM removidos com sucesso.",
+      message: "Dados sincronizados do Evo CRM removidos com sucesso.",
     });
   } catch (error) {
     if (error instanceof CompanyAccessError) {
@@ -55,6 +55,6 @@ export async function POST(request: NextRequest) {
     }
 
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
-    return NextResponse.json({ error: detail, code: "SOFIA_RESET_ERROR" }, { status: 500 });
+    return NextResponse.json({ error: detail, code: "EVO_RESET_ERROR" }, { status: 500 });
   }
 }

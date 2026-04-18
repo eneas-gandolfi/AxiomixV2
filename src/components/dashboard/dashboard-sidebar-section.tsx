@@ -81,7 +81,7 @@ function toIntegrationStatusItems(
 ): IntegrationStatusItem[] {
   const byType = new Map(rows.map((row) => [row.type, row]));
   const allTypes: IntegrationStatusItem["type"][] = [
-    "sofia_crm",
+    "evo_crm",
     "evolution_api",
     "upload_post",
     "openrouter",
@@ -272,7 +272,7 @@ export async function DashboardSidebarSection({
     .filter((integration) => integration.test_status === "error")
     .forEach((integration) => {
       const integrationLabelByType: Record<IntegrationRow["type"], string> = {
-        sofia_crm: "Sofia CRM",
+        evo_crm: "Evo CRM",
         evolution_api: "Evolution API",
         upload_post: "Upload-Post API",
         openrouter: "OpenRouter",

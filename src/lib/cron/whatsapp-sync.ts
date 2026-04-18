@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/lib/cron/whatsapp-sync.ts
- * Proposito: Logica do cron de sync WhatsApp/Sofia CRM (extraida do route handler).
+ * Proposito: Logica do cron de sync WhatsApp/Evo CRM (extraida do route handler).
  * Autor: AXIOMIX
  * Data: 2026-04-07
  */
@@ -17,13 +17,13 @@ export async function runWhatsappSyncCron() {
   const { data: integrations, error: integrationsError } = await supabase
     .from("integrations")
     .select("company_id")
-    .eq("type", "sofia_crm")
+    .eq("type", "evo_crm")
     .eq("is_active", true)
     .eq("test_status", "ok")
     .not("company_id", "is", null);
 
   if (integrationsError) {
-    throw new Error(`Falha ao buscar integrações do Sofia CRM: ${integrationsError.message}`);
+    throw new Error(`Falha ao buscar integrações do Evo CRM: ${integrationsError.message}`);
   }
 
   const companyIds = Array.from(
@@ -46,7 +46,7 @@ export async function runWhatsappSyncCron() {
       .from("async_jobs")
       .select("id")
       .eq("company_id", companyId)
-      .eq("job_type", "sofia_crm_sync")
+      .eq("job_type", "evo_crm_sync")
       .in("status", ["pending", "running"])
       .limit(1);
 
@@ -58,7 +58,7 @@ export async function runWhatsappSyncCron() {
       .from("async_jobs")
       .select("id")
       .eq("company_id", companyId)
-      .eq("job_type", "sofia_crm_sync")
+      .eq("job_type", "evo_crm_sync")
       .eq("status", "done")
       .gte("created_at", recentSyncCutoff)
       .order("created_at", { ascending: false })
@@ -69,7 +69,7 @@ export async function runWhatsappSyncCron() {
       continue;
     }
 
-    await enqueueJob("sofia_crm_sync", {}, companyId, undefined, 1);
+    await enqueueJob("evo_crm_sync", {}, companyId, undefined, 1);
     enqueued += 1;
   }
 

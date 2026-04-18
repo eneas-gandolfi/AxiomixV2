@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/contact-detail-drawer.tsx
- * Propósito: Drawer lateral com detalhes e labels de um contato Sofia CRM.
+ * Propósito: Drawer lateral com detalhes e labels de um contato Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

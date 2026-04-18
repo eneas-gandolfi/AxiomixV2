@@ -1,12 +1,12 @@
 /**
- * Arquivo: src/services/sofia-crm/conversations.ts
- * Propósito: Sincronizar conversas e mensagens do Sofia CRM para o banco do AXIOMIX.
+ * Arquivo: src/services/evo-crm/conversations.ts
+ * Propósito: Sincronizar conversas e mensagens do Evo CRM para o banco do AXIOMIX.
  * Autor: AXIOMIX
- * Data: 2026-03-11
+ * Data: 2026-04-17
  */
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 import { getExcludedConversationExternalIds } from "@/services/whatsapp/conversation-exclusions";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -37,11 +37,11 @@ export type SyncProgressInfo = {
 
 export type SyncProgressCallback = (progress: SyncProgressInfo) => void;
 
-const SOFIA_SYNC_CONVERSATION_LIMIT = 300;
-const SOFIA_AUTO_SYNC_CONVERSATION_LIMIT = 5;
-const SOFIA_AUTO_SYNC_MESSAGE_LIMIT = 80;
-const SOFIA_DEFAULT_MESSAGE_LIMIT = 300;
-const SOFIA_DEFAULT_EXISTING_MESSAGES_LIMIT = 1000;
+const EVO_SYNC_CONVERSATION_LIMIT = 300;
+const EVO_AUTO_SYNC_CONVERSATION_LIMIT = 5;
+const EVO_AUTO_SYNC_MESSAGE_LIMIT = 80;
+const EVO_DEFAULT_MESSAGE_LIMIT = 300;
+const EVO_DEFAULT_EXISTING_MESSAGES_LIMIT = 1000;
 
 type SyncRecentMessagesOptions = {
   conversationLimit?: number;
@@ -64,15 +64,10 @@ function conversationLastMessageDate(raw: {
     raw.last_customer_message_at ??
     raw.updated_at ??
     raw.created_at;
-  if (!candidate) {
-    return null;
-  }
+  if (!candidate) return null;
 
   const parsed = new Date(candidate);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
+  if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
 }
 
@@ -92,15 +87,9 @@ function resolveRemoteJid(raw: {
 
 function normalizeSentAt(value?: string | null) {
   const fallback = new Date().toISOString();
-  if (!value) {
-    return fallback;
-  }
-
+  if (!value) return fallback;
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return fallback;
-  }
-
+  if (Number.isNaN(parsed.getTime())) return fallback;
   return parsed.toISOString();
 }
 
@@ -116,20 +105,11 @@ function shouldSyncMessages(
   previousLastMessageAt?: string | null,
   nextLastMessageAt?: string | null
 ) {
-  if (!nextLastMessageAt) {
-    return false;
-  }
-
-  if (!previousLastMessageAt) {
-    return true;
-  }
-
+  if (!nextLastMessageAt) return false;
+  if (!previousLastMessageAt) return true;
   const previousTime = new Date(previousLastMessageAt).getTime();
   const nextTime = new Date(nextLastMessageAt).getTime();
-  if (Number.isNaN(previousTime) || Number.isNaN(nextTime)) {
-    return true;
-  }
-
+  if (Number.isNaN(previousTime) || Number.isNaN(nextTime)) return true;
   return nextTime > previousTime;
 }
 
@@ -138,15 +118,14 @@ export async function syncConversations(
   onProgress?: SyncProgressCallback
 ): Promise<SyncConversationsResult> {
   const supabase = createSupabaseAdminClient();
-  const sofiaClient = await getSofiaCrmClient(companyId);
-  // Priorizar conversas abertas/pendentes — reduz volume e foca no que importa
-  // Se syncInboxIds configurado, filtrar por inbox específica
+  const evoClient = await getEvoCrmClient(companyId);
+
   const syncFilters: { status: string; inbox_id?: string } = { status: "open" };
-  if (sofiaClient.syncInboxIds?.[0]) {
-    syncFilters.inbox_id = sofiaClient.syncInboxIds[0];
+  if (evoClient.syncInboxIds?.[0]) {
+    syncFilters.inbox_id = evoClient.syncInboxIds[0];
   }
-  const remoteConversations = await sofiaClient.listConversations(
-    SOFIA_SYNC_CONVERSATION_LIMIT,
+  const remoteConversations = await evoClient.listConversations(
+    EVO_SYNC_CONVERSATION_LIMIT,
     syncFilters
   );
   const excludedExternalIds = await getExcludedConversationExternalIds(
@@ -156,20 +135,13 @@ export async function syncConversations(
   const uniqueConversations = new Map<string, (typeof remoteConversations)[number]>();
 
   for (const item of remoteConversations) {
-    if (!item.id) {
-      continue;
-    }
-
-    if (excludedExternalIds.has(item.id)) {
-      continue;
-    }
-
+    if (!item.id) continue;
+    if (excludedExternalIds.has(item.id)) continue;
     if (!uniqueConversations.has(item.id)) {
       uniqueConversations.set(item.id, item);
     }
   }
 
-  // Enriquecer contatos sem nome buscando individualmente (máx 10 por sync)
   const ENRICH_LIMIT = 10;
   const toEnrich = Array.from(uniqueConversations.values())
     .filter((item) => !item.contact?.name && item.contact?.id)
@@ -177,7 +149,7 @@ export async function syncConversations(
 
   for (const item of toEnrich) {
     try {
-      const detail = await sofiaClient.getContact(String(item.contact!.id!));
+      const detail = await evoClient.getContact(String(item.contact!.id!));
       if (detail.name || detail.phone || detail.phone_e164) {
         item.contact = {
           id: item.contact!.id,
@@ -204,7 +176,7 @@ export async function syncConversations(
       contact_avatar_url: item.profile_picture
         ? item.profile_picture.startsWith("http")
           ? item.profile_picture
-          : `${sofiaClient.baseUrl}${item.profile_picture.startsWith("/") ? "" : "/"}${item.profile_picture}`
+          : `${evoClient.baseUrl}${item.profile_picture.startsWith("/") ? "" : "/"}${item.profile_picture}`
         : null,
       contact_external_id: item.contact?.id ?? null,
       assigned_to: isValidUuid(item.assignee_id) ? item.assignee_id : null,
@@ -222,11 +194,7 @@ export async function syncConversations(
   });
 
   if (syncRows.length === 0) {
-    return {
-      syncedConversations: 0,
-      syncedMessages: 0,
-      conversations: [],
-    };
+    return { syncedConversations: 0, syncedMessages: 0, conversations: [] };
   }
 
   const externalIds = syncRows.map((row) => row.external_id);
@@ -242,9 +210,7 @@ export async function syncConversations(
 
   const existingByExternalId = new Map<string, { id: string; lastMessageAt: string | null }>();
   for (const row of existingRows ?? []) {
-    if (!row.external_id || existingByExternalId.has(row.external_id)) {
-      continue;
-    }
+    if (!row.external_id || existingByExternalId.has(row.external_id)) continue;
     existingByExternalId.set(row.external_id, {
       id: row.id,
       lastMessageAt: row.last_message_at,
@@ -270,14 +236,12 @@ export async function syncConversations(
       .select("id, external_id");
 
     if (insertError) {
-      throw new Error(`Falha ao inserir conversas do Sofia CRM: ${insertError.message}`);
+      throw new Error(`Falha ao inserir conversas do Evo CRM: ${insertError.message}`);
     }
 
     rows.push(...(insertedRows ?? []));
     for (const row of insertedRows ?? []) {
-      if (row.external_id) {
-        messageSyncExternalIds.add(row.external_id);
-      }
+      if (row.external_id) messageSyncExternalIds.add(row.external_id);
     }
   }
 
@@ -288,15 +252,12 @@ export async function syncConversations(
     syncedMessages: 0,
   });
 
-  // Batch updates em grupos de 20 para evitar N queries individuais
   const UPDATE_BATCH_SIZE = 20;
   for (let batchStart = 0; batchStart < updateRows.length; batchStart += UPDATE_BATCH_SIZE) {
     const batch = updateRows.slice(batchStart, batchStart + UPDATE_BATCH_SIZE);
     const updatePromises = batch.map(async (row) => {
       const existingConversation = existingByExternalId.get(row.external_id);
-      if (!existingConversation) {
-        return null;
-      }
+      if (!existingConversation) return null;
 
       const { data: updatedRow, error: updateError } = await supabase
         .from("conversations")
@@ -330,9 +291,7 @@ export async function syncConversations(
 
     const batchResults = await Promise.all(updatePromises);
     for (const updatedRow of batchResults) {
-      if (updatedRow) {
-        rows.push(updatedRow);
-      }
+      if (updatedRow) rows.push(updatedRow);
     }
 
     onProgress?.({
@@ -356,14 +315,9 @@ export async function syncConversations(
   });
 
   for (const row of rows ?? []) {
-    if (!row.external_id) {
-      continue;
-    }
+    if (!row.external_id) continue;
 
-    syncedList.push({
-      id: row.id,
-      externalId: row.external_id,
-    });
+    syncedList.push({ id: row.id, externalId: row.external_id });
 
     if (!messageSyncExternalIds.has(row.external_id)) {
       processedConversations += 1;
@@ -376,8 +330,8 @@ export async function syncConversations(
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       if (msg.includes("429") || msg.includes("Rate Limit")) {
-        console.warn(`[SYNC] Rate limit atingido na conversa ${row.external_id}. Interrompendo sincronização de mensagens.`);
-        break; // Stop fetching messages for this batch to allow token bucket to refill
+        console.warn(`[SYNC] Rate limit atingido na conversa ${row.external_id}. Interrompendo sincronização.`);
+        break;
       }
       console.error(`[SYNC] Falha ao sincronizar mensagens da conversa ${row.id}:`, msg);
     }
@@ -390,12 +344,9 @@ export async function syncConversations(
       syncedMessages,
     });
 
-    // Pequeno delay para proteger contra rate limit do Sofia CRM (max 60 a cada 1 min geralmente)
     await sleep(400);
   }
 
-  // Sync bidirecional de labels — buscar labels dos contatos que foram atualizados
-  // Limitado a 10 contatos por sync para respeitar rate limit
   const LABEL_SYNC_LIMIT = 10;
   const contactIdsToSync = Array.from(uniqueConversations.values())
     .filter((item) => item.contact?.id && messageSyncExternalIds.has(item.id))
@@ -405,7 +356,7 @@ export async function syncConversations(
     const contactId = item.contact?.id;
     if (!contactId) continue;
     try {
-      const labels = await sofiaClient.listContactLabels(String(contactId));
+      const labels = await evoClient.listContactLabels(String(contactId));
       const labelsJson = labels.map((l) => ({ id: l.id, name: l.name, color: l.color }));
       await supabase
         .from("conversations")
@@ -413,7 +364,7 @@ export async function syncConversations(
         .eq("company_id", companyId)
         .eq("external_id", item.id);
     } catch {
-      // Silently skip — labels são complementares
+      // Labels são complementares
     }
     await sleep(200);
   }
@@ -430,11 +381,10 @@ export async function syncRecentMessages(
   options?: SyncRecentMessagesOptions
 ): Promise<{ syncedMessages: number; checkedConversations: number }> {
   const supabase = createSupabaseAdminClient();
-  const conversationLimit = Math.max(1, options?.conversationLimit ?? SOFIA_AUTO_SYNC_CONVERSATION_LIMIT);
-  const messageLimit = Math.max(1, options?.messageLimit ?? SOFIA_AUTO_SYNC_MESSAGE_LIMIT);
+  const conversationLimit = Math.max(1, options?.conversationLimit ?? EVO_AUTO_SYNC_CONVERSATION_LIMIT);
+  const messageLimit = Math.max(1, options?.messageLimit ?? EVO_AUTO_SYNC_MESSAGE_LIMIT);
   const existingMessagesLimit = Math.max(messageLimit * 3, 200);
 
-  // Buscar as 20 conversas mais recentes do BANCO (já sincronizadas)
   const { data: recent } = await supabase
     .from("conversations")
     .select("id, external_id")
@@ -451,10 +401,7 @@ export async function syncRecentMessages(
   for (const conv of recent) {
     if (!conv.external_id) continue;
     try {
-      const result = await syncMessages(companyId, conv.id, {
-        messageLimit,
-        existingMessagesLimit,
-      });
+      const result = await syncMessages(companyId, conv.id, { messageLimit, existingMessagesLimit });
       syncedMessages += result.syncedMessages;
       checked++;
     } catch (error) {
@@ -474,9 +421,9 @@ export async function syncMessages(
   options?: SyncMessagesOptions
 ): Promise<SyncMessagesResult> {
   const supabase = createSupabaseAdminClient();
-  const sofiaClient = await getSofiaCrmClient(companyId);
-  const messageLimit = Math.max(1, options?.messageLimit ?? SOFIA_DEFAULT_MESSAGE_LIMIT);
-  const existingMessagesLimit = Math.max(1, options?.existingMessagesLimit ?? SOFIA_DEFAULT_EXISTING_MESSAGES_LIMIT);
+  const evoClient = await getEvoCrmClient(companyId);
+  const messageLimit = Math.max(1, options?.messageLimit ?? EVO_DEFAULT_MESSAGE_LIMIT);
+  const existingMessagesLimit = Math.max(1, options?.existingMessagesLimit ?? EVO_DEFAULT_EXISTING_MESSAGES_LIMIT);
 
   const { data: conversation, error: conversationError } = await supabase
     .from("conversations")
@@ -489,7 +436,7 @@ export async function syncMessages(
     throw new Error("Conversa inválida para sincronização de mensagens.");
   }
 
-  const remoteMessages = await sofiaClient.listMessages(conversation.external_id, messageLimit);
+  const remoteMessages = await evoClient.listMessages(conversation.external_id, messageLimit);
 
   const { data: existingMessages, error: existingError } = await supabase
     .from("messages")
@@ -505,9 +452,7 @@ export async function syncMessages(
 
   const existingSet = new Set<string>();
   for (const item of existingMessages ?? []) {
-    if (!item.direction || !item.sent_at) {
-      continue;
-    }
+    if (!item.direction || !item.sent_at) continue;
     existingSet.add(
       buildMessageFingerprint({
         content: item.content,
@@ -540,9 +485,7 @@ export async function syncMessages(
     };
     const fingerprint = buildMessageFingerprint(normalized);
 
-    if (existingSet.has(fingerprint)) {
-      continue;
-    }
+    if (existingSet.has(fingerprint)) continue;
 
     existingSet.add(fingerprint);
     insertRows.push(normalized);

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/contacts/import.ts
- * Propósito: Parsear CSV e importar contatos no Sofia CRM.
+ * Propósito: Parsear CSV e importar contatos no Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-28
  */
@@ -8,7 +8,7 @@
 import "server-only";
 
 import Papa from "papaparse";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export type ParsedContact = {
   name: string;
@@ -83,7 +83,7 @@ export function parseContactsCsv(text: string): {
 }
 
 /**
- * Importar contatos no Sofia CRM.
+ * Importar contatos no Evo CRM.
  * Deduplicacao via findContactByPhone.
  * Rate limit: batch de 10 com 300ms delay.
  */
@@ -92,7 +92,7 @@ export async function importContacts(
   contacts: ParsedContact[],
   options?: { labelName?: string }
 ): Promise<ImportResult> {
-  const sofiaClient = await getSofiaCrmClient(companyId);
+  const evoClient = await getEvoCrmClient(companyId);
   const result: ImportResult = { created: 0, skipped: 0, failed: 0, errors: [] };
 
   for (let i = 0; i < contacts.length; i++) {
@@ -100,7 +100,7 @@ export async function importContacts(
 
     try {
       // Verificar se ja existe
-      const existing = await sofiaClient.findContactByPhone(contact.phone);
+      const existing = await evoClient.findContactByPhone(contact.phone);
 
       if (existing) {
         result.skipped++;
@@ -108,7 +108,7 @@ export async function importContacts(
       }
 
       // Criar contato
-      const created = await sofiaClient.createContact({
+      const created = await evoClient.createContact({
         name: contact.name || contact.phone,
         phone: contact.phone,
       });
@@ -116,7 +116,7 @@ export async function importContacts(
       // Opcionalmente adicionar label
       if (options?.labelName && created.id) {
         try {
-          await sofiaClient.addContactLabel({
+          await evoClient.addContactLabel({
             contactId: created.id,
             label: options.labelName,
           });

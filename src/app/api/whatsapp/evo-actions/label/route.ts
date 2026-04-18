@@ -1,6 +1,6 @@
 /**
- * Arquivo: src/app/api/whatsapp/sofia-actions/label/route.ts
- * Propósito: Adicionar label/tag a um contato no Sofia CRM.
+ * Arquivo: src/app/api/whatsapp/evo-actions/label/route.ts
+ * Propósito: Adicionar label/tag a um contato no Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 const addLabelSchema = z.object({
   companyId: z.string().uuid(),
@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Conversa não encontrada." }, { status: 404 });
     }
 
-    // Adicionar label no Sofia CRM
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    // Adicionar label no Evo CRM
+    const evoClient = await getEvoCrmClient(access.companyId);
 
-    await sofiaClient.addContactLabel({
+    await evoClient.addContactLabel({
       contactId: parsed.data.contactId,
       label: parsed.data.label,
     });

@@ -1,6 +1,6 @@
 /**
- * Arquivo: src/components/whatsapp/assign-sofia-agent-select.tsx
- * Propósito: Select para atribuir conversa a um agente/time da Sofia CRM.
+ * Arquivo: src/components/whatsapp/assign-evo-agent-select.tsx
+ * Propósito: Select para atribuir conversa a um agente/time da Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -14,17 +14,17 @@ import { Button } from "@/components/ui/button";
 type Agent = { id: string; name: string | null };
 type Team = { id: string; name: string | null };
 
-type AssignSofiaAgentSelectProps = {
+type AssignEvoAgentSelectProps = {
   companyId: string;
   conversationExternalId: string;
   onAssigned?: () => void;
 };
 
-export function AssignSofiaAgentSelect({
+export function AssignEvoAgentSelect({
   companyId,
   conversationExternalId,
   onAssigned,
-}: AssignSofiaAgentSelectProps) {
+}: AssignEvoAgentSelectProps) {
   const [open, setOpen] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);

@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/cron/whatsapp-sync/route.ts
- * Propósito: Cron job para sincronizar conversas do Sofia CRM em background.
+ * Propósito: Cron job para sincronizar conversas do Evo CRM em background.
  * Autor: AXIOMIX
  * Data: 2026-03-12
  */
@@ -29,13 +29,13 @@ export async function GET(request: NextRequest) {
     const { data: integrations, error: integrationsError } = await supabase
       .from("integrations")
       .select("company_id")
-      .eq("type", "sofia_crm")
+      .eq("type", "evo_crm")
       .eq("is_active", true)
       .eq("test_status", "ok")
       .not("company_id", "is", null);
 
     if (integrationsError) {
-      throw new Error(`Falha ao buscar integrações do Sofia CRM: ${integrationsError.message}`);
+      throw new Error(`Falha ao buscar integrações do Evo CRM: ${integrationsError.message}`);
     }
 
     const companyIds = Array.from(
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         .from("async_jobs")
         .select("id")
         .eq("company_id", companyId)
-        .eq("job_type", "sofia_crm_sync")
+        .eq("job_type", "evo_crm_sync")
         .in("status", ["pending", "running"])
         .limit(1);
 
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         .from("async_jobs")
         .select("id")
         .eq("company_id", companyId)
-        .eq("job_type", "sofia_crm_sync")
+        .eq("job_type", "evo_crm_sync")
         .eq("status", "done")
         .gte("created_at", recentSyncCutoff)
         .order("created_at", { ascending: false })
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const job = await enqueueJob("sofia_crm_sync", {}, companyId, undefined, 1);
+      const job = await enqueueJob("evo_crm_sync", {}, companyId, undefined, 1);
       enqueued.push(job.id);
     }
 

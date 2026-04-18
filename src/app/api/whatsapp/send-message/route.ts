@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/send-message/route.ts
- * Propósito: Enviar mensagem numa conversa via Sofia CRM.
+ * Propósito: Enviar mensagem numa conversa via Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
-    await sofiaClient.sendMessage(parsed.data.conversationExternalId, parsed.data.content);
+    const evoClient = await getEvoCrmClient(access.companyId);
+    await evoClient.sendMessage(parsed.data.conversationExternalId, parsed.data.content);
 
     // Salvar a mensagem localmente também
     await supabase.from("messages").insert({

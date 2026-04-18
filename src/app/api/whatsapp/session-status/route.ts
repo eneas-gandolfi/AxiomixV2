@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
-    const status = await sofiaClient.getSessionStatus(parsed.data.conversationExternalId);
+    const evoClient = await getEvoCrmClient(access.companyId);
+    const status = await evoClient.getSessionStatus(parsed.data.conversationExternalId);
 
     return NextResponse.json(status);
   } catch (error) {

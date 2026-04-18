@@ -1,6 +1,6 @@
 /**
- * Arquivo: src/app/api/sofia-crm/sync/route.ts
- * Propósito: Disparar sincronização manual de conversas/mensagens do Sofia CRM.
+ * Arquivo: src/app/api/evo-crm/sync/route.ts
+ * Propósito: Disparar sincronização manual de conversas/mensagens do Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -27,7 +27,7 @@ const syncRequestSchema = z.object({
   maxAnalyses: z.number().int().min(1).max(10).optional(),
 });
 
-async function clearStaleSofiaSyncJobs(companyId: string) {
+async function clearStaleEvoSyncJobs(companyId: string) {
   const adminSupabase = createSupabaseAdminClient();
   const nowIso = new Date().toISOString();
   const stalePendingCutoff = new Date(Date.now() - STALE_PENDING_MINUTES * 60_000).toISOString();
@@ -41,7 +41,7 @@ async function clearStaleSofiaSyncJobs(companyId: string) {
       completed_at: nowIso,
     })
     .eq("company_id", companyId)
-    .eq("job_type", "sofia_crm_sync")
+    .eq("job_type", "evo_crm_sync")
     .eq("status", "pending")
     .lt("created_at", stalePendingCutoff);
 
@@ -53,7 +53,7 @@ async function clearStaleSofiaSyncJobs(companyId: string) {
       completed_at: nowIso,
     })
     .eq("company_id", companyId)
-    .eq("job_type", "sofia_crm_sync")
+    .eq("job_type", "evo_crm_sync")
     .eq("status", "running")
     .lt("started_at", staleRunningCutoff);
 }
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
 
     if (parsed.data.conversationId) {
-      const { syncMessages } = await import("@/services/sofia-crm/conversations");
+      const { syncMessages } = await import("@/services/evo-crm/conversations");
       const messageResult = await syncMessages(access.companyId, parsed.data.conversationId);
       return NextResponse.json({
         companyId: access.companyId,
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (parsed.data.mode === "messages_only") {
-      const { syncRecentMessages } = await import("@/services/sofia-crm/conversations");
+      const { syncRecentMessages } = await import("@/services/evo-crm/conversations");
       const result = await syncRecentMessages(access.companyId, {
         conversationLimit: 15,
         messageLimit: 80,
@@ -97,14 +97,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await clearStaleSofiaSyncJobs(access.companyId);
+    await clearStaleEvoSyncJobs(access.companyId);
 
     const adminSupabase = createSupabaseAdminClient();
     const { data: existingJob } = await adminSupabase
       .from("async_jobs")
       .select("id, status")
       .eq("company_id", access.companyId)
-      .eq("job_type", "sofia_crm_sync")
+      .eq("job_type", "evo_crm_sync")
       .in("status", ["pending", "running"])
       .order("created_at", { ascending: false })
       .limit(1)
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const queuedJob = await enqueueJob("sofia_crm_sync", {}, access.companyId, undefined, 1);
+    const queuedJob = await enqueueJob("evo_crm_sync", {}, access.companyId, undefined, 1);
 
     // Usar after() do Next.js para garantir que o processamento em background
     // continue mesmo após a resposta ser enviada. O fireAndForget simples
@@ -148,6 +148,6 @@ export async function POST(request: NextRequest) {
     }
 
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
-    return NextResponse.json({ error: detail, code: "SOFIA_SYNC_ERROR" }, { status: 500 });
+    return NextResponse.json({ error: detail, code: "EVO_SYNC_ERROR" }, { status: 500 });
   }
 }

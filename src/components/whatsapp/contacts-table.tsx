@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/contacts-table.tsx
- * Propósito: Tabela Ant Design para lista de contatos do Sofia CRM.
+ * Propósito: Tabela Ant Design para lista de contatos do Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

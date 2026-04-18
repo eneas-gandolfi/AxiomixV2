@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ sessions: [], summary: { total: 0, active: 0, expiring: 0, expired: 0 } });
     }
 
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    const evoClient = await getEvoCrmClient(access.companyId);
     const sessions: ConversationSession[] = [];
 
     // Buscar status de sessão em paralelo (batches de 5)
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       const results = await Promise.allSettled(
         batch.map(async (conv) => {
           try {
-            const status = await sofiaClient.getSessionStatus(conv.external_id!);
+            const status = await evoClient.getSessionStatus(conv.external_id!);
             return {
               conversationId: conv.id,
               externalId: conv.external_id!,

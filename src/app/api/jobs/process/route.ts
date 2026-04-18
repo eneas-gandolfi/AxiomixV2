@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const allowedJobTypes = [
-  "sofia_crm_sync",
+  "evo_crm_sync",
   "whatsapp_analyze",
   "weekly_report",
   "competitor_scrape",

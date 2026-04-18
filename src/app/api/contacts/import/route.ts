@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/contacts/import/route.ts
- * Propósito: API de import de contatos via CSV para o Sofia CRM.
+ * Propósito: API de import de contatos via CSV para o Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-28
  */

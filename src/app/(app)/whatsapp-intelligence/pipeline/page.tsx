@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/(app)/whatsapp-intelligence/pipeline/page.tsx
- * Propósito: Visualização e gestão do Kanban/pipeline via Sofia CRM.
+ * Propósito: Visualização e gestão do Kanban/pipeline via Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -133,7 +133,7 @@ export default function PipelinePage() {
         <Kanban className="mb-4 h-12 w-12 text-muted" />
         <p className="text-lg font-medium text-text">Nenhum pipeline encontrado</p>
         <p className="mt-2 text-sm text-muted">
-          Crie um pipeline no Sofia CRM para visualizá-lo aqui.
+          Crie um pipeline no Evo CRM para visualizá-lo aqui.
         </p>
       </div>
     );

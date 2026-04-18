@@ -1,15 +1,25 @@
 /**
- * Arquivo: src/services/sofia-crm/client.ts
- * Propósito: Fornecer cliente tipado do Sofia CRM com credenciais por company_id.
+ * Arquivo: src/services/evo-crm/client.ts
+ * Propósito: Cliente tipado do Evo CRM (Evolution Foundation, v4.2.0) com credenciais por company_id.
  * Autor: AXIOMIX
- * Data: 2026-03-11
+ * Data: 2026-04-17
+ *
+ * Notas (validado 2026-04-17 contra https://api.getlead.capital, Evo CRM v3.0.0):
+ * - Header de auth: `api_access_token: <token>` (padrão Chatwoot)
+ * - Path: `/api/v1/{resource}` direto, SEM accountId
+ * - Envelope de resposta: `{success, data, error: {code, message}, meta: {timestamp, pagination, ...}, message?}`
+ * - Parsers defensivos são reusados do padrão Chatwoot — Evo CRM é fork do Chatwoot.
+ *
+ * Endpoints ainda UNVERIFIED (marcados no código): assignConversation, getSessionStatus, sendTemplate,
+ * kanban card CRUD — retornam 404 em conta vazia. Após criar pelo menos 1 conversa/pipeline no painel,
+ * revalidar com `curl` e ajustar assinatura se necessário.
  */
 
 import type { Json } from "@/database/types/database.types";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-type SofiaConversationApi = {
+type EvoConversationApi = {
   id: string;
   phone_e164?: string | null;
   remote_jid?: string | null;
@@ -28,7 +38,7 @@ type SofiaConversationApi = {
   } | null;
 };
 
-type SofiaMessageApi = {
+type EvoMessageApi = {
   id: string;
   content?: string | null;
   from_me?: boolean | null;
@@ -38,7 +48,7 @@ type SofiaMessageApi = {
   media_url?: string | null;
 };
 
-type SofiaContactApi = {
+type EvoContactApi = {
   id: string;
   name?: string | null;
   phone?: string | null;
@@ -49,35 +59,35 @@ type SofiaContactApi = {
   blocked?: boolean | null;
   created_at?: string | null;
   updated_at?: string | null;
-  labels?: SofiaLabelApi[] | null;
+  labels?: EvoLabelApi[] | null;
 };
 
-type SofiaLabelApi = {
+type EvoLabelApi = {
   id: string;
   name?: string | null;
   color?: string | null;
 };
 
-type SofiaSessionStatus = {
+type EvoSessionStatus = {
   active: boolean;
   expires_at?: string | null;
   seconds_remaining?: number | null;
 };
 
-type SofiaKanbanBoard = {
+type EvoKanbanBoard = {
   id: string;
   name?: string | null;
-  stages?: SofiaKanbanStage[] | null;
+  stages?: EvoKanbanStage[] | null;
 };
 
-type SofiaKanbanStage = {
+type EvoKanbanStage = {
   id: string;
   name?: string | null;
   position?: number | null;
-  cards?: SofiaKanbanCard[] | null;
+  cards?: EvoKanbanCard[] | null;
 };
 
-type SofiaKanbanCard = {
+type EvoKanbanCard = {
   id: string;
   title?: string | null;
   description?: string | null;
@@ -96,7 +106,7 @@ type SofiaKanbanCard = {
   conversation_id?: string | null;
 };
 
-type SofiaUserApi = {
+type EvoUserApi = {
   id: string;
   name?: string | null;
   email?: string | null;
@@ -104,54 +114,54 @@ type SofiaUserApi = {
   avatar_url?: string | null;
 };
 
-type SofiaTeamApi = {
+type EvoTeamApi = {
   id: string;
   name?: string | null;
-  members?: SofiaUserApi[] | null;
+  members?: EvoUserApi[] | null;
 };
 
-type SofiaInboxApi = {
+type EvoInboxApi = {
   id: string;
   name?: string | null;
   channel_type?: string | null;
   phone_number?: string | null;
 };
 
-type SofiaRequestOptions = {
+type EvoRequestOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   body?: Json;
   searchParams?: Record<string, string | number | boolean | undefined>;
 };
 
-const SOFIA_HTTP2_TIMEOUT_MS = 15_000;
+const EVO_HTTP_TIMEOUT_MS = 15_000;
 
-type SofiaCrmClient = {
+type EvoCrmClient = {
   baseUrl: string;
   apiToken: string;
   inboxId?: string;
   syncInboxIds?: string[];
   buildConversationUrl: (externalConversationId: string) => string;
   // Conversas
-  listConversations: (limit?: number, filters?: { status?: string; filter?: string; inbox_id?: string }) => Promise<SofiaConversationApi[]>;
-  listMessages: (externalConversationId: string, limit?: number) => Promise<SofiaMessageApi[]>;
+  listConversations: (limit?: number, filters?: { status?: string; filter?: string; inbox_id?: string }) => Promise<EvoConversationApi[]>;
+  listMessages: (externalConversationId: string, limit?: number) => Promise<EvoMessageApi[]>;
   sendMessage: (conversationId: string, content: string, options?: { checkSession?: boolean }) => Promise<void>;
   sendTemplate: (payload: { to: string; templateName: string; language?: string; components?: Json }) => Promise<{ messageId?: string }>;
-  getSessionStatus: (conversationId: string) => Promise<SofiaSessionStatus>;
+  getSessionStatus: (conversationId: string) => Promise<EvoSessionStatus>;
   assignConversation: (conversationId: string, payload: { assigneeId?: string; teamId?: string }) => Promise<void>;
   startConversation: (phone: string) => Promise<{ conversationId: string }>;
   // Contatos
-  listContacts: (params?: { search?: string; page?: number; limit?: number; include_labels?: boolean }) => Promise<SofiaContactApi[]>;
-  getContact: (contactId: string) => Promise<SofiaContactApi>;
-  findContactByPhone: (phone: string) => Promise<SofiaContactApi | null>;
-  createContact: (payload: { name: string; phone: string }) => Promise<SofiaContactApi>;
-  listContactLabels: (contactId: string) => Promise<SofiaLabelApi[]>;
+  listContacts: (params?: { search?: string; page?: number; limit?: number; include_labels?: boolean }) => Promise<EvoContactApi[]>;
+  getContact: (contactId: string) => Promise<EvoContactApi>;
+  findContactByPhone: (phone: string) => Promise<EvoContactApi | null>;
+  createContact: (payload: { name: string; phone: string }) => Promise<EvoContactApi>;
+  listContactLabels: (contactId: string) => Promise<EvoLabelApi[]>;
   removeContactLabel: (contactId: string, labelId: string) => Promise<void>;
   // Labels
-  listLabels: () => Promise<SofiaLabelApi[]>;
-  createLabel: (name: string) => Promise<SofiaLabelApi>;
+  listLabels: () => Promise<EvoLabelApi[]>;
+  createLabel: (name: string) => Promise<EvoLabelApi>;
   updateLabel: (labelId: string, payload: { name?: string; color?: string }) => Promise<void>;
   deleteLabel: (labelId: string) => Promise<void>;
-  // Kanban
+  // Kanban (Evo CRM: /api/v1/pipelines)
   createKanbanCard: (payload: {
     boardId: string;
     title: string;
@@ -166,17 +176,17 @@ type SofiaCrmClient = {
     conversation_id?: string;
   }) => Promise<void>;
   addContactLabel: (payload: { contactId: string; label: string }) => Promise<void>;
-  listBoards: () => Promise<SofiaKanbanBoard[]>;
-  getBoard: (boardId: string) => Promise<SofiaKanbanBoard>;
-  getCard: (cardId: string) => Promise<SofiaKanbanCard>;
-  updateCard: (cardId: string, data: Partial<Pick<SofiaKanbanCard, "title" | "description" | "stage_id" | "assigned_to" | "value_amount" | "phone" | "priority" | "tags" | "contact_id" | "conversation_id">>) => Promise<void>;
+  listBoards: () => Promise<EvoKanbanBoard[]>;
+  getBoard: (boardId: string) => Promise<EvoKanbanBoard>;
+  getCard: (cardId: string) => Promise<EvoKanbanCard>;
+  updateCard: (cardId: string, data: Partial<Pick<EvoKanbanCard, "title" | "description" | "stage_id" | "assigned_to" | "value_amount" | "phone" | "priority" | "tags" | "contact_id" | "conversation_id">>) => Promise<void>;
   deleteCard: (cardId: string) => Promise<void>;
   moveCard: (cardId: string, boardId: string, stageId: string) => Promise<void>;
   // Equipe
-  listUsers: () => Promise<SofiaUserApi[]>;
-  getUser: (userId: string) => Promise<SofiaUserApi>;
-  listTeams: () => Promise<SofiaTeamApi[]>;
-  listInboxes: () => Promise<SofiaInboxApi[]>;
+  listUsers: () => Promise<EvoUserApi[]>;
+  getUser: (userId: string) => Promise<EvoUserApi>;
+  listTeams: () => Promise<EvoTeamApi[]>;
+  listInboxes: () => Promise<EvoInboxApi[]>;
 };
 
 function describeFetchError(error: unknown) {
@@ -185,7 +195,7 @@ function describeFetchError(error: unknown) {
   }
 
   if (error.name === "AbortError") {
-    return "timeout ao conectar com o Sofia CRM.";
+    return "timeout ao conectar com o Evo CRM.";
   }
 
   const cause =
@@ -197,7 +207,7 @@ function describeFetchError(error: unknown) {
   const causeMessage = cause && typeof cause.message === "string" ? cause.message : null;
 
   if (code === "ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR" || code === "EPROTO") {
-    return "falha TLS no servidor (alert 80). Verifique se o SSL do Hostinger está instalado corretamente ou se o BitNinja está bloqueando o agente Axiomix.";
+    return "falha TLS no servidor. Verifique o certificado do domínio da API.";
   }
 
   if (code === "ENOTFOUND") {
@@ -223,16 +233,37 @@ function describeFetchError(error: unknown) {
   return error.message || "erro desconhecido de rede.";
 }
 
-function normalizeSofiaBaseUrl(rawBaseUrl: string) {
+function normalizeEvoBaseUrl(rawBaseUrl: string) {
   const normalized = rawBaseUrl.trim().replace(/\/+$/, "");
-  return normalized.endsWith("/api") ? normalized.slice(0, -4) : normalized;
+  if (normalized.endsWith("/api/v1")) return normalized.slice(0, -"/api/v1".length);
+  if (normalized.endsWith("/api")) return normalized.slice(0, -"/api".length);
+  return normalized;
+}
+
+/**
+ * Extrai `data` do envelope padrão Evo CRM `{success, data, error, meta}`.
+ * Se o backend retorna payload sem envelope (ex: array direto), retorna como está.
+ */
+function unwrap<T = unknown>(payload: unknown): T {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const record = payload as Record<string, unknown>;
+    if (record.success === false) {
+      const err = (record.error as Record<string, unknown> | undefined) ?? {};
+      const code = typeof err.code === "string" ? err.code : "UNKNOWN";
+      const message = typeof err.message === "string" ? err.message : "Erro desconhecido";
+      throw new Error(`Evo CRM [${code}]: ${message}`);
+    }
+    if (record.success === true && "data" in record) {
+      return record.data as T;
+    }
+  }
+  return payload as T;
 }
 
 function assertArrayPayload(payload: unknown): unknown[] {
   if (Array.isArray(payload)) {
     return payload;
   }
-
   return [];
 }
 
@@ -241,11 +272,10 @@ function toExternalId(value: unknown) {
     const normalized = String(value).trim();
     return normalized.length > 0 ? normalized : null;
   }
-
   return null;
 }
 
-function parseConversationsResponse(payload: unknown): SofiaConversationApi[] {
+function parseConversationsResponse(payload: unknown): EvoConversationApi[] {
   const record = typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {};
   const rawList = Array.isArray(record.conversations)
     ? record.conversations
@@ -253,7 +283,7 @@ function parseConversationsResponse(payload: unknown): SofiaConversationApi[] {
       ? record.data
       : assertArrayPayload(payload);
 
-  const parsed: SofiaConversationApi[] = [];
+  const parsed: EvoConversationApi[] = [];
 
   for (const item of rawList) {
     if (typeof item !== "object" || item === null) {
@@ -266,14 +296,11 @@ function parseConversationsResponse(payload: unknown): SofiaConversationApi[] {
       continue;
     }
 
-    // Sofia CRM API retorna contact_name e contact_id diretamente no objeto conversation (não aninhado)
-    // Mas também tentamos extrair de um objeto contact aninhado como fallback
     const contactRaw =
       typeof row.contact === "object" && row.contact !== null
         ? (row.contact as Record<string, unknown>)
         : null;
 
-    // Prioridade: campos diretos (contact_name) -> objeto aninhado (contact.name)
     const contactName =
       typeof row.contact_name === "string" && row.contact_name.trim().length > 0
         ? row.contact_name
@@ -306,7 +333,6 @@ function parseConversationsResponse(payload: unknown): SofiaConversationApi[] {
             ? contactRaw.profile_picture
             : null;
 
-    // Extrair assignee_id — pode vir de vários campos dependendo da versão da API Sofia
     const metaRaw =
       typeof row.meta === "object" && row.meta !== null
         ? (row.meta as Record<string, unknown>)
@@ -378,13 +404,10 @@ function parseConversationsPagination(payload: unknown) {
 
   const hasMore = rawPagination?.hasMore === true;
 
-  return {
-    nextCursor,
-    hasMore,
-  };
+  return { nextCursor, hasMore };
 }
 
-function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
+function parseMessagesResponse(payload: unknown): EvoMessageApi[] {
   const record = typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {};
   const conversationRecord =
     typeof record.conversation === "object" && record.conversation !== null
@@ -402,37 +425,23 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
             ? conversationRecord.messages
             : conversationRecord && Array.isArray(conversationRecord.data)
               ? conversationRecord.data
-              : conversationRecord && Array.isArray(conversationRecord.items)
-                ? conversationRecord.items
-                : conversationRecord && Array.isArray(conversationRecord.last_messages)
-                  ? conversationRecord.last_messages
-                  : conversationRecord && Array.isArray(conversationRecord.chat_messages)
-                    ? conversationRecord.chat_messages
-                    : Array.isArray(record.conversation_messages)
-                      ? record.conversation_messages
-                      : assertArrayPayload(payload);
+              : assertArrayPayload(payload);
 
-  const parsed: SofiaMessageApi[] = [];
+  const parsed: EvoMessageApi[] = [];
 
   for (const [index, item] of rawList.entries()) {
-    if (typeof item !== "object" || item === null) {
-      continue;
-    }
+    if (typeof item !== "object" || item === null) continue;
 
     const row = item as Record<string, unknown>;
     const sourceId = toExternalId(row.id ?? row.message_id ?? row.uuid ?? row.external_id);
 
-    const rawDirection =
-      typeof row.direction === "string" ? row.direction.trim().toLowerCase() : null;
+    const rawDirection = typeof row.direction === "string" ? row.direction.trim().toLowerCase() : null;
     const fromMe =
       typeof row.from_me === "boolean"
         ? row.from_me
         : typeof row.fromMe === "boolean"
           ? row.fromMe
-          : rawDirection === "outbound" ||
-            rawDirection === "sent" ||
-            rawDirection === "agent" ||
-            rawDirection === "operator"
+          : rawDirection === "outbound" || rawDirection === "sent" || rawDirection === "agent" || rawDirection === "operator"
             ? true
             : rawDirection === "inbound" || rawDirection === "received" || rawDirection === "customer"
               ? false
@@ -447,14 +456,9 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
             ? row.messageType.trim().toLowerCase()
             : typeof row.media_type === "string" && row.media_type.trim().length > 0
               ? row.media_type.trim().toLowerCase()
-              : typeof row.mediaType === "string" && row.mediaType.trim().length > 0
-                ? row.mediaType.trim().toLowerCase()
-                : null;
+              : null;
 
-    const caption =
-      typeof row.caption === "string" && row.caption.trim().length > 0
-        ? row.caption
-        : null;
+    const caption = typeof row.caption === "string" && row.caption.trim().length > 0 ? row.caption : null;
 
     const mediaUrl =
       typeof row.media_url === "string" && row.media_url.trim().length > 0
@@ -463,11 +467,9 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
           ? row.mediaUrl.trim()
           : typeof row.file_url === "string" && row.file_url.trim().length > 0
             ? row.file_url.trim()
-            : typeof row.fileUrl === "string" && row.fileUrl.trim().length > 0
-              ? row.fileUrl.trim()
-              : typeof row.attachment_url === "string" && row.attachment_url.trim().length > 0
-                ? row.attachment_url.trim()
-                : null;
+            : typeof row.attachment_url === "string" && row.attachment_url.trim().length > 0
+              ? row.attachment_url.trim()
+              : null;
 
     const rawContent =
       typeof row.content === "string"
@@ -491,54 +493,32 @@ function parseMessagesResponse(payload: unknown): SofiaMessageApi[] {
             ? row.sent_at
             : typeof row.timestamp === "string"
               ? row.timestamp
-              : typeof row.date === "string"
-                ? row.date
-                : null;
+              : null;
 
-    if (!content && !createdAt && !messageType) {
-      continue;
-    }
+    if (!content && !createdAt && !messageType) continue;
 
     const id =
       sourceId ??
       `${createdAt ?? "no-date"}::${content ?? "no-content"}::${fromMe === null ? "unknown" : String(fromMe)}::${index}`;
 
-    parsed.push({
-      id,
-      content,
-      from_me: fromMe,
-      created_at: createdAt,
-      message_type: messageType,
-      caption,
-      media_url: mediaUrl,
-    });
+    parsed.push({ id, content, from_me: fromMe, created_at: createdAt, message_type: messageType, caption, media_url: mediaUrl });
   }
 
   return parsed;
 }
 
 function readSessionBoolean(value: unknown) {
-  if (typeof value === "boolean") {
-    return value;
-  }
-
+  if (typeof value === "boolean") return value;
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
-    if (["true", "1", "open", "opened", "active"].includes(normalized)) {
-      return true;
-    }
-    if (["false", "0", "closed", "expired", "inactive"].includes(normalized)) {
-      return false;
-    }
+    if (["true", "1", "open", "opened", "active"].includes(normalized)) return true;
+    if (["false", "0", "closed", "expired", "inactive"].includes(normalized)) return false;
   }
-
   return null;
 }
 
-function parseSessionStatusResponse(payload: unknown): SofiaSessionStatus | null {
-  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
-    return null;
-  }
+function parseSessionStatusResponse(payload: unknown): EvoSessionStatus | null {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return null;
 
   const record = payload as Record<string, unknown>;
   const conversationRecord =
@@ -573,49 +553,45 @@ function parseSessionStatusResponse(payload: unknown): SofiaSessionStatus | null
     if (active !== null || expiresAt !== null) {
       const rawSeconds = candidate.seconds_remaining ?? candidate.secondsRemaining;
       const secondsRemaining = typeof rawSeconds === "number" ? rawSeconds : null;
-      return {
-        active: active ?? false,
-        expires_at: expiresAt,
-        seconds_remaining: secondsRemaining,
-      };
+      return { active: active ?? false, expires_at: expiresAt, seconds_remaining: secondsRemaining };
     }
   }
 
   return null;
 }
 
-export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClient> {
+export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> {
   const supabase = createSupabaseAdminClient();
   const { data: integration, error } = await supabase
     .from("integrations")
     .select("id, config, is_active")
     .eq("company_id", companyId)
-    .eq("type", "sofia_crm")
+    .eq("type", "evo_crm")
     .maybeSingle();
 
   if (error) {
-    throw new Error("Falha ao carregar configuração do Sofia CRM.");
+    throw new Error("Falha ao carregar configuração do Evo CRM.");
   }
 
   if (!integration?.config) {
-    throw new Error("Integração Sofia CRM não configurada para esta empresa.");
+    throw new Error("Integração Evo CRM não configurada para esta empresa.");
   }
 
-  const config = decodeIntegrationConfig("sofia_crm", integration.config);
+  const config = decodeIntegrationConfig("evo_crm", integration.config);
 
   if (!config.baseUrl || !config.apiToken) {
-    throw new Error("Credenciais do Sofia CRM incompletas para esta empresa.");
+    throw new Error("Credenciais do Evo CRM incompletas para esta empresa.");
   }
 
-  const baseUrl = normalizeSofiaBaseUrl(config.baseUrl);
+  const baseUrl = normalizeEvoBaseUrl(config.baseUrl);
   if (!baseUrl) {
-    throw new Error("URL base do Sofia CRM inválida.");
+    throw new Error("URL base do Evo CRM inválida.");
   }
 
   const RATE_LIMIT_MAX_RETRIES = 2;
-  const RATE_LIMIT_BASE_DELAY_MS = 15_000; // 15s base, com backoff: 15s, 30s
+  const RATE_LIMIT_BASE_DELAY_MS = 15_000;
 
-  async function requestJson<T>(path: string, options?: SofiaRequestOptions): Promise<T> {
+  async function requestJson<T>(path: string, options?: EvoRequestOptions): Promise<T> {
     const method = options?.method ?? "GET";
     const url = new URL(`${baseUrl}${path.startsWith("/") ? path : `/${path}`}`);
 
@@ -627,94 +603,98 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       }
     }
 
-    // Em Docker, crm.getlead.capital não é alcançável pelo IP público.
-    // SOFIA_CRM_INTERNAL_URL (ex: http://sofiacrm_crm_api:3000) roteia pela rede interna.
-    const internalBase = process.env.SOFIA_CRM_INTERNAL_URL;
-    const fetchUrl = internalBase
-      ? url.toString().replace(baseUrl, internalBase.replace(/\/+$/, ""))
-      : url.toString();
+    const fetchUrl = url.toString();
 
     for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRIES; attempt++) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), SOFIA_HTTP2_TIMEOUT_MS);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), EVO_HTTP_TIMEOUT_MS);
 
-    let res: Response;
-    try {
-      res = await fetch(fetchUrl, {
-        method,
-        headers: {
-          "authorization": `Bearer ${config.apiToken}`,
-          "content-type": "application/json",
-          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        },
-        body: options?.body ? JSON.stringify(options.body) : undefined,
-        signal: controller.signal,
-      });
-    } catch (err) {
-      clearTimeout(timeout);
-      const detail = describeFetchError(err);
-      throw new Error(`Falha ao conectar com o Sofia CRM (${url.origin}): ${detail}`);
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    const responseBody = await res.text();
-
-    if (res.status === 429) {
-      if (attempt < RATE_LIMIT_MAX_RETRIES) {
-        const delay = RATE_LIMIT_BASE_DELAY_MS * (attempt + 1);
-        console.warn(`[Sofia CRM] Rate limit 429 em ${method} ${path}. Retry ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES} em ${delay / 1000}s...`);
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
-      }
-      let retryMessage = "Muitas requisições deste IP, tente novamente em 15 minutos";
+      let res: Response;
       try {
-        const parsed = JSON.parse(responseBody);
-        if (parsed.error) retryMessage = parsed.error;
-      } catch {}
-      throw new Error(`Sofia CRM Rate Limit (429): ${retryMessage}`);
+        res = await fetch(fetchUrl, {
+          method,
+          headers: {
+            api_access_token: config.apiToken,
+            "content-type": "application/json",
+            accept: "application/json",
+          },
+          body: options?.body ? JSON.stringify(options.body) : undefined,
+          signal: controller.signal,
+        });
+      } catch (err) {
+        clearTimeout(timeout);
+        const detail = describeFetchError(err);
+        throw new Error(`Falha ao conectar com o Evo CRM (${url.origin}): ${detail}`);
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      const responseBody = await res.text();
+
+      if (res.status === 429) {
+        if (attempt < RATE_LIMIT_MAX_RETRIES) {
+          const delay = RATE_LIMIT_BASE_DELAY_MS * (attempt + 1);
+          console.warn(`[Evo CRM] Rate limit 429 em ${method} ${path}. Retry ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES} em ${delay / 1000}s...`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        let retryMessage = "Muitas requisições — aguarde alguns minutos.";
+        try {
+          const parsed = JSON.parse(responseBody);
+          if (parsed?.error?.message) retryMessage = parsed.error.message;
+        } catch {}
+        throw new Error(`Evo CRM Rate Limit (429): ${retryMessage}`);
+      }
+
+      if (res.status >= 400) {
+        // Tenta extrair envelope de erro padrão Evo CRM
+        try {
+          const parsed = JSON.parse(responseBody);
+          if (parsed?.success === false && parsed?.error) {
+            const code = parsed.error.code ?? "UNKNOWN";
+            const message = parsed.error.message ?? responseBody.slice(0, 180);
+            throw new Error(`Evo CRM ${method} ${path} falhou [${code}]: ${message}`);
+          }
+        } catch (e) {
+          if (e instanceof Error && e.message.startsWith("Evo CRM ")) throw e;
+        }
+        throw new Error(`Evo CRM ${method} ${path} falhou: ${res.status} ${responseBody.slice(0, 180)}`);
+      }
+
+      if (res.status === 204 || !responseBody.trim()) {
+        return {} as T;
+      }
+
+      if (responseBody.trim().startsWith("<")) {
+        throw new Error(`Evo CRM retornou HTML em vez de JSON (${url.origin}). Verifique a URL base da API.`);
+      }
+
+      try {
+        const rawJson = JSON.parse(responseBody);
+        return unwrap<T>(rawJson);
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith("Evo CRM [")) throw e;
+        throw new Error(`Resposta inválida do Evo CRM (${url.origin}). JSON malformado.`);
+      }
     }
 
-    if (res.status >= 400) {
-      throw new Error(`Sofia CRM ${method} ${path} falhou: ${res.status} ${responseBody.slice(0, 180)}`);
-    }
-
-    if (res.status === 204 || !responseBody.trim()) {
-      return {} as T;
-    }
-
-    const bodyLower = responseBody.toLowerCase();
-    if (bodyLower.includes("parked domain") || bodyLower.includes("hostinger dns")) {
-      throw new Error(`URL base do Sofia CRM inválida (${url.origin}): domínio estacionado detectado.`);
-    }
-
-    if (responseBody.trim().startsWith("<")) {
-      throw new Error(`Sofia CRM retornou HTML em vez de JSON (${url.origin}). Verifique a URL base da API.`);
-    }
-
-    try {
-      return JSON.parse(responseBody) as T;
-    } catch {
-      throw new Error(`Resposta inválida do Sofia CRM (${url.origin}). JSON malformado.`);
-    }
-    } // fim do for (retry loop)
-
-    // Nunca deveria chegar aqui, mas satisfaz o TypeScript
-    throw new Error(`Sofia CRM: esgotou retries para ${method} ${path}`);
+    throw new Error(`Evo CRM: esgotou retries para ${method} ${path}`);
   }
 
-  const sofiaClient: SofiaCrmClient = {
+  const evoClient: EvoCrmClient = {
     baseUrl,
     apiToken: config.apiToken,
     inboxId: config.inboxId || undefined,
     syncInboxIds: config.syncInboxIds?.length ? config.syncInboxIds : undefined,
+
     buildConversationUrl(externalConversationId: string) {
       return `${baseUrl}/conversations/${encodeURIComponent(externalConversationId)}`;
     },
+
     async listConversations(limit = 50, filters?: { status?: string; filter?: string; inbox_id?: string }) {
       const targetTotal = Math.max(limit, 1);
       const pageSize = Math.min(50, targetTotal);
-      const collected: SofiaConversationApi[] = [];
+      const collected: EvoConversationApi[] = [];
       const seenConversationIds = new Set<string>();
       const seenCursors = new Set<string>();
       let page = 1;
@@ -723,11 +703,11 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       while (collected.length < targetTotal) {
         const remaining = targetTotal - collected.length;
         const requestLimit = Math.min(pageSize, remaining);
-        const payload = await requestJson<unknown>("/api/conversations", {
+        const payload = await requestJson<unknown>("/api/v1/conversations", {
           searchParams: {
             limit: requestLimit,
-            status: filters?.status ?? "all",
-            filter: filters?.filter ?? "all",
+            ...(filters?.status ? { status: filters.status } : {}),
+            ...(filters?.filter ? { filter: filters.filter } : {}),
             ...(filters?.inbox_id ? { inbox_id: filters.inbox_id } : {}),
             ...(typeof cursor !== "undefined" ? { cursor } : { page }),
           },
@@ -735,194 +715,98 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         const pageRows = parseConversationsResponse(payload);
         const pagination = parseConversationsPagination(payload);
 
-        if (pageRows.length === 0) {
-          break;
-        }
+        if (pageRows.length === 0) break;
 
         for (const row of pageRows) {
-          if (seenConversationIds.has(row.id)) {
-            continue;
-          }
-
+          if (seenConversationIds.has(row.id)) continue;
           seenConversationIds.add(row.id);
           collected.push(row);
-
-          if (collected.length >= targetTotal) {
-            break;
-          }
+          if (collected.length >= targetTotal) break;
         }
 
         if (typeof pagination.nextCursor !== "undefined") {
           const nextCursorKey = String(pagination.nextCursor);
-          if (!pagination.hasMore || seenCursors.has(nextCursorKey)) {
-            break;
-          }
-
+          if (!pagination.hasMore || seenCursors.has(nextCursorKey)) break;
           seenCursors.add(nextCursorKey);
           cursor = pagination.nextCursor;
           continue;
         }
 
-        if (pageRows.length < requestLimit) {
-          break;
-        }
-
+        if (pageRows.length < requestLimit) break;
         page += 1;
       }
 
       return collected.slice(0, targetTotal);
     },
+
     async listMessages(externalConversationId: string, limit = 200) {
       const encodedConversationId = encodeURIComponent(externalConversationId);
-      try {
-        const payload = await requestJson<unknown>(`/api/conversations/${encodedConversationId}`, {
-          searchParams: { limit },
-        });
-        const messages = parseMessagesResponse(payload).slice(0, limit);
-        if (messages.length > 0) {
-          return messages;
-        }
-      } catch (error) {
-        const isRouteNotFound =
-          error instanceof Error &&
-          error.message.includes(`/api/conversations/${encodedConversationId}`) &&
-          error.message.includes("404");
-
-        if (!isRouteNotFound) {
-          throw error;
-        }
-      }
-
-      try {
-        const legacyPayload = await requestJson<unknown>(`/api/conversations/${encodedConversationId}/messages`, {
-          searchParams: { limit },
-        });
-        return parseMessagesResponse(legacyPayload).slice(0, limit);
-      } catch (error) {
-        const isLegacyRouteNotFound =
-          error instanceof Error &&
-          error.message.includes(`/api/conversations/${encodedConversationId}/messages`) &&
-          error.message.includes("404");
-
-        if (isLegacyRouteNotFound) {
-          return [];
-        }
-
-        throw error;
-      }
+      const payload = await requestJson<unknown>(
+        `/api/v1/conversations/${encodedConversationId}/messages`,
+        { searchParams: { limit } }
+      );
+      return parseMessagesResponse(payload).slice(0, limit);
     },
-    async createKanbanCard(payload) {
-      await requestJson<unknown>(`/api/kanban/boards/${encodeURIComponent(payload.boardId)}/cards`, {
-        method: "POST",
-        body: {
-          title: payload.title,
-          description: payload.description,
-          source: "axiomix",
-          ...(payload.stage_id ? { stage_id: payload.stage_id } : {}),
-          ...(payload.contact_id ? { contact_id: payload.contact_id } : {}),
-          ...(typeof payload.value_amount === "number" ? { value_amount: payload.value_amount } : {}),
-          ...(payload.phone ? { phone: payload.phone } : {}),
-          ...(payload.assigned_to ? { assigned_to: payload.assigned_to } : {}),
-          ...(payload.priority ? { priority: payload.priority } : {}),
-          ...(payload.tags && payload.tags.length > 0 ? { tags: payload.tags } : {}),
-          ...(payload.conversation_id ? { conversation_id: payload.conversation_id } : {}),
-        },
-      });
-    },
-    async addContactLabel(payload) {
-      await requestJson<unknown>(`/api/contacts/${encodeURIComponent(payload.contactId)}/labels`, {
-        method: "POST",
-        body: {
-          label: payload.label,
-        },
-      });
-    },
-
-    // --- Fase 2: Conversas aprimoradas ---
 
     async sendMessage(conversationId: string, content: string, options?: { checkSession?: boolean }) {
       if (options?.checkSession) {
-        const session = await sofiaClient.getSessionStatus(conversationId);
+        const session = await evoClient.getSessionStatus(conversationId);
         if (!session.active) {
           throw new Error(
             "Sessão WhatsApp expirada (janela de 24h fechada). Use um template para reabrir a conversa."
           );
         }
       }
-      await requestJson<unknown>(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
+      await requestJson<unknown>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`, {
         method: "POST",
         body: { content },
       });
     },
 
+    // UNVERIFIED — revalidar após obter token: endpoint `/send-template` retornou 404 no Evo CRM.
+    // Pode ser necessário enviar via Evolution API WhatsApp (outro serviço) em vez do CRM.
     async sendTemplate(payload) {
       if (!config.inboxId) {
         throw new Error("Inbox ID não configurado. Não é possível enviar template.");
       }
-      const result = await requestJson<Record<string, unknown>>(`/api/whatsapp-cloud/inboxes/${encodeURIComponent(config.inboxId)}/send-template`, {
-        method: "POST",
-        body: {
-          to: payload.to,
-          template_name: payload.templateName,
-          language: payload.language ?? "pt_BR",
-          ...(payload.components ? { components: payload.components } : {}),
-        },
-      });
-      const messageId = (result as Record<string, unknown>)?.message_id
-        ?? (result as Record<string, unknown>)?.messageId
-        ?? (result as Record<string, unknown>)?.id;
+      const result = await requestJson<Record<string, unknown>>(
+        `/api/v1/inboxes/${encodeURIComponent(config.inboxId)}/send-template`,
+        {
+          method: "POST",
+          body: {
+            to: payload.to,
+            template_name: payload.templateName,
+            language: payload.language ?? "pt_BR",
+            ...(payload.components ? { components: payload.components } : {}),
+          },
+        }
+      );
+      const messageId =
+        (result as Record<string, unknown>)?.message_id ??
+        (result as Record<string, unknown>)?.messageId ??
+        (result as Record<string, unknown>)?.id;
       return { messageId: typeof messageId === "string" ? messageId : undefined };
     },
 
+    // UNVERIFIED — revalidar: `/session` retornou 404. Session info pode vir embedded no conversation detail.
     async getSessionStatus(conversationId: string) {
       const encodedConversationId = encodeURIComponent(conversationId);
-
       try {
-        const result = await requestJson<Record<string, unknown>>(`/api/conversations/${encodedConversationId}/session`);
+        const result = await requestJson<Record<string, unknown>>(
+          `/api/v1/conversations/${encodedConversationId}`
+        );
         const parsed = parseSessionStatusResponse(result);
-        if (parsed) {
-          return parsed;
-        }
-      } catch (error) {
-        const isUnsupportedRoute =
-          error instanceof Error &&
-          error.message.includes(`/api/conversations/${encodedConversationId}/session`) &&
-          (error.message.includes("404") || error.message.includes("405"));
-
-        if (!isUnsupportedRoute) {
-          try {
-            const fallbackResult = await requestJson<Record<string, unknown>>(`/api/conversations/${encodedConversationId}`);
-            const parsedFallback = parseSessionStatusResponse(fallbackResult);
-            if (parsedFallback) {
-              return parsedFallback;
-            }
-          } catch {
-            throw error;
-          }
-
-          throw error;
-        }
-      }
-
-      try {
-        const fallbackResult = await requestJson<Record<string, unknown>>(`/api/conversations/${encodedConversationId}`);
-        const parsedFallback = parseSessionStatusResponse(fallbackResult);
-        if (parsedFallback) {
-          return parsedFallback;
-        }
+        if (parsed) return parsed;
       } catch {
-        // Session status is optional in some Sofia CRM deployments.
+        // ignore
       }
-
-      return {
-        active: false,
-        expires_at: null,
-      };
+      return { active: false, expires_at: null };
     },
 
+    // UNVERIFIED — revalidar: `/assign` e `/assignee` retornaram 404. Provável `PATCH /conversations/:id` com body {assignee_id}.
     async assignConversation(conversationId: string, payload) {
-      await requestJson<unknown>(`/api/conversations/${encodeURIComponent(conversationId)}/assign`, {
-        method: "POST",
+      await requestJson<unknown>(`/api/v1/conversations/${encodeURIComponent(conversationId)}`, {
+        method: "PATCH",
         body: {
           ...(payload.assigneeId ? { assignee_id: payload.assigneeId } : {}),
           ...(payload.teamId ? { team_id: payload.teamId } : {}),
@@ -934,21 +818,18 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
       if (!config.inboxId) {
         throw new Error("Inbox ID não configurado. Não é possível iniciar conversa.");
       }
-      const result = await requestJson<Record<string, unknown>>("/api/conversations/start", {
+      const result = await requestJson<Record<string, unknown>>("/api/v1/conversations/start", {
         method: "POST",
-        body: {
-          phone,
-          inbox_id: config.inboxId,
-        },
+        body: { phone, inbox_id: config.inboxId },
       });
       const id = toExternalId(result.id ?? result.conversation_id);
       return { conversationId: id ?? "" };
     },
 
-    // --- Fase 3: Contatos ---
+    // --- Contatos ---
 
     async listContacts(params) {
-      const result = await requestJson<Record<string, unknown>>("/api/contacts", {
+      const result = await requestJson<Record<string, unknown>>("/api/v1/contacts", {
         searchParams: {
           page: params?.page ?? 1,
           limit: params?.limit ?? 50,
@@ -980,11 +861,11 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
               color: typeof l.color === "string" ? l.color : null,
             }))
           : null,
-      })) as SofiaContactApi[];
+      })) as EvoContactApi[];
     },
 
     async getContact(contactId: string) {
-      const result = await requestJson<Record<string, unknown>>(`/api/contacts/${encodeURIComponent(contactId)}`);
+      const result = await requestJson<Record<string, unknown>>(`/api/v1/contacts/${encodeURIComponent(contactId)}`);
       const item = typeof result.contact === "object" && result.contact !== null
         ? (result.contact as Record<string, unknown>)
         : result;
@@ -1006,30 +887,36 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
               color: typeof l.color === "string" ? l.color : null,
             }))
           : null,
-      } as SofiaContactApi;
+      } as EvoContactApi;
     },
 
     async findContactByPhone(phone: string) {
       try {
-        const result = await requestJson<Record<string, unknown>>(`/api/contacts/number/${encodeURIComponent(phone)}`);
-        const item = typeof result.contact === "object" && result.contact !== null
-          ? (result.contact as Record<string, unknown>)
-          : result;
-        if (!item.id) return null;
+        // Evo CRM usa /contacts/search?q={phone} (validado: 401 = existe)
+        const result = await requestJson<Record<string, unknown>>("/api/v1/contacts/search", {
+          searchParams: { q: phone },
+        });
+        const rawList = Array.isArray(result.contacts)
+          ? result.contacts
+          : Array.isArray(result.data)
+            ? result.data
+            : assertArrayPayload(result);
+        const match = rawList[0] as Record<string, unknown> | undefined;
+        if (!match?.id) return null;
         return {
-          id: String(item.id),
-          name: typeof item.name === "string" ? item.name : null,
-          phone: typeof item.phone === "string" ? item.phone : null,
-          phone_e164: typeof item.phone_e164 === "string" ? item.phone_e164 : null,
-          email: typeof item.email === "string" ? item.email : null,
-        } as SofiaContactApi;
+          id: String(match.id),
+          name: typeof match.name === "string" ? match.name : null,
+          phone: typeof match.phone === "string" ? match.phone : null,
+          phone_e164: typeof match.phone_e164 === "string" ? match.phone_e164 : null,
+          email: typeof match.email === "string" ? match.email : null,
+        } as EvoContactApi;
       } catch {
         return null;
       }
     },
 
     async createContact(payload) {
-      const result = await requestJson<Record<string, unknown>>("/api/contacts", {
+      const result = await requestJson<Record<string, unknown>>("/api/v1/contacts", {
         method: "POST",
         body: { name: payload.name, phone: payload.phone },
       });
@@ -1040,11 +927,13 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         id: String(item.id ?? ""),
         name: typeof item.name === "string" ? item.name : payload.name,
         phone: typeof item.phone === "string" ? item.phone : payload.phone,
-      } as SofiaContactApi;
+      } as EvoContactApi;
     },
 
     async listContactLabels(contactId: string) {
-      const result = await requestJson<Record<string, unknown>>(`/api/contacts/${encodeURIComponent(contactId)}/labels`);
+      const result = await requestJson<Record<string, unknown>>(
+        `/api/v1/contacts/${encodeURIComponent(contactId)}/labels`
+      );
       const rawList = Array.isArray(result.labels)
         ? result.labels
         : Array.isArray(result.data)
@@ -1054,20 +943,27 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         id: String(item.id ?? ""),
         name: typeof item.name === "string" ? item.name : null,
         color: typeof item.color === "string" ? item.color : null,
-      })) as SofiaLabelApi[];
+      })) as EvoLabelApi[];
     },
 
     async removeContactLabel(contactId: string, labelId: string) {
       await requestJson<unknown>(
-        `/api/contacts/${encodeURIComponent(contactId)}/labels/${encodeURIComponent(labelId)}`,
+        `/api/v1/contacts/${encodeURIComponent(contactId)}/labels/${encodeURIComponent(labelId)}`,
         { method: "DELETE" }
       );
     },
 
-    // --- Fase 3: Labels ---
+    async addContactLabel(payload) {
+      await requestJson<unknown>(
+        `/api/v1/contacts/${encodeURIComponent(payload.contactId)}/labels`,
+        { method: "POST", body: { label: payload.label } }
+      );
+    },
+
+    // --- Labels ---
 
     async listLabels() {
-      const result = await requestJson<Record<string, unknown>>("/api/labels");
+      const result = await requestJson<Record<string, unknown>>("/api/v1/labels");
       const rawList = Array.isArray(result.labels)
         ? result.labels
         : Array.isArray(result.data)
@@ -1077,11 +973,11 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         id: String(item.id ?? ""),
         name: typeof item.name === "string" ? item.name : null,
         color: typeof item.color === "string" ? item.color : null,
-      })) as SofiaLabelApi[];
+      })) as EvoLabelApi[];
     },
 
     async createLabel(name: string) {
-      const result = await requestJson<Record<string, unknown>>("/api/labels", {
+      const result = await requestJson<Record<string, unknown>>("/api/v1/labels", {
         method: "POST",
         body: { name },
       });
@@ -1092,11 +988,11 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         id: String(item.id ?? ""),
         name: typeof item.name === "string" ? item.name : name,
         color: typeof item.color === "string" ? item.color : null,
-      } as SofiaLabelApi;
+      } as EvoLabelApi;
     },
 
     async updateLabel(labelId: string, payload) {
-      await requestJson<unknown>(`/api/labels/${encodeURIComponent(labelId)}`, {
+      await requestJson<unknown>(`/api/v1/labels/${encodeURIComponent(labelId)}`, {
         method: "PUT",
         body: {
           ...(payload.name ? { name: payload.name } : {}),
@@ -1106,20 +1002,20 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
     },
 
     async deleteLabel(labelId: string) {
-      await requestJson<unknown>(`/api/labels/${encodeURIComponent(labelId)}`, {
-        method: "DELETE",
-      });
+      await requestJson<unknown>(`/api/v1/labels/${encodeURIComponent(labelId)}`, { method: "DELETE" });
     },
 
-    // --- Fase 4: Kanban ---
+    // --- Kanban (Evo CRM: /api/v1/pipelines) ---
 
     async listBoards() {
-      const result = await requestJson<Record<string, unknown>>("/api/kanban/boards");
-      const rawList = Array.isArray(result.boards)
-        ? result.boards
-        : Array.isArray(result.data)
-          ? result.data
-          : assertArrayPayload(result);
+      const result = await requestJson<Record<string, unknown>>("/api/v1/pipelines");
+      const rawList = Array.isArray(result.pipelines)
+        ? result.pipelines
+        : Array.isArray(result.boards)
+          ? result.boards
+          : Array.isArray(result.data)
+            ? result.data
+            : assertArrayPayload(result);
       return rawList.map((item: Record<string, unknown>) => ({
         id: String(item.id ?? ""),
         name: typeof item.name === "string" ? item.name : null,
@@ -1131,21 +1027,23 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
               cards: null,
             }))
           : null,
-      })) as SofiaKanbanBoard[];
+      })) as EvoKanbanBoard[];
     },
 
     async getBoard(boardId: string) {
-      const result = await requestJson<Record<string, unknown>>(`/api/kanban/boards/${encodeURIComponent(boardId)}`);
-      const item = typeof result.board === "object" && result.board !== null
-        ? (result.board as Record<string, unknown>)
-        : result;
+      const result = await requestJson<Record<string, unknown>>(`/api/v1/pipelines/${encodeURIComponent(boardId)}`);
+      const item = typeof result.pipeline === "object" && result.pipeline !== null
+        ? (result.pipeline as Record<string, unknown>)
+        : typeof result.board === "object" && result.board !== null
+          ? (result.board as Record<string, unknown>)
+          : result;
 
-      const parseCard = (c: Record<string, unknown>): SofiaKanbanCard => ({
+      const parseCard = (c: Record<string, unknown>): EvoKanbanCard => ({
         id: String(c.id ?? ""),
         title: typeof c.title === "string" ? c.title : null,
         description: typeof c.description === "string" ? c.description : null,
         stage_id: typeof c.stage_id === "string" ? c.stage_id : null,
-        board_id: typeof c.board_id === "string" ? c.board_id : null,
+        board_id: typeof c.board_id === "string" ? c.board_id : typeof c.pipeline_id === "string" ? c.pipeline_id : null,
         source: typeof c.source === "string" ? c.source : null,
         contact_id: typeof c.contact_id === "string" ? c.contact_id : null,
         created_at: typeof c.created_at === "string" ? c.created_at : null,
@@ -1167,16 +1065,37 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
               id: String(s.id ?? ""),
               name: typeof s.name === "string" ? s.name : null,
               position: typeof s.position === "number" ? s.position : null,
-              cards: Array.isArray(s.cards)
-                ? s.cards.map((c: Record<string, unknown>) => parseCard(c))
-                : null,
+              cards: Array.isArray(s.cards) ? s.cards.map((c: Record<string, unknown>) => parseCard(c)) : null,
             }))
           : null,
-      } as SofiaKanbanBoard;
+      } as EvoKanbanBoard;
+    },
+
+    // UNVERIFIED — sub-rotas de cards de pipeline. Tentativa baseada em REST convencional.
+    async createKanbanCard(payload) {
+      await requestJson<unknown>(
+        `/api/v1/pipelines/${encodeURIComponent(payload.boardId)}/cards`,
+        {
+          method: "POST",
+          body: {
+            title: payload.title,
+            description: payload.description,
+            source: "axiomix",
+            ...(payload.stage_id ? { stage_id: payload.stage_id } : {}),
+            ...(payload.contact_id ? { contact_id: payload.contact_id } : {}),
+            ...(typeof payload.value_amount === "number" ? { value_amount: payload.value_amount } : {}),
+            ...(payload.phone ? { phone: payload.phone } : {}),
+            ...(payload.assigned_to ? { assigned_to: payload.assigned_to } : {}),
+            ...(payload.priority ? { priority: payload.priority } : {}),
+            ...(payload.tags && payload.tags.length > 0 ? { tags: payload.tags } : {}),
+            ...(payload.conversation_id ? { conversation_id: payload.conversation_id } : {}),
+          },
+        }
+      );
     },
 
     async getCard(cardId: string) {
-      const result = await requestJson<Record<string, unknown>>(`/api/kanban/cards/${encodeURIComponent(cardId)}`);
+      const result = await requestJson<Record<string, unknown>>(`/api/v1/pipelines/cards/${encodeURIComponent(cardId)}`);
       const item = typeof result.card === "object" && result.card !== null
         ? (result.card as Record<string, unknown>)
         : result;
@@ -1185,7 +1104,7 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         title: typeof item.title === "string" ? item.title : null,
         description: typeof item.description === "string" ? item.description : null,
         stage_id: typeof item.stage_id === "string" ? item.stage_id : null,
-        board_id: typeof item.board_id === "string" ? item.board_id : null,
+        board_id: typeof item.board_id === "string" ? item.board_id : typeof item.pipeline_id === "string" ? item.pipeline_id : null,
         source: typeof item.source === "string" ? item.source : null,
         contact_id: typeof item.contact_id === "string" ? item.contact_id : null,
         created_at: typeof item.created_at === "string" ? item.created_at : null,
@@ -1197,49 +1116,49 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         priority: typeof item.priority === "string" ? item.priority : null,
         tags: Array.isArray(item.tags) ? item.tags.filter((t: unknown): t is string => typeof t === "string") : null,
         conversation_id: typeof item.conversation_id === "string" ? item.conversation_id : null,
-      } as SofiaKanbanCard;
+      } as EvoKanbanCard;
     },
 
     async updateCard(cardId: string, data) {
-      await requestJson<unknown>(`/api/kanban/cards/${encodeURIComponent(cardId)}`, {
+      await requestJson<unknown>(`/api/v1/pipelines/cards/${encodeURIComponent(cardId)}`, {
         method: "PUT",
         body: data as Json,
       });
     },
 
     async deleteCard(cardId: string) {
-      await requestJson<unknown>(`/api/kanban/cards/${encodeURIComponent(cardId)}`, {
-        method: "DELETE",
-      });
+      await requestJson<unknown>(`/api/v1/pipelines/cards/${encodeURIComponent(cardId)}`, { method: "DELETE" });
     },
 
     async moveCard(cardId: string, boardId: string, stageId: string) {
-      await requestJson<unknown>(`/api/kanban/cards/${encodeURIComponent(cardId)}/move`, {
+      await requestJson<unknown>(`/api/v1/pipelines/cards/${encodeURIComponent(cardId)}/move`, {
         method: "POST",
-        body: { board_id: boardId, stage_id: stageId },
+        body: { pipeline_id: boardId, stage_id: stageId },
       });
     },
 
-    // --- Fase 5: Equipe ---
+    // --- Equipe ---
 
     async listUsers() {
-      const result = await requestJson<Record<string, unknown>>("/api/users");
+      const result = await requestJson<Record<string, unknown>>("/api/v1/users");
       const rawList = Array.isArray(result.users)
         ? result.users
         : Array.isArray(result.data)
           ? result.data
-          : assertArrayPayload(result);
+          : Array.isArray(result.agents)
+            ? result.agents
+            : assertArrayPayload(result);
       return rawList.map((item: Record<string, unknown>) => ({
         id: String(item.id ?? ""),
         name: typeof item.name === "string" ? item.name : null,
         email: typeof item.email === "string" ? item.email : null,
         role: typeof item.role === "string" ? item.role : null,
         avatar_url: typeof item.avatar_url === "string" ? item.avatar_url : null,
-      })) as SofiaUserApi[];
+      })) as EvoUserApi[];
     },
 
     async getUser(userId: string) {
-      const result = await requestJson<Record<string, unknown>>(`/api/users/${encodeURIComponent(userId)}`);
+      const result = await requestJson<Record<string, unknown>>(`/api/v1/users/${encodeURIComponent(userId)}`);
       const item = typeof result.user === "object" && result.user !== null
         ? (result.user as Record<string, unknown>)
         : result;
@@ -1249,11 +1168,11 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         email: typeof item.email === "string" ? item.email : null,
         role: typeof item.role === "string" ? item.role : null,
         avatar_url: typeof item.avatar_url === "string" ? item.avatar_url : null,
-      } as SofiaUserApi;
+      } as EvoUserApi;
     },
 
     async listTeams() {
-      const result = await requestJson<Record<string, unknown>>("/api/teams");
+      const result = await requestJson<Record<string, unknown>>("/api/v1/teams");
       const rawList = Array.isArray(result.teams)
         ? result.teams
         : Array.isArray(result.data)
@@ -1271,11 +1190,11 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
               avatar_url: typeof m.avatar_url === "string" ? m.avatar_url : null,
             }))
           : null,
-      })) as SofiaTeamApi[];
+      })) as EvoTeamApi[];
     },
 
     async listInboxes() {
-      const result = await requestJson<Record<string, unknown>>("/api/inboxes");
+      const result = await requestJson<Record<string, unknown>>("/api/v1/inboxes");
       const rawList = Array.isArray(result.inboxes)
         ? result.inboxes
         : Array.isArray(result.data)
@@ -1286,24 +1205,24 @@ export async function getSofiaCrmClient(companyId: string): Promise<SofiaCrmClie
         name: typeof item.name === "string" ? item.name : null,
         channel_type: typeof item.channel_type === "string" ? item.channel_type : null,
         phone_number: typeof item.phone_number === "string" ? item.phone_number : null,
-      })) as SofiaInboxApi[];
+      })) as EvoInboxApi[];
     },
   };
 
-  return sofiaClient;
+  return evoClient;
 }
 
 export type {
-  SofiaConversationApi,
-  SofiaMessageApi,
-  SofiaContactApi,
-  SofiaLabelApi,
-  SofiaSessionStatus,
-  SofiaKanbanBoard,
-  SofiaKanbanStage,
-  SofiaKanbanCard,
-  SofiaUserApi,
-  SofiaTeamApi,
-  SofiaInboxApi,
-  SofiaCrmClient,
+  EvoConversationApi,
+  EvoMessageApi,
+  EvoContactApi,
+  EvoLabelApi,
+  EvoSessionStatus,
+  EvoKanbanBoard,
+  EvoKanbanStage,
+  EvoKanbanCard,
+  EvoUserApi,
+  EvoTeamApi,
+  EvoInboxApi,
+  EvoCrmClient,
 };

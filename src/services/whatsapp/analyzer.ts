@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/services/whatsapp/analyzer.ts
- * Proposito: Analisar conversas com IA e aplicar acoes automaticas no Sofia CRM.
+ * Proposito: Analisar conversas com IA e aplicar acoes automaticas no Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -11,7 +11,7 @@ import { parseAiJson } from "@/lib/ai/parse-ai-json";
 import { buildWhatsAppAnalysisPrompt } from "@/lib/ai/prompts/whatsapp";
 import { assessConversationGuardrails } from "@/lib/whatsapp/conversation-guardrails";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 import {
   triggerNegativeSentimentAlert,
   triggerPurchaseIntentAlert,
@@ -344,9 +344,9 @@ async function generateConversationInsight(companyId: string, messages: Conversa
   }
 }
 
-/** Resolve o contactId real do Sofia CRM via telefone (necessário para labels). */
-async function resolveSofiaContactId(
-  client: Awaited<ReturnType<typeof getSofiaCrmClient>>,
+/** Resolve o contactId real do Evo CRM via telefone (necessário para labels). */
+async function resolveEvoContactId(
+  client: Awaited<ReturnType<typeof getEvoCrmClient>>,
   phone: string | null
 ): Promise<string | null> {
   if (!phone) return null;
@@ -382,12 +382,12 @@ async function executeAutomaticActions(
     key_topics: string[];
   }
 ) {
-  const client = await getSofiaCrmClient(companyId);
+  const client = await getEvoCrmClient(companyId);
   const actions: string[] = [];
 
-  // Resolver contact ID real do Sofia CRM para labels
-  const sofiaContactId = await resolveSofiaContactId(client, conversation.contact_phone);
-  const contactIdForLabel = sofiaContactId ?? conversation.contact_phone ?? conversation.remote_jid;
+  // Resolver contact ID real do Evo CRM para labels
+  const evoContactId = await resolveEvoContactId(client, conversation.contact_phone);
+  const contactIdForLabel = evoContactId ?? conversation.contact_phone ?? conversation.remote_jid;
 
   // --- Auto-labels baseados na análise IA ---
   const labelsToApply: string[] = [];
@@ -432,7 +432,7 @@ async function executeAutomaticActions(
           description: insight.summary,
           phone: conversation.contact_phone ?? undefined,
           conversation_id: conversation.external_id,
-          contact_id: sofiaContactId ?? undefined,
+          contact_id: evoContactId ?? undefined,
           priority: urgencyToPriority(insight.urgency),
           tags: insight.key_topics.slice(0, 3),
         });

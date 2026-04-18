@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/send-template/route.ts
- * Propósito: Enviar template WhatsApp via Sofia CRM Cloud API.
+ * Propósito: Enviar template WhatsApp via Evo CRM Cloud API.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 import type { Json } from "@/database/types/database.types";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
-    await sofiaClient.sendTemplate({
+    const evoClient = await getEvoCrmClient(access.companyId);
+    await evoClient.sendTemplate({
       to: parsed.data.to,
       templateName: parsed.data.templateName,
       language: parsed.data.language ?? "pt_BR",

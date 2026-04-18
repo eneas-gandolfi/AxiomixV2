@@ -8,7 +8,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 import { getCampaign, updateCampaignStats } from "@/services/campaigns/manager";
 import type { CampaignFilters, CampaignRecipient, DeliveryStatus, RecipientStatus } from "@/types/modules/campaigns.types";
 
@@ -16,14 +16,14 @@ function recipientsTable() {
   return createSupabaseAdminClient().from("campaign_recipients");
 }
 
-const SOFIA_CONTACTS_PAGE_SIZE = 50;
+const EVO_CONTACTS_PAGE_SIZE = 50;
 
 type GenerateResult = {
   generated: number;
   skipped: number;
 };
 
-type SofiaContactForFilter = {
+type EvoContactForFilter = {
   id: string;
   name?: string | null;
   phone?: string | null;
@@ -34,13 +34,13 @@ type SofiaContactForFilter = {
   labels?: Array<{ id: string; name?: string | null }> | null;
 };
 
-function parseSofiaDate(value?: string | null): Date | null {
+function parseEvoDate(value?: string | null): Date | null {
   if (!value) return null;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function matchesFilters(contact: SofiaContactForFilter, filters: CampaignFilters): boolean {
+function matchesFilters(contact: EvoContactForFilter, filters: CampaignFilters): boolean {
   if (filters.labelIds && filters.labelIds.length > 0) {
     const contactLabelIds = (contact.labels ?? []).map((l) => String(l.id));
     const hasLabel = filters.labelIds.some((id) => contactLabelIds.includes(id));
@@ -51,7 +51,7 @@ function matchesFilters(contact: SofiaContactForFilter, filters: CampaignFilters
     if (contact.gender.toUpperCase() !== filters.gender.toUpperCase()) return false;
   }
 
-  const createdAt = parseSofiaDate(contact.created_at);
+  const createdAt = parseEvoDate(contact.created_at);
 
   if (filters.createdAfter && createdAt) {
     if (createdAt < new Date(filters.createdAfter)) return false;
@@ -69,7 +69,7 @@ export async function generateRecipients(
   companyId: string
 ): Promise<GenerateResult> {
   const campaign = await getCampaign(campaignId, companyId);
-  const sofiaClient = await getSofiaCrmClient(companyId);
+  const evoClient = await getEvoCrmClient(companyId);
   const filters = campaign.filters;
 
   // Limpar recipients pendentes anteriores para permitir re-geração
@@ -103,7 +103,7 @@ export async function generateRecipients(
       let email = "";
 
       try {
-        const existing = await sofiaClient.findContactByPhone(phone);
+        const existing = await evoClient.findContactByPhone(phone);
         if (existing) {
           contactName = existing.name ?? "";
           contactId = String(existing.id);
@@ -158,9 +158,9 @@ export async function generateRecipients(
   let hasMore = true;
 
   while (hasMore) {
-    const contacts = await sofiaClient.listContacts({
+    const contacts = await evoClient.listContacts({
       page,
-      limit: SOFIA_CONTACTS_PAGE_SIZE,
+      limit: EVO_CONTACTS_PAGE_SIZE,
       include_labels: !!(filters.labelIds && filters.labelIds.length > 0),
     });
 
@@ -178,7 +178,7 @@ export async function generateRecipients(
       variables: Record<string, string>;
     }> = [];
 
-    for (const contact of contacts as SofiaContactForFilter[]) {
+    for (const contact of contacts as EvoContactForFilter[]) {
       const phone = contact.phone_e164 ?? contact.phone;
       if (!phone) {
         skipped++;
@@ -221,13 +221,13 @@ export async function generateRecipients(
       }
     }
 
-    if (contacts.length < SOFIA_CONTACTS_PAGE_SIZE) {
+    if (contacts.length < EVO_CONTACTS_PAGE_SIZE) {
       hasMore = false;
     } else {
       page++;
     }
 
-    // Delay entre páginas para respeitar rate limit do Sofia
+    // Delay entre páginas para respeitar rate limit do Evo
     await new Promise((r) => setTimeout(r, 300));
   }
 

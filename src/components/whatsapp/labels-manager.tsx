@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/labels-manager.tsx
- * Propósito: Painel de gestão de labels/tags do Sofia CRM.
+ * Propósito: Painel de gestão de labels/tags do Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

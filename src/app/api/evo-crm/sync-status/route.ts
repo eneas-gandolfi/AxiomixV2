@@ -1,6 +1,6 @@
 /**
- * Arquivo: src/app/api/sofia-crm/sync-status/route.ts
- * Propósito: Consultar status do job de sincronização do Sofia CRM.
+ * Arquivo: src/app/api/evo-crm/sync-status/route.ts
+ * Propósito: Consultar status do job de sincronização do Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       .from("async_jobs")
       .select("id, status, error_message, result, started_at, completed_at, created_at")
       .eq("company_id", access.companyId)
-      .eq("job_type", "sofia_crm_sync")
+      .eq("job_type", "evo_crm_sync")
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -176,6 +176,6 @@ export async function GET(request: NextRequest) {
     }
 
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
-    return NextResponse.json({ error: detail, code: "SOFIA_SYNC_STATUS_ERROR" }, { status: 500 });
+    return NextResponse.json({ error: detail, code: "EVO_SYNC_STATUS_ERROR" }, { status: 500 });
   }
 }

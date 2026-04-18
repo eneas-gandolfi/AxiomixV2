@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/team/route.ts
- * Propósito: Listar membros da equipe, times e inboxes via Sofia CRM.
+ * Propósito: Listar membros da equipe, times e inboxes via Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -37,11 +37,11 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    const evoClient = await getEvoCrmClient(access.companyId);
     const { action } = parsed.data;
 
     if (action === "listUsers") {
-      const users = await sofiaClient.listUsers();
+      const users = await evoClient.listUsers();
       return NextResponse.json({ users });
     }
 
@@ -50,17 +50,17 @@ export async function POST(request: NextRequest) {
       if (!userId) {
         return NextResponse.json({ error: "userId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      const user = await sofiaClient.getUser(userId);
+      const user = await evoClient.getUser(userId);
       return NextResponse.json({ user });
     }
 
     if (action === "listTeams") {
-      const teams = await sofiaClient.listTeams();
+      const teams = await evoClient.listTeams();
       return NextResponse.json({ teams });
     }
 
     if (action === "listInboxes") {
-      const inboxes = await sofiaClient.listInboxes();
+      const inboxes = await evoClient.listInboxes();
       return NextResponse.json({ inboxes });
     }
 
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       if (!conversationExternalId) {
         return NextResponse.json({ error: "conversationExternalId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      await sofiaClient.assignConversation(conversationExternalId, { assigneeId, teamId });
+      await evoClient.assignConversation(conversationExternalId, { assigneeId, teamId });
       return NextResponse.json({ success: true });
     }
 

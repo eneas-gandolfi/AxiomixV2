@@ -15,10 +15,10 @@ import {
   parseIntegrationType,
 } from "@/lib/integrations/service";
 import {
-  clearSofiaCrmCompanyData,
-  hasSofiaCrmConfigChanged,
-} from "@/lib/integrations/sofia-crm-maintenance";
-import type { SofiaCrmConfig } from "@/lib/integrations/types";
+  clearEvoCrmCompanyData,
+  hasEvoCrmConfigChanged,
+} from "@/lib/integrations/evo-crm-maintenance";
+import type { EvoCrmConfig } from "@/lib/integrations/types";
 
 export const dynamic = "force-dynamic";
 
@@ -81,18 +81,18 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
     const encryptedConfig = encodeIntegrationConfig(integrationType, config);
 
     let shouldClearConversations = false;
-    if (integrationType === "sofia_crm") {
+    if (integrationType === "evo_crm") {
       const { data: currentIntegration } = await supabase
         .from("integrations")
         .select("config")
         .eq("company_id", membership.company_id)
-        .eq("type", "sofia_crm")
+        .eq("type", "evo_crm")
         .maybeSingle();
 
       if (currentIntegration?.config) {
-        shouldClearConversations = hasSofiaCrmConfigChanged(
+        shouldClearConversations = hasEvoCrmConfigChanged(
           currentIntegration.config,
-          config as SofiaCrmConfig
+          config as EvoCrmConfig
         );
       }
     }
@@ -124,11 +124,11 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (shouldClearConversations) {
       console.log(
-        `[Integration] Sofia CRM config changed for company ${membership.company_id}. Clearing old sync data.`
+        `[Integration] Evo CRM config changed for company ${membership.company_id}. Clearing old sync data.`
       );
 
       try {
-        await clearSofiaCrmCompanyData(membership.company_id);
+        await clearEvoCrmCompanyData(membership.company_id);
       } catch (clearError) {
         console.error("[Integration] Erro ao limpar conversas antigas:", clearError);
       }

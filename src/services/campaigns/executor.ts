@@ -8,7 +8,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 import {
   getCampaign,
   updateCampaignStats,
@@ -91,12 +91,12 @@ export async function processCampaignBatch(
     return { processed: 0, remaining: 0 };
   }
 
-  let sofiaClient;
+  let evoClient;
   try {
-    sofiaClient = await getSofiaCrmClient(companyId);
+    evoClient = await getEvoCrmClient(companyId);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Erro ao conectar Sofia CRM";
-    console.error(`[CAMPAIGN] Falha ao obter cliente Sofia:`, msg);
+    const msg = error instanceof Error ? error.message : "Erro ao conectar Evo CRM";
+    console.error(`[CAMPAIGN] Falha ao obter cliente Evo:`, msg);
     await setCampaignFailed(campaignId, msg);
     return { processed: 0, remaining: 0 };
   }
@@ -120,7 +120,7 @@ export async function processCampaignBatch(
     const headerParams = resolveBodyParams(campaign.header_params_template, variables);
 
     try {
-      const sendResult = await sofiaClient.sendTemplate({
+      const sendResult = await evoClient.sendTemplate({
         to: recipient.contact_phone as string,
         templateName: campaign.template_name,
         language: campaign.language,

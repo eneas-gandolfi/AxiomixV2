@@ -16,10 +16,10 @@ import {
   testIntegrationConnection,
 } from "@/lib/integrations/service";
 import {
-  clearSofiaCrmCompanyData,
-  hasSofiaCrmConfigChanged,
-} from "@/lib/integrations/sofia-crm-maintenance";
-import type { SofiaCrmConfig } from "@/lib/integrations/types";
+  clearEvoCrmCompanyData,
+  hasEvoCrmConfigChanged,
+} from "@/lib/integrations/evo-crm-maintenance";
+import type { EvoCrmConfig } from "@/lib/integrations/types";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
     const config = parseIntegrationConfig(integrationType, payload);
     const testResult = await testIntegrationConnection(integrationType, config);
 
-    // Merge auto-detected fields (e.g. Sofia CRM inboxId) into config before saving
+    // Merge auto-detected fields (e.g. Evo CRM inboxId) into config before saving
     if (testResult.detectedConfig) {
       Object.assign(config, testResult.detectedConfig);
     }
@@ -90,18 +90,18 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
     const nowIso = new Date().toISOString();
 
     let shouldClearConversations = false;
-    if (integrationType === "sofia_crm") {
+    if (integrationType === "evo_crm") {
       const { data: currentIntegration } = await supabase
         .from("integrations")
         .select("config")
         .eq("company_id", membership.company_id)
-        .eq("type", "sofia_crm")
+        .eq("type", "evo_crm")
         .maybeSingle();
 
       if (currentIntegration?.config) {
-        shouldClearConversations = hasSofiaCrmConfigChanged(
+        shouldClearConversations = hasEvoCrmConfigChanged(
           currentIntegration.config,
-          config as SofiaCrmConfig
+          config as EvoCrmConfig
         );
       }
     }
@@ -133,11 +133,11 @@ export async function POST(request: NextRequest, context: IntegrationRouteContex
 
     if (shouldClearConversations) {
       console.log(
-        `[Integration Test] Sofia CRM config changed for company ${membership.company_id}. Clearing old sync data.`
+        `[Integration Test] Evo CRM config changed for company ${membership.company_id}. Clearing old sync data.`
       );
 
       try {
-        await clearSofiaCrmCompanyData(membership.company_id);
+        await clearEvoCrmCompanyData(membership.company_id);
       } catch (clearError) {
         console.error("[Integration Test] Erro ao limpar conversas antigas:", clearError);
       }

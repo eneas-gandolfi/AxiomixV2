@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/labels/route.ts
- * Propósito: CRUD de labels/tags via Sofia CRM.
+ * Propósito: CRUD de labels/tags via Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +36,10 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    const evoClient = await getEvoCrmClient(access.companyId);
 
     if (parsed.data.action === "list") {
-      const labels = await sofiaClient.listLabels();
+      const labels = await evoClient.listLabels();
       return NextResponse.json({ labels });
     }
 
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       if (!name) {
         return NextResponse.json({ error: "name é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      const label = await sofiaClient.createLabel(name);
+      const label = await evoClient.createLabel(name);
       return NextResponse.json({ label });
     }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       if (!labelId) {
         return NextResponse.json({ error: "labelId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      await sofiaClient.updateLabel(labelId, { name, color });
+      await evoClient.updateLabel(labelId, { name, color });
       return NextResponse.json({ success: true });
     }
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       if (!labelId) {
         return NextResponse.json({ error: "labelId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      await sofiaClient.deleteLabel(labelId);
+      await evoClient.deleteLabel(labelId);
       return NextResponse.json({ success: true });
     }
 

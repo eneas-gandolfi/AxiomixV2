@@ -1,6 +1,6 @@
 /**
- * Arquivo: src/app/api/sofia-crm/process/route.ts
- * Propósito: Processar job específico de sincronização do Sofia CRM.
+ * Arquivo: src/app/api/evo-crm/process/route.ts
+ * Propósito: Processar job específico de sincronização do Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -56,16 +56,16 @@ export async function POST(request: NextRequest) {
       .select("id, status, started_at, completed_at, error_message")
       .eq("id", parsed.data.jobId)
       .eq("company_id", access.companyId)
-      .eq("job_type", "sofia_crm_sync")
+      .eq("job_type", "evo_crm_sync")
       .maybeSingle();
 
     if (jobError) {
-      throw new Error(`Falha ao carregar job do Sofia CRM: ${jobError.message}`);
+      throw new Error(`Falha ao carregar job do Evo CRM: ${jobError.message}`);
     }
 
     if (!job?.id) {
       return NextResponse.json(
-        { error: "Job de sincronização não encontrado.", code: "SOFIA_SYNC_JOB_NOT_FOUND" },
+        { error: "Job de sincronização não encontrado.", code: "EVO_SYNC_JOB_NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         .eq("status", "running");
 
       if (resetError) {
-        throw new Error(`Falha ao resetar job stale do Sofia CRM: ${resetError.message}`);
+        throw new Error(`Falha ao resetar job stale do Evo CRM: ${resetError.message}`);
       }
     } else if (job.status === "running") {
       return NextResponse.json({
@@ -120,6 +120,6 @@ export async function POST(request: NextRequest) {
     }
 
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
-    return NextResponse.json({ error: detail, code: "SOFIA_SYNC_PROCESS_ERROR" }, { status: 500 });
+    return NextResponse.json({ error: detail, code: "EVO_SYNC_PROCESS_ERROR" }, { status: 500 });
   }
 }

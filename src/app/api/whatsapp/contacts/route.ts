@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/contacts/route.ts
- * Propósito: Listar e criar contatos via Sofia CRM.
+ * Propósito: Listar e criar contatos via Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -38,19 +38,19 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    const evoClient = await getEvoCrmClient(access.companyId);
 
     if (parsed.data.action === "create") {
       const { name, phone } = parsed.data;
       if (!name || !phone) {
         return NextResponse.json({ error: "name e phone são obrigatórios.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      const contact = await sofiaClient.createContact({ name, phone });
+      const contact = await evoClient.createContact({ name, phone });
       return NextResponse.json({ contact });
     }
 
     // Default: listar contatos
-    const contacts = await sofiaClient.listContacts({
+    const contacts = await evoClient.listContacts({
       search: parsed.data.search,
       page: parsed.data.page ?? 1,
       limit: parsed.data.limit ?? 50,

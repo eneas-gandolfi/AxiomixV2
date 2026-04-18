@@ -140,7 +140,7 @@ Tom de voz: ${agentTone}. Data de hoje: ${today}. Periodo atual: ${periodo.label
 IMPORTANTE: ao saudar o grupo use EXATAMENTE "${periodo.saudacao}" — nao use "Bom dia" a tarde/noite, nem "Boa noite" pela manha.
 
 Seu objetivo NAO e apenas informar — e engajar o grupo com os DADOS REAIS
-de vendas/conversas com leads do Sofia CRM e estimular conversa. Gere uma
+de vendas/conversas com leads do Evo CRM e estimular conversa. Gere uma
 mensagem com TRES partes, sempre nesta ordem:
 
 ## PARTE 1 — *Panorama comercial de hoje*
@@ -179,7 +179,7 @@ mensagem com TRES partes, sempre nesta ordem:
 
   const userContentParts: string[] = [];
   if (crm.hasData) {
-    userContentParts.push(`Panorama comercial (dados reais do Sofia CRM, ultimas 24h):\n${crm.snapshot}`);
+    userContentParts.push(`Panorama comercial (dados reais do Evo CRM, ultimas 24h):\n${crm.snapshot}`);
   } else {
     userContentParts.push(`Panorama comercial: (nenhum dado de CRM disponivel)`);
   }

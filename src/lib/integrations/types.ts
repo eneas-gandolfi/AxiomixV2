@@ -2,20 +2,25 @@
  * Arquivo: src/lib/integrations/types.ts
  * Propósito: Definir tipos das integracoes suportadas e seus metadados de conexao.
  * Autor: AXIOMIX
- * Data: 2026-03-11
+ * Data: 2026-04-17
  */
 
-export const integrationTypes = ["sofia_crm", "evolution_api", "upload_post", "openrouter"] as const;
+export const integrationTypes = ["evo_crm", "evolution_api", "upload_post", "openrouter"] as const;
 
 export type IntegrationType = (typeof integrationTypes)[number];
 export type IntegrationTestStatus = "ok" | "error";
 
-export type SofiaCrmConfig = {
+export type EvoCrmConfig = {
+  /** URL base da API Rails do Evo CRM (ex: https://api.getlead.capital) — sem trailing /api. */
   baseUrl: string;
+  /** Token enviado no header `apikey` em todas as chamadas. */
   apiToken: string;
+  /** Inbox padrão usada ao iniciar novas conversas. */
   inboxId?: string;
   /** IDs de inboxes a sincronizar. Vazio = todas. */
   syncInboxIds?: string[];
+  /** Secret usado para validar webhooks entrantes (HMAC-SHA256 sobre o body). */
+  webhookSecret?: string;
 };
 
 export type EvolutionVendorStatus = "pending" | "connected" | "error";
@@ -67,7 +72,7 @@ export type OpenRouterConfig = {
 };
 
 export type IntegrationConfigByType = {
-  sofia_crm: SofiaCrmConfig;
+  evo_crm: EvoCrmConfig;
   evolution_api: EvolutionApiConfig;
   upload_post: UploadPostConfig;
   openrouter: OpenRouterConfig;

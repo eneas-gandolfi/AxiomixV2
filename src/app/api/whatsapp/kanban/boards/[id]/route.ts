@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/kanban/boards/[id]/route.ts
- * Propósito: Buscar board completo com stages e cards via Sofia CRM.
+ * Propósito: Buscar board completo com stages e cards via Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
-    const board = await sofiaClient.getBoard(boardId);
+    const evoClient = await getEvoCrmClient(access.companyId);
+    const board = await evoClient.getBoard(boardId);
 
     return NextResponse.json({ board });
   } catch (error) {

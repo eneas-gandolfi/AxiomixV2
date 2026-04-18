@@ -13,7 +13,7 @@ import {
   openRouterChatCompletion,
   openRouterAudioTranscription,
 } from "@/lib/ai/openrouter";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 const LOG_PREFIX = "[whatsapp/media-enricher]";
 
@@ -38,14 +38,14 @@ function ensureAbsoluteUrl(url: string, baseUrl?: string): string {
 }
 
 /**
- * Baixa mídia via fetch. Usa SOFIA_CRM_INTERNAL_URL quando disponível
+ * Baixa mídia via fetch. Usa EVO_CRM_INTERNAL_URL quando disponível
  * para rotear pela rede interna Docker.
  */
 async function fetchMedia(
   urlStr: string,
   token?: string
 ): Promise<{ base64: string; mimetype: string; status: number }> {
-  const internalBase = process.env.SOFIA_CRM_INTERNAL_URL;
+  const internalBase = process.env.EVO_CRM_INTERNAL_URL;
   const fetchUrl = internalBase
     ? urlStr.replace(/^https?:\/\/crm\.getlead\.capital(:\d+)?/, internalBase.replace(/\/+$/, ""))
     : urlStr;
@@ -97,17 +97,17 @@ const DOWNLOAD_RETRY_DELAYS = [2_000, 5_000];
 
 async function downloadMediaFromUrl(
   url: string,
-  sofiaBaseUrl?: string,
-  sofiaToken?: string
+  evoBaseUrl?: string,
+  evoToken?: string
 ): Promise<{ base64: string; mimetype: string } | null> {
-  const absoluteUrl = ensureAbsoluteUrl(url, sofiaBaseUrl);
-  const isSofiaRelative = !url.startsWith("http");
+  const absoluteUrl = ensureAbsoluteUrl(url, evoBaseUrl);
+  const isEvoRelative = !url.startsWith("http");
 
   for (let attempt = 0; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
     try {
-      // URLs internas do Sofia CRM: usar fetch com roteamento Docker interno
-      if (isSofiaRelative) {
-        const result = await fetchMedia(absoluteUrl, sofiaToken);
+      // URLs internas do Evo CRM: usar fetch com roteamento Docker interno
+      if (isEvoRelative) {
+        const result = await fetchMedia(absoluteUrl, evoToken);
         if (result.status < 200 || result.status >= 300) {
           console.warn(LOG_PREFIX, `Falha ao baixar mídia (HTTP ${result.status}): ${url}`);
           return null;
@@ -249,15 +249,15 @@ async function extractPdfText(base64: string): Promise<string> {
 async function processMediaMessage(
   companyId: string,
   message: MessageToEnrich,
-  sofiaBaseUrl?: string,
-  sofiaToken?: string
+  evoBaseUrl?: string,
+  evoToken?: string
 ): Promise<string | null> {
   const type = (message.message_type ?? "").toLowerCase();
   const url = message.media_url;
 
   if (!url) return null;
 
-  const media = await downloadMediaFromUrl(url, sofiaBaseUrl, sofiaToken);
+  const media = await downloadMediaFromUrl(url, evoBaseUrl, evoToken);
   if (!media) return null;
 
   const { base64, mimetype } = media;
@@ -359,15 +359,15 @@ export async function enrichMediaMessages<T extends MessageToEnrich>(
 
   console.log(LOG_PREFIX, `Processando ${toProcess.length} mensagem(ns) de mídia`);
 
-  // Resolver base URL do Sofia CRM para URLs relativas de mídia
-  let sofiaBaseUrl: string | undefined;
-  let sofiaToken: string | undefined;
+  // Resolver base URL do Evo CRM para URLs relativas de mídia
+  let evoBaseUrl: string | undefined;
+  let evoToken: string | undefined;
   try {
-    const sofiaClient = await getSofiaCrmClient(companyId);
-    sofiaBaseUrl = sofiaClient.baseUrl;
-    sofiaToken = sofiaClient.apiToken;
+    const evoClient = await getEvoCrmClient(companyId);
+    evoBaseUrl = evoClient.baseUrl;
+    evoToken = evoClient.apiToken;
   } catch {
-    // Sofia CRM pode não estar configurado — URLs relativas não serão resolvidas
+    // Evo CRM pode não estar configurado — URLs relativas não serão resolvidas
   }
 
   const supabase = createSupabaseAdminClient();
@@ -378,7 +378,7 @@ export async function enrichMediaMessages<T extends MessageToEnrich>(
     const batch = toProcess.slice(i, i + MEDIA_CONCURRENCY);
     await Promise.allSettled(
       batch.map(async (message) => {
-        const extracted = await processMediaMessage(companyId, message, sofiaBaseUrl, sofiaToken);
+        const extracted = await processMediaMessage(companyId, message, evoBaseUrl, evoToken);
         if (extracted) {
           updatedContents.set(message.id, extracted);
 

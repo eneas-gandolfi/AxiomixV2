@@ -10,12 +10,12 @@ import type { Json, Database } from "@/database/types/database.types";
 import { decryptSecret, encryptSecret } from "@/lib/integrations/crypto";
 import { normalizeWhatsAppPhone } from "@/lib/whatsapp/phone";
 import type {
+  EvoCrmConfig,
   EvolutionApiConfig,
   EvolutionVendor,
   IntegrationConfigByType,
   IntegrationType,
   OpenRouterConfig,
-  SofiaCrmConfig,
   UploadPostConfig,
   UploadPostSocialConnection,
 } from "@/lib/integrations/types";
@@ -28,10 +28,12 @@ const baseUrlSchema = z
 
 const requiredSecretSchema = z.string().trim().min(1, "Campo obrigatório.");
 
-const sofiaCrmSchema: z.ZodType<SofiaCrmConfig> = z.object({
+const evoCrmSchema: z.ZodType<EvoCrmConfig> = z.object({
   baseUrl: baseUrlSchema,
   apiToken: requiredSecretSchema,
   inboxId: z.string().trim().min(1).optional(),
+  syncInboxIds: z.array(z.string().trim().min(1)).optional(),
+  webhookSecret: z.string().trim().min(1).optional(),
 });
 
 const evolutionVendorSchema: z.ZodType<EvolutionVendor> = z.object({
@@ -122,10 +124,13 @@ function decryptIfEncrypted(payload: unknown) {
   return decryptSecret(normalized);
 }
 
-function resolveSofiaBaseUrl(configBaseUrl?: string) {
-  const source = configBaseUrl?.trim() || "";
+function resolveEvoCrmBaseUrl(configBaseUrl?: string) {
+  const envVar = process.env.EVO_CRM_BASE_URL?.trim();
+  const source = configBaseUrl?.trim() || envVar || "";
   const normalized = source.replace(/\/+$/, "");
-  return normalized.endsWith("/api") ? normalized.slice(0, -4) : normalized;
+  if (normalized.endsWith("/api/v1")) return normalized.slice(0, -"/api/v1".length);
+  if (normalized.endsWith("/api")) return normalized.slice(0, -"/api".length);
+  return normalized;
 }
 
 function resolveEvolutionBaseUrl(configBaseUrl?: string) {
@@ -164,7 +169,7 @@ function buildUploadPostApiUrl(baseUrl: string, path: string) {
 }
 
 export function parseIntegrationType(value: string): IntegrationType {
-  const schema = z.enum(["sofia_crm", "evolution_api", "upload_post", "openrouter"]);
+  const schema = z.enum(["evo_crm", "evolution_api", "upload_post", "openrouter"]);
   return schema.parse(value);
 }
 
@@ -175,8 +180,8 @@ export function parseIntegrationConfig<T extends IntegrationType>(
   const objectPayload = assertObjectPayload(payload);
 
   switch (type) {
-    case "sofia_crm":
-      return sofiaCrmSchema.parse(objectPayload) as IntegrationConfigByType[T];
+    case "evo_crm":
+      return evoCrmSchema.parse(objectPayload) as IntegrationConfigByType[T];
     case "evolution_api":
       return evolutionApiSchema.parse(objectPayload) as IntegrationConfigByType[T];
     case "upload_post":
@@ -193,14 +198,20 @@ export function encodeIntegrationConfig<T extends IntegrationType>(
   config: IntegrationConfigByType[T]
 ): Json {
   switch (type) {
-    case "sofia_crm": {
-      const data = config as SofiaCrmConfig;
+    case "evo_crm": {
+      const data = config as EvoCrmConfig;
       const encoded: Record<string, Json> = {
         base_url: data.baseUrl,
         api_token_encrypted: encryptSecret(data.apiToken),
       };
       if (data.inboxId) {
         encoded.inbox_id = data.inboxId;
+      }
+      if (Array.isArray(data.syncInboxIds) && data.syncInboxIds.length > 0) {
+        encoded.sync_inbox_ids = data.syncInboxIds as unknown as Json;
+      }
+      if (data.webhookSecret) {
+        encoded.webhook_secret_encrypted = encryptSecret(data.webhookSecret);
       }
       return encoded;
     }
@@ -268,12 +279,24 @@ export function decodeIntegrationConfig<T extends IntegrationType>(
   const config = assertObjectPayload(payload ?? {});
 
   switch (type) {
-    case "sofia_crm": {
+    case "evo_crm": {
       const inboxId = typeof config.inbox_id === "string" ? config.inbox_id : undefined;
+      const syncInboxIds = Array.isArray(config.sync_inbox_ids)
+        ? config.sync_inbox_ids.filter((x): x is string => typeof x === "string")
+        : undefined;
+      let webhookSecret: string | undefined;
+      try {
+        const raw = config.webhook_secret_encrypted ?? config.webhook_secret;
+        webhookSecret = decryptIfEncrypted(raw) || undefined;
+      } catch {
+        webhookSecret = undefined;
+      }
       return {
         baseUrl: String(config.base_url ?? ""),
         apiToken: decryptIfEncrypted(config.api_token_encrypted ?? config.api_token),
         inboxId: inboxId || undefined,
+        syncInboxIds,
+        webhookSecret,
       } as IntegrationConfigByType[T];
     }
     case "evolution_api": {
@@ -331,12 +354,17 @@ export function sanitizeIntegrationConfig(type: IntegrationType, payload: Json |
   const config = assertObjectPayload(payload ?? {});
 
   switch (type) {
-    case "sofia_crm":
+    case "evo_crm":
       return {
         baseUrl: typeof config.base_url === "string" ? config.base_url : null,
         inboxId: typeof config.inbox_id === "string" ? config.inbox_id : null,
         apiToken:
           typeof config.api_token_encrypted === "string" || typeof config.api_token === "string"
+            ? "********"
+            : null,
+        webhookSecret:
+          typeof config.webhook_secret_encrypted === "string" ||
+          typeof config.webhook_secret === "string"
             ? "********"
             : null,
       };
@@ -574,52 +602,69 @@ export async function testIntegrationConnection<T extends IntegrationType>(
 ): Promise<IntegrationTestResult> {
   try {
     switch (type) {
-      case "sofia_crm": {
-        const sofia = config as SofiaCrmConfig;
-        const configBaseUrl = resolveSofiaBaseUrl(sofia.baseUrl);
-        // Em Docker, usar URL interna se disponível (DNS público não resolve no container)
-        const internalBase = process.env.SOFIA_CRM_INTERNAL_URL?.replace(/\/+$/, "");
-        const baseUrl = internalBase || configBaseUrl;
+      case "evo_crm": {
+        const evo = config as EvoCrmConfig;
+        const baseUrl = resolveEvoCrmBaseUrl(evo.baseUrl);
 
         if (!baseUrl) {
-          return { ok: false, detail: "URL base do Sofia CRM não configurada." };
+          return { ok: false, detail: "URL base do Evo CRM não configurada." };
         }
 
         const authHeaders = {
-          Authorization: `Bearer ${sofia.apiToken}`,
+          api_access_token: evo.apiToken,
           "Content-Type": "application/json",
+          Accept: "application/json",
         };
 
-        const response = await fetchWithTimeout(`${baseUrl}/api/conversations?limit=1`, {
+        const response = await fetchWithTimeout(`${baseUrl}/api/v1/conversations?limit=1`, {
           method: "GET",
           headers: authHeaders,
         });
 
         if (!response.ok) {
-          return { ok: false, detail: `Sofia CRM falhou: ${await readFailureDetail(response)}` };
+          return { ok: false, detail: `Evo CRM falhou: ${await readFailureDetail(response)}` };
         }
 
-        // Auto-detectar inbox WhatsApp
+        // Valida envelope {success, data, error, meta}
+        try {
+          const payload = (await response.clone().json()) as { success?: boolean; error?: { message?: string } };
+          if (payload?.success === false) {
+            return {
+              ok: false,
+              detail: `Evo CRM rejeitou o token: ${payload.error?.message ?? "não autorizado"}`,
+            };
+          }
+        } catch {
+          // resposta não-JSON — segue fluxo normal (conectou mas formato inesperado)
+        }
+
+        // Auto-detectar primeira inbox WhatsApp
         let detectedInboxId: string | undefined;
         try {
-          const inboxesResponse = await fetchWithTimeout(`${baseUrl}/api/inboxes`, {
+          const inboxesResponse = await fetchWithTimeout(`${baseUrl}/api/v1/inboxes`, {
             method: "GET",
             headers: authHeaders,
           });
 
           if (inboxesResponse.ok) {
-            const inboxesPayload = await inboxesResponse.json() as unknown;
-            const inboxes = Array.isArray(inboxesPayload) ? inboxesPayload : [];
-            const whatsappInbox = inboxes.find(
-              (inbox: Record<string, unknown>) =>
-                typeof inbox.type === "string" && inbox.type.startsWith("whatsapp")
-            );
-            if (whatsappInbox && typeof whatsappInbox.id !== "undefined") {
+            const inboxesPayload = (await inboxesResponse.json()) as unknown;
+            // Envelope: {success, data: [...]} ou array direto
+            const list = Array.isArray(inboxesPayload)
+              ? inboxesPayload
+              : Array.isArray((inboxesPayload as { data?: unknown })?.data)
+              ? (inboxesPayload as { data: unknown[] }).data
+              : [];
+            const whatsappInbox = list.find((inbox: unknown) => {
+              if (!inbox || typeof inbox !== "object") return false;
+              const channel = (inbox as Record<string, unknown>).channel_type ?? (inbox as Record<string, unknown>).type;
+              return typeof channel === "string" && channel.toLowerCase().includes("whatsapp");
+            }) as Record<string, unknown> | undefined;
+            if (whatsappInbox?.id !== undefined) {
               detectedInboxId = String(whatsappInbox.id);
             }
           }
         } catch {
-          // Inbox auto-detection is optional — sync still works without it.
+          // Auto-detecção é opcional.
         }
 
         return {

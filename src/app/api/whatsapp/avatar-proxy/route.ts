@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/avatar-proxy/route.ts
- * Propósito: Proxy autenticado de imagens de perfil do Sofia CRM.
+ * Propósito: Proxy autenticado de imagens de perfil do Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-17
  */
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 const PROXY_TIMEOUT_MS = 10_000;
 
-function normalizeSofiaBaseUrl(rawBaseUrl: string) {
+function normalizeEvoBaseUrl(rawBaseUrl: string) {
   const normalized = rawBaseUrl.trim().replace(/\/+$/, "");
   return normalized.endsWith("/api") ? normalized.slice(0, -4) : normalized;
 }
@@ -31,27 +31,27 @@ export async function GET(request: NextRequest) {
       return new NextResponse("Parâmetro url é obrigatório.", { status: 400 });
     }
 
-    // Buscar credenciais do Sofia CRM
+    // Buscar credenciais do Evo CRM
     const adminSupabase = createSupabaseAdminClient();
     const { data: integration } = await adminSupabase
       .from("integrations")
       .select("config")
       .eq("company_id", access.companyId)
-      .eq("type", "sofia_crm")
+      .eq("type", "evo_crm")
       .maybeSingle();
 
     if (!integration?.config) {
-      return new NextResponse("Integração Sofia CRM não configurada.", { status: 404 });
+      return new NextResponse("Integração Evo CRM não configurada.", { status: 404 });
     }
 
-    const config = decodeIntegrationConfig("sofia_crm", integration.config);
+    const config = decodeIntegrationConfig("evo_crm", integration.config);
     if (!config.baseUrl || !config.apiToken) {
-      return new NextResponse("Credenciais do Sofia CRM incompletas.", { status: 500 });
+      return new NextResponse("Credenciais do Evo CRM incompletas.", { status: 500 });
     }
 
-    const baseUrl = normalizeSofiaBaseUrl(config.baseUrl);
+    const baseUrl = normalizeEvoBaseUrl(config.baseUrl);
 
-    // Validar que a URL pertence ao domínio do Sofia CRM (anti-SSRF)
+    // Validar que a URL pertence ao domínio do Evo CRM (anti-SSRF)
     let targetUrl: URL;
     try {
       targetUrl = new URL(rawUrl);
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     const allowedHost = new URL(baseUrl).hostname;
     if (targetUrl.hostname !== allowedHost) {
-      return new NextResponse("URL não pertence ao domínio do Sofia CRM.", { status: 403 });
+      return new NextResponse("URL não pertence ao domínio do Evo CRM.", { status: 403 });
     }
 
     // Buscar imagem via fetch autenticado (roteamento Docker interno quando disponível)
@@ -104,7 +104,7 @@ function detectImageContentType(buffer: Buffer): string {
 }
 
 async function fetchImageViaHttp(url: URL, apiToken: string): Promise<Buffer | null> {
-  const internalBase = process.env.SOFIA_CRM_INTERNAL_URL;
+  const internalBase = process.env.EVO_CRM_INTERNAL_URL;
   const fetchUrl = internalBase && url.hostname === "crm.getlead.capital"
     ? url.toString().replace(url.origin, internalBase.replace(/\/+$/, ""))
     : url.toString();

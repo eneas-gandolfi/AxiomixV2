@@ -79,8 +79,8 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
 
   const payload = parseObjectPayload(job.payload);
   switch (job.job_type) {
-    case "sofia_crm_sync": {
-      const { syncConversations } = await import("@/services/sofia-crm/conversations");
+    case "evo_crm_sync": {
+      const { syncConversations } = await import("@/services/evo-crm/conversations");
       const syncResult = await syncConversations(job.company_id, (progress) => {
         void updateJobProgress(job.id, {
           phase: progress.phase,

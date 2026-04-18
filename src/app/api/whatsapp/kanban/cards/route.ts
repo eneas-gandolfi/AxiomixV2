@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/api/whatsapp/kanban/cards/route.ts
- * Propósito: CRUD e movimentação de cards do Kanban via Sofia CRM.
+ * Propósito: CRUD e movimentação de cards do Kanban via Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    const evoClient = await getEvoCrmClient(access.companyId);
     const { action } = parsed.data;
 
     if (action === "create") {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       if (!boardId || !title) {
         return NextResponse.json({ error: "boardId e title são obrigatórios.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      await sofiaClient.createKanbanCard({
+      await evoClient.createKanbanCard({
         boardId,
         title,
         description: parsed.data.description ?? "",
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       if (!cardId) {
         return NextResponse.json({ error: "cardId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      const card = await sofiaClient.getCard(cardId);
+      const card = await evoClient.getCard(cardId);
       return NextResponse.json({ card });
     }
 
@@ -84,12 +84,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "cardId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
 
-      const card = await sofiaClient.getCard(cardId);
+      const card = await evoClient.getCard(cardId);
 
       let contactName: string | null = null;
       if (card.contact_id) {
         try {
-          const contact = await sofiaClient.getContact(card.contact_id);
+          const contact = await evoClient.getContact(card.contact_id);
           contactName = contact.name ?? null;
         } catch {
           // Contact may not exist
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       if (contact_id !== undefined) updateData.contact_id = contact_id;
       if (conversation_id !== undefined) updateData.conversation_id = conversation_id;
 
-      await sofiaClient.updateCard(cardId, updateData);
+      await evoClient.updateCard(cardId, updateData);
       return NextResponse.json({ success: true });
     }
 
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       if (!cardId) {
         return NextResponse.json({ error: "cardId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      await sofiaClient.deleteCard(cardId);
+      await evoClient.deleteCard(cardId);
       return NextResponse.json({ success: true });
     }
 
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
       if (!cardId || !boardId || !stageId) {
         return NextResponse.json({ error: "cardId, boardId e stageId são obrigatórios.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      await sofiaClient.moveCard(cardId, boardId, stageId);
+      await evoClient.moveCard(cardId, boardId, stageId);
       return NextResponse.json({ success: true });
     }
 

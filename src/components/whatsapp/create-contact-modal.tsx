@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/whatsapp/create-contact-modal.tsx
- * Propósito: Modal para criar um novo contato no Sofia CRM.
+ * Propósito: Modal para criar um novo contato no Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

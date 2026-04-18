@@ -22,13 +22,13 @@ import { PageContainer } from "@/components/layouts/page-container";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { AnalyzeConversationButton } from "@/components/whatsapp/analyze-conversation-button";
-import { AssignSofiaAgentSelect } from "@/components/whatsapp/assign-sofia-agent-select";
+import { AssignEvoAgentSelect } from "@/components/whatsapp/assign-evo-agent-select";
 import { ConversationChat } from "@/components/whatsapp/conversation-chat";
 import { InsightFeedbackPanel } from "@/components/whatsapp/insight-feedback-panel";
 import { SessionStatusBadge } from "@/components/whatsapp/session-status-badge";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 type ConversationDetailsPageProps = {
   params: Promise<{
@@ -254,13 +254,13 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
     .eq("conversation_id", id)
     .maybeSingle();
 
-  let sofiaConversationUrl: string | null = null;
+  let evoConversationUrl: string | null = null;
   if (conversation.external_id) {
     try {
-      const sofiaClient = await getSofiaCrmClient(companyId);
-      sofiaConversationUrl = sofiaClient.buildConversationUrl(conversation.external_id);
+      const evoClient = await getEvoCrmClient(companyId);
+      evoConversationUrl = evoClient.buildConversationUrl(conversation.external_id);
     } catch {
-      sofiaConversationUrl = null;
+      evoConversationUrl = null;
     }
   }
 
@@ -284,20 +284,20 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
             hasInsight={Boolean(insight)}
           />
           {conversation.external_id ? (
-            <AssignSofiaAgentSelect
+            <AssignEvoAgentSelect
               companyId={companyId}
               conversationExternalId={conversation.external_id}
             />
           ) : null}
-          {sofiaConversationUrl ? (
+          {evoConversationUrl ? (
             <Link
-              href={sofiaConversationUrl}
+              href={evoConversationUrl}
               target="_blank"
               rel="noreferrer"
               className={buttonVariants({ variant: "secondary" })}
             >
               <ExternalLink className="h-4 w-4" />
-              Abrir no Sofia CRM
+              Abrir no Evo CRM
             </Link>
           ) : null}
         </div>

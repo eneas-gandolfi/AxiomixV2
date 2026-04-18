@@ -214,7 +214,7 @@ export type Database = {
           is_active: boolean | null;
           last_tested_at: string | null;
           test_status: "ok" | "error" | null;
-          type: "sofia_crm" | "evolution_api" | "upload_post" | "openrouter";
+          type: "evo_crm" | "evolution_api" | "upload_post" | "openrouter";
         };
         Insert: {
           company_id?: string | null;
@@ -224,7 +224,7 @@ export type Database = {
           is_active?: boolean | null;
           last_tested_at?: string | null;
           test_status?: "ok" | "error" | null;
-          type: "sofia_crm" | "evolution_api" | "upload_post" | "openrouter";
+          type: "evo_crm" | "evolution_api" | "upload_post" | "openrouter";
         };
         Update: {
           company_id?: string | null;
@@ -234,7 +234,7 @@ export type Database = {
           is_active?: boolean | null;
           last_tested_at?: string | null;
           test_status?: "ok" | "error" | null;
-          type?: "sofia_crm" | "evolution_api" | "upload_post" | "openrouter";
+          type?: "evo_crm" | "evolution_api" | "upload_post" | "openrouter";
         };
         Relationships: [
           {
@@ -894,7 +894,7 @@ export type Database = {
           error_message: string | null;
           id: string;
           job_type:
-            | "sofia_crm_sync"
+            | "evo_crm_sync"
             | "competitor_scrape"
             | "radar_collect"
             | "weekly_report"
@@ -919,7 +919,7 @@ export type Database = {
           error_message?: string | null;
           id?: string;
           job_type:
-            | "sofia_crm_sync"
+            | "evo_crm_sync"
             | "competitor_scrape"
             | "radar_collect"
             | "weekly_report"
@@ -944,7 +944,7 @@ export type Database = {
           error_message?: string | null;
           id?: string;
           job_type?:
-            | "sofia_crm_sync"
+            | "evo_crm_sync"
             | "competitor_scrape"
             | "radar_collect"
             | "weekly_report"

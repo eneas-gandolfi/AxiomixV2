@@ -182,7 +182,7 @@ export function ConversationsList({ conversations, companyId, agents = [], initi
     }
 
     const confirmed = window.confirm(
-      `Excluir ${selectedIds.size} conversa(s) do Axiomix? Elas não serão removidas do Sofia CRM e não voltarão nas próximas sincronizações.`
+      `Excluir ${selectedIds.size} conversa(s) do Axiomix? Elas não serão removidas do Evo CRM e não voltarão nas próximas sincronizações.`
     );
 
     if (!confirmed) {

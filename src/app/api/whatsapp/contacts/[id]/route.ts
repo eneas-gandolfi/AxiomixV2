@@ -9,7 +9,7 @@ import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
 
@@ -40,15 +40,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const sofiaClient = await getSofiaCrmClient(access.companyId);
+    const evoClient = await getEvoCrmClient(access.companyId);
 
     if (parsed.data.action === "get") {
-      const contact = await sofiaClient.getContact(contactId);
+      const contact = await evoClient.getContact(contactId);
       return NextResponse.json({ contact });
     }
 
     if (parsed.data.action === "listLabels") {
-      const labels = await sofiaClient.listContactLabels(contactId);
+      const labels = await evoClient.listContactLabels(contactId);
       return NextResponse.json({ labels });
     }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (!label) {
         return NextResponse.json({ error: "label é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      await sofiaClient.addContactLabel({ contactId, label });
+      await evoClient.addContactLabel({ contactId, label });
       return NextResponse.json({ success: true });
     }
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (!labelId) {
         return NextResponse.json({ error: "labelId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      await sofiaClient.removeContactLabel(contactId, labelId);
+      await evoClient.removeContactLabel(contactId, labelId);
       return NextResponse.json({ success: true });
     }
 

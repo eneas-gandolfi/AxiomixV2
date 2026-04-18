@@ -47,7 +47,7 @@ export function SentimentOverview({ data }: SentimentOverviewProps) {
             <MessageSquare size={20} className="text-muted-light" aria-hidden="true" />
           </span>
           <p className="max-w-[280px] text-sm text-muted">
-            Nenhuma conversa analisada ainda. Conecte o Sofia CRM para começar.
+            Nenhuma conversa analisada ainda. Conecte o Evo CRM para começar.
           </p>
         </div>
       </section>

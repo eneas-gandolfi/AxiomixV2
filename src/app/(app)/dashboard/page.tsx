@@ -454,7 +454,7 @@ async function DashboardContent() {
                   ctaHref="/whatsapp-intelligence"
                   emptyHint={
                     conversationsCurrent === 0
-                      ? "Conecte o Sofia CRM em Configurações para começar a sincronizar conversas."
+                      ? "Conecte o Evo CRM em Configurações para começar a sincronizar conversas."
                       : undefined
                   }
                   variant="hero"

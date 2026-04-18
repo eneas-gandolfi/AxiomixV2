@@ -10,9 +10,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { RefreshCw, Wifi, WifiOff, Pause, Play } from "lucide-react";
 import {
-  requestSofiaSync,
-  useSofiaSyncStatus,
-} from "@/components/whatsapp/sofia-sync-client";
+  requestEvoSync,
+  useEvoSyncStatus,
+} from "@/components/whatsapp/evo-sync-client";
 
 type AutoSyncIndicatorProps = {
   companyId: string;
@@ -29,7 +29,7 @@ export function AutoSyncIndicator({ companyId, intervalSeconds = 60 }: AutoSyncI
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const consecutiveFailuresRef = useRef(0);
   const nextSyncAtRef = useRef(Date.now() + intervalSeconds * 1000);
-  const { syncing, activeMode, lastSyncAt, errorMessage, progress } = useSofiaSyncStatus(companyId);
+  const { syncing, activeMode, lastSyncAt, errorMessage, progress } = useEvoSyncStatus(companyId);
   const syncingRef = useRef(syncing);
 
   const isEffectivelyPaused = pausedByVisibility || isManuallyPaused;
@@ -68,7 +68,7 @@ export function AutoSyncIndicator({ companyId, intervalSeconds = 60 }: AutoSyncI
     }
 
     try {
-      await requestSofiaSync({ companyId, mode: "messages_only" });
+      await requestEvoSync({ companyId, mode: "messages_only" });
       consecutiveFailuresRef.current = 0;
       setCurrentInterval(intervalSeconds);
 

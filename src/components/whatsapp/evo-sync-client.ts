@@ -26,7 +26,7 @@ type SyncAnalysis = {
   failedAnalyses?: number;
 };
 
-export type SofiaSyncResponse = {
+export type EvoSyncResponse = {
   companyId: string;
   mode?: "messages" | "conversations" | "messages_only";
   jobId?: string;
@@ -46,18 +46,18 @@ type SyncProgress = {
   phase: string;
 };
 
-export type SofiaSyncMode = "full" | "messages_only" | "messages" | null;
+export type EvoSyncMode = "full" | "messages_only" | "messages" | null;
 
-type SofiaSyncStatus = {
+type EvoSyncStatus = {
   syncing: boolean;
-  activeMode: SofiaSyncMode;
+  activeMode: EvoSyncMode;
   lastSyncAt: string | null;
   errorMessage: string | null;
-  lastResult: SofiaSyncResponse | null;
+  lastResult: EvoSyncResponse | null;
   progress: SyncProgress | null;
 };
 
-const DEFAULT_STATUS: SofiaSyncStatus = {
+const DEFAULT_STATUS: EvoSyncStatus = {
   syncing: false,
   activeMode: null,
   lastSyncAt: null,
@@ -66,9 +66,9 @@ const DEFAULT_STATUS: SofiaSyncStatus = {
   progress: null,
 };
 
-const statusByCompany = new Map<string, SofiaSyncStatus>();
+const statusByCompany = new Map<string, EvoSyncStatus>();
 const listenersByCompany = new Map<string, Set<() => void>>();
-const inFlightByCompany = new Map<string, Promise<SofiaSyncResponse>>();
+const inFlightByCompany = new Map<string, Promise<EvoSyncResponse>>();
 const JOB_POLL_INTERVAL_MS = 2000;
 const JOB_POLL_MAX_ATTEMPTS = 180;
 
@@ -91,7 +91,7 @@ function notify(companyId: string) {
   }
 }
 
-function updateStatus(companyId: string, patch: Partial<SofiaSyncStatus>) {
+function updateStatus(companyId: string, patch: Partial<EvoSyncStatus>) {
   const current = ensureStatus(companyId);
   statusByCompany.set(companyId, {
     ...current,
@@ -122,19 +122,19 @@ async function parseSyncResponse(response: Response) {
   const rawText = await response.text();
   if (!rawText) {
     return {
-      payload: {} as SofiaSyncResponse & { error?: string },
+      payload: {} as EvoSyncResponse & { error?: string },
       rawText,
     };
   }
 
   try {
     return {
-      payload: JSON.parse(rawText) as SofiaSyncResponse & { error?: string },
+      payload: JSON.parse(rawText) as EvoSyncResponse & { error?: string },
       rawText,
     };
   } catch {
     return {
-      payload: {} as SofiaSyncResponse & { error?: string },
+      payload: {} as EvoSyncResponse & { error?: string },
       rawText,
     };
   }
@@ -144,12 +144,12 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchSyncJobStatus(companyId: string, jobId: string): Promise<SofiaSyncResponse> {
+async function fetchSyncJobStatus(companyId: string, jobId: string): Promise<EvoSyncResponse> {
   const params = new URLSearchParams({
     companyId,
     jobId,
   });
-  const response = await fetch(`/api/sofia-crm/sync-status?${params.toString()}`, {
+  const response = await fetch(`/api/evo-crm/sync-status?${params.toString()}`, {
     method: "GET",
   });
   const { payload, rawText } = await parseSyncResponse(response);
@@ -161,7 +161,7 @@ async function fetchSyncJobStatus(companyId: string, jobId: string): Promise<Sof
   return payload;
 }
 
-async function waitForSyncCompletion(companyId: string, jobId: string): Promise<SofiaSyncResponse> {
+async function waitForSyncCompletion(companyId: string, jobId: string): Promise<EvoSyncResponse> {
   for (let attempt = 0; attempt < JOB_POLL_MAX_ATTEMPTS; attempt += 1) {
     const payload = await fetchSyncJobStatus(companyId, jobId);
 
@@ -196,13 +196,13 @@ async function waitForSyncCompletion(companyId: string, jobId: string): Promise<
   throw new Error("A sincronização demorou mais do que o esperado. Verifique novamente em instantes.");
 }
 
-export async function requestSofiaSync(input: SyncRequest): Promise<SofiaSyncResponse> {
+export async function requestEvoSync(input: SyncRequest): Promise<EvoSyncResponse> {
   const existing = inFlightByCompany.get(input.companyId);
   if (existing) {
     return existing;
   }
 
-  const requestedMode: SofiaSyncMode = input.conversationId
+  const requestedMode: EvoSyncMode = input.conversationId
     ? "messages"
     : input.mode === "messages_only"
       ? "messages_only"
@@ -217,7 +217,7 @@ export async function requestSofiaSync(input: SyncRequest): Promise<SofiaSyncRes
 
   const requestPromise = (async () => {
     try {
-      const response = await fetch("/api/sofia-crm/sync", {
+      const response = await fetch("/api/evo-crm/sync", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -281,8 +281,8 @@ export async function requestSofiaSync(input: SyncRequest): Promise<SofiaSyncRes
   return requestPromise;
 }
 
-export function useSofiaSyncStatus(companyId: string) {
-  const [status, setStatus] = useState<SofiaSyncStatus>(() => ensureStatus(companyId));
+export function useEvoSyncStatus(companyId: string) {
+  const [status, setStatus] = useState<EvoSyncStatus>(() => ensureStatus(companyId));
 
   useEffect(() => {
     setStatus(ensureStatus(companyId));

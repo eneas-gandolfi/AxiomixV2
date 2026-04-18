@@ -103,9 +103,9 @@ export function ConversationChat({
 
     setPolling(true);
     try {
-      // Primeiro: sync da conversa com Sofia CRM (traz mensagens novas do WhatsApp)
+      // Primeiro: sync da conversa com Evo CRM (traz mensagens novas do WhatsApp)
       if (conversationExternalId) {
-        await fetch("/api/sofia-crm/sync", {
+        await fetch("/api/evo-crm/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ companyId, conversationId }),

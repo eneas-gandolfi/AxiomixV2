@@ -16,7 +16,7 @@ import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 import { ConversationsList } from "@/components/whatsapp/conversations-list";
 import { StartConversationButton } from "@/components/whatsapp/start-conversation-button";
 import { AutoSyncIndicator } from "@/components/whatsapp/auto-sync-indicator";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 type Sentiment = "positivo" | "neutro" | "negativo";
 
@@ -35,11 +35,11 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
 
   const supabase = await createSupabaseServerClient();
 
-  // Buscar conversas e agentes Sofia CRM em paralelo
+  // Buscar conversas e agentes Evo CRM em paralelo
   const fetchAgents = async (): Promise<Array<{ id: string; name: string | null }>> => {
     try {
-      const sofiaClient = await getSofiaCrmClient(companyId);
-      const users = await sofiaClient.listUsers();
+      const evoClient = await getEvoCrmClient(companyId);
+      const users = await evoClient.listUsers();
       return users.map((u) => ({ id: u.id, name: u.name ?? null }));
     } catch {
       return [];
@@ -137,7 +137,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
         <EmptyState
           icon={MessageSquare}
           title="Nenhuma conversa sincronizada"
-          description="Clique em 'Sincronizar com Sofia CRM' para trazer as conversas e iniciar a análise com IA."
+          description="Clique em 'Sincronizar com Evo CRM' para trazer as conversas e iniciar a análise com IA."
         />
       ) : (
         <ConversationsList

@@ -8,7 +8,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSofiaCrmClient } from "@/services/sofia-crm/client";
+import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 type AgentWorkload = {
   id: string;
@@ -36,12 +36,12 @@ type AutoAssignResult = {
 
 async function getAgentWorkloads(
   companyId: string,
-  sofiaUsers: Array<{ id: string; name?: string | null }>
+  evoUsers: Array<{ id: string; name?: string | null }>
 ): Promise<AgentWorkload[]> {
   const supabase = createSupabaseAdminClient();
   const workloads: AgentWorkload[] = [];
 
-  for (const user of sofiaUsers) {
+  for (const user of evoUsers) {
     const { count } = await supabase
       .from("conversations")
       .select("id", { count: "exact", head: true })
@@ -93,18 +93,18 @@ export async function autoAssignConversations(
   limit = 10
 ): Promise<AutoAssignResult> {
   const supabase = createSupabaseAdminClient();
-  const sofiaClient = await getSofiaCrmClient(companyId);
+  const evoClient = await getEvoCrmClient(companyId);
 
   // Buscar agentes disponíveis
-  const sofiaUsers = await sofiaClient.listUsers();
-  if (sofiaUsers.length === 0) {
+  const evoUsers = await evoClient.listUsers();
+  if (evoUsers.length === 0) {
     return { assigned: 0, skipped: 0, details: [] };
   }
 
   // Calcular workloads
   const workloads = await getAgentWorkloads(
     companyId,
-    sofiaUsers.map((u) => ({ id: String(u.id), name: u.name }))
+    evoUsers.map((u) => ({ id: String(u.id), name: u.name }))
   );
 
   // Buscar conversas abertas não-atribuídas
@@ -154,7 +154,7 @@ export async function autoAssignConversations(
     }
 
     try {
-      await sofiaClient.assignConversation(conv.external_id, {
+      await evoClient.assignConversation(conv.external_id, {
         assigneeId: selection.agent.id,
       });
 

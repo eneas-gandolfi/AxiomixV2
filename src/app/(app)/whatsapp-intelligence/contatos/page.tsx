@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/app/(app)/whatsapp-intelligence/contatos/page.tsx
- * Propósito: Gestão de contatos e labels do Sofia CRM.
+ * Propósito: Gestão de contatos e labels do Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */

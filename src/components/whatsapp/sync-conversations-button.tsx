@@ -13,10 +13,10 @@ import { App } from "antd";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  requestSofiaSync,
-  useSofiaSyncStatus,
-  type SofiaSyncResponse,
-} from "@/components/whatsapp/sofia-sync-client";
+  requestEvoSync,
+  useEvoSyncStatus,
+  type EvoSyncResponse,
+} from "@/components/whatsapp/evo-sync-client";
 
 type SyncConversationsButtonProps = {
   companyId: string;
@@ -25,13 +25,13 @@ type SyncConversationsButtonProps = {
 export function SyncConversationsButton({ companyId }: SyncConversationsButtonProps) {
   const router = useRouter();
   const { message } = App.useApp();
-  const { syncing, activeMode, progress } = useSofiaSyncStatus(companyId);
+  const { syncing, activeMode, progress } = useEvoSyncStatus(companyId);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isFullSyncing = syncing && activeMode !== "messages_only";
   const isAutoRefreshing = syncing && activeMode === "messages_only";
 
-  const formatFeedback = (payload: SofiaSyncResponse) => {
+  const formatFeedback = (payload: EvoSyncResponse) => {
     const totalConversations = payload.result?.syncedConversations ?? 0;
     const totalMessages = payload.result?.syncedMessages ?? 0;
     const processedAnalyses = payload.analysis?.processedAnalyses ?? 0;
@@ -49,7 +49,7 @@ export function SyncConversationsButton({ companyId }: SyncConversationsButtonPr
     setError(null);
 
     try {
-      const payload = await requestSofiaSync({ companyId });
+      const payload = await requestEvoSync({ companyId });
       const summary = formatFeedback(payload);
       setFeedback(summary);
       message.success(summary);
@@ -63,7 +63,7 @@ export function SyncConversationsButton({ companyId }: SyncConversationsButtonPr
 
   const progressLabel = (() => {
     if (!isFullSyncing) {
-      return "Sincronizar com Sofia CRM";
+      return "Sincronizar com Evo CRM";
     }
     if (!progress) {
       return "Sincronizando...";

@@ -30,7 +30,7 @@ export async function runHeartbeat(): Promise<HeartbeatResult> {
   // 3. Enfileirar análises automáticas para todas as empresas ativas
   const autoAnalyses = await enqueueAutoAnalysesForAllCompanies();
 
-  // 4. Enfileirar syncs pendentes para empresas ativas com Sofia CRM
+  // 4. Enfileirar syncs pendentes para empresas ativas com Evo CRM
   const synced = await enqueuePendingSyncs();
 
   // 5. Agregar uso de IA do dia anterior (roda apenas no primeiro heartbeat de cada hora)
@@ -62,7 +62,7 @@ async function enqueueAutoAnalysesForAllCompanies(): Promise<{
   const { data: integrations, error: integrationsError } = await supabase
     .from("integrations")
     .select("company_id")
-    .eq("type", "sofia_crm")
+    .eq("type", "evo_crm")
     .eq("is_active", true)
     .eq("test_status", "ok")
     .not("company_id", "is", null);
@@ -106,13 +106,13 @@ async function enqueuePendingSyncs(): Promise<{ enqueued: number; skippedRecent:
   const { data: integrations, error: integrationsError } = await supabase
     .from("integrations")
     .select("company_id")
-    .eq("type", "sofia_crm")
+    .eq("type", "evo_crm")
     .eq("is_active", true)
     .eq("test_status", "ok")
     .not("company_id", "is", null);
 
   if (integrationsError) {
-    throw new Error(`Falha ao buscar integrações do Sofia CRM: ${integrationsError.message}`);
+    throw new Error(`Falha ao buscar integrações do Evo CRM: ${integrationsError.message}`);
   }
 
   const companyIds = Array.from(
@@ -135,7 +135,7 @@ async function enqueuePendingSyncs(): Promise<{ enqueued: number; skippedRecent:
       .from("async_jobs")
       .select("id")
       .eq("company_id", companyId)
-      .eq("job_type", "sofia_crm_sync")
+      .eq("job_type", "evo_crm_sync")
       .in("status", ["pending", "running"])
       .limit(1);
 
@@ -147,7 +147,7 @@ async function enqueuePendingSyncs(): Promise<{ enqueued: number; skippedRecent:
       .from("async_jobs")
       .select("id")
       .eq("company_id", companyId)
-      .eq("job_type", "sofia_crm_sync")
+      .eq("job_type", "evo_crm_sync")
       .eq("status", "done")
       .gte("created_at", recentSyncCutoff)
       .order("created_at", { ascending: false })
@@ -164,7 +164,7 @@ async function enqueuePendingSyncs(): Promise<{ enqueued: number; skippedRecent:
       .from("async_jobs")
       .select("id")
       .eq("company_id", companyId)
-      .eq("job_type", "sofia_crm_sync")
+      .eq("job_type", "evo_crm_sync")
       .eq("status", "failed")
       .gte("completed_at", failedCooloff)
       .order("completed_at", { ascending: false })
@@ -175,7 +175,7 @@ async function enqueuePendingSyncs(): Promise<{ enqueued: number; skippedRecent:
       continue;
     }
 
-    await enqueueJob("sofia_crm_sync", {}, companyId, undefined, 1);
+    await enqueueJob("evo_crm_sync", {}, companyId, undefined, 1);
     enqueued += 1;
   }
 
