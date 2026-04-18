@@ -23,9 +23,9 @@ export async function GET(req: NextRequest) {
     const supabase = createSupabaseRouteHandlerClient(req, response);
     const access = await resolveCompanyAccess(supabase);
 
-    if (access.role !== "owner") {
+    if (access.role !== "owner" && access.role !== "admin") {
       return NextResponse.json(
-        { error: "Apenas o owner pode acessar dados de uso.", code: "FORBIDDEN" },
+        { error: "Apenas owner e administradores podem acessar dados de uso.", code: "FORBIDDEN" },
         { status: 403 }
       );
     }

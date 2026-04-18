@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/forms/integrations-settings-form.tsx
- * Propósito: Conectar Sofia CRM e Evolution API com fluxo simplificado por modal.
+ * Propósito: Conectar Evo CRM e Evolution API com fluxo simplificado por modal.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
@@ -14,8 +14,9 @@ import Link from "next/link";
 import { AlertCircle, CheckCircle2, Link2, Loader2, QrCode, Smartphone, Trash2, UsersRound, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { OpenRouterModelSettings } from "@/components/settings/openrouter-model-settings";
 
-const sofiaSchema = z.object({
+const evoSchema = z.object({
   baseUrl: z.string().trim().url("URL base inválida."),
   apiToken: z.string().trim().min(1, "API token é obrigatório."),
 });
@@ -31,13 +32,13 @@ type IntegrationStatus = {
   lastTestedAt: string | null;
 };
 
-type SofiaForm = {
+type EvoForm = {
   baseUrl: string;
   apiToken: string;
 };
 
 type FormErrors = {
-  sofia: Partial<Record<keyof SofiaForm | "form", string>>;
+  evo: Partial<Record<keyof EvoForm | "form", string>>;
   evolution: Partial<Record<"vendorName" | "managerPhone" | "form", string>>;
 };
 
@@ -90,17 +91,17 @@ type EvolutionDeleteResponse = {
 };
 
 type ModalMeta = {
-  key: "sofia" | "evolution";
+  key: "evo" | "evolution";
   title: string;
   subtitle: string;
 };
 
 const initialErrors: FormErrors = {
-  sofia: {},
+  evo: {},
   evolution: {},
 };
 
-const initialSofiaStatus: IntegrationStatus = {
+const initialEvoStatus: IntegrationStatus = {
   isActive: false,
   testStatus: null,
   lastTestedAt: null,
@@ -254,7 +255,7 @@ export function IntegrationsSettingsForm() {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ModalMeta | null>(null);
 
-  const [sofiaForm, setSofiaForm] = useState<SofiaForm>({
+  const [evoForm, setEvoForm] = useState<EvoForm>({
     baseUrl: "https://crm.getlead.capital",
     apiToken: "",
   });
@@ -265,15 +266,15 @@ export function IntegrationsSettingsForm() {
   const [pendingEvolutionInstance, setPendingEvolutionInstance] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<FormErrors>(initialErrors);
-  const [sofiaStatus, setSofiaStatus] = useState<IntegrationStatus>(initialSofiaStatus);
+  const [evoStatus, setEvoStatus] = useState<IntegrationStatus>(initialEvoStatus);
   const [evolutionStatus, setEvolutionStatus] = useState<IntegrationStatus>(initialEvolutionStatus);
-  const [sofiaFeedback, setSofiaFeedback] = useState<string | null>(null);
+  const [evoFeedback, setEvoFeedback] = useState<string | null>(null);
   const [evolutionFeedback, setEvolutionFeedback] = useState<string | null>(null);
-  const [isConnectingSofia, setIsConnectingSofia] = useState(false);
+  const [isConnectingEvo, setIsConnectingEvo] = useState(false);
   const [isConnectingEvolution, setIsConnectingEvolution] = useState(false);
   const [deletingEvolutionInstance, setDeletingEvolutionInstance] = useState<string | null>(null);
   const [confirmingDeleteInstance, setConfirmingDeleteInstance] = useState<string | null>(null);
-  const [isResettingSofia, setIsResettingSofia] = useState(false);
+  const [isResettingEvo, setIsResettingEvo] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -308,18 +309,18 @@ export function IntegrationsSettingsForm() {
         }
 
         const items = integrationsResponse.items ?? [];
-        const sofia = items.find((item) => item.type === "sofia_crm");
+        const evo = items.find((item) => item.type === "evo_crm");
         const evolution = items.find((item) => item.type === "evolution_api");
 
-        if (sofia) {
-          setSofiaStatus({
-            isActive: sofia.isActive,
-            testStatus: sofia.testStatus,
-            lastTestedAt: sofia.lastTestedAt,
+        if (evo) {
+          setEvoStatus({
+            isActive: evo.isActive,
+            testStatus: evo.testStatus,
+            lastTestedAt: evo.lastTestedAt,
           });
-          setSofiaForm((previous) => ({
+          setEvoForm((previous) => ({
             ...previous,
-            baseUrl: typeof sofia.config.baseUrl === "string" ? sofia.config.baseUrl : "",
+            baseUrl: typeof evo.config.baseUrl === "string" ? evo.config.baseUrl : "",
           }));
         }
 
@@ -371,11 +372,11 @@ export function IntegrationsSettingsForm() {
     setPendingEvolutionInstance(null);
   };
 
-  const openModal = (key: "sofia" | "evolution") => {
-    if (key === "sofia") {
+  const openModal = (key: "evo" | "evolution") => {
+    if (key === "evo") {
       setActiveModal({
         key,
-        title: "Conectar Sofia CRM",
+        title: "Conectar Evo CRM",
         subtitle: "Informe credenciais da conta para liberar sincronização de conversas.",
       });
       return;
@@ -391,29 +392,29 @@ export function IntegrationsSettingsForm() {
     });
   };
 
-  const handleSofiaChange = (field: keyof SofiaForm) => (event: ChangeEvent<HTMLInputElement>) => {
+  const handleEvoChange = (field: keyof EvoForm) => (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
-    setSofiaForm((previous) => ({ ...previous, [field]: value }));
-    setErrors((previous) => ({ ...previous, sofia: { ...previous.sofia, [field]: undefined, form: undefined } }));
-    setSofiaFeedback(null);
+    setEvoForm((previous) => ({ ...previous, [field]: value }));
+    setErrors((previous) => ({ ...previous, evo: { ...previous.evo, [field]: undefined, form: undefined } }));
+    setEvoFeedback(null);
   };
 
-  const connectSofia = async () => {
-    const parsed = sofiaSchema.safeParse(sofiaForm);
+  const connectEvo = async () => {
+    const parsed = evoSchema.safeParse(evoForm);
     if (!parsed.success) {
-      const nextError: FormErrors["sofia"] = {};
+      const nextError: FormErrors["evo"] = {};
       for (const issue of parsed.error.issues) {
         const field = issue.path[0];
         if (field === "baseUrl" || field === "apiToken") {
           nextError[field] = issue.message;
         }
       }
-      setErrors((previous) => ({ ...previous, sofia: nextError }));
+      setErrors((previous) => ({ ...previous, evo: nextError }));
       return;
     }
 
-    setIsConnectingSofia(true);
-    const request = await fetch("/api/integrations/test/sofia_crm", {
+    setIsConnectingEvo(true);
+    const request = await fetch("/api/integrations/test/evo_crm", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -421,43 +422,43 @@ export function IntegrationsSettingsForm() {
       body: JSON.stringify(parsed.data),
     });
     const response = (await request.json()) as IntegrationMutationResponse;
-    setIsConnectingSofia(false);
+    setIsConnectingEvo(false);
 
     if (!request.ok) {
       setErrors((previous) => ({
         ...previous,
-        sofia: { ...previous.sofia, form: response.error ?? "Falha ao conectar Sofia CRM." },
+        evo: { ...previous.evo, form: response.error ?? "Falha ao conectar Evo CRM." },
       }));
       return;
     }
 
     if (response.integration) {
-      setSofiaStatus({
+      setEvoStatus({
         isActive: response.integration.isActive,
         testStatus: response.integration.testStatus,
         lastTestedAt: response.integration.lastTestedAt,
       });
     }
 
-    setErrors((previous) => ({ ...previous, sofia: {} }));
-    setSofiaFeedback(response.testDetail ?? "Conexão validada com sucesso.");
+    setErrors((previous) => ({ ...previous, evo: {} }));
+    setEvoFeedback(response.testDetail ?? "Conexão validada com sucesso.");
     closeActiveModal();
   };
 
-  const resetSofiaSyncData = async () => {
+  const resetEvoSyncData = async () => {
     const confirmed = window.confirm(
-      "Isso vai remover as conversas e jobs sincronizados do Sofia CRM nesta empresa. Deseja continuar?"
+      "Isso vai remover as conversas e jobs sincronizados do Evo CRM nesta empresa. Deseja continuar?"
     );
 
     if (!confirmed) {
       return;
     }
 
-    setIsResettingSofia(true);
-    setErrors((previous) => ({ ...previous, sofia: { ...previous.sofia, form: undefined } }));
+    setIsResettingEvo(true);
+    setErrors((previous) => ({ ...previous, evo: { ...previous.evo, form: undefined } }));
 
     try {
-      const request = await fetch("/api/sofia-crm/reset", {
+      const request = await fetch("/api/evo-crm/reset", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -468,24 +469,24 @@ export function IntegrationsSettingsForm() {
       if (!request.ok) {
         setErrors((previous) => ({
           ...previous,
-          sofia: { ...previous.sofia, form: response.error ?? "Falha ao limpar dados do Sofia CRM." },
+          evo: { ...previous.evo, form: response.error ?? "Falha ao limpar dados do Evo CRM." },
         }));
         return;
       }
 
-      setSofiaFeedback(
+      setEvoFeedback(
         response.message ??
-          "Dados sincronizados removidos. A próxima sincronização vai trazer apenas a conta atual do Sofia CRM."
+          "Dados sincronizados removidos. A próxima sincronização vai trazer apenas a conta atual do Evo CRM."
       );
     } catch (resetError) {
       const detail =
-        resetError instanceof Error ? resetError.message : "Erro inesperado ao limpar dados do Sofia CRM.";
+        resetError instanceof Error ? resetError.message : "Erro inesperado ao limpar dados do Evo CRM.";
       setErrors((previous) => ({
         ...previous,
-        sofia: { ...previous.sofia, form: detail },
+        evo: { ...previous.evo, form: detail },
       }));
     } finally {
-      setIsResettingSofia(false);
+      setIsResettingEvo(false);
     }
   };
 
@@ -717,43 +718,43 @@ export function IntegrationsSettingsForm() {
     };
   }, [activeModal, pendingEvolutionInstance, refreshEvolutionVendors]);
 
-  const renderSofiaModal = () => (
+  const renderEvoModal = () => (
     <div className="grid gap-4">
       <div className="space-y-1">
-        <label htmlFor="sofia-base-url" className="text-sm font-medium text-text">
+        <label htmlFor="evo-base-url" className="text-sm font-medium text-text">
           URL base
         </label>
         <input
-          id="sofia-base-url"
-          value={sofiaForm.baseUrl}
+          id="evo-base-url"
+          value={evoForm.baseUrl}
           readOnly
           className="h-10 w-full rounded-lg border border-border bg-sidebar px-3 text-sm text-muted cursor-not-allowed"
         />
-        {errors.sofia.baseUrl ? <p className="text-xs text-danger">{errors.sofia.baseUrl}</p> : null}
+        {errors.evo.baseUrl ? <p className="text-xs text-danger">{errors.evo.baseUrl}</p> : null}
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="sofia-api-token" className="text-sm font-medium text-text">
+        <label htmlFor="evo-api-token" className="text-sm font-medium text-text">
           API token
         </label>
         <input
-          id="sofia-api-token"
-          value={sofiaForm.apiToken}
-          onChange={handleSofiaChange("apiToken")}
+          id="evo-api-token"
+          value={evoForm.apiToken}
+          onChange={handleEvoChange("apiToken")}
           placeholder="Cole o token da API"
           className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm placeholder:text-muted-light hover:border-border-strong focus:outline-none focus:border-transparent focus:ring-2 focus:ring-primary"
         />
-        {errors.sofia.apiToken ? <p className="text-xs text-danger">{errors.sofia.apiToken}</p> : null}
+        {errors.evo.apiToken ? <p className="text-xs text-danger">{errors.evo.apiToken}</p> : null}
       </div>
 
-      {errors.sofia.form ? <p className="text-sm text-danger">{errors.sofia.form}</p> : null}
+      {errors.evo.form ? <p className="text-sm text-danger">{errors.evo.form}</p> : null}
 
       <div className="flex justify-end gap-3 pt-4 border-t border-border">
         <Button type="button" variant="secondary" onClick={closeActiveModal}>
           Cancelar
         </Button>
-        <Button type="button" onClick={connectSofia} disabled={isConnectingSofia}>
-          {isConnectingSofia ? "Conectando..." : "Conectar e testar"}
+        <Button type="button" onClick={connectEvo} disabled={isConnectingEvo}>
+          {isConnectingEvo ? "Conectando..." : "Conectar e testar"}
         </Button>
       </div>
     </div>
@@ -935,28 +936,28 @@ export function IntegrationsSettingsForm() {
     <>
       <div className="grid gap-4 lg:grid-cols-2">
         <IntegrationOverviewCard
-          title="Sofia CRM"
+          title="Evo CRM"
           description="Sincroniza conversas e oportunidades comerciais."
-          status={sofiaStatus}
+          status={evoStatus}
           icon={<Link2 className="h-5 w-5" />}
-          onConnect={() => openModal("sofia")}
+          onConnect={() => openModal("evo")}
           extra={
             <div className="space-y-3">
-              {sofiaFeedback ? (
-                <p className="text-xs text-success">{sofiaFeedback}</p>
+              {evoFeedback ? (
+                <p className="text-xs text-success">{evoFeedback}</p>
               ) : null}
-              {errors.sofia.form ? (
-                <p className="text-xs text-danger">{errors.sofia.form}</p>
+              {errors.evo.form ? (
+                <p className="text-xs text-danger">{errors.evo.form}</p>
               ) : null}
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={resetSofiaSyncData}
-                disabled={isResettingSofia}
+                onClick={resetEvoSyncData}
+                disabled={isResettingEvo}
                 className="w-full"
               >
-                {isResettingSofia ? "Limpando dados..." : "Limpar dados sincronizados"}
+                {isResettingEvo ? "Limpando dados..." : "Limpar dados sincronizados"}
               </Button>
             </div>
           }
@@ -997,13 +998,15 @@ export function IntegrationsSettingsForm() {
         </CardContent>
       </Card>
 
+      <OpenRouterModelSettings />
+
       {activeModal ? (
         <ConnectionModal
           title={activeModal.title}
           subtitle={activeModal.subtitle}
           onClose={closeActiveModal}
         >
-          {activeModal.key === "sofia" ? renderSofiaModal() : renderEvolutionModal()}
+          {activeModal.key === "evo" ? renderEvoModal() : renderEvolutionModal()}
         </ConnectionModal>
       ) : null}
     </>

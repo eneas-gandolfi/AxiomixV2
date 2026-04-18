@@ -1,6 +1,6 @@
 /**
  * Arquivo: src/components/settings/ai-usage-panel.tsx
- * Propósito: Painel de uso e custos de IA — visível somente para owners.
+ * Propósito: Painel de uso e custos de IA — visível para owners e administradores.
  * Autor: AXIOMIX
  * Data: 2026-03-28
  */

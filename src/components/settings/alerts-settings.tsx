@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Bell,
   DollarSign,
+  Download,
   Frown,
   XCircle,
   Flame,
@@ -93,6 +94,41 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   failed_post: "Falha na Publicação",
   viral_content: "Conteúdo Viral",
 };
+
+function escapeCsvField(value: string | null | undefined): string {
+  const raw = value == null ? "" : String(value);
+  if (/[",\n\r]/.test(raw)) {
+    return `"${raw.replace(/"/g, '""')}"`;
+  }
+  return raw;
+}
+
+function exportAlertLogsToCsv(logs: AlertLogEntry[]): void {
+  const headers = ["Data", "Tipo", "Telefone", "Status", "Mensagem", "Erro"];
+  const rows = logs.map((log) => [
+    new Date(log.sentAt).toISOString(),
+    ALERT_TYPE_LABELS[log.alertType] ?? log.alertType,
+    formatAlertRecipientPhone(log.recipientPhone),
+    log.status,
+    log.messagePreview ?? "",
+    formatAlertErrorDetail(log.errorDetail) ?? "",
+  ]);
+
+  const csv = [headers, ...rows]
+    .map((row) => row.map((field) => escapeCsvField(field)).join(","))
+    .join("\n");
+
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, "-");
+  link.href = url;
+  link.download = `alertas-${timestamp}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 export function AlertsSettings() {
   const { toast } = useToast();
@@ -314,14 +350,26 @@ export function AlertsSettings() {
 
       {/* Alert History */}
       <Card className="border border-border rounded-xl">
-        <CardHeader>
-          <CardTitle className="text-text flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted" />
-            Histórico de Alertas
-          </CardTitle>
-          <CardDescription className="text-muted">
-            Últimos alertas enviados para esta empresa.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-text flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted" />
+              Histórico de Alertas
+            </CardTitle>
+            <CardDescription className="text-muted">
+              Últimos alertas enviados para esta empresa.
+            </CardDescription>
+          </div>
+          {logs.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => exportAlertLogsToCsv(logs)}
+              className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted hover:text-text hover:border-border-strong transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar CSV
+            </button>
+          ) : null}
         </CardHeader>
         <CardContent>
           {logs.length === 0 ? (

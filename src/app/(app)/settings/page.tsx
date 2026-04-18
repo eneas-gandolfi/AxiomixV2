@@ -129,7 +129,7 @@ function formatNextSendLabel(date: Date) {
 }
 
 type IntegrationRowForStatus = {
-  type: "sofia_crm" | "evolution_api" | "upload_post" | "openrouter";
+  type: "evo_crm" | "evolution_api" | "upload_post" | "openrouter";
   is_active: boolean | null;
   test_status: string | null;
   last_tested_at: string | null;
@@ -142,7 +142,7 @@ function toIntegrationStatusItems(
 ): IntegrationStatusItem[] {
   const byType = new Map(rows.map((row) => [row.type, row]));
   const allTypes: IntegrationStatusItem["type"][] = [
-    "sofia_crm",
+    "evo_crm",
     "evolution_api",
     "upload_post",
     "openrouter",
@@ -270,7 +270,7 @@ export default async function SettingsPage({
 
   // Count active integrations
   const activeIntegrations = integrations?.filter((i) => i.is_active).length ?? 0;
-  const totalIntegrations = 2; // Sofia CRM + Evolution API
+  const totalIntegrations = 2; // Evo CRM + Evolution API
 
   // Count social connections
   const uploadPostIntegration = integrations?.find((i) => i.type === "upload_post");
@@ -395,7 +395,7 @@ export default async function SettingsPage({
       title=""
       description=""
     >
-      <SettingsLayout companyId={companyId} initialStats={initialStats} reportData={reportData} initialTab={tabParam as "overview" | "company" | "integrations" | "social" | "reports" | "alerts" | "group-agent" | "usage" | undefined} userRole={userRole as "owner" | "admin" | "member"} />
+      <SettingsLayout companyId={companyId} initialStats={initialStats} reportData={reportData} initialTab={tabParam} userRole={userRole as "owner" | "admin" | "member"} />
     </PageContainer>
     </div>
   );

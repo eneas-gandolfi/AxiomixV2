@@ -13,32 +13,26 @@ import {
   Bot,
   Building2,
   Coins,
-  FileText,
   Plug,
   Share2,
   CheckCircle2,
   AlertCircle,
   Clock,
-  TrendingUp
+  TrendingUp,
+  Users
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompanySettingsForm } from "@/components/forms/company-settings-form";
 import { SocialConnectionsSettings } from "@/components/forms/social-connections-settings";
 import { IntegrationsSettingsForm } from "@/components/forms/integrations-settings-form";
-import {
-  IntegrationsStatusCard,
-  type IntegrationStatusItem,
-} from "@/components/dashboard/integrations-status-card";
-import { NextReportCard } from "@/components/dashboard/next-report-card";
-import {
-  RecentReportsCard,
-  type RecentReportItem,
-} from "@/components/dashboard/recent-reports-card";
-import { AlertsSettings } from "@/components/settings/alerts-settings";
+import type { IntegrationStatusItem } from "@/components/dashboard/integrations-status-card";
+import type { RecentReportItem } from "@/components/dashboard/recent-reports-card";
+import { NotificationsSettings } from "@/components/settings/notifications-settings";
 import { GroupAgentSettings } from "@/components/settings/group-agent-settings";
 import { AiUsagePanel } from "@/components/settings/ai-usage-panel";
+import { TeamSettings } from "@/components/settings/team-settings";
 
-type TabKey = "overview" | "company" | "integrations" | "social" | "reports" | "alerts" | "group-agent" | "usage";
+type TabKey = "overview" | "company" | "team" | "integrations" | "social" | "notifications" | "group-agent" | "usage";
 
 type SettingsStats = {
   companyConfigured: boolean;
@@ -63,6 +57,13 @@ const TABS = [
     description: "Informações da empresa",
   },
   {
+    key: "team" as const,
+    label: "Equipe",
+    icon: Users,
+    description: "Membros e permissões",
+    privilegedOnly: true,
+  },
+  {
     key: "integrations" as const,
     label: "Integrações",
     icon: Plug,
@@ -75,16 +76,10 @@ const TABS = [
     description: "Conexões de redes sociais",
   },
   {
-    key: "reports" as const,
-    label: "Relatórios",
-    icon: FileText,
-    description: "Relatório semanal e histórico",
-  },
-  {
-    key: "alerts" as const,
-    label: "Alertas",
+    key: "notifications" as const,
+    label: "Notificações",
     icon: Bell,
-    description: "Alertas em tempo real via WhatsApp",
+    description: "Alertas em tempo real e relatórios periódicos",
   },
   {
     key: "group-agent" as const,
@@ -97,9 +92,22 @@ const TABS = [
     label: "Uso & Custos",
     icon: Coins,
     description: "Consumo de IA e custos estimados",
-    ownerOnly: true,
+    privilegedOnly: true,
   },
 ] as const;
+
+type TabDefinition = (typeof TABS)[number];
+
+const TAB_GROUPS: Array<{ label: string; keys: TabKey[] }> = [
+  { label: "Empresa", keys: ["overview", "company", "team"] },
+  { label: "Integrações", keys: ["integrations", "social"] },
+  { label: "Automação", keys: ["group-agent", "notifications"] },
+  { label: "Avançado", keys: ["usage"] },
+];
+
+function getTab(key: TabKey): TabDefinition | undefined {
+  return TABS.find((tab) => tab.key === key);
+}
 
 type ReportData = {
   integrations: IntegrationStatusItem[];
@@ -118,22 +126,30 @@ type SettingsLayoutProps = {
   companyId: string;
   initialStats?: Partial<SettingsStats>;
   reportData?: ReportData;
-  initialTab?: TabKey;
+  initialTab?: TabKey | string;
   userRole?: "owner" | "admin" | "member";
 };
 
-const VALID_TABS: TabKey[] = ["overview", "company", "integrations", "social", "reports", "alerts", "group-agent", "usage"];
+const VALID_TABS: TabKey[] = ["overview", "company", "team", "integrations", "social", "notifications", "group-agent", "usage"];
+
+const LEGACY_TAB_MAP: Record<string, TabKey> = {
+  reports: "notifications",
+  alerts: "notifications",
+};
+
+function resolveInitialTab(input: TabKey | string | undefined): TabKey {
+  if (!input) return "overview";
+  if (VALID_TABS.includes(input as TabKey)) return input as TabKey;
+  const mapped = LEGACY_TAB_MAP[input];
+  return mapped ?? "overview";
+}
 
 export function SettingsLayout({ companyId, initialStats, reportData, initialTab, userRole }: SettingsLayoutProps) {
-  const isOwner = userRole === "owner";
-  const [activeTab, setActiveTab] = useState<TabKey>(
-    initialTab && VALID_TABS.includes(initialTab) ? initialTab : "overview"
-  );
+  const canViewUsage = userRole === "owner" || userRole === "admin";
+  const [activeTab, setActiveTab] = useState<TabKey>(() => resolveInitialTab(initialTab));
 
   useEffect(() => {
-    if (initialTab && VALID_TABS.includes(initialTab)) {
-      setActiveTab(initialTab);
-    }
+    setActiveTab(resolveInitialTab(initialTab));
   }, [initialTab]);
 
   // Default stats (can be populated from props)
@@ -178,64 +194,98 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
 
       {/* Tabs Navigation */}
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Sidebar Tabs (desktop) */}
-        <div className="hidden md:flex md:flex-col md:w-56 md:shrink-0 border-r border-border pr-4 space-y-1">
-          {TABS.filter((tab) => !("ownerOnly" in tab && tab.ownerOnly) || isOwner).map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.key;
+        {/* Sidebar Tabs (desktop) — agrupadas */}
+        <div className="hidden md:flex md:flex-col md:w-60 md:shrink-0 border-r border-border pr-4 space-y-5">
+          {TAB_GROUPS.map((group) => {
+            const visibleTabs = group.keys
+              .map(getTab)
+              .filter((tab): tab is TabDefinition => {
+                if (!tab) return false;
+                return !("privilegedOnly" in tab && tab.privilegedOnly) || canViewUsage;
+              });
+
+            if (visibleTabs.length === 0) return null;
 
             return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm rounded-lg transition-all ${
-                  isActive
-                    ? "text-primary bg-primary-light font-medium"
-                    : "text-muted hover:text-text hover:bg-sidebar"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {tab.label}
-              </button>
+              <div key={group.label} className="space-y-1">
+                <p className="px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-light">
+                  {group.label}
+                </p>
+                {visibleTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`flex w-full items-center gap-2 whitespace-nowrap px-4 py-2 text-sm rounded-lg transition-all ${
+                        isActive
+                          ? "text-primary bg-primary-light font-medium"
+                          : "text-muted hover:text-text hover:bg-sidebar"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </div>
 
-        {/* Mobile Tabs (horizontal scroll) */}
-        <div className="md:hidden border-b border-border -mx-4 px-4 mb-4">
-          <div className="flex gap-1 overflow-x-auto">
-            {TABS.filter((tab) => !("ownerOnly" in tab && tab.ownerOnly) || isOwner).map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
+        {/* Mobile Tabs (acordeão por grupo) */}
+        <div className="md:hidden border-b border-border -mx-4 px-4 mb-4 space-y-3">
+          {TAB_GROUPS.map((group) => {
+            const visibleTabs = group.keys
+              .map(getTab)
+              .filter((tab): tab is TabDefinition => {
+                if (!tab) return false;
+                return !("privilegedOnly" in tab && tab.privilegedOnly) || canViewUsage;
+              });
 
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm rounded-lg transition-all ${
-                    isActive
-                      ? "text-primary bg-primary-light font-medium"
-                      : "text-muted hover:text-text hover:bg-sidebar"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+            if (visibleTabs.length === 0) return null;
+
+            return (
+              <div key={group.label}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-light mb-1.5">
+                  {group.label}
+                </p>
+                <div className="flex gap-1 overflow-x-auto">
+                  {visibleTabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm rounded-lg transition-all ${
+                          isActive
+                            ? "text-primary bg-primary-light font-medium"
+                            : "text-muted hover:text-text hover:bg-sidebar"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Tab Content */}
         <div className="flex-1 animate-in fade-in duration-200">
           {activeTab === "overview" && <OverviewTab stats={stats} onNavigate={setActiveTab} />}
           {activeTab === "company" && <CompanyTab />}
+          {activeTab === "team" && canViewUsage && <TeamSettings />}
           {activeTab === "integrations" && <IntegrationsTab />}
           {activeTab === "social" && <SocialTab />}
-          {activeTab === "reports" && reportData && <ReportsTab data={reportData} />}
-          {activeTab === "alerts" && <AlertsTab />}
+          {activeTab === "notifications" && <NotificationsSettings reportData={reportData} />}
           {activeTab === "group-agent" && <GroupAgentTab companyId={companyId} />}
-          {activeTab === "usage" && isOwner && <AiUsagePanel />}
+          {activeTab === "usage" && canViewUsage && <AiUsagePanel />}
         </div>
       </div>
     </div>
@@ -387,7 +437,7 @@ function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: 
               <Plug className="h-5 w-5 text-primary mt-0.5" />
               <div>
                 <p className="font-medium text-sm text-text">Configurar Integrações</p>
-                <p className="text-xs text-muted mt-1">Sofia CRM, Evolution API</p>
+                <p className="text-xs text-muted mt-1">Evo CRM, Evolution API</p>
               </div>
             </button>
 
@@ -403,13 +453,13 @@ function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: 
             </button>
 
             <button
-              onClick={() => onNavigate("alerts")}
+              onClick={() => onNavigate("notifications")}
               className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-border-strong hover:bg-background"
             >
               <Bell className="h-5 w-5 text-primary mt-0.5" />
               <div>
-                <p className="font-medium text-sm text-text">Alertas WhatsApp</p>
-                <p className="text-xs text-muted mt-1">Notificações em tempo real</p>
+                <p className="font-medium text-sm text-text">Notificações</p>
+                <p className="text-xs text-muted mt-1">Alertas e relatórios via WhatsApp</p>
               </div>
             </button>
           </div>
@@ -455,45 +505,6 @@ function SocialTab() {
   return (
     <div className="space-y-6">
       <SocialConnectionsSettings />
-    </div>
-  );
-}
-
-function ReportsTab({ data }: { data: ReportData }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-text">Relatório Semanal</h2>
-        <p className="mt-0.5 text-sm text-muted">
-          Controle de envio e histórico de relatórios automáticos.
-        </p>
-      </div>
-
-      <IntegrationsStatusCard integrations={data.integrations} />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <NextReportCard
-          nextSendAtLabel={data.nextSendAtLabel}
-          managerPhone={data.managerPhone}
-          evolutionStatus={data.evolutionStatus}
-          canManageReports={data.canManageReports}
-          canSendNow={data.canSendNow}
-          sendDisabledReason={data.sendDisabledReason}
-        />
-        <RecentReportsCard
-          reports={data.recentReports}
-          hasRunningJob={data.hasRunningJob}
-          runningJobCreatedAt={data.runningJobCreatedAt}
-        />
-      </div>
-    </div>
-  );
-}
-
-function AlertsTab() {
-  return (
-    <div className="space-y-6">
-      <AlertsSettings />
     </div>
   );
 }

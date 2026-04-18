@@ -134,19 +134,20 @@ async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterCon
     .eq("type", "openrouter")
     .maybeSingle();
 
+  const envApiKey = process.env.OPENROUTER_API_KEY?.trim();
+  const envModel = process.env.OPENROUTER_MODEL?.trim() || "google/gemini-2.0-flash-lite-001";
+
   if (integration?.config) {
     const decoded = decodeIntegrationConfig("openrouter", integration.config);
-    if (decoded.apiKey) {
-      return {
-        apiKey: decoded.apiKey,
-        model: decoded.model || process.env.OPENROUTER_MODEL || "google/gemini-2.0-flash-lite-001",
-      };
+    const apiKey = decoded.apiKey || envApiKey;
+    const model = decoded.model || envModel;
+    if (apiKey) {
+      return { apiKey, model };
     }
   }
 
-  const envFallback = resolveOpenRouterEnvConfig();
-  if (envFallback) {
-    return envFallback;
+  if (envApiKey) {
+    return { apiKey: envApiKey, model: envModel };
   }
 
   throw new Error("Integração OpenRouter não configurada para esta empresa.");
