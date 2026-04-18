@@ -15,13 +15,17 @@ import {
   AlertCircle,
   ArrowRight,
   Calendar,
+  Clock,
   FolderOpen,
   GalleryHorizontal,
   Image as ImageIcon,
   Loader2,
+  TrendingDown,
+  TrendingUp,
   Upload,
   Video,
 } from "lucide-react";
+import { Line, LineChart, ResponsiveContainer } from "recharts";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   buildUploadMediaFiles,
@@ -95,6 +99,36 @@ function getThumbnailFallback(item: ScheduledHistoryItem) {
   return <ImageIcon className="h-5 w-5 text-[var(--color-text-tertiary)]" />;
 }
 
+function getPlatformProgressPercent(item: ScheduledHistoryItem) {
+  const total = item.platforms.length;
+  if (total === 0) return 0;
+  let done = 0;
+  for (const platform of item.platforms) {
+    if (item.progress[platform]?.status === "ok") {
+      done += 1;
+    }
+  }
+  return Math.round((done / total) * 100);
+}
+
+function formatShortRelative(value: string) {
+  const target = new Date(value).getTime();
+  const now = Date.now();
+  const diffMs = target - now;
+  const absMs = Math.abs(diffMs);
+  const minutes = Math.round(absMs / 60_000);
+  const hours = Math.round(absMs / 3_600_000);
+  const days = Math.round(absMs / 86_400_000);
+
+  if (absMs < 60_000) return diffMs >= 0 ? "agora" : "agora";
+  if (minutes < 60) return diffMs >= 0 ? `em ${minutes}min` : `há ${minutes}min`;
+  if (hours < 24) return diffMs >= 0 ? `em ${hours}h` : `há ${hours}h`;
+  if (days < 7) return diffMs >= 0 ? `em ${days}d` : `há ${days}d`;
+
+  const date = new Date(value);
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
 export function SocialPublisherDashboard({
   companyId,
   initialHistory,
@@ -114,6 +148,7 @@ export function SocialPublisherDashboard({
   const [details, setDetails] = useState<ScheduledHistoryItem | null>(null);
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const refreshHistory = useCallback(async () => {
     if (abortControllerRef.current) {
@@ -356,10 +391,22 @@ export function SocialPublisherDashboard({
         scheduled: "—",
         published: "—",
         successRate: "—",
+        deltaPct: null as number | null,
+        sparkData: [] as number[],
       };
     }
 
-    const totalThisMonth = history.filter((item) => isCurrentMonth(item.scheduledAt)).length;
+    const now = new Date();
+    const lastMonthRef = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const thisMonthCount = history.filter((item) => isCurrentMonth(item.scheduledAt)).length;
+    const lastMonthCount = history.filter((item) => {
+      const d = new Date(item.scheduledAt);
+      return (
+        d.getFullYear() === lastMonthRef.getFullYear() && d.getMonth() === lastMonthRef.getMonth()
+      );
+    }).length;
+
     const scheduled = history.filter((item) => item.status === "scheduled").length;
     const published = history.filter((item) => item.status === "published").length;
     const completedAttempts = history.filter(
@@ -372,14 +419,33 @@ export function SocialPublisherDashboard({
       (item) => item.status === "published" || item.status === "partial"
     ).length;
 
+    const deltaPct =
+      lastMonthCount > 0
+        ? Math.round(((thisMonthCount - lastMonthCount) / lastMonthCount) * 100)
+        : null;
+
+    const sparkData: number[] = [];
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = today - i * 86_400_000;
+      const dayEnd = dayStart + 86_400_000;
+      const count = history.filter((item) => {
+        const t = new Date(item.createdAt).getTime();
+        return t >= dayStart && t < dayEnd;
+      }).length;
+      sparkData.push(count);
+    }
+
     return {
-      totalThisMonth: String(totalThisMonth),
+      totalThisMonth: String(thisMonthCount),
       scheduled: String(scheduled),
       published: String(published),
       successRate:
         completedAttempts.length > 0
           ? `${Math.round((successfulAttempts / completedAttempts.length) * 100)}%`
           : "—",
+      deltaPct,
+      sparkData,
     };
   }, [history]);
 
@@ -414,15 +480,15 @@ export function SocialPublisherDashboard({
       />
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <Card accent className="transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover">
+        <Card accent className="flex flex-col transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover">
           <CardHeader className="pb-4">
             <CardTitle>Criar Post</CardTitle>
             <CardDescription>
               Comece pelo formato ideal e abra o drawer com a mídia certa.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+          <CardContent className="flex flex-1 flex-col space-y-4">
+            <div className="grid gap-2 sm:grid-cols-3">
               {(Object.entries(POST_TYPE_META) as Array<
                 [SocialPostType, (typeof POST_TYPE_META)[SocialPostType]]
               >).map(([postType, meta]) => {
@@ -433,10 +499,17 @@ export function SocialPublisherDashboard({
                     key={postType}
                     type="button"
                     onClick={() => handleOpenDrawer(postType)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-medium text-[var(--color-text)] shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-border-strong)] hover:shadow-card-hover"
+                    className="group flex flex-col items-start gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-left shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--module-color)]/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--module-color)]"
                   >
-                    <Icon className="h-4 w-4 text-[#FA5E24]" />
-                    {meta.label}
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--module-color-bg)] text-[var(--module-color)] transition-colors group-hover:bg-[var(--module-color)] group-hover:text-white">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="text-sm font-semibold text-[var(--color-text)]">
+                      {meta.label}
+                    </span>
+                    <span className="text-xs text-[var(--color-text-tertiary)]">
+                      {meta.helper}
+                    </span>
                   </button>
                 );
               })}
@@ -469,55 +542,121 @@ export function SocialPublisherDashboard({
               role="button"
               tabIndex={0}
               onClick={openUploadPicker}
-              onDrop={handleDrop}
-              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                setIsDraggingOver(false);
+                handleDrop(event);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (!isDraggingOver) setIsDraggingOver(true);
+              }}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                setIsDraggingOver(false);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   openUploadPicker();
                 }
               }}
-              className="flex min-h-24 max-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-5 text-center transition-all duration-200 hover:border-[#FA5E24]/60 hover:bg-[#FA5E24]/[0.04]"
+              className={`flex min-h-40 flex-1 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-all duration-200 ${
+                isDraggingOver
+                  ? "border-[var(--module-color)] bg-[var(--module-color)]/[0.08]"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--module-color)]/60 hover:bg-[var(--module-color)]/[0.04]"
+              }`}
             >
-              <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary-dim)] text-[#FA5E24]">
-                <Upload className="h-4 w-4" />
+              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--module-color-bg)] text-[var(--module-color)]">
+                <Upload className="h-5 w-5" />
               </div>
               <p className="text-sm font-medium text-[var(--color-text)]">
-                Arraste mídia ou clique
+                Arraste mídia ou clique para enviar
               </p>
               <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-                JPEG, PNG, WEBP, MP4 ou MOV
+                JPEG, PNG, WEBP, MP4 ou MOV — até 10 imagens para carrossel
               </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover">
+        <Card className="flex flex-col transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover">
           <CardHeader className="pb-4">
             <CardTitle>Métricas Rápidas</CardTitle>
             <CardDescription>
               Leitura instantânea do histórico já carregado neste dashboard.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
+          <CardContent className="grid flex-1 gap-3 sm:grid-cols-2">
             {[
-              { label: "Posts este mês", value: metrics.totalThisMonth },
-              { label: "Agendados", value: metrics.scheduled },
-              { label: "Publicados", value: metrics.published },
-              { label: "Taxa de sucesso", value: metrics.successRate },
-            ].map((metric) => (
-              <div
-                key={metric.label}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]">
-                  {metric.label}
-                </p>
-                <p className="mt-3 font-display text-2xl font-bold text-[var(--color-text)]">
-                  {metric.value}
-                </p>
-              </div>
-            ))}
+              {
+                key: "month" as const,
+                label: "Posts este mês",
+                value: metrics.totalThisMonth,
+              },
+              { key: "scheduled" as const, label: "Agendados", value: metrics.scheduled },
+              { key: "published" as const, label: "Publicados", value: metrics.published },
+              {
+                key: "successRate" as const,
+                label: "Taxa de sucesso",
+                value: metrics.successRate,
+              },
+            ].map((metric) => {
+              const showTrend = metric.key === "month" && metrics.deltaPct !== null;
+              const showSpark =
+                metric.key === "month" && metrics.sparkData.some((n) => n > 0);
+
+              return (
+                <div
+                  key={metric.label}
+                  className="flex flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]">
+                    {metric.label}
+                  </p>
+                  <p className="mt-3 font-display text-2xl font-bold tabular-nums text-[var(--color-text)]">
+                    {metric.value}
+                  </p>
+                  {showTrend && metrics.deltaPct !== null ? (
+                    <p
+                      className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${
+                        metrics.deltaPct > 0
+                          ? "text-[var(--color-success)]"
+                          : metrics.deltaPct < 0
+                            ? "text-[var(--color-danger)]"
+                            : "text-[var(--color-text-tertiary)]"
+                      }`}
+                    >
+                      {metrics.deltaPct > 0 ? (
+                        <TrendingUp className="h-3 w-3" />
+                      ) : metrics.deltaPct < 0 ? (
+                        <TrendingDown className="h-3 w-3" />
+                      ) : null}
+                      {metrics.deltaPct > 0 ? "+" : ""}
+                      {metrics.deltaPct}% vs. mês anterior
+                    </p>
+                  ) : null}
+                  {showSpark ? (
+                    <div className="mt-auto h-8 pt-2" aria-hidden="true">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={metrics.sparkData.map((v, i) => ({ v, i }))}
+                          margin={{ top: 2, right: 0, left: 0, bottom: 0 }}
+                        >
+                          <Line
+                            type="monotone"
+                            dataKey="v"
+                            stroke="var(--module-color)"
+                            strokeWidth={1.5}
+                            dot={false}
+                            isAnimationActive={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </section>
@@ -554,9 +693,9 @@ export function SocialPublisherDashboard({
                 key={item.id}
                 type="button"
                 onClick={() => setDetails(item)}
-                className="group flex min-w-[180px] max-w-[200px] snap-start flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-left shadow-card transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover"
+                className="group flex min-w-[220px] max-w-[240px] snap-start flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-left shadow-card transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover"
               >
-                <div className="aspect-video bg-[var(--color-surface-2)]">
+                <div className="relative aspect-video bg-[var(--color-surface-2)]">
                   {item.thumbnailUrl ? (
                     <img
                       loading="lazy"
@@ -570,6 +709,10 @@ export function SocialPublisherDashboard({
                       {getThumbnailFallback(item)}
                     </div>
                   )}
+                  <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--color-surface)]/90 px-2 py-0.5 text-xs font-medium text-[var(--color-text)] shadow-card backdrop-blur">
+                    <Clock className="h-3 w-3 text-[var(--module-color)]" />
+                    {formatShortRelative(item.scheduledAt)}
+                  </span>
                 </div>
 
                 <div className="space-y-3 p-4">
@@ -610,7 +753,7 @@ export function SocialPublisherDashboard({
         ) : (
           <Card className="transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover">
             <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-primary-dim)] text-[#FA5E24]">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--module-color-bg)] text-[var(--module-color)]">
                 <Calendar className="h-5 w-5" />
               </div>
               <div>
@@ -640,7 +783,7 @@ export function SocialPublisherDashboard({
               </p>
             </div>
             {isRefreshingHistory ? (
-              <Loader2 className="h-4 w-4 animate-spin text-[#FA5E24]" />
+              <Loader2 className="h-4 w-4 animate-spin text-[var(--module-color)]" />
             ) : null}
           </div>
           <Button asChild variant="ghost" size="sm">
@@ -655,62 +798,80 @@ export function SocialPublisherDashboard({
           <CardContent className="p-0">
             {recentPosts.length > 0 ? (
               <div className="divide-y divide-[var(--color-border)]">
-                {recentPosts.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setDetails(item)}
-                    className="grid w-full grid-cols-[auto,1fr,auto] gap-4 px-5 py-4 text-left transition-all duration-200 hover:bg-[var(--color-surface-2)]"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]">
-                      {item.thumbnailUrl ? (
-                        <img
-                          loading="lazy"
-                          decoding="async"
-                          src={item.thumbnailUrl}
-                          alt={item.caption ?? postTypeLabel(item.postType)}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        getThumbnailFallback(item)
-                      )}
-                    </div>
+                {recentPosts.map((item) => {
+                  const isInFlight = item.status === "scheduled" || item.status === "processing";
+                  const progressPct = getPlatformProgressPercent(item);
+                  const showProgress = isInFlight && progressPct > 0 && progressPct < 100;
 
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-[var(--color-text)]">
-                          {postTypeLabel(item.postType)}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {item.platforms.map((platform) => (
-                            <span
-                              key={`${item.id}-${platform}`}
-                              className="inline-flex items-center gap-1 rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)]"
-                            >
-                              <PlatformIcon platform={platform} className="h-3 w-3" />
-                              {PLATFORM_LABELS[platform]}
-                            </span>
-                          ))}
-                        </div>
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setDetails(item)}
+                      className="relative grid w-full grid-cols-[auto,1fr,auto] gap-4 px-5 py-4 text-left transition-all duration-200 hover:bg-[var(--color-surface-2)]"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]">
+                        {item.thumbnailUrl ? (
+                          <img
+                            loading="lazy"
+                            decoding="async"
+                            src={item.thumbnailUrl}
+                            alt={item.caption ?? postTypeLabel(item.postType)}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          getThumbnailFallback(item)
+                        )}
                       </div>
 
-                      <p className="mt-1 truncate text-sm text-[var(--color-text-secondary)]">
-                        {item.caption?.trim() || "Sem legenda informada."}
-                      </p>
-                    </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-[var(--color-text)]">
+                            {postTypeLabel(item.postType)}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {item.platforms.map((platform) => (
+                              <span
+                                key={`${item.id}-${platform}`}
+                                className="inline-flex items-center gap-1 rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)]"
+                              >
+                                <PlatformIcon platform={platform} className="h-3 w-3" />
+                                {PLATFORM_LABELS[platform]}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
 
-                    <div className="flex min-w-[120px] flex-col items-end gap-2">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[item.status]}`}
-                      >
-                        {STATUS_LABELS[item.status]}
-                      </span>
-                      <span className="text-xs text-[var(--color-text-tertiary)]">
-                        {formatRelativeDate(item.publishedAt ?? item.scheduledAt)}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                        <p className="mt-1 truncate text-sm text-[var(--color-text-secondary)]">
+                          {item.caption?.trim() || "Sem legenda informada."}
+                        </p>
+                      </div>
+
+                      <div className="flex min-w-[120px] flex-col items-end gap-2">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[item.status]}`}
+                        >
+                          {STATUS_LABELS[item.status]}
+                        </span>
+                        <span className="text-xs text-[var(--color-text-tertiary)]">
+                          {formatRelativeDate(item.publishedAt ?? item.scheduledAt)}
+                        </span>
+                      </div>
+
+                      {showProgress ? (
+                        <div
+                          className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-[var(--color-surface-2)]"
+                          aria-hidden="true"
+                        >
+                          <div
+                            className="h-full rounded-r-full bg-[var(--module-color)] transition-all duration-500"
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <div className="px-5 py-10 text-center text-sm text-[var(--color-text-secondary)]">

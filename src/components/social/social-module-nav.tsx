@@ -35,7 +35,7 @@ function isTabActive(pathname: string, tab: TabItem) {
 export function SocialModuleNav() {
   const pathname = usePathname();
   return (
-    <nav className="border-b border-border">
+    <nav className="border-b border-[var(--color-border)]">
       <div className="flex gap-1 overflow-x-auto px-1 pb-px">
         {TABS.map((tab) => {
           const Icon = tab.icon;
@@ -46,8 +46,8 @@ export function SocialModuleNav() {
               href={tab.href}
               className={`flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm rounded-t-lg transition-all border-b-2 ${
                 active
-                  ? "border-[#FA5E24] text-[#FA5E24] font-medium bg-[#FFF0EB]/40"
-                  : "border-transparent text-muted hover:text-text hover:bg-sidebar"
+                  ? "border-[var(--module-color)] text-[var(--module-color)] font-medium bg-[var(--module-color-bg)]/40"
+                  : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"
               }`}
             >
               <Icon className="h-4 w-4" />
