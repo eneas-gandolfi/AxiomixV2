@@ -12,11 +12,9 @@ import { REQUEST_ID_HEADER } from "@/lib/observability/request-id";
 type ApiError = { message: string; code: string; status: number };
 
 function isApiError(error: unknown): error is ApiError {
-  return (
-    error instanceof Error &&
-    typeof (error as Record<string, unknown>).code === "string" &&
-    typeof (error as Record<string, unknown>).status === "number"
-  );
+  if (!(error instanceof Error)) return false;
+  const e = error as unknown as Record<string, unknown>;
+  return typeof e.code === "string" && typeof e.status === "number";
 }
 
 /**
