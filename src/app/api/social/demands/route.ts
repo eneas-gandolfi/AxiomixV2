@@ -7,7 +7,8 @@
 
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
-import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { handleRouteError } from "@/lib/api/handle-route-error";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import {
   listDemands,
@@ -33,16 +34,6 @@ const createSchema = z.object({
   mediaFileIds: z.array(z.string().uuid()).optional().default([]),
 });
 
-function errorResponse(error: unknown) {
-  if (error instanceof CompanyAccessError) {
-    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-  }
-  if (error instanceof ContentDemandError) {
-    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-  }
-  const detail = error instanceof Error ? error.message : "Erro inesperado.";
-  return NextResponse.json({ error: detail, code: "DEMANDS_ERROR" }, { status: 500 });
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -70,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ companyId: access.companyId, ...result });
   } catch (error) {
-    return errorResponse(error);
+    return handleRouteError(error, "SOCIAL_ERROR", request);
   }
 }
 
@@ -103,6 +94,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ companyId: access.companyId, demand });
   } catch (error) {
-    return errorResponse(error);
+    return handleRouteError(error, "SOCIAL_ERROR", request);
   }
 }

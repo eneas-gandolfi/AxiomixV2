@@ -8,7 +8,8 @@
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
-import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { handleRouteError } from "@/lib/api/handle-route-error";
 import { listCampaigns, createCampaign, CampaignError } from "@/services/campaigns/manager";
 
 export const dynamic = "force-dynamic";
@@ -83,13 +84,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof CompanyAccessError) {
-      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-    }
-    if (error instanceof CampaignError) {
-      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-    }
-    const message = error instanceof Error ? error.message : "Erro ao processar campanhas.";
-    return NextResponse.json({ error: message, code: "CAMPAIGNS_ERROR" }, { status: 500 });
+    return handleRouteError(error, "CAMPAIGNS_ERROR", request);
   }
 }

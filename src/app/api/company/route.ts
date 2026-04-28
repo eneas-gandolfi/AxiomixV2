@@ -8,6 +8,8 @@
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { log } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -198,5 +200,87 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
     return NextResponse.json({ error: detail, code: "COMPANY_PATCH_ERROR" }, { status: 500 });
+  }
+}
+
+const deleteConfirmSchema = z.object({
+  confirmName: z.string().trim().min(1, "Confirmação obrigatória."),
+});
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const response = NextResponse.json({ ok: true });
+    const { supabase, membership, authError } = await getCurrentMembership(request, response);
+
+    if (authError) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado.", code: "AUTH_REQUIRED" },
+        { status: 401 }
+      );
+    }
+
+    if (!membership?.company_id) {
+      return NextResponse.json(
+        { error: "Empresa não encontrada para este usuário.", code: "COMPANY_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    if (membership.role !== "owner") {
+      return NextResponse.json(
+        { error: "Apenas o owner pode excluir a empresa.", code: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    const rawBody = await request.json();
+    const parsed = deleteConfirmSchema.safeParse(rawBody);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Confirmação inválida.", code: "VALIDATION_ERROR" },
+        { status: 400 }
+      );
+    }
+
+    // Verify company name matches confirmation
+    const { data: company } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", membership.company_id)
+      .single();
+
+    if (!company || company.name !== parsed.data.confirmName) {
+      return NextResponse.json(
+        { error: "Nome da empresa não confere. Digite o nome exato para confirmar.", code: "COMPANY_DELETE_CONFIRM_MISMATCH" },
+        { status: 400 }
+      );
+    }
+
+    // Use admin client to bypass RLS for complete cascade delete
+    const admin = createSupabaseAdminClient();
+    const companyId = membership.company_id;
+
+    const { error: deleteError } = await admin
+      .from("companies")
+      .delete()
+      .eq("id", companyId);
+
+    if (deleteError) {
+      log.error("Falha ao excluir empresa", { companyId, error: deleteError.message });
+      return NextResponse.json(
+        { error: "Falha ao excluir empresa.", code: "COMPANY_DELETE_ERROR" },
+        { status: 500 }
+      );
+    }
+
+    // Audit log — no PII, only anonymized IDs and timestamp
+    log.info("Empresa excluída (LGPD)", { companyId, timestamp: new Date().toISOString() });
+
+    return NextResponse.json({ ok: true, deleted: true });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Erro inesperado.";
+    log.error("Erro ao excluir empresa", { error: detail });
+    return NextResponse.json({ error: "Erro interno", code: "COMPANY_DELETE_ERROR" }, { status: 500 });
   }
 }

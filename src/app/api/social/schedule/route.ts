@@ -7,7 +7,8 @@
 
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
-import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { handleRouteError } from "@/lib/api/handle-route-error";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import {
   createScheduledPost,
@@ -103,18 +104,6 @@ async function parseUploadedMediaFiles(formData: FormData): Promise<UploadedMedi
   return normalized;
 }
 
-function socialErrorResponse(error: unknown) {
-  if (error instanceof CompanyAccessError) {
-    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-  }
-
-  if (error instanceof SocialPublisherError) {
-    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
-  }
-
-  const detail = error instanceof Error ? error.message : "Erro inesperado.";
-  return NextResponse.json({ error: detail, code: "SOCIAL_SCHEDULE_ERROR" }, { status: 500 });
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -150,7 +139,7 @@ export async function GET(request: NextRequest) {
       ...result,
     });
   } catch (error) {
-    return socialErrorResponse(error);
+    return handleRouteError(error, "SOCIAL_ERROR", request);
   }
 }
 
@@ -222,6 +211,6 @@ export async function POST(request: NextRequest) {
       mediaFiles: created.mediaFiles,
     });
   } catch (error) {
-    return socialErrorResponse(error);
+    return handleRouteError(error, "SOCIAL_ERROR", request);
   }
 }
