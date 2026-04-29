@@ -80,7 +80,7 @@ export function AgentInboxLink({ companyId, agentId }: AgentInboxLinkProps) {
       const res = await fetch(`/api/whatsapp/agents/${agentId}/inbox`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, inboxId }),
+        body: JSON.stringify({ action: "link", companyId, inboxId }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -100,9 +100,9 @@ export function AgentInboxLink({ companyId, agentId }: AgentInboxLinkProps) {
     setError(null);
     try {
       const res = await fetch(`/api/whatsapp/agents/${agentId}/inbox`, {
-        method: "DELETE",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, integrationId: inboxIntegration.id }),
+        body: JSON.stringify({ action: "unlink", companyId, integrationId: inboxIntegration.id }),
       });
       if (!res.ok) {
         const data = await res.json();

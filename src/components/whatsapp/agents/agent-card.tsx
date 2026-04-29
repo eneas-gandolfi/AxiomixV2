@@ -85,7 +85,7 @@ export function AgentCard({ agent, companyId, inboxes, integrations, onRefresh }
       const res = await fetch(`/api/whatsapp/agents/${agent.id}/inbox`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, inboxId }),
+        body: JSON.stringify({ action: "link", companyId, inboxId }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -105,9 +105,9 @@ export function AgentCard({ agent, companyId, inboxes, integrations, onRefresh }
     setActionError(null);
     try {
       const res = await fetch(`/api/whatsapp/agents/${agent.id}/inbox`, {
-        method: "DELETE",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, integrationId: inboxIntegration.id }),
+        body: JSON.stringify({ action: "unlink", companyId, integrationId: inboxIntegration.id }),
       });
       if (!res.ok) {
         const data = await res.json();
