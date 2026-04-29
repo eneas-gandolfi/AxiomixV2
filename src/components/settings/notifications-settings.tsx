@@ -127,7 +127,7 @@ function PeriodicSection({ data }: { data: ReportData }) {
 
       <IntegrationsStatusCard integrations={data.integrations} />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <NextReportCard
           nextSendAtLabel={data.nextSendAtLabel}
           managerPhone={data.managerPhone}

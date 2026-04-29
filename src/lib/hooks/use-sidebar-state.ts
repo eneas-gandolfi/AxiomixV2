@@ -10,7 +10,7 @@ export function useSidebarState() {
     if (stored) {
       setCollapsed(stored === "collapsed");
     } else {
-      setCollapsed(window.innerWidth < 1280);
+      setCollapsed(window.innerWidth < 1024);
     }
   }, []);
 

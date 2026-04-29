@@ -91,7 +91,7 @@ export function DashboardSkeleton() {
     <main className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 sm:p-6 md:p-8" aria-busy="true">
       <HeaderSkeleton />
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-4">
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[0, 1, 2, 3].map((i) => (
@@ -103,7 +103,7 @@ export function DashboardSkeleton() {
 
           <ChartSkeleton />
 
-          <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <ChartSkeleton height="h-[260px]" />
             <ChartSkeleton height="h-[260px]" />
           </section>

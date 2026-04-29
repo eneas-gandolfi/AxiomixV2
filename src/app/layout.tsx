@@ -5,7 +5,7 @@
  * Data: 2026-03-13
  */
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
 import localFont from "next/font/local";
 import Script from "next/script";
@@ -36,6 +36,12 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "AXIOMIX",
   description: "Marketing e Inteligência Competitiva",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 type RootLayoutProps = {

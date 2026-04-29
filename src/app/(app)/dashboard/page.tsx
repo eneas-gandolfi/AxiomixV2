@@ -74,7 +74,7 @@ function ChartsSkeleton() {
         <div className="skeleton-shimmer animate-shimmer mb-4 h-5 w-48 rounded" />
         <div className="skeleton-shimmer animate-shimmer min-h-0 flex-1 rounded-lg" />
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex h-[260px] flex-col rounded-xl border border-border bg-card p-4 shadow-card-modern">
           <div className="skeleton-shimmer animate-shimmer mb-4 h-5 w-40 rounded" />
           <div className="skeleton-shimmer animate-shimmer min-h-0 flex-1 rounded-lg" />
@@ -455,7 +455,7 @@ async function DashboardContent() {
           </div>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="space-y-4">
             <section className="relative">
               <div className="dot-pattern-bg pointer-events-none absolute inset-0 rounded-[24px] opacity-30" />
@@ -539,7 +539,7 @@ async function DashboardContent() {
           </div>
 
           {/* Sidebar carrega independentemente via Suspense */}
-          <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
             <Suspense fallback={<SidebarSkeleton />}>
               <DashboardSidebarSection companyId={companyId} isOwnerOrAdmin={isOwnerOrAdmin} />
             </Suspense>
