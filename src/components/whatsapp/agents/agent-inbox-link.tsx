@@ -47,7 +47,7 @@ export function AgentInboxLink({ companyId, agentId }: AgentInboxLinkProps) {
     try {
       const [intRes, inboxRes] = await Promise.all([
         fetch(`/api/whatsapp/agents/${agentId}/inbox?companyId=${companyId}`),
-        fetch("/api/whatsapp/sessions", {
+        fetch("/api/whatsapp/team", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ companyId, action: "listInboxes" }),

@@ -68,7 +68,7 @@ export default function AgentsPage() {
       // Buscar agentes e inboxes em paralelo
       const [agentsRes, inboxesRes] = await Promise.all([
         fetch(`/api/whatsapp/agents?companyId=${companyId}`),
-        fetch("/api/whatsapp/sessions", {
+        fetch("/api/whatsapp/team", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ companyId, action: "listInboxes" }),
