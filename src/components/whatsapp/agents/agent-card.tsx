@@ -6,9 +6,8 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, ExternalLink, Loader2, MessageCircle, Power, PowerOff, Settings, Unplug } from "lucide-react";
+import { Bot, ExternalLink, Loader2, MessageCircle, Settings, Unplug } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { AgentTypeBadge } from "./agent-type-badge";
 
 type InboxData = {
@@ -44,12 +43,7 @@ export function AgentCard({ agent, companyId, inboxes, integrations, onRefresh }
   const [acting, setActing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Encontrar integração de inbox deste agente
-  const agentIntegrations = integrations.filter((i) => i.config.agent_id === agent.id || true);
-  // Na verdade, integrations já vem filtradas por agente da página
-  const inboxIntegration = integrations.find(
-    (i) => i.provider === "crm_inbox"
-  );
+  const inboxIntegration = integrations.find((i) => i.provider === "crm_inbox");
   const linkedInboxId = inboxIntegration
     ? String(inboxIntegration.config.inbox_id ?? "")
     : null;
@@ -123,93 +117,98 @@ export function AgentCard({ agent, companyId, inboxes, integrations, onRefresh }
 
   return (
     <div className="flex flex-col rounded-xl border border-border bg-card transition-all hover:shadow-sm">
-      {/* Header do card */}
-      <div className="flex items-start justify-between p-4 pb-2">
-        <div className="flex items-center gap-2.5">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-            agent.is_active ? "bg-[var(--module-accent)]/10" : "bg-muted/10"
-          }`}>
-            <Bot className={`h-5 w-5 ${agent.is_active ? "text-[var(--module-accent)]" : "text-muted"}`} />
+      {/* Header — nome, role, status */}
+      <div className="p-5 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+              agent.is_active ? "bg-[var(--module-accent)]/10" : "bg-muted/10"
+            }`}>
+              <Bot className={`h-5 w-5 ${agent.is_active ? "text-[var(--module-accent)]" : "text-muted"}`} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-text truncate">{agent.name}</h3>
+              {agent.role && (
+                <p className="mt-0.5 text-sm text-muted truncate">{agent.role}</p>
+              )}
+            </div>
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-text">{agent.name}</h3>
-            {agent.role && (
-              <p className="text-xs text-muted line-clamp-1">{agent.role}</p>
+
+          {/* Toggle ativo/inativo */}
+          <button
+            type="button"
+            onClick={handleToggleActive}
+            disabled={acting}
+            className="shrink-0 flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted/10"
+            title={agent.is_active ? "Desativar agente" : "Ativar agente"}
+          >
+            {acting ? (
+              <Loader2 className="h-3 w-3 animate-spin text-muted" />
+            ) : agent.is_active ? (
+              <>
+                <span className="h-2 w-2 rounded-full bg-success" />
+                <span className="text-success">Ativo</span>
+              </>
+            ) : (
+              <>
+                <span className="h-2 w-2 rounded-full bg-muted" />
+                <span className="text-muted">Inativo</span>
+              </>
             )}
-          </div>
+          </button>
         </div>
 
-        {/* Toggle ativo/inativo */}
-        <button
-          type="button"
-          onClick={handleToggleActive}
-          disabled={acting}
-          className="group/toggle flex items-center gap-1.5 rounded-full px-2 py-1 text-xs transition-colors hover:bg-muted/10"
-          title={agent.is_active ? "Desativar agente" : "Ativar agente"}
-        >
-          {acting ? (
-            <Loader2 className="h-3 w-3 animate-spin text-muted" />
-          ) : agent.is_active ? (
-            <>
-              <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-              <span className="text-success group-hover/toggle:text-danger">Ativo</span>
-            </>
-          ) : (
-            <>
-              <span className="h-2 w-2 rounded-full bg-muted" />
-              <span className="text-muted group-hover/toggle:text-success">Inativo</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Info */}
-      <div className="px-4 pb-2">
-        <div className="flex items-center gap-2">
+        {/* Tipo + Modelo */}
+        <div className="mt-3 flex items-center gap-2.5">
           <AgentTypeBadge type={agent.agent_type} />
           {agent.model && (
-            <span className="text-xs text-muted-light truncate">{agent.model}</span>
+            <span className="text-xs text-muted truncate">{agent.model}</span>
           )}
         </div>
       </div>
 
-      {/* Inbox link status — o controle principal */}
-      <div className="mx-4 mb-3 mt-1">
+      {/* Canal — seção visual destacada */}
+      <div className="px-5 pb-4">
         {linkedInbox ? (
-          <div className="flex items-center justify-between rounded-lg border border-success/20 bg-success/5 px-3 py-2">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="h-3.5 w-3.5 text-success" />
-              <span className="text-xs font-medium text-success">
-                Atendendo: {linkedInbox.name ?? linkedInboxId}
-              </span>
+          <div className="flex items-center justify-between rounded-lg border border-success/25 bg-success/5 px-4 py-2.5">
+            <div className="flex items-center gap-2.5">
+              <MessageCircle className="h-4 w-4 text-success" />
+              <div>
+                <span className="text-sm font-medium text-success">
+                  Atendendo
+                </span>
+                <span className="ml-1.5 text-xs text-success/70">
+                  {linkedInbox.name ?? linkedInboxId}
+                </span>
+              </div>
             </div>
             <button
               type="button"
               onClick={handleUnlinkInbox}
               disabled={acting}
-              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-danger/10 hover:text-danger transition-colors"
+              className="flex items-center gap-1.5 rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger"
               title="Desvincular do canal"
             >
-              {acting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unplug className="h-3 w-3" />}
-              <span className="hidden sm:inline">Desvincular</span>
+              {acting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
+              Desvincular
             </button>
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-border bg-background px-3 py-2">
-            <p className="mb-1.5 text-xs text-muted">Sem canal vinculado</p>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="rounded-lg border border-dashed border-border bg-background/50 px-4 py-3">
+            <p className="mb-2 text-xs text-muted">Sem canal vinculado</p>
+            <div className="flex flex-wrap gap-2">
               {inboxes.map((inbox) => (
                 <button
                   key={inbox.id}
                   type="button"
                   onClick={() => handleLinkInbox(inbox.id)}
                   disabled={acting}
-                  className="flex items-center gap-1 rounded-md border border-[var(--module-accent)]/30 bg-[var(--module-accent)]/5 px-2 py-1 text-xs font-medium text-[var(--module-accent)] transition-all hover:bg-[var(--module-accent)]/15 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg border border-[var(--module-accent)]/30 bg-[var(--module-accent)]/5 px-3 py-1.5 text-xs font-medium text-[var(--module-accent)] transition-all hover:bg-[var(--module-accent)]/15 disabled:opacity-50"
                 >
                   {acting ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <MessageCircle className="h-3 w-3" />
+                    <MessageCircle className="h-3.5 w-3.5" />
                   )}
                   Vincular: {inbox.name ?? inbox.id}
                 </button>
@@ -224,20 +223,20 @@ export function AgentCard({ agent, companyId, inboxes, integrations, onRefresh }
 
       {/* Error */}
       {actionError && (
-        <div className="mx-4 mb-2 rounded px-2 py-1 text-xs text-danger bg-danger/5">
+        <div className="mx-5 mb-3 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-danger">
           {actionError}
         </div>
       )}
 
-      {/* Footer com link para edição */}
-      <div className="border-t border-border px-4 py-2.5">
+      {/* Footer */}
+      <div className="border-t border-border px-5 py-3">
         <Link
           href={`/whatsapp-intelligence/agentes/${agent.id}?companyId=${companyId}`}
-          className="flex items-center gap-1.5 text-xs text-muted hover:text-[var(--module-accent)] transition-colors"
+          className="flex items-center gap-2 text-sm text-muted hover:text-[var(--module-accent)] transition-colors"
         >
-          <Settings className="h-3 w-3" />
+          <Settings className="h-3.5 w-3.5" />
           Configurar agente
-          <ExternalLink className="ml-auto h-3 w-3" />
+          <ExternalLink className="ml-auto h-3.5 w-3.5" />
         </Link>
       </div>
     </div>

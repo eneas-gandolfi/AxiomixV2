@@ -10,7 +10,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BookOpen,
   Bot,
   Clock,
   LayoutDashboard,
@@ -59,12 +58,6 @@ const TABS: TabItem[] = [
     label: "Agentes IA",
     href: "/whatsapp-intelligence/agentes",
     icon: Bot,
-  },
-  {
-    key: "base-conhecimento",
-    label: "Base de Conhecimento",
-    href: "/whatsapp-intelligence/base-conhecimento",
-    icon: BookOpen,
   },
   {
     key: "sessoes",
