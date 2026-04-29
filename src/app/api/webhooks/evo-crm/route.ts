@@ -8,13 +8,16 @@
  * Fluxo:
  *   Evo CRM → POST /api/webhooks/evo-crm?companyId={uuid}
  *   Payload (envelope padrão Evo):
- *     { event: "message_created" | "conversation_created" | "contact_updated" | ...,
+ *     { event: "message_created" | "conversation_created" | "conversation_updated" |
+ *              "conversation_status_changed" | "contact_created" | "contact_updated" | ...,
  *       data: {...} }
  *   Validação: HMAC-SHA256 do body com `webhookSecret` da integração → header `X-Evo-Signature`.
  *
- * UNVERIFIED: shape exato do payload + nome do header de assinatura ainda precisa
- * ser validado contra o Evo CRM com token válido (ver plan). Implementação atual
- * aceita múltiplos formatos comuns Chatwoot-like.
+ * Validado 2026-04-29: webhook criado via API /api/v1/webhooks, tipo account_type.
+ * Notas sobre formato da API real:
+ *   - contact.phone_number (não phone ou phone_e164)
+ *   - timestamps podem ser Unix epoch (números)
+ *   - message_type: "incoming" | "outgoing" (não from_me boolean)
  */
 
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -22,6 +25,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Json } from "@/database/types/database.types";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { handleCrmLabelAlert } from "@/services/bridge/crm-to-group-alerts";
 
 export const runtime = "nodejs";
 
@@ -75,6 +79,12 @@ async function loadWebhookSecret(companyId: string): Promise<string | null> {
   }
 }
 
+function epochToIso(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && value > 0) return new Date(value * 1000).toISOString();
+  return new Date().toISOString();
+}
+
 async function handleMessageEvent(companyId: string, data: Record<string, unknown>) {
   const supabase = createSupabaseAdminClient();
   const conversationExternalId =
@@ -83,6 +93,29 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
       : null;
 
   if (!conversationExternalId) return;
+
+  // Idempotência: extrair external_id da mensagem
+  const messageExternalId =
+    typeof data.id === "string" || typeof data.id === "number"
+      ? String(data.id)
+      : typeof data.message_id === "string"
+        ? data.message_id
+        : null;
+
+  // Se temos external_id, verificar se já processamos esta mensagem
+  if (messageExternalId) {
+    const { data: existing } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("external_id", messageExternalId)
+      .maybeSingle();
+
+    if (existing) {
+      // Mensagem já processada — skip silencioso (retorna 200 para Evo CRM não re-enviar)
+      return;
+    }
+  }
 
   const { data: conversation } = await supabase
     .from("conversations")
@@ -93,28 +126,29 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
 
   if (!conversation) return;
 
+  const msgType = typeof data.message_type === "string" ? data.message_type.toLowerCase() : null;
   const directionRaw =
     typeof data.direction === "string" ? data.direction.toLowerCase() : null;
   const fromMe =
     typeof data.from_me === "boolean"
       ? data.from_me
-      : directionRaw === "outbound" || directionRaw === "sent";
+      : msgType === "outgoing" || directionRaw === "outbound" || directionRaw === "sent";
 
   const content =
     typeof data.content === "string"
       ? data.content
       : typeof data.body === "string"
         ? data.body
-        : "";
+        : typeof data.processed_message_content === "string"
+          ? data.processed_message_content
+          : "";
 
-  const sentAt =
-    typeof data.created_at === "string"
-      ? data.created_at
-      : new Date().toISOString();
+  const sentAt = epochToIso(data.created_at);
 
   await supabase.from("messages").insert({
     company_id: companyId,
     conversation_id: conversation.id,
+    external_id: messageExternalId,
     content,
     direction: fromMe ? "outbound" : "inbound",
     sent_at: sentAt,
@@ -139,29 +173,46 @@ async function handleConversationEvent(companyId: string, data: Record<string, u
       ? (data.contact as Record<string, unknown>)
       : null;
 
+  const contactPhone =
+    contactRaw && typeof contactRaw.phone_number === "string"
+      ? contactRaw.phone_number
+      : contactRaw && typeof contactRaw.phone_e164 === "string"
+        ? contactRaw.phone_e164
+        : contactRaw && typeof contactRaw.phone === "string"
+          ? contactRaw.phone
+          : null;
+
+  // Extrair labels (Evo CRM envia como array de strings ou objetos com title)
+  const rawLabels = Array.isArray(data.labels) ? data.labels : [];
+  const labels = rawLabels
+    .map((l: unknown) => {
+      if (typeof l === "string") return l;
+      if (typeof l === "object" && l !== null) {
+        const obj = l as Record<string, unknown>;
+        return typeof obj.title === "string" ? obj.title : typeof obj.name === "string" ? obj.name : null;
+      }
+      return null;
+    })
+    .filter((l): l is string => l !== null);
+
   const payload = {
     company_id: companyId,
     external_id: externalId,
     remote_jid:
+      contactPhone ??
       (typeof data.phone_e164 === "string" ? data.phone_e164 : null) ??
       (typeof data.remote_jid === "string" ? data.remote_jid : null) ??
-      (contactRaw && typeof contactRaw.phone === "string" ? contactRaw.phone : null) ??
       "unknown",
     contact_name: contactRaw && typeof contactRaw.name === "string" ? contactRaw.name : null,
-    contact_phone:
-      contactRaw && typeof contactRaw.phone_e164 === "string"
-        ? contactRaw.phone_e164
-        : contactRaw && typeof contactRaw.phone === "string"
-          ? contactRaw.phone
-          : null,
+    contact_phone: contactPhone,
     contact_external_id:
       contactRaw && (typeof contactRaw.id === "string" || typeof contactRaw.id === "number")
         ? String(contactRaw.id)
         : null,
     status: typeof data.status === "string" ? data.status : "open",
-    last_message_at:
-      typeof data.last_message_at === "string" ? data.last_message_at : null,
+    last_message_at: epochToIso(data.last_message_at ?? data.last_activity_at),
     last_synced_at: new Date().toISOString(),
+    labels: labels.length > 0 ? labels : null,
   };
 
   const { data: existing } = await supabase
@@ -231,6 +282,28 @@ export async function POST(request: NextRequest) {
       case "conversation.updated":
       case "conversation_status_changed":
         await handleConversationEvent(companyId, data);
+        // Alertas de labels de risco → grupo do time (best-effort, não bloqueia)
+        try {
+          const labels = Array.isArray(data.labels)
+            ? data.labels.filter((l): l is string => typeof l === "string")
+            : [];
+          if (labels.length > 0) {
+            const contactRaw = typeof data.contact === "object" && data.contact !== null
+              ? (data.contact as Record<string, unknown>)
+              : null;
+            void handleCrmLabelAlert(companyId, {
+              conversationId: typeof data.id === "string" ? data.id : String(data.id ?? ""),
+              contactName: contactRaw && typeof contactRaw.name === "string" ? contactRaw.name : "Desconhecido",
+              contactPhone: contactRaw && typeof contactRaw.phone_number === "string"
+                ? contactRaw.phone_number
+                : null,
+              labels,
+              assigneeName: null,
+            });
+          }
+        } catch {
+          // Best-effort — falha silenciosa para não quebrar o webhook
+        }
         break;
 
       case "contact_created":

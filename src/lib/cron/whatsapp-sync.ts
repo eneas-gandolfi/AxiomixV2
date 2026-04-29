@@ -1,8 +1,13 @@
 /**
  * Arquivo: src/lib/cron/whatsapp-sync.ts
- * Proposito: Logica do cron de sync WhatsApp/Evo CRM (extraida do route handler).
+ * Propósito: Cron de reconciliação WhatsApp/Evo CRM (safety net).
  * Autor: AXIOMIX
  * Data: 2026-04-07
+ *
+ * NOTA: A partir da F1 (webhook-driven sync), este cron NÃO é mais a fonte
+ * primária de dados. Os webhooks do Evo CRM alimentam o Supabase em tempo real.
+ * Este cron roda a cada 10-15 minutos como safety net para capturar eventos
+ * que o webhook eventualmente perdeu (falha de rede, downtime).
  */
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
