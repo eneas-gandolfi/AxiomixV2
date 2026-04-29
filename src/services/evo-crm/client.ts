@@ -4,190 +4,66 @@
  * Autor: AXIOMIX
  * Data: 2026-04-17
  *
- * Notas (validado 2026-04-17 contra https://api.getlead.capital, Evo CRM v3.0.0):
- * - Header de auth: `api_access_token: <token>` (padrão Chatwoot)
- * - Path: `/api/v1/{resource}` direto, SEM accountId
+ * Notas (validado 2026-04-29 contra https://api.getlead.capital, Evo CRM v4.2.0):
+ * - Header de auth: `api_access_token: <token>` (NÃO Bearer — Bearer retorna INVALID_TOKEN)
+ * - Path: `/api/v1/{resource}` direto, SEM accountId no path
  * - Envelope de resposta: `{success, data, error: {code, message}, meta: {timestamp, pagination, ...}, message?}`
- * - Parsers defensivos são reusados do padrão Chatwoot — Evo CRM é fork do Chatwoot.
+ * - Labels usam `title` (não `name`) como campo de texto
+ * - Contatos usam `phone_number` (não `phone` ou `phone_e164`)
+ * - Timestamps são Unix epoch (números), não ISO strings
+ * - Messages usam `message_type: "incoming"|"outgoing"` (não `from_me` boolean)
+ * - Conversations incluem `display_id`, `inbox_id`, `last_activity_at`, `pipelines[]`, `labels[]`
  *
- * Endpoints ainda UNVERIFIED (marcados no código): assignConversation, getSessionStatus, sendTemplate,
- * kanban card CRUD — retornam 404 em conta vazia. Após criar pelo menos 1 conversa/pipeline no painel,
- * revalidar com `curl` e ajustar assinatura se necessário.
+ * Endpoints verificados: conversations, messages, contacts, labels, pipelines, teams, inboxes.
+ * Endpoints ainda UNVERIFIED: sendTemplate, kanban card CRUD sub-routes.
  */
 
 import type { Json } from "@/database/types/database.types";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { EvoCrmNotConfiguredError } from "./errors";
+import { getCachedEvoCrmClient } from "./factory";
 
-type EvoConversationApi = {
-  id: string;
-  phone_e164?: string | null;
-  remote_jid?: string | null;
-  status?: string | null;
-  last_message_at?: string | null;
-  last_customer_message_at?: string | null;
-  updated_at?: string | null;
-  created_at?: string | null;
-  profile_picture?: string | null;
-  assignee_id?: string | null;
-  contact?: {
-    id?: string | null;
-    name?: string | null;
-    phone?: string | null;
-    phone_e164?: string | null;
-  } | null;
-};
+import type {
+  EvoConversationApi,
+  EvoMessageApi,
+  EvoContactApi,
+  EvoLabelApi,
+  EvoSessionStatus,
+  EvoKanbanBoard,
+  EvoKanbanStage,
+  EvoKanbanCard,
+  EvoUserApi,
+  EvoTeamApi,
+  EvoInboxApi,
+  EvoPipelineApi,
+  EvoPipelineStageApi,
+  EvoMacroApi,
+  EvoWebhookApi,
+  EvoRequestOptions,
+  EvoCrmClient,
+} from "./types";
 
-type EvoMessageApi = {
-  id: string;
-  content?: string | null;
-  from_me?: boolean | null;
-  created_at?: string | null;
-  message_type?: string | null;
-  caption?: string | null;
-  media_url?: string | null;
-};
-
-type EvoContactApi = {
-  id: string;
-  name?: string | null;
-  phone?: string | null;
-  phone_e164?: string | null;
-  email?: string | null;
-  gender?: string | null;
-  archived?: boolean | null;
-  blocked?: boolean | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  labels?: EvoLabelApi[] | null;
-};
-
-type EvoLabelApi = {
-  id: string;
-  name?: string | null;
-  color?: string | null;
-};
-
-type EvoSessionStatus = {
-  active: boolean;
-  expires_at?: string | null;
-  seconds_remaining?: number | null;
-};
-
-type EvoKanbanBoard = {
-  id: string;
-  name?: string | null;
-  stages?: EvoKanbanStage[] | null;
-};
-
-type EvoKanbanStage = {
-  id: string;
-  name?: string | null;
-  position?: number | null;
-  cards?: EvoKanbanCard[] | null;
-};
-
-type EvoKanbanCard = {
-  id: string;
-  title?: string | null;
-  description?: string | null;
-  stage_id?: string | null;
-  board_id?: string | null;
-  source?: string | null;
-  contact_id?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  assigned_to?: string | null;
-  assignee?: string | null;
-  value_amount?: number | null;
-  phone?: string | null;
-  priority?: string | null;
-  tags?: string[] | null;
-  conversation_id?: string | null;
-};
-
-type EvoUserApi = {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  role?: string | null;
-  avatar_url?: string | null;
-};
-
-type EvoTeamApi = {
-  id: string;
-  name?: string | null;
-  members?: EvoUserApi[] | null;
-};
-
-type EvoInboxApi = {
-  id: string;
-  name?: string | null;
-  channel_type?: string | null;
-  phone_number?: string | null;
-};
-
-type EvoRequestOptions = {
-  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-  body?: Json;
-  searchParams?: Record<string, string | number | boolean | undefined>;
-};
-
+// Re-exportar tipos para manter compatibilidade com imports existentes
+export type {
+  EvoConversationApi,
+  EvoMessageApi,
+  EvoContactApi,
+  EvoLabelApi,
+  EvoSessionStatus,
+  EvoKanbanBoard,
+  EvoKanbanStage,
+  EvoKanbanCard,
+  EvoUserApi,
+  EvoTeamApi,
+  EvoInboxApi,
+  EvoPipelineApi,
+  EvoPipelineStageApi,
+  EvoMacroApi,
+  EvoWebhookApi,
+  EvoCrmClient,
+} from "./types";
 const EVO_HTTP_TIMEOUT_MS = 15_000;
-
-type EvoCrmClient = {
-  baseUrl: string;
-  apiToken: string;
-  inboxId?: string;
-  syncInboxIds?: string[];
-  buildConversationUrl: (externalConversationId: string) => string;
-  // Conversas
-  listConversations: (limit?: number, filters?: { status?: string; filter?: string; inbox_id?: string }) => Promise<EvoConversationApi[]>;
-  listMessages: (externalConversationId: string, limit?: number) => Promise<EvoMessageApi[]>;
-  sendMessage: (conversationId: string, content: string, options?: { checkSession?: boolean }) => Promise<void>;
-  sendTemplate: (payload: { to: string; templateName: string; language?: string; components?: Json }) => Promise<{ messageId?: string }>;
-  getSessionStatus: (conversationId: string) => Promise<EvoSessionStatus>;
-  assignConversation: (conversationId: string, payload: { assigneeId?: string; teamId?: string }) => Promise<void>;
-  startConversation: (phone: string) => Promise<{ conversationId: string }>;
-  // Contatos
-  listContacts: (params?: { search?: string; page?: number; limit?: number; include_labels?: boolean }) => Promise<EvoContactApi[]>;
-  getContact: (contactId: string) => Promise<EvoContactApi>;
-  findContactByPhone: (phone: string) => Promise<EvoContactApi | null>;
-  createContact: (payload: { name: string; phone: string }) => Promise<EvoContactApi>;
-  listContactLabels: (contactId: string) => Promise<EvoLabelApi[]>;
-  removeContactLabel: (contactId: string, labelId: string) => Promise<void>;
-  // Labels
-  listLabels: () => Promise<EvoLabelApi[]>;
-  createLabel: (name: string) => Promise<EvoLabelApi>;
-  updateLabel: (labelId: string, payload: { name?: string; color?: string }) => Promise<void>;
-  deleteLabel: (labelId: string) => Promise<void>;
-  // Kanban (Evo CRM: /api/v1/pipelines)
-  createKanbanCard: (payload: {
-    boardId: string;
-    title: string;
-    description: string;
-    stage_id?: string;
-    contact_id?: string;
-    value_amount?: number;
-    phone?: string;
-    assigned_to?: string;
-    priority?: string;
-    tags?: string[];
-    conversation_id?: string;
-  }) => Promise<void>;
-  addContactLabel: (payload: { contactId: string; label: string }) => Promise<void>;
-  listBoards: () => Promise<EvoKanbanBoard[]>;
-  getBoard: (boardId: string) => Promise<EvoKanbanBoard>;
-  getCard: (cardId: string) => Promise<EvoKanbanCard>;
-  updateCard: (cardId: string, data: Partial<Pick<EvoKanbanCard, "title" | "description" | "stage_id" | "assigned_to" | "value_amount" | "phone" | "priority" | "tags" | "contact_id" | "conversation_id">>) => Promise<void>;
-  deleteCard: (cardId: string) => Promise<void>;
-  moveCard: (cardId: string, boardId: string, stageId: string) => Promise<void>;
-  // Equipe
-  listUsers: () => Promise<EvoUserApi[]>;
-  getUser: (userId: string) => Promise<EvoUserApi>;
-  listTeams: () => Promise<EvoTeamApi[]>;
-  listInboxes: () => Promise<EvoInboxApi[]>;
-};
 
 function describeFetchError(error: unknown) {
   if (!(error instanceof Error)) {
@@ -316,13 +192,15 @@ function parseConversationsResponse(payload: unknown): EvoConversationApi[] {
           : null;
 
     const contactPhone =
-      typeof row.phone_e164 === "string"
-        ? row.phone_e164
-        : contactRaw && typeof contactRaw.phone_e164 === "string"
-          ? contactRaw.phone_e164
-          : contactRaw && typeof contactRaw.phone === "string"
-            ? contactRaw.phone
-            : null;
+      contactRaw && typeof contactRaw.phone_number === "string"
+        ? contactRaw.phone_number
+        : typeof row.phone_e164 === "string"
+          ? row.phone_e164
+          : contactRaw && typeof contactRaw.phone_e164 === "string"
+            ? contactRaw.phone_e164
+            : contactRaw && typeof contactRaw.phone === "string"
+              ? contactRaw.phone
+              : null;
 
     const profilePicture =
       typeof row.profile_picture === "string" && row.profile_picture.trim().length > 0
@@ -354,25 +232,23 @@ function parseConversationsResponse(payload: unknown): EvoConversationApi[] {
       toExternalId(row.assigneeId) ??
       null;
 
+    const epochToIso = (v: unknown): string | null => {
+      if (typeof v === "string") return v;
+      if (typeof v === "number" && v > 0) return new Date(v * 1000).toISOString();
+      return null;
+    };
+
     parsed.push({
       id,
-      phone_e164: typeof row.phone_e164 === "string" ? row.phone_e164 : null,
+      phone_e164: typeof row.phone_e164 === "string" ? row.phone_e164 : contactPhone,
       remote_jid: typeof row.remote_jid === "string" ? row.remote_jid : null,
       status: typeof row.status === "string" ? row.status : null,
       last_message_at:
-        typeof row.last_message_at === "string"
-          ? row.last_message_at
-          : typeof row.lastMessageAt === "string"
-            ? row.lastMessageAt
-            : null,
+        epochToIso(row.last_message_at) ?? epochToIso(row.lastMessageAt) ?? epochToIso(row.last_activity_at) ?? null,
       last_customer_message_at:
-        typeof row.last_customer_message_at === "string"
-          ? row.last_customer_message_at
-          : typeof row.lastCustomerMessageAt === "string"
-            ? row.lastCustomerMessageAt
-            : null,
-      updated_at: typeof row.updated_at === "string" ? row.updated_at : null,
-      created_at: typeof row.created_at === "string" ? row.created_at : null,
+        epochToIso(row.last_customer_message_at) ?? epochToIso(row.lastCustomerMessageAt) ?? null,
+      updated_at: epochToIso(row.updated_at),
+      created_at: epochToIso(row.created_at),
       profile_picture: profilePicture,
       assignee_id: assigneeId,
       contact:
@@ -436,14 +312,15 @@ function parseMessagesResponse(payload: unknown): EvoMessageApi[] {
     const sourceId = toExternalId(row.id ?? row.message_id ?? row.uuid ?? row.external_id);
 
     const rawDirection = typeof row.direction === "string" ? row.direction.trim().toLowerCase() : null;
+    const rawMsgType = typeof row.message_type === "string" ? row.message_type.trim().toLowerCase() : null;
     const fromMe =
       typeof row.from_me === "boolean"
         ? row.from_me
         : typeof row.fromMe === "boolean"
           ? row.fromMe
-          : rawDirection === "outbound" || rawDirection === "sent" || rawDirection === "agent" || rawDirection === "operator"
+          : rawMsgType === "outgoing" || rawDirection === "outbound" || rawDirection === "sent" || rawDirection === "agent" || rawDirection === "operator"
             ? true
-            : rawDirection === "inbound" || rawDirection === "received" || rawDirection === "customer"
+            : rawMsgType === "incoming" || rawDirection === "inbound" || rawDirection === "received" || rawDirection === "customer"
               ? false
               : null;
 
@@ -507,6 +384,29 @@ function parseMessagesResponse(payload: unknown): EvoMessageApi[] {
   return parsed;
 }
 
+function parsePipeline(item: Record<string, unknown>): EvoPipelineApi {
+  return {
+    id: String(item.id ?? ""),
+    name: typeof item.name === "string" ? item.name : null,
+    description: typeof item.description === "string" ? item.description : null,
+    pipeline_type: typeof item.pipeline_type === "string" ? item.pipeline_type : null,
+    is_active: typeof item.is_active === "boolean" ? item.is_active : null,
+    is_default: typeof item.is_default === "boolean" ? item.is_default : null,
+    item_count: typeof item.item_count === "number" ? item.item_count : null,
+    stages: Array.isArray(item.stages)
+      ? item.stages.map((s: Record<string, unknown>) => ({
+          id: String(s.id ?? ""),
+          name: typeof s.name === "string" ? s.name : null,
+          pipeline_id: typeof s.pipeline_id === "string" ? s.pipeline_id : null,
+          position: typeof s.position === "number" ? s.position : null,
+          color: typeof s.color === "string" ? s.color : null,
+          stage_type: typeof s.stage_type === "string" ? s.stage_type : null,
+          item_count: typeof s.item_count === "number" ? s.item_count : null,
+        }))
+      : null,
+  };
+}
+
 function readSessionBoolean(value: unknown) {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") {
@@ -560,7 +460,19 @@ function parseSessionStatusResponse(payload: unknown): EvoSessionStatus | null {
   return null;
 }
 
+/**
+ * Retorna um EvoCrmClient com cache de 5 minutos por company.
+ * Este é o ponto de entrada principal — todos os consumidores devem usar esta função.
+ */
 export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> {
+  return getCachedEvoCrmClient(companyId);
+}
+
+/**
+ * Constrói um novo EvoCrmClient buscando credenciais do Supabase.
+ * Uso interno — chamado pela factory. Consumidores devem usar getEvoCrmClient().
+ */
+export async function buildEvoCrmClient(companyId: string): Promise<EvoCrmClient> {
   const supabase = createSupabaseAdminClient();
   const { data: integration, error } = await supabase
     .from("integrations")
@@ -570,11 +482,11 @@ export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> 
     .maybeSingle();
 
   if (error) {
-    throw new Error("Falha ao carregar configuração do Evo CRM.");
+    throw new EvoCrmNotConfiguredError(companyId);
   }
 
   if (!integration?.config) {
-    throw new Error("Integração Evo CRM não configurada para esta empresa.");
+    throw new EvoCrmNotConfiguredError(companyId);
   }
 
   const config = decodeIntegrationConfig("evo_crm", integration.config);
@@ -843,25 +755,33 @@ export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> 
           ? result.data
           : assertArrayPayload(result);
 
-      return rawList.map((item: Record<string, unknown>) => ({
-        id: String(item.id ?? ""),
-        name: typeof item.name === "string" ? item.name : null,
-        phone: typeof item.phone === "string" ? item.phone : null,
-        phone_e164: typeof item.phone_e164 === "string" ? item.phone_e164 : null,
-        email: typeof item.email === "string" ? item.email : null,
-        gender: typeof item.gender === "string" ? item.gender : null,
-        archived: typeof item.archived === "boolean" ? item.archived : null,
-        blocked: typeof item.blocked === "boolean" ? item.blocked : null,
-        created_at: typeof item.created_at === "string" ? item.created_at : null,
-        updated_at: typeof item.updated_at === "string" ? item.updated_at : null,
-        labels: Array.isArray(item.labels)
-          ? item.labels.map((l: Record<string, unknown>) => ({
-              id: String(l.id ?? ""),
-              name: typeof l.name === "string" ? l.name : null,
-              color: typeof l.color === "string" ? l.color : null,
-            }))
-          : null,
-      })) as EvoContactApi[];
+      return rawList.map((item: Record<string, unknown>) => {
+        const phone = typeof item.phone_number === "string" ? item.phone_number
+          : typeof item.phone === "string" ? item.phone : null;
+        const createdAt = typeof item.created_at === "string" ? item.created_at
+          : typeof item.created_at === "number" ? new Date(item.created_at * 1000).toISOString() : null;
+        const updatedAt = typeof item.updated_at === "string" ? item.updated_at
+          : typeof item.updated_at === "number" ? new Date(item.updated_at * 1000).toISOString() : null;
+        return {
+          id: String(item.id ?? ""),
+          name: typeof item.name === "string" ? item.name : null,
+          phone,
+          phone_e164: typeof item.phone_e164 === "string" ? item.phone_e164 : phone,
+          email: typeof item.email === "string" ? item.email : null,
+          gender: typeof item.gender === "string" ? item.gender : null,
+          archived: typeof item.archived === "boolean" ? item.archived : null,
+          blocked: typeof item.blocked === "boolean" ? item.blocked : null,
+          created_at: createdAt,
+          updated_at: updatedAt,
+          labels: Array.isArray(item.labels)
+            ? item.labels.map((l: Record<string, unknown>) => ({
+                id: String(l.id ?? ""),
+                name: typeof l.title === "string" ? l.title : typeof l.name === "string" ? l.name : null,
+                color: typeof l.color === "string" ? l.color : null,
+              }))
+            : null,
+        };
+      }) as EvoContactApi[];
     },
 
     async getContact(contactId: string) {
@@ -869,21 +789,25 @@ export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> 
       const item = typeof result.contact === "object" && result.contact !== null
         ? (result.contact as Record<string, unknown>)
         : result;
+      const phone = typeof item.phone_number === "string" ? item.phone_number
+        : typeof item.phone === "string" ? item.phone : null;
       return {
         id: String(item.id ?? contactId),
         name: typeof item.name === "string" ? item.name : null,
-        phone: typeof item.phone === "string" ? item.phone : null,
-        phone_e164: typeof item.phone_e164 === "string" ? item.phone_e164 : null,
+        phone,
+        phone_e164: typeof item.phone_e164 === "string" ? item.phone_e164 : phone,
         email: typeof item.email === "string" ? item.email : null,
         gender: typeof item.gender === "string" ? item.gender : null,
         archived: typeof item.archived === "boolean" ? item.archived : null,
         blocked: typeof item.blocked === "boolean" ? item.blocked : null,
-        created_at: typeof item.created_at === "string" ? item.created_at : null,
-        updated_at: typeof item.updated_at === "string" ? item.updated_at : null,
+        created_at: typeof item.created_at === "string" ? item.created_at
+          : typeof item.created_at === "number" ? new Date(item.created_at * 1000).toISOString() : null,
+        updated_at: typeof item.updated_at === "string" ? item.updated_at
+          : typeof item.updated_at === "number" ? new Date(item.updated_at * 1000).toISOString() : null,
         labels: Array.isArray(item.labels)
           ? item.labels.map((l: Record<string, unknown>) => ({
               id: String(l.id ?? ""),
-              name: typeof l.name === "string" ? l.name : null,
+              name: typeof l.title === "string" ? l.title : typeof l.name === "string" ? l.name : null,
               color: typeof l.color === "string" ? l.color : null,
             }))
           : null,
@@ -903,11 +827,13 @@ export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> 
             : assertArrayPayload(result);
         const match = rawList[0] as Record<string, unknown> | undefined;
         if (!match?.id) return null;
+        const matchPhone = typeof match.phone_number === "string" ? match.phone_number
+          : typeof match.phone === "string" ? match.phone : null;
         return {
           id: String(match.id),
           name: typeof match.name === "string" ? match.name : null,
-          phone: typeof match.phone === "string" ? match.phone : null,
-          phone_e164: typeof match.phone_e164 === "string" ? match.phone_e164 : null,
+          phone: matchPhone,
+          phone_e164: typeof match.phone_e164 === "string" ? match.phone_e164 : matchPhone,
           email: typeof match.email === "string" ? match.email : null,
         } as EvoContactApi;
       } catch {
@@ -918,15 +844,18 @@ export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> 
     async createContact(payload) {
       const result = await requestJson<Record<string, unknown>>("/api/v1/contacts", {
         method: "POST",
-        body: { name: payload.name, phone: payload.phone },
+        body: { name: payload.name, phone_number: payload.phone },
       });
       const item = typeof result.contact === "object" && result.contact !== null
         ? (result.contact as Record<string, unknown>)
         : result;
+      const phone = typeof item.phone_number === "string" ? item.phone_number
+        : typeof item.phone === "string" ? item.phone : payload.phone;
       return {
         id: String(item.id ?? ""),
         name: typeof item.name === "string" ? item.name : payload.name,
-        phone: typeof item.phone === "string" ? item.phone : payload.phone,
+        phone,
+        phone_e164: phone,
       } as EvoContactApi;
     },
 
@@ -971,7 +900,7 @@ export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> 
           : assertArrayPayload(result);
       return rawList.map((item: Record<string, unknown>) => ({
         id: String(item.id ?? ""),
-        name: typeof item.name === "string" ? item.name : null,
+        name: typeof item.title === "string" ? item.title : typeof item.name === "string" ? item.name : null,
         color: typeof item.color === "string" ? item.color : null,
       })) as EvoLabelApi[];
     },
@@ -979,14 +908,14 @@ export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> 
     async createLabel(name: string) {
       const result = await requestJson<Record<string, unknown>>("/api/v1/labels", {
         method: "POST",
-        body: { name },
+        body: { title: name },
       });
       const item = typeof result.label === "object" && result.label !== null
         ? (result.label as Record<string, unknown>)
         : result;
       return {
         id: String(item.id ?? ""),
-        name: typeof item.name === "string" ? item.name : name,
+        name: typeof item.title === "string" ? item.title : typeof item.name === "string" ? item.name : name,
         color: typeof item.color === "string" ? item.color : null,
       } as EvoLabelApi;
     },
@@ -995,7 +924,7 @@ export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> 
       await requestJson<unknown>(`/api/v1/labels/${encodeURIComponent(labelId)}`, {
         method: "PUT",
         body: {
-          ...(payload.name ? { name: payload.name } : {}),
+          ...(payload.name ? { title: payload.name } : {}),
           ...(payload.color ? { color: payload.color } : {}),
         },
       });
@@ -1205,24 +1134,136 @@ export async function getEvoCrmClient(companyId: string): Promise<EvoCrmClient> 
         name: typeof item.name === "string" ? item.name : null,
         channel_type: typeof item.channel_type === "string" ? item.channel_type : null,
         phone_number: typeof item.phone_number === "string" ? item.phone_number : null,
+        provider: typeof item.provider === "string" ? item.provider : null,
       })) as EvoInboxApi[];
+    },
+
+    // --- Pipelines (verificado 2026-04-29) ---
+
+    async listPipelines() {
+      const result = await requestJson<Record<string, unknown>>("/api/v1/pipelines");
+      const rawList = Array.isArray(result.pipelines)
+        ? result.pipelines
+        : Array.isArray(result.data)
+          ? result.data
+          : assertArrayPayload(result);
+      return rawList.map((item: Record<string, unknown>) => parsePipeline(item)) as EvoPipelineApi[];
+    },
+
+    async getPipeline(pipelineId: string) {
+      const result = await requestJson<Record<string, unknown>>(`/api/v1/pipelines/${encodeURIComponent(pipelineId)}`);
+      const item = typeof result.pipeline === "object" && result.pipeline !== null
+        ? (result.pipeline as Record<string, unknown>)
+        : typeof result.data === "object" && result.data !== null && !Array.isArray(result.data)
+          ? (result.data as Record<string, unknown>)
+          : result;
+      return parsePipeline(item) as EvoPipelineApi;
+    },
+
+    async createPipeline(payload) {
+      const result = await requestJson<Record<string, unknown>>("/api/v1/pipelines", {
+        method: "POST",
+        body: {
+          name: payload.name,
+          ...(payload.description ? { description: payload.description } : {}),
+          ...(payload.pipeline_type ? { pipeline_type: payload.pipeline_type } : {}),
+        },
+      });
+      const item = typeof result.pipeline === "object" && result.pipeline !== null
+        ? (result.pipeline as Record<string, unknown>)
+        : typeof result.data === "object" && result.data !== null && !Array.isArray(result.data)
+          ? (result.data as Record<string, unknown>)
+          : result;
+      return parsePipeline(item) as EvoPipelineApi;
+    },
+
+    async updatePipeline(pipelineId: string, payload) {
+      await requestJson<unknown>(`/api/v1/pipelines/${encodeURIComponent(pipelineId)}`, {
+        method: "PATCH",
+        body: payload as Json,
+      });
+    },
+
+    // --- Macros (verificado 2026-04-29) ---
+
+    async listMacros() {
+      const result = await requestJson<Record<string, unknown>>("/api/v1/macros");
+      const rawList = Array.isArray(result.macros)
+        ? result.macros
+        : Array.isArray(result.data)
+          ? result.data
+          : assertArrayPayload(result);
+      return rawList.map((item: Record<string, unknown>) => ({
+        id: String(item.id ?? ""),
+        name: typeof item.name === "string" ? item.name : null,
+        actions: Array.isArray(item.actions) ? item.actions as Record<string, unknown>[] : null,
+        created_by_id: typeof item.created_by_id === "string" ? item.created_by_id : null,
+        visibility: typeof item.visibility === "string" ? item.visibility : null,
+      })) as EvoMacroApi[];
+    },
+
+    async executeMacro(macroId: string, conversationIds: string[]) {
+      await requestJson<unknown>(`/api/v1/macros/${encodeURIComponent(macroId)}/execute`, {
+        method: "POST",
+        body: { conversation_ids: conversationIds },
+      });
+    },
+
+    // --- Webhooks (verificado 2026-04-29) ---
+
+    async listWebhooks() {
+      const result = await requestJson<Record<string, unknown>>("/api/v1/webhooks");
+      const rawList = Array.isArray(result.webhooks)
+        ? result.webhooks
+        : Array.isArray(result.data)
+          ? result.data
+          : assertArrayPayload(result);
+      return rawList.map((item: Record<string, unknown>) => ({
+        id: String(item.id ?? ""),
+        url: typeof item.url === "string" ? item.url : null,
+        webhook_type: typeof item.webhook_type === "string" ? item.webhook_type : null,
+        subscriptions: Array.isArray(item.subscriptions)
+          ? item.subscriptions.filter((s): s is string => typeof s === "string")
+          : null,
+      })) as EvoWebhookApi[];
+    },
+
+    async createWebhook(url: string, subscriptions: string[]) {
+      const result = await requestJson<Record<string, unknown>>("/api/v1/webhooks", {
+        method: "POST",
+        body: { url, subscriptions },
+      });
+      const item = typeof result.webhook === "object" && result.webhook !== null
+        ? (result.webhook as Record<string, unknown>)
+        : typeof result.data === "object" && result.data !== null && !Array.isArray(result.data)
+          ? (result.data as Record<string, unknown>)
+          : result;
+      return {
+        id: String(item.id ?? ""),
+        url: typeof item.url === "string" ? item.url : url,
+        webhook_type: typeof item.webhook_type === "string" ? item.webhook_type : null,
+        subscriptions: Array.isArray(item.subscriptions)
+          ? item.subscriptions.filter((s: unknown): s is string => typeof s === "string")
+          : subscriptions,
+      } as EvoWebhookApi;
+    },
+
+    async deleteWebhook(webhookId: string) {
+      await requestJson<unknown>(`/api/v1/webhooks/${encodeURIComponent(webhookId)}`, { method: "DELETE" });
+    },
+
+    // --- Conversation update (verificado 2026-04-29) ---
+
+    async updateConversation(conversationId: string, payload) {
+      await requestJson<unknown>(`/api/v1/conversations/${encodeURIComponent(conversationId)}`, {
+        method: "PATCH",
+        body: payload as Json,
+      });
     },
   };
 
   return evoClient;
 }
 
-export type {
-  EvoConversationApi,
-  EvoMessageApi,
-  EvoContactApi,
-  EvoLabelApi,
-  EvoSessionStatus,
-  EvoKanbanBoard,
-  EvoKanbanStage,
-  EvoKanbanCard,
-  EvoUserApi,
-  EvoTeamApi,
-  EvoInboxApi,
-  EvoCrmClient,
-};
+// Re-exportar utilitários da factory para acesso direto
+export { invalidateEvoCrmCache, clearEvoCrmCache } from "./factory";
