@@ -34,17 +34,30 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
+
+    // 1. Enviar para Evo CRM (fonte de verdade operacional)
     const evoClient = await getEvoCrmClient(access.companyId);
     await evoClient.sendMessage(parsed.data.conversationExternalId, parsed.data.content);
 
-    // Salvar a mensagem localmente também
-    await supabase.from("messages").insert({
-      company_id: access.companyId,
-      conversation_id: parsed.data.conversationExternalId,
-      content: parsed.data.content,
-      direction: "outbound",
-      sent_at: new Date().toISOString(),
-    });
+    // 2. Salvar localmente para Realtime push imediato ao browser
+    //    Buscar conversation_id (uuid) a partir do external_id
+    const { data: conversation } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("company_id", access.companyId)
+      .eq("external_id", parsed.data.conversationExternalId)
+      .maybeSingle();
+
+    if (conversation) {
+      await supabase.from("messages").insert({
+        company_id: access.companyId,
+        conversation_id: conversation.id,
+        content: parsed.data.content,
+        direction: "outbound",
+        sent_at: new Date().toISOString(),
+        message_type: "outgoing",
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

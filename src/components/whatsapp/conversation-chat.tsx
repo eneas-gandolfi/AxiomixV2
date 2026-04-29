@@ -10,6 +10,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { FileText, Image, Loader2, MapPin, Mic, RefreshCw, Send, Smile, Sparkles, Video, Wifi, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useRealtimeMessages } from "@/hooks/use-realtime-messages";
 
 type MessageData = {
   id: string;
@@ -82,6 +83,34 @@ export function ConversationChat({
   const bottomRef = useRef<HTMLDivElement>(null);
   const wasAtBottomRef = useRef(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Supabase Realtime: receber mensagens novas em tempo real (via webhook)
+  useRealtimeMessages({
+    conversationId,
+    onNewMessage: useCallback((msg) => {
+      setMessages((prev) => {
+        // Verificar se a mensagem já existe (por id ou fingerprint)
+        const exists = prev.some(
+          (m) => m.id === msg.id ||
+          (m.content === msg.content && m.direction === msg.direction && !m.id.startsWith("optimistic-"))
+        );
+        if (exists) return prev;
+
+        // Remover mensagem otimista correspondente
+        const withoutOptimistic = prev.filter(
+          (m) => !(m.id.startsWith("optimistic-") && m.content === msg.content && m.direction === msg.direction)
+        );
+
+        return deduplicateMessages([...withoutOptimistic, {
+          id: msg.id,
+          content: msg.content,
+          direction: msg.direction,
+          sent_at: msg.sent_at,
+          message_type: msg.message_type,
+        }]);
+      });
+    }, []),
+  });
 
   // Detectar se o usuário está no final do scroll
   const checkAtBottom = useCallback(() => {
