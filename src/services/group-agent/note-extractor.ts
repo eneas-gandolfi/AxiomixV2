@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { openRouterChatCompletion } from "@/lib/ai/openrouter";
 import { parseAiJson } from "@/lib/ai/parse-ai-json";
+import { syncHighRelevanceNoteToCrm } from "@/services/bridge/group-to-crm-sync";
 import type { AgentNote, AgentNoteCategory, ExtractedNote } from "@/types/modules/group-agent.types";
 
 /**
@@ -203,6 +204,20 @@ Extraia fatos-chave para lembrar em conversas futuras.`;
     if (newNotes.length > 0) {
       await notesTable(supabase).insert(newNotes);
       console.log("[note-extractor] Notas salvas:", newNotes.length);
+
+      // Bridge: sincronizar notas de alta relevância com o Evo CRM (best-effort)
+      for (const note of newNotes) {
+        if (note.relevance_score >= 0.8) {
+          void syncHighRelevanceNoteToCrm({
+            companyId: input.companyId,
+            category: note.category,
+            content: note.content,
+            relevanceScore: note.relevance_score,
+            sourceSender: note.source_sender,
+            contactPhone: null, // TODO: extrair telefone do contexto quando possível
+          });
+        }
+      }
     }
 
     // Limpar notas antigas se exceder limite

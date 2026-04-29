@@ -104,12 +104,12 @@ export function KnowledgeBaseModule({ companyId }: KnowledgeBaseModuleProps) {
         );
         if (res.ok) {
           const data = (await res.json()) as {
-            documents?: Array<{
+            items?: Array<{
               status: string;
               total_chunks: number | null;
             }>;
           };
-          const docs = data.documents ?? [];
+          const docs = data.items ?? [];
           setStats({
             total: docs.length,
             ready: docs.filter((d) => d.status === "ready").length,

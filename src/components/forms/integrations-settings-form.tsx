@@ -256,7 +256,7 @@ export function IntegrationsSettingsForm() {
   const [activeModal, setActiveModal] = useState<ModalMeta | null>(null);
 
   const [evoForm, setEvoForm] = useState<EvoForm>({
-    baseUrl: "https://crm.getlead.capital",
+    baseUrl: "https://api.getlead.capital",
     apiToken: "",
   });
   const [evolutionManagerPhone, setEvolutionManagerPhone] = useState("");
@@ -727,8 +727,9 @@ export function IntegrationsSettingsForm() {
         <input
           id="evo-base-url"
           value={evoForm.baseUrl}
-          readOnly
-          className="h-10 w-full rounded-lg border border-border bg-sidebar px-3 text-sm text-muted cursor-not-allowed"
+          onChange={handleEvoChange("baseUrl")}
+          placeholder="https://api.getlead.capital"
+          className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm placeholder:text-muted-light hover:border-border-strong focus:outline-none focus:border-transparent focus:ring-2 focus:ring-primary"
         />
         {errors.evo.baseUrl ? <p className="text-xs text-danger">{errors.evo.baseUrl}</p> : null}
       </div>

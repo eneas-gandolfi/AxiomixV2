@@ -435,6 +435,13 @@ export async function buildCrmDailySnapshot(companyId: string): Promise<CrmDaily
     }
   }
 
+  // Pipeline do Evo CRM (best-effort)
+  const pipelineSection = await buildEvoCrmPipelineSection(companyId);
+  if (pipelineSection) {
+    lines.push("");
+    lines.push(pipelineSection);
+  }
+
   return {
     hasData: true,
     snapshot: lines.join("\n"),
@@ -448,4 +455,49 @@ export async function buildCrmDailySnapshot(companyId: string): Promise<CrmDaily
       stalled: stalledDeals.length,
     },
   };
+}
+
+async function buildEvoCrmPipelineSection(companyId: string): Promise<string | null> {
+  try {
+    const { getEvoCrmClient } = await import("@/services/evo-crm/client");
+    const client = await getEvoCrmClient(companyId);
+    const pipelines = await client.listPipelines();
+
+    if (pipelines.length === 0) return null;
+
+    const sections: string[] = [];
+    sections.push(`\u{1F4CA} *Pipeline CRM*`);
+
+    for (const pipeline of pipelines.slice(0, 3)) {
+      if (!pipeline.stages || pipeline.stages.length === 0) continue;
+
+      const totalItems = pipeline.stages.reduce(
+        (acc, s) => acc + (s.item_count ?? 0),
+        0
+      );
+
+      if (totalItems === 0) {
+        sections.push(`_${pipeline.name}:_ sem itens`);
+        continue;
+      }
+
+      const stageLines = pipeline.stages
+        .filter((s) => (s.item_count ?? 0) > 0)
+        .map((s) => {
+          const pct = Math.round(((s.item_count ?? 0) / totalItems) * 100);
+          return `${s.name}: ${s.item_count} (${pct}%)`;
+        })
+        .join(" \u{2022} ");
+
+      sections.push(`_${pipeline.name}_ (${totalItems} total): ${stageLines}`);
+    }
+
+    return sections.length > 1 ? sections.join("\n") : null;
+  } catch (err) {
+    console.warn(
+      "[context-builder] Pipeline CRM indisponível (best-effort):",
+      err instanceof Error ? err.message : err
+    );
+    return null;
+  }
 }
