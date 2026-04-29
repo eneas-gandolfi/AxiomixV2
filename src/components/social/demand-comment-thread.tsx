@@ -58,7 +58,7 @@ export function DemandCommentThread({
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-[#FA5E24]" />
+        <MessageSquare className="h-4 w-4 text-[var(--module-accent)]" />
         Comentários ({comments.length})
       </h3>
 
@@ -104,7 +104,7 @@ export function DemandCommentThread({
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Escreva um comentário..."
-          className="flex-1 min-h-[60px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] resize-none focus:outline-none focus:ring-2 focus:ring-[#FA5E24] focus:border-transparent"
+          className="flex-1 min-h-[60px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)] focus:border-transparent"
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
               handleSubmit();

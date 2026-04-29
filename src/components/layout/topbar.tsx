@@ -55,7 +55,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-[var(--color-surface)]">
+    <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-4">
           <button

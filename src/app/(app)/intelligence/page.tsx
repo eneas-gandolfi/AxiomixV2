@@ -136,7 +136,7 @@ export default async function IntelligencePage() {
   }));
 
   return (
-    <div style={{ '--module-color': '#D4A853', '--module-color-bg': '#FDF6E3' } as React.CSSProperties}>
+    <div style={{ '--module-color-bg': 'var(--module-accent-bg, #FFFBEB)' } as React.CSSProperties}>
     <PageContainer
       title="Intelligence"
       description="Monitore concorrentes e identifique conteudos virais do seu nicho."

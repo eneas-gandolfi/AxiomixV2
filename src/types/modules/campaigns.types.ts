@@ -140,7 +140,7 @@ export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
 export const DELIVERY_STATUS_COLORS: Record<DeliveryStatus, string> = {
   sent_to_provider: "#1677FF",
   delivered: "#52C41A",
-  read: "#2EC4B6",
+  read: "var(--module-accent)",
   failed_delivery: "#FF4D4F",
 };
 

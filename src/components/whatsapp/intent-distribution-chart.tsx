@@ -23,7 +23,7 @@ type IntentDistributionChartProps = {
 
 const INTENT_COLORS: Record<string, string> = {
   compra: "var(--color-success)",
-  suporte: "var(--color-primary)",
+  suporte: "var(--module-accent)",
   reclamacao: "var(--color-danger)",
   duvida: "var(--color-warning)",
   cancelamento: "var(--color-danger)",

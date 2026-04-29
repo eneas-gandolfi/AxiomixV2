@@ -7,11 +7,14 @@ import { cn } from "@/lib/utils";
 import { useSidebarState } from "@/lib/hooks/use-sidebar-state";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { ModuleThemeProvider } from "@/lib/module-theme";
+import { useTheme } from "@/lib/theme-provider";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, toggle] = useSidebarState();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const { theme } = useTheme();
 
   useEffect(() => {
     setMobileOpen(false);
@@ -49,7 +52,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar onMobileMenuOpen={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <ModuleThemeProvider isDark={theme === "dark"}>
+          <main className="flex-1 overflow-y-auto">{children}</main>
+        </ModuleThemeProvider>
       </div>
     </div>
   );

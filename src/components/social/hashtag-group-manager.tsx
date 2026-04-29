@@ -206,7 +206,7 @@ export function HashtagGroupManager({
     <Modal
       title={
         <div className="flex items-center gap-2">
-          <Hash className="h-5 w-5 text-[#FA5E24]" />
+          <Hash className="h-5 w-5 text-[var(--module-accent)]" />
           <span>Gerenciar Grupos de Hashtags</span>
         </div>
       }

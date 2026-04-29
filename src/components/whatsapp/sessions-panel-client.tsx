@@ -223,7 +223,7 @@ export function SessionsPanelClient({ companyId }: SessionsPanelClientProps) {
               onClick={() => setFilter(f)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 filter === f
-                  ? "bg-[#2EC4B6] text-white"
+                  ? "bg-[var(--module-accent)] text-white"
                   : "bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]"
               }`}
             >
@@ -247,7 +247,7 @@ export function SessionsPanelClient({ companyId }: SessionsPanelClientProps) {
       <Card className="rounded-xl border border-border bg-card">
         <CardHeader className="border-b border-border p-4">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-[#2EC4B6]" />
+            <Clock className="h-4 w-4 text-[var(--module-accent)]" />
             <span className="text-base font-semibold text-text">
               Sessões WhatsApp
               <span className="ml-2 text-sm font-normal text-muted">({filteredSessions.length})</span>
@@ -290,7 +290,7 @@ export function SessionsPanelClient({ companyId }: SessionsPanelClientProps) {
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setTemplateTarget(session); }}
-                          className="inline-flex items-center gap-1 rounded-lg bg-[#2EC4B6] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#27b0a3] transition-colors"
+                          className="inline-flex items-center gap-1 rounded-lg bg-[var(--module-accent)] px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-colors"
                         >
                           <Send className="h-3 w-3" />
                           Template
@@ -355,7 +355,7 @@ export function SessionsPanelClient({ companyId }: SessionsPanelClientProps) {
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
                 placeholder="Ex: hello_world"
-                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-tertiary)] focus:border-[#2EC4B6] focus:outline-none focus:ring-1 focus:ring-[#2EC4B6]"
+                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--module-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--module-accent)]"
               />
             </div>
 
@@ -377,7 +377,7 @@ export function SessionsPanelClient({ companyId }: SessionsPanelClientProps) {
                 type="button"
                 onClick={handleSendTemplate}
                 disabled={sending || !templateName.trim()}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#2EC4B6] px-4 py-2 text-sm font-medium text-white hover:bg-[#27b0a3] transition-colors disabled:opacity-40"
+                className="inline-flex items-center gap-2 rounded-lg bg-[var(--module-accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors disabled:opacity-40"
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 Enviar

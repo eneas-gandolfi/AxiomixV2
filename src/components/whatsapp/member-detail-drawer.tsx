@@ -171,7 +171,7 @@ export function MemberDetailDrawer({
             {/* Teams */}
             <div className="px-6 py-4">
               <div className="flex items-center gap-2 mb-3">
-                <Users className="h-4 w-4 text-[#2EC4B6]" />
+                <Users className="h-4 w-4 text-[var(--module-accent)]" />
                 <label className="text-xs font-medium text-muted uppercase tracking-wide">
                   Times
                 </label>
@@ -195,7 +195,7 @@ export function MemberDetailDrawer({
             {/* Quick Assign */}
             <div className="px-6 py-4">
               <div className="flex items-center gap-2 mb-3">
-                <MessageSquare className="h-4 w-4 text-[#2EC4B6]" />
+                <MessageSquare className="h-4 w-4 text-[var(--module-accent)]" />
                 <label className="text-xs font-medium text-muted uppercase tracking-wide">
                   Atribuir Conversa
                 </label>
@@ -234,7 +234,7 @@ export function MemberDetailDrawer({
                                   Atribuído
                                 </span>
                               ) : !isAssigned ? (
-                                <span className="text-[10px] text-[#2EC4B6]">
+                                <span className="text-[10px] text-[var(--module-accent)]">
                                   Sem responsável
                                 </span>
                               ) : null}

@@ -66,7 +66,7 @@ function getColorClasses(color?: string) {
     case "danger":
       return { text: "text-danger", bg: "bg-danger-light", stroke: "var(--color-danger)" };
     case "primary":
-      return { text: "text-primary", bg: "bg-primary-light", stroke: "var(--color-primary)" };
+      return { text: "text-primary", bg: "bg-primary-light", stroke: "var(--module-accent)" };
     default:
       return { text: "text-text", bg: "bg-background", stroke: "var(--color-muted)" };
   }
@@ -123,12 +123,16 @@ export function MetricCardWithSparkline({
     <Wrapper className={href ? "block" : undefined}>
     <Card className={`${className ?? ""}${href ? " cursor-pointer transition-shadow hover:shadow-md" : ""}`}>
       <CardHeader className="pb-2">
-        <CardDescription className="text-xs">{title}</CardDescription>
+        <CardDescription className="ax-kpi-label !text-xs !uppercase">{title}</CardDescription>
         <div className="flex items-center justify-between">
-          <CardTitle className={`text-3xl tabular-nums ${color ? colors.text : ""}`}>
+          <CardTitle className={`ax-kpi text-3xl ${color ? colors.text : ""}`}>
             {value}
           </CardTitle>
-          {IconComponent && <IconComponent className={`h-5 w-5 ${colors.text}`} />}
+          {IconComponent && (
+            <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${colors.bg}`}>
+              <IconComponent className={`h-4 w-4 ${colors.text}`} />
+            </span>
+          )}
         </div>
       </CardHeader>
       <CardContent>

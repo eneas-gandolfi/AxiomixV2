@@ -65,7 +65,7 @@ export function BestTimesWidget({ companyId }: BestTimesWidgetProps) {
     <Card accent className="rounded-xl">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-[#FA5E24]" />
+          <TrendingUp className="h-4 w-4 text-[var(--module-accent)]" />
           Melhores Horários
         </CardTitle>
       </CardHeader>
@@ -79,7 +79,7 @@ export function BestTimesWidget({ companyId }: BestTimesWidgetProps) {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 text-[10px] font-medium py-1.5 rounded-md transition-all ${
                 activeTab === tab.key
-                  ? "bg-[var(--color-surface)] text-[#FA5E24] shadow-sm"
+                  ? "bg-[var(--color-surface)] text-[var(--module-accent)] shadow-sm"
                   : "text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
               }`}
             >
@@ -112,7 +112,7 @@ export function BestTimesWidget({ companyId }: BestTimesWidgetProps) {
                     key={`${slot.dayOfWeek}-${slot.hour}`}
                     className="flex items-center gap-2 text-xs"
                   >
-                    <span className="text-[#FA5E24] font-bold w-4">{i + 1}.</span>
+                    <span className="text-[var(--module-accent)] font-bold w-4">{i + 1}.</span>
                     <Clock className="h-3 w-3 text-[var(--color-text-tertiary)]" />
                     <span className="text-[var(--color-text)] font-medium">
                       {DAYS[slot.dayOfWeek]} {slot.hour}h

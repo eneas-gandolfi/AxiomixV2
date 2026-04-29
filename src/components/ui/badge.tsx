@@ -18,16 +18,19 @@ const badgeVariants = cva(
           "bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]",
         primary:
           "bg-[var(--color-primary-dim)] text-[var(--color-primary)]",
+        /* Usa a cor de acento do módulo ativo */
+        module:
+          "bg-[var(--module-accent-light,var(--color-primary-dim))] text-[var(--module-accent,var(--color-primary))]",
         success:
-          "bg-[var(--color-success-bg)] text-[#16A34A] dark:text-[#22C55E]",
+          "bg-[var(--color-success-bg)] text-[var(--color-success)]",
         warning:
-          "bg-[var(--color-warning-bg)] text-[#D97706] dark:text-[#F59E0B]",
+          "bg-[var(--color-warning-bg)] text-[var(--color-warning)]",
         danger:
-          "bg-[var(--color-danger-bg)] text-[#DC2626] dark:text-[#EF4444]",
+          "bg-[var(--color-danger-bg)] text-[var(--color-danger)]",
         teal:
-          "bg-[#E0FAF7] text-[#0D9488] dark:bg-[#164E4A] dark:text-[#2EC4B6]",
+          "bg-teal-light text-teal dark:bg-teal-dim dark:text-teal",
         gold:
-          "bg-[#FDF6E3] text-[#B45309] dark:bg-[#6B5429] dark:text-[#D4A853]",
+          "bg-gold-light text-gold dark:bg-gold-dim dark:text-gold",
       },
       size: {
         sm: "text-xs px-2 py-0.5 rounded-sm",
@@ -44,11 +47,12 @@ const badgeVariants = cva(
 const dotColors: Record<string, string> = {
   default: "text-[var(--color-text-tertiary)]",
   primary: "text-[var(--color-primary)]",
-  success: "text-[#16A34A] dark:text-[#22C55E]",
-  warning: "text-[#D97706] dark:text-[#F59E0B]",
-  danger: "text-[#DC2626] dark:text-[#EF4444]",
-  teal: "text-[#0D9488] dark:text-[#2EC4B6]",
-  gold: "text-[#B45309] dark:text-[#D4A853]",
+  module: "text-[var(--module-accent,var(--color-primary))]",
+  success: "text-[var(--color-success)]",
+  warning: "text-[var(--color-warning)]",
+  danger: "text-[var(--color-danger)]",
+  teal: "text-teal",
+  gold: "text-gold",
 };
 
 export interface BadgeProps

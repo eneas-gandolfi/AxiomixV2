@@ -88,7 +88,7 @@ function StageColumn({
     <div
       ref={setNodeRef}
       className={`w-72 shrink-0 rounded-xl border border-border bg-sidebar border-t-4 sm:w-80 ${colorClass} transition-colors ${
-        isOver ? "bg-[#E0FAF7]/30" : ""
+        isOver ? "bg-[var(--module-accent-bg)]" : ""
       }`}
     >
       {/* Stage header */}
@@ -102,7 +102,7 @@ function StageColumn({
           </div>
           <div className="flex items-center gap-2">
             {stageTotal > 0 && (
-              <span className="text-xs font-medium text-[#2EC4B6]">
+              <span className="text-xs font-medium text-[var(--module-accent)]">
                 {formatStageCurrency(stageTotal)}
               </span>
             )}
@@ -369,7 +369,7 @@ export function KanbanBoard({
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
             <span className="rounded-md bg-sidebar px-2 py-1 font-medium">{totalCards} cards</span>
             {totalValue > 0 && (
-              <span className="flex items-center gap-1 rounded-md bg-sidebar px-2 py-1 font-medium text-[#2EC4B6]">
+              <span className="flex items-center gap-1 rounded-md bg-sidebar px-2 py-1 font-medium text-[var(--module-accent)]">
                 <DollarSign className="h-3 w-3" />
                 {formatStageCurrency(totalValue)}
               </span>
@@ -403,7 +403,7 @@ export function KanbanBoard({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar cards..."
-            className="w-full rounded-lg border border-border bg-background py-1.5 pl-8 pr-3 text-sm text-text placeholder:text-muted focus:border-[#2EC4B6] focus:outline-none"
+            className="w-full rounded-lg border border-border bg-background py-1.5 pl-8 pr-3 text-sm text-text placeholder:text-muted focus:border-[var(--module-accent)] focus:outline-none"
           />
         </div>
 
@@ -440,7 +440,7 @@ export function KanbanBoard({
 
                   {/* Create card — footer position (Trello/Linear pattern) */}
                   {creatingInStage === stage.id ? (
-                    <div className="rounded-lg border border-[#2EC4B6] bg-card p-2 space-y-2">
+                    <div className="rounded-lg border border-[var(--module-accent)] bg-card p-2 space-y-2">
                       <input
                         type="text"
                         value={newCardTitle}
@@ -459,7 +459,7 @@ export function KanbanBoard({
 
                       <button
                         onClick={() => setShowMoreFields(!showMoreFields)}
-                        className="flex items-center gap-1 text-xs text-[#2EC4B6] hover:underline"
+                        className="flex items-center gap-1 text-xs text-[var(--module-accent)] hover:underline"
                       >
                         {showMoreFields ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                         {showMoreFields ? "Menos campos" : "Mais campos"}
@@ -528,7 +528,7 @@ export function KanbanBoard({
                   ) : (
                     <button
                       onClick={() => setCreatingInStage(stage.id)}
-                      className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-border py-2 text-xs text-muted hover:border-[#2EC4B6] hover:text-[#2EC4B6] transition-colors"
+                      className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-border py-2 text-xs text-muted hover:border-[var(--module-accent)] hover:text-[var(--module-accent)] transition-colors"
                     >
                       <Plus className="h-3 w-3" />
                       Novo card

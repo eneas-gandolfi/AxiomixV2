@@ -42,7 +42,7 @@ export function DemandsTable({
         <button
           type="button"
           onClick={() => onViewDemand(record)}
-          className="text-sm font-medium text-[var(--color-text)] hover:text-[#FA5E24] transition-colors text-left"
+          className="text-sm font-medium text-[var(--color-text)] hover:text-[var(--module-accent)] transition-colors text-left"
         >
           {title}
         </button>

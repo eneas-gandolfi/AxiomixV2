@@ -85,11 +85,11 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-      <Card className="w-full max-w-md">
+    <div>
+      <Card className="w-full border-[#1E2530]/60 bg-[#0D1117] shadow-none hover:border-[#1E2530]/60 hover:shadow-none">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl">Redefinir senha</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl text-[#F0F4FA]">Redefinir senha</CardTitle>
+          <CardDescription className="text-[#8892A4]">
             Escolha uma nova senha para sua conta.
           </CardDescription>
         </CardHeader>
@@ -103,7 +103,7 @@ export default function ResetPasswordPage() {
               <div className="space-y-1">
                 <label
                   htmlFor="password"
-                  className="text-sm font-medium text-text"
+                  className="text-sm font-medium text-[#C8D0DC]"
                 >
                   Nova senha
                 </label>
@@ -120,7 +120,7 @@ export default function ResetPasswordPage() {
                     }));
                   }}
                   required
-                  className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm text-text placeholder:text-muted-light focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="h-10 w-full rounded-lg border border-[#1E2530] bg-[#161B22] px-3 text-sm text-[#F0F4FA] placeholder:text-[#5A6472] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 focus:border-[var(--color-primary)]/50 transition-all"
                   placeholder="********"
                 />
                 {errors.password ? (
@@ -131,7 +131,7 @@ export default function ResetPasswordPage() {
               <div className="space-y-1">
                 <label
                   htmlFor="confirmPassword"
-                  className="text-sm font-medium text-text"
+                  className="text-sm font-medium text-[#C8D0DC]"
                 >
                   Confirmar nova senha
                 </label>
@@ -148,7 +148,7 @@ export default function ResetPasswordPage() {
                     }));
                   }}
                   required
-                  className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm text-text placeholder:text-muted-light focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="h-10 w-full rounded-lg border border-[#1E2530] bg-[#161B22] px-3 text-sm text-[#F0F4FA] placeholder:text-[#5A6472] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 focus:border-[var(--color-primary)]/50 transition-all"
                   placeholder="********"
                 />
                 {errors.confirmPassword ? (

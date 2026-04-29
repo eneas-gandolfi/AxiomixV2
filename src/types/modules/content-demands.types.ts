@@ -96,7 +96,7 @@ export const DEMAND_STATUS_COLORS: Record<DemandStatus, string> = {
   em_revisao: "bg-[var(--color-warning-bg)] text-[var(--color-warning)]",
   alteracoes_solicitadas: "bg-[var(--color-danger-bg)] text-[var(--color-danger)]",
   aprovado: "bg-[var(--color-success-bg)] text-[#22C55E]",
-  agendado: "bg-[var(--color-primary-dim)] text-[#FA5E24]",
+  agendado: "bg-[var(--module-accent-light,var(--color-primary-dim))] text-[var(--module-accent,var(--color-primary))]",
   publicado: "bg-[var(--color-success-bg)] text-[#22C55E]",
 };
 

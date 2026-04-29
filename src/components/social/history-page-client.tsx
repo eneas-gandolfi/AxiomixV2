@@ -231,7 +231,7 @@ export function HistoryPageClient({
       <Card accent className="rounded-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5 text-[#FA5E24]" />
+            <History className="h-5 w-5 text-[var(--module-accent)]" />
             Histórico de Publicações
           </CardTitle>
           <CardDescription>
@@ -248,7 +248,7 @@ export function HistoryPageClient({
                   setStatusFilter(nextStatus);
                   void fetchHistory(1, nextStatus, dateFrom, dateTo);
                 }}
-                className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#FA5E24]"
+                className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)]"
               >
                 <option value="all">Todos os status</option>
                 <option value="scheduled">Agendado</option>
@@ -264,14 +264,14 @@ export function HistoryPageClient({
               type="date"
               value={dateFrom}
               onChange={(event) => setDateFrom(event.target.value)}
-              className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#FA5E24]"
+              className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)]"
             />
 
             <input
               type="date"
               value={dateTo}
               onChange={(event) => setDateTo(event.target.value)}
-              className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#FA5E24]"
+              className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)]"
             />
 
             <Button

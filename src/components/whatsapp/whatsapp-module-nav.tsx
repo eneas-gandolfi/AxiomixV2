@@ -89,8 +89,8 @@ export function WhatsAppModuleNav() {
               href={tab.href}
               className={`flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm rounded-t-lg transition-all border-b-2 ${
                 active
-                  ? "border-[#2EC4B6] text-[#2EC4B6] font-medium bg-[#E0FAF7]/40"
-                  : "border-transparent text-muted hover:text-text hover:bg-sidebar"
+                  ? "border-[var(--module-accent)] text-[var(--module-accent)] font-medium bg-[var(--module-accent-light)]/30"
+                  : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"
               }`}
             >
               <Icon className="h-4 w-4" />

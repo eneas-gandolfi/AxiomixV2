@@ -7,6 +7,7 @@
 
 import { Zap, ExternalLink, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { DecisionAxis } from "@/components/ui/decision-axis";
 import type { CompetitiveIntelligenceData } from "@/types/modules/dashboard.types";
 
 type CompetitiveIntelligenceCardProps = {
@@ -132,20 +133,22 @@ export function CompetitiveIntelligenceCard({ data }: CompetitiveIntelligenceCar
         </div>
       )}
 
-      {/* AI recommendations */}
+      {/* AI recommendations — Eixo de Decisão marca conclusões da IA */}
       {data.recommendations.length > 0 && (
         <div className="mb-3">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-            Recomendações da IA
-          </p>
-          <ul className="space-y-1.5">
-            {data.recommendations.map((rec, index) => (
-              <li key={index} className="flex items-start gap-2 text-xs text-muted">
-                <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary" />
-                {rec}
-              </li>
-            ))}
-          </ul>
+          <DecisionAxis>
+            <p className="mb-2 ax-kpi-label !text-[10px]">
+              Recomendações da IA
+            </p>
+            <ul className="space-y-1.5">
+              {data.recommendations.map((rec, index) => (
+                <li key={index} className="flex items-start gap-2 text-xs text-[var(--color-text-secondary)]">
+                  <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary" />
+                  {rec}
+                </li>
+              ))}
+            </ul>
+          </DecisionAxis>
         </div>
       )}
 

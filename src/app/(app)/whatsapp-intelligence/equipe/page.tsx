@@ -166,7 +166,7 @@ export default function EquipePage() {
         <Card className="rounded-xl border border-border bg-card">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E0FAF7]">
-              <Users className="h-5 w-5 text-[#2EC4B6]" />
+              <Users className="h-5 w-5 text-[var(--module-accent)]" />
             </div>
             <div>
               <p className="text-2xl font-semibold text-text">{users.length}</p>
@@ -178,7 +178,7 @@ export default function EquipePage() {
         <Card className="rounded-xl border border-border bg-card">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E0FAF7]">
-              <UserCog className="h-5 w-5 text-[#2EC4B6]" />
+              <UserCog className="h-5 w-5 text-[var(--module-accent)]" />
             </div>
             <div>
               <p className="text-2xl font-semibold text-text">{teams.length}</p>
@@ -190,7 +190,7 @@ export default function EquipePage() {
         <Card className="rounded-xl border border-border bg-card">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E0FAF7]">
-              <Inbox className="h-5 w-5 text-[#2EC4B6]" />
+              <Inbox className="h-5 w-5 text-[var(--module-accent)]" />
             </div>
             <div>
               <p className="text-2xl font-semibold text-text">{inboxes.length}</p>
@@ -206,7 +206,7 @@ export default function EquipePage() {
           <Card className="rounded-xl border border-border bg-card">
             <CardHeader className="border-b border-border p-4">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-[#2EC4B6]" />
+                <Users className="h-4 w-4 text-[var(--module-accent)]" />
                 <CardTitle className="text-base font-semibold text-text">Membros da Equipe</CardTitle>
               </div>
             </CardHeader>

@@ -357,7 +357,7 @@ export function CampaignDetailClient({
         <StatCard label="Total" value={stats.total} total={stats.total} icon={Users} color="#8A8A8A" />
         <StatCard label="Enviados" value={stats.sent} total={stats.total} icon={CheckCircle} color="#52C41A" />
         <StatCard label="Entregues" value={stats.delivered ?? 0} total={stats.total} icon={CheckCheck} color="#1677FF" />
-        <StatCard label="Lidos" value={stats.read ?? 0} total={stats.total} icon={Eye} color="#2EC4B6" />
+        <StatCard label="Lidos" value={stats.read ?? 0} total={stats.total} icon={Eye} color="var(--module-accent)" />
         <StatCard label="Falhas" value={stats.failed} total={stats.total} icon={XCircle} color="#FF4D4F" />
         <StatCard label="Ignorados" value={stats.skipped} total={stats.total} icon={Clock} color="#FADB14" />
       </div>

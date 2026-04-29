@@ -144,11 +144,11 @@ export default function PipelinePage() {
       {/* Board selector */}
       {boards.length > 1 && (
         <div className="flex items-center gap-2">
-          <Kanban className="h-4 w-4 text-[#2EC4B6]" />
+          <Kanban className="h-4 w-4 text-[var(--module-accent)]" />
           <select
             value={selectedBoardId ?? ""}
             onChange={(e) => setSelectedBoardId(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-text focus:border-[#2EC4B6] focus:outline-none"
+            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-text focus:border-[var(--module-accent)] focus:outline-none"
           >
             {boards.map((board) => (
               <option key={board.id} value={board.id}>

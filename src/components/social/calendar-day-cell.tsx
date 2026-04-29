@@ -86,17 +86,25 @@ export function CalendarDayCell({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onClick={() => {
+        if (isCurrentMonth && posts.length === 0) {
+          onEmptyClick(date);
+        }
+      }}
+      role={isCurrentMonth && posts.length === 0 ? "button" : undefined}
       className={`relative min-h-[100px] border border-[var(--color-border)] rounded-lg p-1.5 transition-all ${
         !isCurrentMonth
           ? "bg-[var(--color-surface-2)]/50 opacity-50"
-          : "bg-[var(--color-surface)]"
+          : posts.length === 0
+            ? "bg-[var(--color-surface)] cursor-pointer hover:border-[#8B5CF6]/40 hover:bg-[#8B5CF6]/[0.03]"
+            : "bg-[var(--color-surface)]"
       } ${
         isToday
-          ? "border-2 border-[var(--color-primary)] bg-[var(--color-primary-dim)]/30"
+          ? "border-2 border-[var(--color-primary)] bg-[#8B5CF6]/[0.06]"
           : ""
       } ${
         isDragOver
-          ? "ring-2 ring-[var(--color-primary)] ring-dashed bg-[var(--color-primary-dim)]/20"
+          ? "ring-2 ring-[#8B5CF6]/40 bg-[#8B5CF6]/[0.08]"
           : ""
       }`}
     >
@@ -105,7 +113,7 @@ export function CalendarDayCell({
         <span
           className={`text-xs font-medium ${
             isToday
-              ? "bg-[#FA5E24] text-white w-5 h-5 rounded-full flex items-center justify-center"
+              ? "bg-[#8B5CF6] text-white w-5 h-5 rounded-full flex items-center justify-center"
               : isCurrentMonth
               ? "text-[var(--color-text)]"
               : "text-[var(--color-text-tertiary)]"
@@ -117,7 +125,7 @@ export function CalendarDayCell({
           <button
             type="button"
             onClick={() => onEmptyClick(date)}
-            className="opacity-0 hover:opacity-100 focus:opacity-100 p-0.5 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-text-tertiary)] hover:text-[#FA5E24] transition-all"
+            className="opacity-0 hover:opacity-100 focus:opacity-100 p-0.5 rounded hover:bg-[#8B5CF6]/10 text-[var(--color-text-tertiary)] hover:text-[#8B5CF6] transition-all"
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -140,7 +148,7 @@ export function CalendarDayCell({
           <button
             type="button"
             onClick={() => setShowAllPosts(true)}
-            className="w-full text-center text-[10px] text-[var(--color-text-tertiary)] hover:text-[#FA5E24] py-0.5 rounded hover:bg-[var(--color-surface-2)] transition-colors"
+            className="w-full text-center text-[10px] text-[var(--color-text-tertiary)] hover:text-[#8B5CF6] py-0.5 rounded hover:bg-[var(--color-surface-2)] transition-colors"
           >
             +{hiddenCount} mais
           </button>

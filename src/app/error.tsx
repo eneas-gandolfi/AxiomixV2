@@ -23,7 +23,7 @@ export default function Error({
       </p>
       <button
         onClick={reset}
-        className="h-10 rounded-md bg-[#FA5E24] px-4 text-sm font-medium text-white transition-colors hover:bg-[#E84D13]"
+        className="h-10 rounded-md bg-[var(--color-primary)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--color-primary-hover)]"
       >
         Tentar novamente
       </button>

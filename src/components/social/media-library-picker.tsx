@@ -135,7 +135,7 @@ export function MediaLibraryPicker({
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)]">
           <div className="flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-[#FA5E24]" />
+            <FolderOpen className="h-5 w-5 text-[var(--module-accent)]" />
             <h2 className="text-base font-semibold text-[var(--color-text)]">
               Selecionar da Biblioteca
             </h2>
@@ -164,7 +164,7 @@ export function MediaLibraryPicker({
                 if (e.key === "Enter") void fetchItems(1, search, fileType);
               }}
               placeholder="Buscar..."
-              className="w-full h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-3 text-sm text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#FA5E24] focus:border-transparent placeholder:text-[var(--color-text-tertiary)]"
+              className="w-full h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-3 text-sm text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)] focus:border-transparent placeholder:text-[var(--color-text-tertiary)]"
             />
           </div>
           {!defaultFileType && (
@@ -179,7 +179,7 @@ export function MediaLibraryPicker({
                   }}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
                     fileType === type
-                      ? "bg-[#FA5E24] text-white"
+                      ? "bg-[var(--module-accent)] text-white"
                       : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)]"
                   }`}
                 >
@@ -194,7 +194,7 @@ export function MediaLibraryPicker({
         <div className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-[#FA5E24]" />
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--module-accent)]" />
             </div>
           ) : items.length === 0 ? (
             <div className="text-center py-16">
@@ -215,8 +215,8 @@ export function MediaLibraryPicker({
                     onClick={() => toggleSelection(item.id)}
                     className={`relative rounded-xl border overflow-hidden text-left transition-all duration-200 ${
                       isSelected
-                        ? "border-2 border-[#FA5E24] ring-2 ring-[#FA5E24]/20"
-                        : "border-[var(--color-border)] hover:border-[#FA5E24]/50 hover:shadow-card"
+                        ? "border-2 border-[var(--module-accent)] ring-2 ring-[var(--module-accent)]/20"
+                        : "border-[var(--color-border)] hover:border-[var(--module-accent)]/50 hover:shadow-card"
                     }`}
                   >
                     <div className="aspect-square bg-[var(--color-surface-2)] relative overflow-hidden">
@@ -240,7 +240,7 @@ export function MediaLibraryPicker({
 
                       {isSelected && (
                         <div className="absolute top-1.5 right-1.5">
-                          <CheckCircle2 className="h-5 w-5 text-[#FA5E24] drop-shadow" />
+                          <CheckCircle2 className="h-5 w-5 text-[var(--module-accent)] drop-shadow" />
                         </div>
                       )}
 

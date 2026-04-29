@@ -25,7 +25,7 @@ type CalendarAgendaViewProps = {
 
 const STATUS_LABELS: Record<SocialPublishStatus, { label: string; color: string }> = {
   scheduled: { label: "Agendado", color: "bg-[var(--color-warning-light)] text-[var(--color-warning)]" },
-  processing: { label: "Processando", color: "bg-[var(--color-primary-dim)] text-[#FA5E24]" },
+  processing: { label: "Processando", color: "bg-[var(--module-accent-light)] text-[var(--module-accent)]" },
   published: { label: "Publicado", color: "bg-[#DCFCE7] text-[#22C55E]" },
   partial: { label: "Parcial", color: "bg-[var(--color-warning-light)] text-[var(--color-warning)]" },
   failed: { label: "Falha", color: "bg-[#FEE2E2] text-[var(--color-danger)]" },

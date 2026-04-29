@@ -61,7 +61,7 @@ export function KanbanCardItem({ card, teamMembers, onClick, isDraggingOverlay }
       ref={isDraggingOverlay ? undefined : setNodeRef}
       style={isDraggingOverlay ? undefined : style}
       className={`group rounded-lg border border-border bg-card transition-all hover:border-border-strong cursor-pointer ${
-        isDraggingOverlay ? "shadow-lg ring-2 ring-[#2EC4B6]/40" : ""
+        isDraggingOverlay ? "shadow-lg ring-2 ring-[var(--module-accent)]/40" : ""
       }`}
       onClick={() => onClick?.(card.id)}
     >
@@ -99,8 +99,8 @@ export function KanbanCardItem({ card, teamMembers, onClick, isDraggingOverlay }
             {/* Value */}
             {typeof card.value_amount === "number" && card.value_amount > 0 && (
               <div className="mt-1.5 flex items-center gap-1">
-                <DollarSign className="h-3 w-3 text-[#2EC4B6]" />
-                <span className="text-xs font-semibold text-[#2EC4B6]">
+                <DollarSign className="h-3 w-3 text-[var(--module-accent)]" />
+                <span className="text-xs font-semibold text-[var(--module-accent)]">
                   {formatCurrency(card.value_amount)}
                 </span>
               </div>
@@ -129,7 +129,7 @@ export function KanbanCardItem({ card, teamMembers, onClick, isDraggingOverlay }
                 </span>
               )}
               {card.source && card.source !== "axiomix" && (
-                <span className="rounded bg-[#E0FAF7] px-1.5 py-0.5 text-[10px] text-[#2EC4B6]">
+                <span className="rounded bg-[var(--module-accent-bg)] px-1.5 py-0.5 text-[10px] text-[var(--module-accent)]">
                   {card.source}
                 </span>
               )}
@@ -140,7 +140,7 @@ export function KanbanCardItem({ card, teamMembers, onClick, isDraggingOverlay }
                 </span>
               )}
               {card.conversation_id && (
-                <span className="flex items-center gap-0.5 text-[10px] text-[#2EC4B6]" title="Vinculado a conversa">
+                <span className="flex items-center gap-0.5 text-[10px] text-[var(--module-accent)]" title="Vinculado a conversa">
                   <MessageSquare className="h-2.5 w-2.5" />
                 </span>
               )}

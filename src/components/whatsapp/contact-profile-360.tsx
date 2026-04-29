@@ -163,13 +163,13 @@ export function ContactProfile360({ companyId, contactPhone, contactName }: Cont
           label="Conversas"
           value={metrics.totalConversations}
           icon={MessageSquare}
-          color="#2EC4B6"
+          color="var(--module-accent)"
         />
         <MetricCard
           label="Mensagens"
           value={metrics.totalMessages}
           icon={TrendingUp}
-          color="#2EC4B6"
+          color="var(--module-accent)"
         />
         <MetricCard
           label="Recebidas"
@@ -354,7 +354,7 @@ export function ContactProfile360({ companyId, contactPhone, contactName }: Cont
                 }
               }}
               disabled={summaryLoading}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#2EC4B6] px-2.5 py-1 text-xs font-medium text-white hover:bg-[#27b0a3] transition-colors disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-lg bg-[var(--module-accent)] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90 transition-colors disabled:opacity-40"
             >
               {summaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
               {summaryLoading ? "Gerando..." : "Gerar com IA"}
@@ -365,7 +365,7 @@ export function ContactProfile360({ companyId, contactPhone, contactName }: Cont
         {aiSummary && (
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
             <div className="flex items-start gap-2">
-              <Sparkles className="h-4 w-4 shrink-0 text-[#2EC4B6] mt-0.5" />
+              <Sparkles className="h-4 w-4 shrink-0 text-[var(--module-accent)] mt-0.5" />
               <p className="text-sm text-[var(--color-text)] leading-relaxed">{aiSummary}</p>
             </div>
           </div>

@@ -116,7 +116,7 @@ export function DemandDetailClient({ demandId, companyId }: DemandDetailClientPr
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-[#FA5E24]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--module-accent)]" />
       </div>
     );
   }
@@ -364,7 +364,7 @@ export function DemandDetailClient({ demandId, companyId }: DemandDetailClientPr
                       key={entry.id}
                       className="flex items-start gap-2 text-xs"
                     >
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#FA5E24] mt-1.5 flex-shrink-0" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-[var(--module-accent)] mt-1.5 flex-shrink-0" />
                       <div>
                         <p className="text-[var(--color-text)]">
                           <span className="font-medium">{entry.userName ?? "Sistema"}</span>

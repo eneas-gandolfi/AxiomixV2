@@ -473,7 +473,7 @@ export function ImageEditor({ imageUrl, onSave, onCancel }: ImageEditorProps) {
                   {cropOverlay.handles.map((h) => (
                     <div
                       key={h.id}
-                      className="absolute bg-white border-2 border-[#FA5E24] rounded-sm z-10"
+                      className="absolute bg-white border-2 border-[var(--module-accent,#8B5CF6)] rounded-sm z-10"
                       style={{
                         left: h.left - HANDLE_SIZE / 2,
                         top: h.top - HANDLE_SIZE / 2,
@@ -623,8 +623,8 @@ export function ImageEditor({ imageUrl, onSave, onCancel }: ImageEditorProps) {
                 onClick={() => applyPreset(preset)}
                 className={`relative rounded-lg overflow-hidden border-2 transition-all duration-200 ${
                   activePreset === preset.name
-                    ? "border-[#FA5E24] ring-2 ring-[#FA5E24]/20"
-                    : "border-border hover:border-[#FA5E24]/50"
+                    ? "border-[var(--module-accent,#8B5CF6)] ring-2 ring-[var(--module-accent,#8B5CF6)]/20"
+                    : "border-border hover:border-[var(--module-accent,#8B5CF6)]/50"
                 }`}
               >
                 <div
@@ -637,7 +637,7 @@ export function ImageEditor({ imageUrl, onSave, onCancel }: ImageEditorProps) {
                   }}
                 />
                 <p className={`text-[10px] text-center py-1 font-medium ${
-                  activePreset === preset.name ? "text-[#FA5E24]" : "text-text"
+                  activePreset === preset.name ? "text-[var(--module-accent,#8B5CF6)]" : "text-text"
                 }`}>
                   {preset.name}
                 </p>

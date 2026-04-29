@@ -26,11 +26,11 @@ import type { UsageResponse } from "@/types/modules/usage.types";
 import { MODULE_LABELS } from "@/types/modules/usage.types";
 
 const MODULE_COLORS: Record<string, string> = {
-  whatsapp: "#2EC4B6",
+  whatsapp: "var(--module-accent)",
   group_agent: "#25D366",
   rag: "#7C3AED",
   reports: "#D4A853",
-  intelligence: "#FA5E24",
+  intelligence: "#D97706",
   social: "#FF6B6B",
   unknown: "#8A8A8A",
 };
@@ -181,7 +181,7 @@ export function AiUsagePanel() {
                   <Line
                     type="monotone"
                     dataKey="total_cost_usd"
-                    stroke="#FA5E24"
+                    stroke="var(--module-accent)"
                     strokeWidth={2}
                     dot={{ r: 3 }}
                   />

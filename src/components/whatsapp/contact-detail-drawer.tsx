@@ -165,7 +165,7 @@ export function ContactDetailDrawer({ open, onClose, companyId, contactId }: Con
                 onClick={() => setActiveTab("info")}
                 className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
                   activeTab === "info"
-                    ? "border-[#2EC4B6] text-[#2EC4B6]"
+                    ? "border-[var(--module-accent)] text-[var(--module-accent)]"
                     : "border-transparent text-muted hover:text-text"
                 }`}
               >
@@ -176,7 +176,7 @@ export function ContactDetailDrawer({ open, onClose, companyId, contactId }: Con
                 onClick={() => setActiveTab("360")}
                 className={`flex items-center gap-1 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
                   activeTab === "360"
-                    ? "border-[#2EC4B6] text-[#2EC4B6]"
+                    ? "border-[var(--module-accent)] text-[var(--module-accent)]"
                     : "border-transparent text-muted hover:text-text"
                 }`}
               >

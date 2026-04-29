@@ -501,7 +501,7 @@ export function CampaignWizard({ companyId }: CampaignWizardProps) {
               <button
                 type="button"
                 onClick={() => setCsvModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-sidebar)] transition-colors"
+                className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-2)] transition-colors"
               >
                 <Upload className="h-4 w-4" />
                 Importar CSV

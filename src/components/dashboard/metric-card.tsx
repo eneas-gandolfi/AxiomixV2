@@ -166,12 +166,12 @@ export function MetricCard({
     <article
       className={cn(
         "group rounded-xl border bg-card p-3 transition-all duration-200 sm:p-4",
-        "opacity-0 animate-fade-in-up",
+        "opacity-0 animate-ax-cascade",
         isHero
-          ? "glass-card gradient-border-card shadow-card-elevated hover:shadow-card-hover-modern"
+          ? "gradient-border-card shadow-card-elevated hover:shadow-card-hover-modern"
           : isStatus
-            ? "border-border/80 bg-surface-2/50 shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern hover:border-primary/20"
-            : "border-border shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern hover:border-primary/20",
+            ? "border-border/80 bg-surface-2/50 shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern hover:border-[rgb(var(--color-primary-rgb)/0.25)]"
+            : "border-border shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern hover:border-[rgb(var(--color-primary-rgb)/0.25)]",
         animationDelay
       )}
     >

@@ -45,6 +45,7 @@ import {
 } from "@/lib/social/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CommandStage } from "./command-stage";
 import { CreatePostDrawer } from "./create-post-drawer";
 import { MediaLibraryPicker } from "./media-library-picker";
 import { PostDetailsModal } from "./post-details-modal";
@@ -479,6 +480,12 @@ export function SocialPublisherDashboard({
         onChange={handleInputChange}
       />
 
+      {/* Command Stage — visão da semana */}
+      <CommandStage
+        history={history}
+        onCreatePost={() => handleOpenDrawer("photo")}
+      />
+
       <section className="grid gap-6 lg:grid-cols-2">
         <Card accent className="flex flex-col transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover">
           <CardHeader className="pb-4">
@@ -499,9 +506,9 @@ export function SocialPublisherDashboard({
                     key={postType}
                     type="button"
                     onClick={() => handleOpenDrawer(postType)}
-                    className="group flex flex-col items-start gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-left shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--module-color)]/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--module-color)]"
+                    className="group flex flex-col items-start gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-left shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--module-color,#8B5CF6)]/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--module-color,#8B5CF6)]"
                   >
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--module-color-bg)] text-[var(--module-color)] transition-colors group-hover:bg-[var(--module-color)] group-hover:text-white">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--module-color-bg,#F5F3FF)] text-[var(--module-color,#8B5CF6)] transition-colors group-hover:bg-[var(--module-color,#8B5CF6)] group-hover:text-white">
                       <Icon className="h-4 w-4" />
                     </span>
                     <span className="text-sm font-semibold text-[var(--color-text)]">
@@ -562,11 +569,11 @@ export function SocialPublisherDashboard({
               }}
               className={`flex min-h-40 flex-1 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-all duration-200 ${
                 isDraggingOver
-                  ? "border-[var(--module-color)] bg-[var(--module-color)]/[0.08]"
-                  : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--module-color)]/60 hover:bg-[var(--module-color)]/[0.04]"
+                  ? "border-[var(--module-color,#8B5CF6)] bg-[var(--module-color,#8B5CF6)]/[0.08]"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--module-color,#8B5CF6)]/60 hover:bg-[var(--module-color,#8B5CF6)]/[0.04]"
               }`}
             >
-              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--module-color-bg)] text-[var(--module-color)]">
+              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--module-color-bg,#F5F3FF)] text-[var(--module-color,#8B5CF6)]">
                 <Upload className="h-5 w-5" />
               </div>
               <p className="text-sm font-medium text-[var(--color-text)]">
@@ -645,7 +652,7 @@ export function SocialPublisherDashboard({
                           <Line
                             type="monotone"
                             dataKey="v"
-                            stroke="var(--module-color)"
+                            stroke="var(--module-color,#8B5CF6)"
                             strokeWidth={1.5}
                             dot={false}
                             isAnimationActive={false}
@@ -710,7 +717,7 @@ export function SocialPublisherDashboard({
                     </div>
                   )}
                   <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[var(--color-surface)]/90 px-2 py-0.5 text-xs font-medium text-[var(--color-text)] shadow-card backdrop-blur">
-                    <Clock className="h-3 w-3 text-[var(--module-color)]" />
+                    <Clock className="h-3 w-3 text-[var(--module-color,#8B5CF6)]" />
                     {formatShortRelative(item.scheduledAt)}
                   </span>
                 </div>
@@ -753,7 +760,7 @@ export function SocialPublisherDashboard({
         ) : (
           <Card className="transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-card-hover">
             <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--module-color-bg)] text-[var(--module-color)]">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--module-color-bg,#F5F3FF)] text-[var(--module-color,#8B5CF6)]">
                 <Calendar className="h-5 w-5" />
               </div>
               <div>
@@ -783,7 +790,7 @@ export function SocialPublisherDashboard({
               </p>
             </div>
             {isRefreshingHistory ? (
-              <Loader2 className="h-4 w-4 animate-spin text-[var(--module-color)]" />
+              <Loader2 className="h-4 w-4 animate-spin text-[var(--module-color,#8B5CF6)]" />
             ) : null}
           </div>
           <Button asChild variant="ghost" size="sm">
@@ -864,7 +871,7 @@ export function SocialPublisherDashboard({
                           aria-hidden="true"
                         >
                           <div
-                            className="h-full rounded-r-full bg-[var(--module-color)] transition-all duration-500"
+                            className="h-full rounded-r-full bg-[var(--module-color,#8B5CF6)] transition-all duration-500"
                             style={{ width: `${progressPct}%` }}
                           />
                         </div>

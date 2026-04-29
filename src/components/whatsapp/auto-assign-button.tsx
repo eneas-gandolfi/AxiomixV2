@@ -100,7 +100,7 @@ export function AutoAssignButton({ companyId, agents = [], onAssigned }: AutoAss
           type="button"
           onClick={handleRun}
           disabled={running}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#2EC4B6] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#27b0a3] transition-colors disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-lg bg-[var(--module-accent)] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-colors disabled:opacity-40"
         >
           {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
           {running ? "Distribuindo..." : "Auto-Assignment"}
@@ -124,7 +124,7 @@ export function AutoAssignButton({ companyId, agents = [], onAssigned }: AutoAss
             <button
               type="button"
               onClick={addRule}
-              className="text-xs text-[#2EC4B6] hover:underline"
+              className="text-xs text-[var(--module-accent)] hover:underline"
             >
               + Adicionar regra
             </button>

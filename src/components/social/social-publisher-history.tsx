@@ -125,7 +125,7 @@ export function SocialPublisherHistory({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5 text-[#FA5E24]" />
+                <History className="h-5 w-5 text-[var(--module-accent)]" />
                 Histórico de Publicações
               </CardTitle>
               <CardDescription>

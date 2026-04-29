@@ -46,7 +46,7 @@ export function SocialModuleNav() {
               href={tab.href}
               className={`flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm rounded-t-lg transition-all border-b-2 ${
                 active
-                  ? "border-[var(--module-color)] text-[var(--module-color)] font-medium bg-[var(--module-color-bg)]/40"
+                  ? "border-[var(--module-accent)] text-[var(--module-accent)] font-medium bg-[var(--module-accent-light)]/30"
                   : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"
               }`}
             >

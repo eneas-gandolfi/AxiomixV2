@@ -155,12 +155,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-      <Card className="w-full max-w-md">
+    <div>
+      <Card className="w-full border-[#1E2530]/60 bg-[#0D1117] shadow-none hover:border-[#1E2530]/60 hover:shadow-none">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl">Entrar no AXIOMIX</CardTitle>
-          <CardDescription>
-            Acesso restrito a usuários previamente cadastrados no Supabase.
+          <CardTitle className="text-2xl text-[#F0F4FA]">Entrar</CardTitle>
+          <CardDescription className="text-[#8892A4]">
+            Use suas credenciais para acessar o painel.
           </CardDescription>
         </CardHeader>
         {idleReason ? (
@@ -171,7 +171,7 @@ export default function LoginPage() {
         <CardContent>
           <form className="space-y-4" onSubmit={handlePasswordLogin}>
             <div className="space-y-1">
-              <label htmlFor="email" className="text-sm font-medium text-text">
+              <label htmlFor="email" className="text-sm font-medium text-[#C8D0DC]">
                 E-mail
               </label>
               <input
@@ -180,7 +180,7 @@ export default function LoginPage() {
                 value={fields.email}
                 onChange={handleFieldChange("email")}
                 required
-                className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm text-text placeholder:text-muted-light focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="h-10 w-full rounded-lg border border-[#1E2530] bg-[#161B22] px-3 text-sm text-[#F0F4FA] placeholder:text-[#5A6472] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 focus:border-[var(--color-primary)]/50 transition-all"
                 placeholder="gestor@empresa.com"
               />
               {errors.email ? <p className="text-xs text-danger">{errors.email}</p> : null}
@@ -188,7 +188,7 @@ export default function LoginPage() {
 
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-sm font-medium text-text">
+                <label htmlFor="password" className="text-sm font-medium text-[#C8D0DC]">
                   Senha
                 </label>
                 <a
@@ -204,7 +204,7 @@ export default function LoginPage() {
                 value={fields.password}
                 onChange={handleFieldChange("password")}
                 required
-                className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm text-text placeholder:text-muted-light focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="h-10 w-full rounded-lg border border-[#1E2530] bg-[#161B22] px-3 text-sm text-[#F0F4FA] placeholder:text-[#5A6472] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 focus:border-[var(--color-primary)]/50 transition-all"
                 placeholder="********"
               />
               {errors.password ? <p className="text-xs text-danger">{errors.password}</p> : null}
@@ -215,9 +215,9 @@ export default function LoginPage() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 rounded border-border accent-[var(--color-primary)]"
+                className="h-4 w-4 rounded border-[#1E2530] bg-[#161B22] accent-[var(--color-primary)]"
               />
-              <span className="text-sm text-[var(--color-text-secondary)]">Lembrar-me</span>
+              <span className="text-sm text-[#8892A4]">Lembrar-me</span>
             </label>
 
             {errors.form ? <p className="text-sm text-danger">{errors.form}</p> : null}
@@ -235,14 +235,14 @@ export default function LoginPage() {
           <Button
             type="button"
             variant="secondary"
-            className="mt-3 w-full"
+            className="mt-3 w-full border-[#1E2530] bg-[#161B22] text-[#C8D0DC] hover:bg-[#1C2230] hover:text-[#F0F4FA]"
             disabled={isPasswordLoading || isMagicLinkLoading}
             onClick={handleMagicLink}
           >
             {isMagicLinkLoading ? "Enviando..." : "Entrar com link mágico"}
           </Button>
 
-          <p className="mt-4 text-center text-sm text-muted">
+          <p className="mt-4 text-center text-sm text-[#5A6472]">
             Solicite ao administrador o cadastro do seu usuário.
           </p>
         </CardContent>

@@ -54,9 +54,9 @@ const sharedTokens: ThemeConfig['token'] = {
   borderRadiusLG:        12,
   borderRadiusXS:        4,
 
-  // Sombras
-  boxShadow:             '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-  boxShadowSecondary:    '0 4px 16px rgba(0,0,0,0.10)',
+  // Sombras — warm shadow system (tom alaranjado sutil)
+  boxShadow:             '0 1px 3px rgba(166,96,54,0.06), 0 6px 16px rgba(166,96,54,0.04)',
+  boxShadowSecondary:    '0 4px 16px rgba(166,96,54,0.08)',
 
   // Motion
   motionDurationSlow:    '0.2s',

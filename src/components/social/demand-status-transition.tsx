@@ -116,7 +116,7 @@ export function DemandStatusTransition({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="Descreva as alterações necessárias..."
-            className="w-full min-h-[80px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] resize-none focus:outline-none focus:ring-2 focus:ring-[#FA5E24] focus:border-transparent"
+            className="w-full min-h-[80px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)] focus:border-transparent"
           />
           <div className="flex gap-2">
             <Button

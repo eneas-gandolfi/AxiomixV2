@@ -26,12 +26,12 @@ export function PageContainer({
         <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1">
             {title ? (
-              <h1 className="font-display text-xl font-bold text-[var(--color-text)] md:text-2xl">
+              <h1 className="ax-t1 text-xl md:text-2xl">
                 {title}
               </h1>
             ) : null}
             {description ? (
-              <p className="text-sm text-[var(--color-text-secondary)]">{description}</p>
+              <p className="ax-body text-[var(--color-text-secondary)]">{description}</p>
             ) : null}
           </div>
           {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

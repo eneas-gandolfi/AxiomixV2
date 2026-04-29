@@ -260,7 +260,7 @@ export function KanbanCardDrawer({
                   value={editTitle}
                   onChange={(e) => { setEditTitle(e.target.value); markDirty(); }}
                   onBlur={() => setEditingField(null)}
-                  className="w-full rounded border border-border bg-background px-2 py-1 text-lg font-semibold text-text focus:outline-none focus:border-[#2EC4B6]"
+                  className="w-full rounded border border-border bg-background px-2 py-1 text-lg font-semibold text-text focus:outline-none focus:border-[var(--module-accent)]"
                   autoFocus
                 />
               ) : (
@@ -285,7 +285,7 @@ export function KanbanCardDrawer({
                   onChange={(e) => { setEditDescription(e.target.value); markDirty(); }}
                   onBlur={() => setEditingField(null)}
                   rows={4}
-                  className="w-full resize-none rounded border border-border bg-background px-2 py-1.5 text-sm text-text focus:outline-none focus:border-[#2EC4B6]"
+                  className="w-full resize-none rounded border border-border bg-background px-2 py-1.5 text-sm text-text focus:outline-none focus:border-[var(--module-accent)]"
                   autoFocus
                 />
               ) : (
@@ -305,7 +305,7 @@ export function KanbanCardDrawer({
             <div className="px-6 py-4 space-y-4">
               {/* Value */}
               <div className="flex items-center gap-3">
-                <DollarSign className="h-4 w-4 text-[#2EC4B6] shrink-0" />
+                <DollarSign className="h-4 w-4 text-[var(--module-accent)] shrink-0" />
                 <div className="flex-1">
                   <label className="block text-xs text-muted mb-0.5">Valor</label>
                   {editingField === "value" ? (
@@ -315,7 +315,7 @@ export function KanbanCardDrawer({
                       onChange={(e) => { setEditValueAmount(e.target.value); markDirty(); }}
                       onBlur={() => setEditingField(null)}
                       placeholder="0,00"
-                      className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-text focus:outline-none focus:border-[#2EC4B6]"
+                      className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-text focus:outline-none focus:border-[var(--module-accent)]"
                       autoFocus
                     />
                   ) : (
@@ -375,7 +375,7 @@ export function KanbanCardDrawer({
                       onChange={(e) => { setEditAssignedTo(e.target.value); markDirty(); }}
                       onBlur={() => setEditingField(null)}
                       placeholder="ID do responsável"
-                      className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-text focus:outline-none focus:border-[#2EC4B6]"
+                      className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-text focus:outline-none focus:border-[var(--module-accent)]"
                       autoFocus
                     />
                   ) : (
@@ -404,7 +404,7 @@ export function KanbanCardDrawer({
                       onChange={(e) => { setEditPhone(e.target.value); markDirty(); }}
                       onBlur={() => setEditingField(null)}
                       placeholder="+55..."
-                      className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-text focus:outline-none focus:border-[#2EC4B6]"
+                      className="w-full rounded border border-border bg-background px-2 py-1 text-sm text-text focus:outline-none focus:border-[var(--module-accent)]"
                       autoFocus
                     />
                   ) : (
@@ -449,7 +449,7 @@ export function KanbanCardDrawer({
                   onChange={(e) => setNewTag(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(); } }}
                   placeholder="Nova tag..."
-                  className="flex-1 rounded border border-border bg-background px-2 py-1 text-xs text-text placeholder:text-muted focus:outline-none focus:border-[#2EC4B6]"
+                  className="flex-1 rounded border border-border bg-background px-2 py-1 text-xs text-text placeholder:text-muted focus:outline-none focus:border-[var(--module-accent)]"
                 />
                 <button
                   onClick={handleAddTag}
@@ -466,7 +466,7 @@ export function KanbanCardDrawer({
               <div className="px-6 py-4">
                 <button
                   onClick={() => router.push(`/whatsapp-intelligence/conversas/${conversationInternalId}`)}
-                  className="flex items-center gap-2 rounded-lg border border-[#2EC4B6] px-3 py-2 text-sm text-[#2EC4B6] hover:bg-[#E0FAF7] transition-colors w-full justify-center"
+                  className="flex items-center gap-2 rounded-lg border border-[var(--module-accent)] px-3 py-2 text-sm text-[var(--module-accent)] hover:bg-[var(--module-accent-bg)] transition-colors w-full justify-center"
                 >
                   <MessageSquare className="h-4 w-4" />
                   Ver conversa
@@ -481,7 +481,7 @@ export function KanbanCardDrawer({
               {card.source && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted">Origem</span>
-                  <span className="rounded bg-[#E0FAF7] px-1.5 py-0.5 text-[#2EC4B6]">{card.source}</span>
+                  <span className="rounded bg-[var(--module-accent-bg)] px-1.5 py-0.5 text-[var(--module-accent)]">{card.source}</span>
                 </div>
               )}
               {contactName && (

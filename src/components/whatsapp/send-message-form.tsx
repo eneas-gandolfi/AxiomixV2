@@ -70,7 +70,7 @@ export function SendMessageForm({ companyId, conversationExternalId }: SendMessa
           onKeyDown={handleKeyDown}
           placeholder="Digite sua mensagem..."
           rows={2}
-          className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-text placeholder:text-muted focus:border-[#2EC4B6] focus:outline-none focus:ring-1 focus:ring-[#2EC4B6]"
+          className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-text placeholder:text-muted focus:border-[var(--module-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--module-accent)]"
           disabled={sending}
         />
         <Button

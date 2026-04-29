@@ -10,6 +10,7 @@
 import { useMemo, useState, type DragEvent } from "react";
 import { Plus } from "lucide-react";
 import { CalendarPostCard } from "./calendar-post-card";
+import { WeekNarrativeBar } from "./week-narrative-bar";
 import type { CalendarPostItem } from "@/types/modules/social-publisher.types";
 
 type CalendarWeekViewProps = {
@@ -94,6 +95,9 @@ export function CalendarWeekView({
 
   return (
     <div className="overflow-auto">
+      {/* Barra de densidade semanal */}
+      <WeekNarrativeBar weekStart={weekStart} posts={posts} isToday={isToday} />
+
       {/* Header com dias da semana */}
       <div className="grid grid-cols-[50px_repeat(7,1fr)] gap-0 border-b border-[var(--color-border)] sticky top-0 bg-[var(--color-surface)] z-10">
         <div className="p-2" />
@@ -103,7 +107,7 @@ export function CalendarWeekView({
             <div
               key={i}
               className={`text-center py-2 border-l border-[var(--color-border)] ${
-                today ? "bg-[var(--color-primary-dim)]/30" : ""
+                today ? "bg-[#8B5CF6]/[0.06]" : ""
               }`}
             >
               <p className="text-[10px] font-medium text-[var(--color-text-tertiary)] uppercase">
@@ -111,7 +115,7 @@ export function CalendarWeekView({
               </p>
               <p className={`text-lg font-semibold ${
                 today
-                  ? "bg-[#FA5E24] text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto"
+                  ? "bg-[#8B5CF6] text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto"
                   : "text-[var(--color-text)]"
               }`}>
                 {date.getDate()}
@@ -143,11 +147,11 @@ export function CalendarWeekView({
               return (
                 <div
                   key={`${dayIndex}-${hour}`}
-                  className={`border-l border-t border-[var(--color-border)] relative group ${
+                  className={`border-l border-t border-[var(--color-border)] relative group transition-colors duration-150 ${
                     isDraggedOver
-                      ? "bg-[var(--color-primary-dim)]/20 ring-1 ring-inset ring-[#FA5E24]"
+                      ? "bg-[#8B5CF6]/10 ring-2 ring-inset ring-[#8B5CF6]/40"
                       : isToday(date)
-                      ? "bg-[var(--color-primary-dim)]/10"
+                      ? "bg-[#8B5CF6]/[0.04]"
                       : ""
                   }`}
                   style={{ height: SLOT_HEIGHT }}
@@ -163,7 +167,7 @@ export function CalendarWeekView({
                       newDate.setHours(hour, 0, 0, 0);
                       onEmptyClick(newDate);
                     }}
-                    className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-text-tertiary)] hover:text-[#FA5E24] transition-all z-10"
+                    className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#8B5CF6]/10 text-[var(--color-text-tertiary)] hover:text-[#8B5CF6] transition-all z-10"
                   >
                     <Plus className="h-3 w-3" />
                   </button>

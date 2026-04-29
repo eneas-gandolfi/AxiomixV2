@@ -182,7 +182,7 @@ export function CsvImportModal({ open, onClose, onImportComplete }: CsvImportMod
         {step === "preview" && (
           <>
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-[var(--color-primary)]" />
+              <FileText className="h-4 w-4 text-[var(--module-accent)]" />
               <span className="text-sm font-medium text-[var(--color-text)]">
                 {totalContacts} contato(s) encontrado(s)
               </span>
@@ -231,13 +231,13 @@ export function CsvImportModal({ open, onClose, onImportComplete }: CsvImportMod
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={reset}
-                className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg-sidebar)]"
+                className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"
               >
                 Voltar
               </button>
               <button
                 onClick={handleImport}
-                className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                className="rounded-lg bg-[var(--module-accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
               >
                 Importar {totalContacts} contato(s)
               </button>
@@ -294,7 +294,7 @@ export function CsvImportModal({ open, onClose, onImportComplete }: CsvImportMod
             <div className="flex justify-end pt-2">
               <button
                 onClick={handleClose}
-                className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                className="rounded-lg bg-[var(--module-accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
               >
                 Fechar
               </button>

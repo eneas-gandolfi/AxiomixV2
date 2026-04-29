@@ -80,24 +80,29 @@
 
 @layer base {
 
-  /* ── Light Mode ──────────────────────────────────────── */
+  /* ── Light Mode — "Briefing Room" ─────────────────────── */
   :root {
-    --color-primary:        #FA5E24;
-    --color-primary-hover:  #E84D13;
-    --color-primary-muted:  #C94B1B;
-    --color-primary-dim:    #FFF0EB;
+    /* ── Brand: Axiomix Orange (invariante entre modos) ── */
+    --color-primary:        #E8600F;
+    --color-primary-hover:  #FF6B1A;
+    --color-primary-muted:  #CC5500;
+    --color-primary-dim:    #FFF4EE;
+    --color-primary-rgb:    232 96 15;
 
-    --color-background:     #F8FAFC;
+    /* ── Superfícies — frio e cirúrgico ── */
+    --color-background:     #F7F8FA;
     --color-surface:        #FFFFFF;
-    --color-surface-2:      #F1F5F9;
-    --color-surface-3:      #E8EDF3;
-    --color-border:         #E2E8F0;
-    --color-border-strong:  #CBD5E1;
+    --color-surface-2:      #ECEEF2;
+    --color-surface-3:      #E4E7EC;
+    --color-border:         #D8DCE3;
+    --color-border-strong:  #C0C6D0;
 
-    --color-text:           #1E293B;
-    --color-text-secondary: #64748B;
-    --color-text-tertiary:  #94A3B8;
+    /* ── Texto — tinta escura para autoridade ── */
+    --color-text:           #0D1117;
+    --color-text-secondary: #5A6472;
+    --color-text-tertiary:  #657080;
 
+    /* ── Semânticas ── */
     --color-success:        #22C55E;
     --color-success-bg:     #F0FDF4;
     --color-warning:        #F59E0B;
@@ -107,10 +112,17 @@
     --color-info:           #3B82F6;
     --color-info-bg:        #EFF6FF;
 
+    /* ── Warm Shadow System — tom sutil de brand ── */
+    --ax-shadow-sm:  0 1px 2px rgb(var(--color-primary-rgb) / 0.04);
+    --ax-shadow-md:  0 1px 3px rgb(var(--color-primary-rgb) / 0.05), 0 6px 16px rgba(15,23,42,0.04);
+    --ax-shadow-lg:  0 2px 4px rgb(var(--color-primary-rgb) / 0.04), 0 12px 32px rgba(15,23,42,0.06);
+    --ax-shadow-xl:  0 4px 8px rgb(var(--color-primary-rgb) / 0.04), 0 24px 48px rgba(15,23,42,0.08);
+
     /* ── Aliases backward-compat ── */
     --color-primary-light:  var(--color-primary-dim);
     --color-card:           var(--color-surface);
-    --color-sidebar:        var(--color-surface-2);
+    --color-sidebar:        var(--color-surface-2);  /* superfície neutra para componentes */
+    --color-sidebar-nav:    #0D1117;  /* sidebar navigation permanece escura no light mode */
     --color-muted:          var(--color-text-secondary);
     --color-muted-light:    var(--color-text-tertiary);
     --color-surface-subtle: var(--color-surface-2);
@@ -120,34 +132,47 @@
     --color-info-light:     var(--color-info-bg);
   }
 
-  /* ── Dark Mode ───────────────────────────────────────── */
+  /* ── Dark Mode — "Precision Dark / Deep Night" ────────── */
   .dark {
-    --color-primary-dim:    #7A2D11;
+    /* ── Brand overrides para contraste em superfícies escuras ── */
+    --color-primary-hover:  #FF7D3A;
+    --color-primary-muted:  #CC5500;
+    --color-primary-dim:    #1A0E06;
 
-    --color-background:     #0D0D0D;
-    --color-surface:        #141414;
-    --color-surface-2:      #1A1A1A;
-    --color-surface-3:      #222222;
-    --color-border:         #2A2A2A;
-    --color-border-strong:  #333333;
+    /* ── Superfícies — azul-noite profundo (não preto raso) ── */
+    --color-background:     #080B10;
+    --color-surface:        #0D1117;
+    --color-surface-2:      #161B22;
+    --color-surface-3:      #1C2230;
+    --color-border:         #1E2530;
+    --color-border-strong:  #2D3648;
 
-    --color-text:           #F0EDE8;
-    --color-text-secondary: #8A8A8A;
-    --color-text-tertiary:  #555555;
+    /* ── Texto — Snow/Mist hierarchy ── */
+    --color-text:           #F0F4FA;
+    --color-text-secondary: #8892A4;
+    --color-text-tertiary:  #737F8F;
 
+    /* ── Semânticas (dark) ── */
     --color-success:        #22C55E;
-    --color-success-bg:     #103D26;
+    --color-success-bg:     #0A1F12;
     --color-warning:        #F59E0B;
-    --color-warning-bg:     #7A4E06;
+    --color-warning-bg:     #1A1508;
     --color-danger:         #EF4444;
-    --color-danger-bg:      #7A1F1F;
+    --color-danger-bg:      #1F0A0A;
     --color-info:           #3B82F6;
-    --color-info-bg:        #1E2A3A;
+    --color-info-bg:        #0A1628;
+
+    /* ── Shadow System — glow sutil de brand sobre preto profundo ── */
+    --ax-shadow-sm:  0 1px 2px rgb(var(--color-primary-rgb) / 0.06);
+    --ax-shadow-md:  0 1px 3px rgb(var(--color-primary-rgb) / 0.08), 0 6px 16px rgba(0,0,0,0.20);
+    --ax-shadow-lg:  0 2px 4px rgb(var(--color-primary-rgb) / 0.06), 0 12px 32px rgba(0,0,0,0.24);
+    --ax-shadow-xl:  0 4px 8px rgb(var(--color-primary-rgb) / 0.06), 0 24px 48px rgba(0,0,0,0.30);
 
     /* ── Aliases backward-compat ── */
     --color-primary-light:  var(--color-primary-dim);
     --color-card:           var(--color-surface);
     --color-sidebar:        var(--color-surface-2);
+    --color-sidebar-nav:    #080B10;
     --color-muted:          var(--color-text-secondary);
     --color-muted-light:    var(--color-text-tertiary);
     --color-surface-subtle: var(--color-surface-2);
@@ -210,11 +235,11 @@
 @layer components {
   /* Glow effect para botões primários */
   .btn-glow {
-    box-shadow: 0 4px 14px rgba(250, 94, 36, 0.25);
+    box-shadow: 0 4px 14px rgb(var(--color-primary-rgb) / 0.25);
     transition: box-shadow 200ms ease;
   }
   .btn-glow:hover {
-    box-shadow: 0 6px 20px rgba(250, 94, 36, 0.40);
+    box-shadow: 0 6px 20px rgb(var(--color-primary-rgb) / 0.40);
   }
 
   /* Barra de acento de módulo (topo do card) */
@@ -231,7 +256,90 @@
     background-color: var(--module-color, var(--color-primary));
   }
 
-  /* Skeleton shimmer */
+  /* ── Typography Tokens ─────────────────────────────── */
+
+  /* T1: Título de página / Hero — Bricolage Bold, apertado */
+  .ax-t1 {
+    font-family: var(--font-bricolage), 'Bricolage Grotesque', sans-serif;
+    font-weight: 700;
+    font-size: 2rem;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: var(--color-text);
+  }
+
+  /* T2: Título de seção — Bricolage Medium */
+  .ax-t2 {
+    font-family: var(--font-bricolage), 'Bricolage Grotesque', sans-serif;
+    font-weight: 500;
+    font-size: 1.25rem;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--color-text);
+  }
+
+  /* T3: Título de card — Instrument Semi-bold */
+  .ax-t3 {
+    font-family: var(--font-instrument), 'Instrument Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    line-height: 1.4;
+    letter-spacing: 0;
+    color: var(--color-text);
+  }
+
+  /* KPI: Número grande — Bricolage Extra-bold, ultra-apertado */
+  .ax-kpi {
+    font-family: var(--font-bricolage), 'Bricolage Grotesque', sans-serif;
+    font-weight: 800;
+    font-size: 2.5rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+  }
+
+  /* KPI label — Instrument Regular, espaçado, uppercase */
+  .ax-kpi-label {
+    font-family: var(--font-instrument), 'Instrument Sans', sans-serif;
+    font-weight: 400;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  /* Body: texto corrido — Instrument Regular */
+  .ax-body {
+    font-family: var(--font-instrument), 'Instrument Sans', sans-serif;
+    font-weight: 400;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    letter-spacing: 0;
+    color: var(--color-text);
+  }
+
+  /* Mono: IDs, timestamps, valores técnicos */
+  .ax-mono {
+    font-family: var(--font-geist-mono), 'Geist Mono', monospace;
+    font-weight: 400;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    letter-spacing: 0;
+    color: var(--color-text-secondary);
+  }
+
+  /* Caption: texto auxiliar pequeno */
+  .ax-caption {
+    font-family: var(--font-instrument), 'Instrument Sans', sans-serif;
+    font-weight: 400;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-text-tertiary);
+  }
+
+  /* Skeleton shimmer (legacy — mantido para backward-compat) */
   .skeleton-shimmer {
     position: relative;
     overflow: hidden;
@@ -243,6 +351,27 @@
     inset: 0;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
     animation: shimmer 1.5s infinite;
+  }
+
+  /* Scan loader — o sistema está varrendo dados (substitui skeleton genérico) */
+  .scan-loader {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--color-surface-2);
+  }
+  .scan-loader::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent,
+      rgb(var(--color-primary-rgb) / 0.4),
+      rgb(var(--color-primary-rgb) / 0.8),
+      rgb(var(--color-primary-rgb) / 0.4),
+      transparent
+    );
+    animation: ax-scan 1.8s ease-in-out infinite;
   }
 }
 
@@ -262,11 +391,117 @@
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   ANIMATION VOCABULARY — 4 movimentos com propósito
+   ═══════════════════════════════════════════════════════════ */
+
+/* SHIMMER — skeleton loading (mantido como variante de emerge) */
 @keyframes shimmer {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
 
+/* EMERGE — dados aparecem (com blur para sensação de materialização) */
+@keyframes ax-emerge {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* BREATHE — atenção necessária. Max 1 elemento por tela. */
+@keyframes ax-breathe {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(var(--color-primary-rgb) / 0);
+    transform: scale(1.02);
+  }
+}
+
+/* DECISION — Eixo de Decisão aparece (flash + materialização) */
+@keyframes ax-decision {
+  0% {
+    opacity: 0;
+    height: 0;
+    box-shadow: 0 0 8px rgb(var(--color-primary-rgb) / 0.6);
+  }
+  40% {
+    opacity: 1;
+    height: 100%;
+    box-shadow: 0 0 12px rgb(var(--color-primary-rgb) / 0.4);
+  }
+  100% {
+    opacity: 1;
+    height: 100%;
+    box-shadow: 0 0 0 rgb(var(--color-primary-rgb) / 0);
+  }
+}
+
+/* CASCADE — dados aparecem em sequência rápida, como terminal processando */
+@keyframes ax-cascade {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* SCAN — linha horizontal varrendo (radar/sonar feel) */
+@keyframes ax-scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* VALUE-PULSE — flash sutil quando um dado muda */
+@keyframes ax-value-pulse {
+  0% {
+    color: inherit;
+    text-shadow: none;
+  }
+  30% {
+    color: var(--color-primary);
+    text-shadow: 0 0 8px rgb(var(--color-primary-rgb) / 0.3);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+  }
+}
+
+/* MODULE-SHIFT — transição entre módulos */
+@keyframes ax-module-shift {
+  0% {
+    opacity: 0.7;
+    transform: translateX(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Legacy aliases (backward-compat) */
 @keyframes fade-in-up {
   0%   { opacity: 0; transform: translateY(12px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -301,9 +536,8 @@
   position: relative;
   isolation: isolate;
   background:
-    radial-gradient(circle at 0% 0%, rgba(250, 94, 36, 0.16), transparent 34%),
-    radial-gradient(circle at 100% 0%, rgba(46, 196, 182, 0.14), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.84));
+    radial-gradient(circle at 0% 0%, rgb(var(--color-primary-rgb) / 0.10), transparent 34%),
+    linear-gradient(180deg, var(--color-surface), var(--color-background));
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
 }
 
@@ -320,19 +554,17 @@
 }
 
 .dashboard-panel {
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.72));
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--ax-shadow-md);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
 
 .dark .dashboard-mesh {
   background:
-    radial-gradient(circle at 0% 0%, rgba(250, 94, 36, 0.18), transparent 34%),
-    radial-gradient(circle at 100% 0%, rgba(46, 196, 182, 0.15), transparent 26%),
-    linear-gradient(180deg, rgba(20, 20, 20, 0.96), rgba(20, 20, 20, 0.88));
+    radial-gradient(circle at 0% 0%, rgb(var(--color-primary-rgb) / 0.12), transparent 34%),
+    linear-gradient(180deg, var(--color-surface), var(--color-background));
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
 }
 
@@ -343,10 +575,9 @@
 }
 
 .dark .dashboard-panel {
-  border-color: rgba(42, 42, 42, 0.95);
-  background:
-    linear-gradient(180deg, rgba(20, 20, 20, 0.9), rgba(20, 20, 20, 0.78));
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--ax-shadow-lg);
 }
 
 /* Gradient border card */
@@ -362,7 +593,7 @@
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, var(--color-primary), #2EC4B6, var(--color-primary));
+  background: linear-gradient(135deg, var(--color-primary), var(--module-accent, var(--color-primary-muted)), var(--color-primary));
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
@@ -370,10 +601,28 @@
   pointer-events: none;
 }
 
-/* Dot pattern background */
+/* Dot pattern background (legacy) */
 .dot-pattern-bg {
   background-image: radial-gradient(circle, var(--color-border) 1px, transparent 1px);
   background-size: 20px 20px;
+}
+
+/* Pulse Grid — motif visual proprietário Axiomix
+   Cor muda por módulo via --module-color. Max 2 instâncias por viewport. */
+.pulse-grid {
+  background-image: radial-gradient(
+    circle,
+    var(--module-color, rgb(var(--color-primary-rgb) / 0.10)) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+}
+.dark .pulse-grid {
+  background-image: radial-gradient(
+    circle,
+    var(--module-color, rgb(var(--color-primary-rgb) / 0.14)) 1px,
+    transparent 1px
+  );
 }
 
 /* Section label typography */
@@ -396,9 +645,16 @@
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
-  .animate-pulse-dot {
+  .animate-pulse-dot,
+  .animate-ax-emerge,
+  .animate-ax-breathe,
+  .animate-ax-module-shift,
+  .animate-ax-decision,
+  .animate-ax-cascade,
+  .animate-ax-value-pulse {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+    filter: none !important;
   }
 }

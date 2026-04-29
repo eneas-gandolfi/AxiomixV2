@@ -17,7 +17,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={cn(
-        "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-card overflow-hidden",
+        "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-card overflow-hidden transition-all duration-200 hover:border-[rgb(var(--color-primary-rgb)/0.25)] hover:shadow-card-hover",
         accent && "module-accent",
         className
       )}

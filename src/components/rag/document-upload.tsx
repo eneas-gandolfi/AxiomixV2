@@ -94,7 +94,7 @@ export function DocumentUpload({ companyId, onUploadComplete }: DocumentUploadPr
     <div
       className={`
         border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer
-        ${isDragging ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5" : "border-border hover:border-[var(--color-primary)]/50"}
+        ${isDragging ? "border-[var(--module-accent,#7C3AED)] bg-[var(--module-accent,#7C3AED)]/5" : "border-border hover:border-[var(--module-accent,#7C3AED)]/50"}
         ${isUploading ? "pointer-events-none opacity-60" : ""}
       `}
       onDragOver={(e) => {
@@ -116,10 +116,10 @@ export function DocumentUpload({ companyId, onUploadComplete }: DocumentUploadPr
       <div className="flex flex-col items-center gap-3">
         {isUploading ? (
           <>
-            <FileText className="w-10 h-10 text-[var(--color-primary)]" />
+            <FileText className="w-10 h-10 text-[var(--module-accent,#7C3AED)]" />
             <p className="text-sm text-muted">Enviando documento...</p>
             <div className="w-48">
-              <Progress percent={uploadProgress} size="small" strokeColor="var(--color-primary)" />
+              <Progress percent={uploadProgress} size="small" strokeColor="var(--module-accent,#7C3AED)" />
             </div>
           </>
         ) : (

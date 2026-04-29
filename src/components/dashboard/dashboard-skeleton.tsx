@@ -6,7 +6,7 @@
  */
 
 function ShimmerBlock({ className }: { className?: string }) {
-  return <div className={`skeleton-shimmer animate-shimmer rounded ${className ?? ""}`} />;
+  return <div className={`scan-loader rounded ${className ?? ""}`} />;
 }
 
 function MetricCardSkeleton({ isHero }: { isHero?: boolean }) {
@@ -94,10 +94,11 @@ export function DashboardSkeleton() {
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-4">
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCardSkeleton />
-            <MetricCardSkeleton />
-            <MetricCardSkeleton />
-            <MetricCardSkeleton />
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="opacity-0 animate-ax-cascade" style={{ animationDelay: `${i * 80}ms`, animationFillMode: "forwards" }}>
+                <MetricCardSkeleton />
+              </div>
+            ))}
           </section>
 
           <ChartSkeleton />

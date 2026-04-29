@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import {
   useCallback,
   useEffect,
@@ -19,10 +20,13 @@ import {
   GalleryHorizontal,
   Image as ImageIcon,
   Loader2,
+  Maximize2,
+  Minimize2,
   Upload,
   Video,
   X,
 } from "lucide-react";
+import { PostEnergyBar } from "./post-energy-bar";
 import { cn } from "@/lib/utils";
 import {
   buildUploadMediaFiles,
@@ -188,6 +192,7 @@ export function CreatePostDrawer({
   const [isLibraryPickerOpen, setIsLibraryPickerOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [bestTime, setBestTime] = useState<BestTimeSlot | null>(null);
+  const [studioMode, setStudioMode] = useState(false);
 
   const editingImage = useMemo(
     () => mediaFiles.find((mediaFile) => mediaFile.id === editingImageId) ?? null,
@@ -640,7 +645,7 @@ export function CreatePostDrawer({
     return null;
   }
 
-  return (
+  return createPortal(
     <>
       <div
         className={cn(
@@ -654,7 +659,10 @@ export function CreatePostDrawer({
         aria-modal="true"
         role="dialog"
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-modal transition-transform duration-300 sm:max-w-[520px]",
+          "fixed top-0 bottom-0 right-0 z-50 flex w-full flex-col border-l border-[var(--color-border)] shadow-modal transition-all duration-300",
+          studioMode
+            ? "sm:max-w-none bg-[#050507] dark:bg-[#030305]"
+            : "bg-[var(--color-surface)] sm:max-w-[520px]",
           isVisible ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -665,7 +673,10 @@ export function CreatePostDrawer({
             void submitSchedule();
           }}
         >
-          <div className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+          <div className={cn(
+            "sticky top-0 z-10 border-b border-[var(--color-border)] p-6",
+            studioMode ? "bg-[#050507] dark:bg-[#030305]" : "bg-[var(--color-surface)]"
+          )}>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-display text-xl font-semibold text-[var(--color-text)]">
@@ -675,14 +686,29 @@ export function CreatePostDrawer({
                   Crie, agende e revise sem trocar de tela.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Fechar drawer"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-all duration-200 hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setStudioMode((prev) => !prev)}
+                  aria-label={studioMode ? "Sair do Studio" : "Entrar no Studio"}
+                  className={cn(
+                    "hidden sm:flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200",
+                    studioMode
+                      ? "bg-[#8B5CF6]/20 text-[#8B5CF6] hover:bg-[#8B5CF6]/30"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+                  )}
+                >
+                  {studioMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Fechar drawer"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-all duration-200 hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -699,8 +725,8 @@ export function CreatePostDrawer({
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
                       selected
-                        ? "border-[#FA5E24] bg-[#FA5E24] text-white"
-                        : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:border-[#FA5E24]/40 hover:text-[var(--color-text)]"
+                        ? "border-[var(--module-accent,#8B5CF6)] bg-[var(--module-accent,#8B5CF6)] text-white"
+                        : "border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:border-[var(--module-accent,#8B5CF6)]/40 hover:text-[var(--color-text)]"
                     )}
                   >
                     <option.icon className="h-3.5 w-3.5" />
@@ -711,8 +737,32 @@ export function CreatePostDrawer({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            <div className="space-y-5 p-6">
+          <div className={cn("flex-1 overflow-y-auto", studioMode && "sm:grid sm:grid-cols-2 sm:overflow-hidden")}>
+            {/* Studio Mode: Preview permanente à direita */}
+            {studioMode && (
+              <div className="hidden sm:flex flex-col items-center justify-center border-r border-[var(--color-border)] bg-[#030305] p-8">
+                <div className="w-full max-w-[320px]">
+                  <p className="mb-4 ax-kpi-label !text-[10px] text-center text-[#8B5CF6]">
+                    Preview ao vivo
+                  </p>
+                  <MockupPreviews
+                    imageUrl={previewImageUrl}
+                    caption={caption}
+                    platforms={platforms.length > 0 ? platforms : ["instagram"]}
+                  />
+                  {/* Post Energy Bar */}
+                  <div className="mt-6">
+                    <PostEnergyBar
+                      caption={caption}
+                      platform={platforms[0] ?? null}
+                      hasMedia={mediaFiles.length > 0}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className={cn("space-y-5 p-6", studioMode && "sm:overflow-y-auto")}>
+
               {error ? (
                 <div className="flex items-start gap-3 rounded-xl border border-[var(--color-danger)]/20 bg-[var(--color-danger-bg)] px-4 py-3 text-sm text-[var(--color-danger)]">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -765,10 +815,10 @@ export function CreatePostDrawer({
                           openFilePicker();
                         }
                       }}
-                      className="flex h-20 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-center transition-all duration-200 hover:border-[#FA5E24]/60 hover:bg-[var(--color-surface-2)]"
+                      className="flex h-20 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-center transition-all duration-200 hover:border-[var(--module-accent,#8B5CF6)]/60 hover:bg-[var(--color-surface-2)]"
                     >
                       <div className="flex items-center gap-3 text-sm text-[var(--color-text-secondary)]">
-                        <Upload className="h-4 w-4 text-[#FA5E24]" />
+                        <Upload className="h-4 w-4 text-[var(--module-accent,#8B5CF6)]" />
                         <span>Arraste mídia ou clique</span>
                       </div>
                     </div>
@@ -846,7 +896,7 @@ export function CreatePostDrawer({
                     value={caption}
                     onChange={(event) => setCaption(event.target.value)}
                     placeholder="Escreva a legenda..."
-                    className="min-h-[120px] w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-all duration-200 placeholder:text-[var(--color-text-tertiary)] focus:ring-2 focus:ring-[#FA5E24]"
+                    className="min-h-[120px] w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-all duration-200 placeholder:text-[var(--color-text-tertiary)] focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)]"
                   />
 
                   <div className="flex items-center justify-between gap-3">
@@ -855,6 +905,15 @@ export function CreatePostDrawer({
                       {caption.length} caractere(s)
                     </p>
                   </div>
+
+                  {/* Post Energy — feedback em tempo real */}
+                  {!studioMode && (
+                    <PostEnergyBar
+                      caption={caption}
+                      platform={platforms[0] ?? null}
+                      hasMedia={mediaFiles.length > 0}
+                    />
+                  )}
 
                   <div className="space-y-2">
                     {platforms.length > 0 ? (
@@ -889,8 +948,8 @@ export function CreatePostDrawer({
                                   isOverLimit
                                     ? "bg-[var(--color-danger)]"
                                     : ratio > 80
-                                      ? "bg-[#FA5E24]"
-                                      : "bg-[var(--module-color)]"
+                                      ? "bg-[var(--module-accent,#8B5CF6)]"
+                                      : "bg-[var(--module-color,#8B5CF6)]"
                                 )}
                                 style={{ width: `${ratio}%` }}
                               />
@@ -913,7 +972,7 @@ export function CreatePostDrawer({
                 <p className="mb-3 text-sm font-semibold text-[var(--color-text)]">Plataformas</p>
                 {isLoadingPlatforms ? (
                   <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#FA5E24]" />
+                    <Loader2 className="h-4 w-4 animate-spin text-[var(--module-accent,#8B5CF6)]" />
                     Carregando plataformas conectadas...
                   </div>
                 ) : connectedPlatforms.length === 0 ? (
@@ -943,7 +1002,7 @@ export function CreatePostDrawer({
                           className={cn(
                             "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition-all duration-200",
                             selected
-                              ? "border-[#FA5E24] bg-[#FA5E24] text-white"
+                              ? "border-[var(--module-accent,#8B5CF6)] bg-[var(--module-accent,#8B5CF6)] text-white"
                               : "border-transparent bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text)]"
                           )}
                         >
@@ -984,7 +1043,7 @@ export function CreatePostDrawer({
                       className={cn(
                         "rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200",
                         publishNow
-                          ? "bg-[#FA5E24] text-white"
+                          ? "bg-[var(--module-accent,#8B5CF6)] text-white"
                           : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
                       )}
                     >
@@ -996,7 +1055,7 @@ export function CreatePostDrawer({
                       className={cn(
                         "rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200",
                         !publishNow
-                          ? "bg-[#FA5E24] text-white"
+                          ? "bg-[var(--module-accent,#8B5CF6)] text-white"
                           : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
                       )}
                     >
@@ -1014,7 +1073,7 @@ export function CreatePostDrawer({
                   ) : null}
 
                   {bestTimeLabel ? (
-                    <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-dim)] px-3 py-1.5 text-xs font-medium text-[#FA5E24]">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-[var(--module-accent-light,#EDE9FE)] px-3 py-1.5 text-xs font-medium text-[var(--module-accent,#8B5CF6)]">
                       <Calendar className="h-3.5 w-3.5" />
                       Melhor horário: {bestTimeLabel}
                     </div>
@@ -1028,7 +1087,7 @@ export function CreatePostDrawer({
                 <button
                   type="button"
                   onClick={() => setPreviewOpen((current) => !current)}
-                  className="flex w-full items-center justify-between text-left text-sm font-semibold text-[var(--color-text)] transition-all duration-200 hover:text-[#FA5E24]"
+                  className="flex w-full items-center justify-between text-left text-sm font-semibold text-[var(--color-text)] transition-all duration-200 hover:text-[var(--module-accent,#8B5CF6)]"
                 >
                   <span>Preview {previewOpen ? "▾" : "▸"}</span>
                   <span className="text-xs text-[var(--color-text-tertiary)]">
@@ -1054,7 +1113,10 @@ export function CreatePostDrawer({
             </div>
           </div>
 
-          <div className="sticky bottom-0 z-10 border-t border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <div className={cn(
+            "sticky bottom-0 z-10 border-t border-[var(--color-border)] p-4",
+            studioMode ? "bg-[#050507] dark:bg-[#030305]" : "bg-[var(--color-surface)]"
+          )}>
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={onClose}>
                 Cancelar
@@ -1062,7 +1124,7 @@ export function CreatePostDrawer({
               <Button
                 type="submit"
                 disabled={submitDisabled}
-                className="w-full bg-[#FA5E24] text-white hover:bg-[#E05320] sm:w-auto"
+                className="w-full bg-[var(--module-accent,#8B5CF6)] text-white hover:brightness-90 sm:w-auto"
               >
                 {isSubmitting ? (
                   <>
@@ -1098,6 +1160,7 @@ export function CreatePostDrawer({
         onClose={() => setIsLibraryPickerOpen(false)}
         onSelect={handleLibrarySelect}
       />
-    </>
+    </>,
+    document.body
   );
 }

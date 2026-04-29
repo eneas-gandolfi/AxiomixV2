@@ -21,6 +21,7 @@ import { RetryDashboardButton } from "@/components/dashboard/retry-dashboard-but
 import { DashboardChartsSection } from "@/components/dashboard/dashboard-charts-section";
 import { DashboardSidebarSection } from "@/components/dashboard/dashboard-sidebar-section";
 import { Button } from "@/components/ui/button";
+import { DecisionAxis } from "@/components/ui/decision-axis";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { markStaleJobsFailed } from "@/lib/jobs/queue";
 
@@ -342,7 +343,7 @@ async function DashboardContent() {
     return (
       <main
         className="dashboard-stage mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 sm:p-6 md:p-8"
-        style={{ "--module-color": "#FA5E24", "--module-color-bg": "#FFF0EB" } as CSSProperties}
+        style={{ "--module-color": "var(--color-primary)", "--module-color-bg": "var(--color-primary-dim)" } as CSSProperties}
       >
         <section className="dashboard-mesh overflow-hidden rounded-[28px] border border-border/70 p-5 sm:p-6 lg:p-7">
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,340px)] xl:items-stretch">
@@ -354,43 +355,59 @@ async function DashboardContent() {
               </div>
 
               <div className="max-w-3xl">
-                <h1 className="font-display text-3xl font-semibold tracking-tight text-text sm:text-4xl">
+                <h1 className="ax-t1 sm:text-4xl">
                   {greeting}
                   {companyName ? `, ${companyName}` : ""}.
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                <p className="mt-3 max-w-2xl ax-body text-[var(--color-text-secondary)]">
                   {executiveSummary}
                 </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="dashboard-panel rounded-2xl p-4">
-                  <p className="section-label">Conversas</p>
-                  <p className="mt-2 font-display text-3xl font-semibold text-text">
+                  <p className="ax-kpi-label">Conversas</p>
+                  <p className="mt-2 ax-kpi text-3xl">
                     {conversationsCurrent.toLocaleString("pt-BR")}
                   </p>
-                  <p className="mt-1 text-sm text-muted">última semana analisada</p>
+                  <p className="mt-1 ax-caption">
+                    {conversationsCurrent === 0
+                      ? "nenhuma conversa esta semana"
+                      : `analisada${conversationsCurrent === 1 ? "" : "s"} nos últimos 7 dias`}
+                  </p>
                 </div>
                 <div className="dashboard-panel rounded-2xl p-4">
-                  <p className="section-label">Oportunidades</p>
-                  <p className="mt-2 font-display text-3xl font-semibold text-text">
+                  <p className="ax-kpi-label">Oportunidades</p>
+                  <p className="mt-2 ax-kpi text-3xl text-[var(--color-primary)]">
                     {opportunitiesCurrent.toLocaleString("pt-BR")}
                   </p>
-                  <p className="mt-1 text-sm text-muted">intenção de compra detectada</p>
+                  <p className="mt-1 ax-caption">
+                    {opportunitiesCurrent === 0
+                      ? "nenhuma intenção detectada ainda"
+                      : opportunitiesCurrent >= 3
+                        ? "hora de acelerar o comercial"
+                        : "intenção de compra detectada"}
+                  </p>
                 </div>
                 <div className="dashboard-panel rounded-2xl p-4">
-                  <p className="section-label">Conteúdos virais</p>
-                  <p className="mt-2 font-display text-3xl font-semibold text-text">
+                  <p className="ax-kpi-label">Conteúdos virais</p>
+                  <p className="mt-2 ax-kpi text-3xl">
                     {viralCurrent.toLocaleString("pt-BR")}
                   </p>
-                  <p className="mt-1 text-sm text-muted">score &gt;= 300 no radar</p>
+                  <p className="mt-1 ax-caption">
+                    {viralCurrent === 0
+                      ? "radar não encontrou destaques"
+                      : `com score ≥ 300 — vale investigar`}
+                  </p>
                 </div>
               </div>
 
               <div className="mt-auto flex flex-wrap gap-3">
-                <Button asChild className="h-11 px-5 btn-glow">
+                <Button asChild className="h-11 px-5">
                   <Link href="/whatsapp-intelligence">
-                    Ver operação
+                    {opportunitiesCurrent > 0
+                      ? `Ver ${opportunitiesCurrent} oportunidade${opportunitiesCurrent === 1 ? "" : "s"}`
+                      : "Ver operação"}
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 </Button>
@@ -401,20 +418,20 @@ async function DashboardContent() {
             </div>
 
             <aside className="dashboard-panel relative z-[1] flex h-full flex-col justify-between gap-3 rounded-[24px] p-4">
-              <div>
+              <DecisionAxis active={!!aiSummary}>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[rgb(var(--color-primary-rgb)/0.10)] px-3 py-1.5 text-xs font-medium text-primary">
                     <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                     Insight prioritário
                   </div>
                 </div>
 
-                <h2 className="font-display text-xl font-semibold text-text">
-                  {aiSummary ? "Leitura da semana" : "Painel em calibração"}
+                <h2 className="ax-t2">
+                  {aiSummary ? "O que fazer agora" : "Coletando inteligência"}
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-muted">
+                <p className="mt-2 ax-body text-[var(--color-text-secondary)]">
                   {aiSummary ??
-                    "Ainda não há recomendação automática suficiente. Assim que o radar consolidar volume, este bloco passa a orientar a prioridade do time."}
+                    "O sistema está acumulando volume para gerar a primeira recomendação. Este bloco vai orientar a prioridade do time automaticamente."}
                 </p>
 
                 {!aiSummary && (
@@ -433,7 +450,7 @@ async function DashboardContent() {
                     </p>
                   </div>
                 )}
-              </div>
+              </DecisionAxis>
             </aside>
           </div>
         </section>

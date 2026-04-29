@@ -186,7 +186,7 @@ export function BulkAnalyzeButton({ companyId }: BulkAnalyzeButtonProps) {
       {isPolling && progressPct !== null ? (
         <div className="h-1.5 w-full max-w-[200px] overflow-hidden rounded-full bg-muted/30">
           <div
-            className="h-full rounded-full bg-[#2EC4B6] transition-all duration-300"
+            className="h-full rounded-full bg-[var(--module-accent)] transition-all duration-300"
             style={{ width: `${progressPct}%` }}
           />
         </div>

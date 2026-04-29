@@ -221,7 +221,7 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
                       className={`flex w-full items-center gap-2 whitespace-nowrap px-4 py-2 text-sm rounded-lg transition-all ${
                         isActive
                           ? "text-primary bg-primary-light font-medium"
-                          : "text-muted hover:text-text hover:bg-sidebar"
+                          : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -262,7 +262,7 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
                         className={`flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm rounded-lg transition-all ${
                           isActive
                             ? "text-primary bg-primary-light font-medium"
-                            : "text-muted hover:text-text hover:bg-sidebar"
+                            : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"
                         }`}
                       >
                         <Icon className="h-4 w-4" />

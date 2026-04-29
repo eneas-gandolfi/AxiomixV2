@@ -85,12 +85,12 @@ export function KnowledgeChat({ companyId }: KnowledgeChatProps) {
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="Ex.: como a IA deve conduzir um lead interessado em puxada com supino?"
           disabled={isLoading}
-          className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] disabled:opacity-50"
+          className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#7C3AED)]/30 focus:border-[var(--module-accent,#7C3AED)] disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={isLoading || question.trim().length < 3}
-          className="px-4 py-2.5 rounded-xl bg-[var(--color-primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center gap-2"
+          className="px-4 py-2.5 rounded-xl bg-[var(--module-accent,#7C3AED)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center gap-2"
         >
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -122,7 +122,7 @@ export function KnowledgeChat({ companyId }: KnowledgeChatProps) {
                     key={source.id}
                     className="flex items-start gap-2 p-3 rounded-lg bg-background border border-border"
                   >
-                    <FileText className="w-4 h-4 text-[var(--color-primary)] mt-0.5 shrink-0" />
+                    <FileText className="w-4 h-4 text-[var(--module-accent,#7C3AED)] mt-0.5 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-foreground">
                         Fonte {i + 1} — relevancia {Math.round(source.similarity * 100)}%

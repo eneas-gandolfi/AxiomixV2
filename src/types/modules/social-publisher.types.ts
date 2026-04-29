@@ -112,7 +112,7 @@ export type ApiErrorPayload = {
 
 export const STATUS_COLORS: Record<SocialPublishStatus, string> = {
   scheduled: "bg-[var(--color-warning-bg)] text-[var(--color-warning)]",
-  processing: "bg-[var(--color-primary-dim)] text-[#FA5E24]",
+  processing: "bg-[var(--module-accent-light,var(--color-primary-dim))] text-[var(--module-accent,var(--color-primary))]",
   published: "bg-[var(--color-success-bg)] text-[#22C55E]",
   partial: "bg-[var(--color-warning-bg)] text-[var(--color-warning)]",
   failed: "bg-[var(--color-danger-bg)] text-[var(--color-danger)]",

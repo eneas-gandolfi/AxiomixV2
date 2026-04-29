@@ -48,7 +48,7 @@ export function WorkloadChart({ data }: WorkloadChartProps) {
             </div>
             <div className="h-2 w-full rounded-full bg-sidebar overflow-hidden">
               <div
-                className="h-full rounded-full bg-[#2EC4B6] transition-all"
+                className="h-full rounded-full bg-[var(--module-accent)] transition-all"
                 style={{ width: `${(item.count / maxCount) * 100}%` }}
               />
             </div>

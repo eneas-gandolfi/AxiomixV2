@@ -16,13 +16,13 @@ export default function CampanhasLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ '--module-color': '#25D366', '--module-color-bg': '#E8F8EE' } as React.CSSProperties}>
+    <div style={{ '--module-color-bg': 'var(--module-accent-bg, #E8F8EE)' } as React.CSSProperties}>
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <header className="mb-6">
-          <h1 className="font-display text-xl font-bold text-[var(--color-text)] md:text-2xl">
+          <h1 className="ax-t1 text-xl md:text-2xl">
             Campanhas em Massa
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+          <p className="mt-1 ax-body text-[var(--color-text-secondary)]">
             Envie templates WhatsApp para seus contatos em escala.
           </p>
         </header>

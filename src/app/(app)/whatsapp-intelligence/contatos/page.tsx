@@ -105,7 +105,7 @@ export default function ContatosPage() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Buscar por nome ou telefone..."
-            className="h-9 w-72 rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-[#2EC4B6] focus:outline-none focus:ring-1 focus:ring-[#2EC4B6]"
+            className="h-9 w-72 rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-[var(--module-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--module-accent)]"
           />
         </div>
         <CreateContactModal companyId={companyId} onCreated={fetchContacts} />
@@ -117,7 +117,7 @@ export default function ContatosPage() {
           <Card className="rounded-xl border border-border bg-card">
             <CardHeader className="border-b border-border p-4">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-[#2EC4B6]" />
+                <Users className="h-4 w-4 text-[var(--module-accent)]" />
                 <span className="text-base font-semibold text-text">
                   Contatos
                   {contacts.length > 0 && (

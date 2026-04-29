@@ -101,7 +101,7 @@ export function CreateDemandModal({ companyId, teamMembers, onCreated }: CreateD
       <Modal
         title={
           <div className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-[#FA5E24]" />
+            <ClipboardList className="h-5 w-5 text-[var(--module-accent)]" />
             <span>Nova Demanda de Conteúdo</span>
           </div>
         }
@@ -153,7 +153,7 @@ export function CreateDemandModal({ companyId, teamMembers, onCreated }: CreateD
             <select
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
-              className="w-full h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#FA5E24] focus:border-transparent"
+              className="w-full h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)] focus:border-transparent"
             >
               <option value="">Sem responsável</option>
               {teamMembers.map((member) => (
@@ -179,7 +179,7 @@ export function CreateDemandModal({ companyId, teamMembers, onCreated }: CreateD
                     onClick={() => togglePlatform(opt.value)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       isActive
-                        ? "bg-[#FA5E24] text-white"
+                        ? "bg-[var(--module-accent)] text-white"
                         : "bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]/80"
                     }`}
                   >

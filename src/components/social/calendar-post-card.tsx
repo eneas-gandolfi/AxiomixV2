@@ -18,9 +18,18 @@ type CalendarPostCardProps = {
   onDragStart?: (postId: string) => void;
 };
 
+const STATUS_BORDER: Record<SocialPublishStatus, string> = {
+  scheduled: "border-l-[#8B5CF6]",
+  processing: "border-l-[#8B5CF6] animate-pulse",
+  published: "border-l-[#22C55E] opacity-70",
+  partial: "border-l-[var(--color-warning)]",
+  failed: "border-l-[var(--color-danger)]",
+  cancelled: "border-l-[var(--color-text-tertiary)] opacity-50",
+};
+
 const STATUS_DOTS: Record<SocialPublishStatus, string> = {
   scheduled: "bg-[var(--color-warning)]",
-  processing: "bg-[#FA5E24]",
+  processing: "bg-[#8B5CF6]",
   published: "bg-[#22C55E]",
   partial: "bg-[var(--color-warning)]",
   failed: "bg-[var(--color-danger)]",
@@ -52,9 +61,9 @@ export function CalendarPostCard({
         e.dataTransfer.setData("text/plain", JSON.stringify({ id: post.id, time: post.scheduledAt }));
         onDragStart?.(post.id);
       }}
-      className={`w-full text-left flex items-center gap-1.5 px-1.5 py-1 rounded-md transition-colors text-[10px] group ${
+      className={`w-full text-left flex items-center gap-1.5 px-1.5 py-1 rounded-md border-l-[3px] transition-all text-[10px] group ${STATUS_BORDER[post.status]} ${
         isDraggable
-          ? "hover:bg-[var(--color-primary-dim)] cursor-grab active:cursor-grabbing"
+          ? "hover:bg-[#8B5CF6]/10 cursor-grab active:cursor-grabbing active:scale-[0.97] active:rotate-1 active:shadow-lg"
           : "hover:bg-[var(--color-surface-2)] cursor-pointer"
       }`}
     >

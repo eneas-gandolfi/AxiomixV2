@@ -287,7 +287,7 @@ export function CalendarScheduler({
               onClick={() => setViewMode("month")}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 viewMode === "month"
-                  ? "bg-[#FA5E24] text-white"
+                  ? "bg-[var(--module-accent,#8B5CF6)] text-white"
                   : "bg-background text-muted hover:bg-sidebar"
               }`}
             >
@@ -298,7 +298,7 @@ export function CalendarScheduler({
               onClick={() => setViewMode("week")}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 viewMode === "week"
-                  ? "bg-[#FA5E24] text-white"
+                  ? "bg-[var(--module-accent,#8B5CF6)] text-white"
                   : "bg-background text-muted hover:bg-sidebar"
               }`}
             >
@@ -453,7 +453,7 @@ export function CalendarScheduler({
                         : "secondary"
                     }
                     onClick={() => handleQuickTime(time.hour, time.minute)}
-                    className={isRecommended && selectedHour !== time.hour ? "ring-2 ring-[#FA5E24]/40" : ""}
+                    className={isRecommended && selectedHour !== time.hour ? "ring-2 ring-[var(--module-accent,#8B5CF6)]/40" : ""}
                   >
                     {time.label}
                     {isRecommended && (

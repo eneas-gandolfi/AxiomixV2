@@ -154,8 +154,8 @@ export function AutoSyncIndicator({ companyId, intervalSeconds = 60 }: AutoSyncI
     <div className="flex items-center gap-2 text-xs text-muted">
       {syncing ? (
         <>
-          <RefreshCw className="h-3 w-3 animate-spin text-[#2EC4B6]" />
-          <span className="text-[#2EC4B6]">
+          <RefreshCw className="h-3 w-3 animate-spin text-[var(--module-accent)]" />
+          <span className="text-[var(--module-accent)]">
             {activeMode === "messages_only"
               ? "Atualizando mensagens..."
               : progress && progress.totalConversations > 0

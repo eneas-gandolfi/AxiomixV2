@@ -8,6 +8,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, CheckSquare, ChevronLeft, ChevronRight, Calendar, Loader2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -69,6 +70,19 @@ export function EditorialCalendar({
   initialMonth,
   onCreatePost,
 }: EditorialCalendarProps) {
+  const router = useRouter();
+  const handleCreatePost = useCallback(
+    (date: Date) => {
+      if (onCreatePost) {
+        onCreatePost(date);
+      } else {
+        // Fallback: navega para a aba Agendar com a data como query param
+        const isoDate = date.toISOString();
+        router.push(`/social-publisher?scheduleAt=${encodeURIComponent(isoDate)}`);
+      }
+    },
+    [onCreatePost, router]
+  );
   const tz = companyTimezone;
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(initialMonth?.year ?? now.getFullYear());
@@ -376,7 +390,7 @@ export function EditorialCalendar({
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[#FA5E24]" />
+              <Calendar className="h-5 w-5 text-[var(--module-accent)]" />
               Calendário Editorial
             </CardTitle>
             <CardDescription>
@@ -430,7 +444,7 @@ export function EditorialCalendar({
                 onClick={() => setCalendarView(opt.value)}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                   calendarView === opt.value
-                    ? "bg-[#FA5E24] text-white shadow-sm"
+                    ? "bg-[var(--module-accent)] text-white shadow-sm"
                     : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
                 }`}
               >
@@ -445,7 +459,7 @@ export function EditorialCalendar({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as SocialPublishStatus | "all")}
-            className="h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#FA5E24] focus:border-transparent"
+            className="h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)] focus:border-transparent"
           >
             {STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -463,7 +477,7 @@ export function EditorialCalendar({
                   onClick={() => togglePlatform(opt.value)}
                   className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                     isActive
-                      ? "bg-[#FA5E24] text-white"
+                      ? "bg-[var(--module-accent)] text-white"
                       : "bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]/80"
                   }`}
                 >
@@ -478,6 +492,7 @@ export function EditorialCalendar({
               type="button"
               size="sm"
               variant={selectionMode ? "default" : "secondary"}
+              disabled={!selectionMode && scheduledPostsInView.length === 0}
               onClick={() => {
                 if (selectionMode) {
                   exitSelectionMode();
@@ -603,7 +618,7 @@ export function EditorialCalendar({
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-[#FA5E24]" />
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--module-accent)]" />
           </div>
         ) : calendarView === "month" ? (
           <>
@@ -633,7 +648,7 @@ export function EditorialCalendar({
                     isToday={isToday(date)}
                     isCurrentMonth={isCurrentMonthDay(date)}
                     onPostClick={(post) => setSelectedPost(post)}
-                    onEmptyClick={(d) => onCreatePost?.(d)}
+                    onEmptyClick={(d) => handleCreatePost(d)}
                     onDropPost={handleDropPost}
                     onDragStart={setDraggedPostId}
                   />
@@ -648,7 +663,7 @@ export function EditorialCalendar({
               posts={filteredPosts}
               isToday={isToday}
               onPostClick={(post) => setSelectedPost(post)}
-              onEmptyClick={(d) => onCreatePost?.(d)}
+              onEmptyClick={(d) => handleCreatePost(d)}
               onDropPost={handleDropPost}
               onDragStart={setDraggedPostId}
             />
@@ -657,7 +672,7 @@ export function EditorialCalendar({
           <CalendarAgendaView
             posts={filteredPosts}
             onPostClick={(post) => setSelectedPost(post)}
-            onCreatePost={onCreatePost}
+            onCreatePost={handleCreatePost}
           />
         )}
       </CardContent>

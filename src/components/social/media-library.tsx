@@ -341,7 +341,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <FolderOpen className="h-5 w-5 text-[#FA5E24]" />
+                <FolderOpen className="h-5 w-5 text-[var(--module-accent,#8B5CF6)]" />
                 Biblioteca de Mídia
               </CardTitle>
               <CardDescription>
@@ -352,7 +352,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
             <div className="flex flex-wrap items-center justify-end gap-2">
               {selectionMode ? (
                 <>
-                  <span className="text-xs font-medium text-[#FA5E24]">
+                  <span className="text-xs font-medium text-[var(--module-accent,#8B5CF6)]">
                     {selectedIds.size} selecionado(s)
                   </span>
                   <Button
@@ -436,7 +436,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
                   }
                 }}
                 placeholder="Buscar por nome..."
-                className="w-full h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-3 text-sm text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#FA5E24] focus:border-transparent transition-all placeholder:text-[var(--color-text-tertiary)]"
+                className="w-full h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-3 text-sm text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)] focus:border-transparent transition-all placeholder:text-[var(--color-text-tertiary)]"
               />
             </div>
 
@@ -448,7 +448,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
                   onClick={() => handleFileTypeChange(type)}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                     fileTypeFilter === type
-                      ? "bg-[#FA5E24] text-white"
+                      ? "bg-[var(--module-accent,#8B5CF6)] text-white"
                       : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]"
                   }`}
                 >
@@ -502,7 +502,7 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
 
       {items.length === 0 && !isLoading ? (
         <div
-          className="rounded-2xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-16 text-center cursor-pointer hover:border-[#FA5E24]/60 hover:bg-[#FA5E24]/[0.04] transition-all"
+          className="rounded-2xl border-2 border-dashed border-[#8B5CF6]/20 bg-[#8B5CF6]/[0.02] p-16 text-center cursor-pointer hover:border-[#8B5CF6]/40 hover:bg-[#8B5CF6]/[0.05] transition-all"
           onClick={() => fileInputRef.current?.click()}
           onDrop={onDrop}
           onDragOver={onDragOver}
@@ -514,14 +514,14 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
             }
           }}
         >
-          <div className="h-16 w-16 mx-auto mb-4 rounded-2xl bg-[var(--color-primary-dim)] flex items-center justify-center">
-            <Upload className="h-8 w-8 text-[#FA5E24]" />
+          <div className="h-16 w-16 mx-auto mb-4 rounded-2xl bg-[#8B5CF6]/10 flex items-center justify-center">
+            <Upload className="h-8 w-8 text-[#8B5CF6]" />
           </div>
-          <p className="text-sm font-medium text-[var(--color-text)] mb-1">
+          <p className="ax-t2 mb-1">
             Sua biblioteca está vazia
           </p>
-          <p className="text-xs text-[var(--color-text-secondary)]">
-            Arraste arquivos aqui ou <span className="text-[#FA5E24] font-medium">clique para enviar</span>
+          <p className="ax-body text-[var(--color-text-secondary)]">
+            Arraste imagens e vídeos aqui ou <span className="text-[#8B5CF6] font-medium">clique para enviar</span>
           </p>
         </div>
       ) : (
@@ -541,8 +541,8 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
                 key={item.id}
                 className={`relative group rounded-xl border overflow-hidden transition-all duration-200 bg-[var(--color-surface)] ${
                   isSelected
-                    ? "border-[#FA5E24] ring-2 ring-[#FA5E24]/20"
-                    : "border-[var(--color-border)] hover:border-[#FA5E24]/50 hover:shadow-card-hover"
+                    ? "border-[#8B5CF6] ring-2 ring-[#8B5CF6]/20"
+                    : "border-[var(--color-border)] hover:border-[#8B5CF6]/40 hover:shadow-card-hover"
                 } ${selectionMode ? "cursor-pointer" : ""}`}
                 onClick={selectionMode ? () => toggleSelection(item.id) : undefined}
                 onKeyDown={selectionMode ? (event) => handleCardSelectionKeyDown(event, item.id) : undefined}
@@ -557,15 +557,15 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
                       decoding="async"
                       src={thumbnailSrc}
                       alt={item.fileName}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full">
                       {isImage ? (
                         <ImageIcon className="h-10 w-10 text-[var(--color-text-tertiary)]" />
                       ) : (
-                        <div className="h-12 w-12 rounded-full bg-[#FA5E24]/10 flex items-center justify-center">
-                          <Play className="h-6 w-6 text-[#FA5E24] ml-0.5" />
+                        <div className="h-12 w-12 rounded-full bg-[var(--module-accent-light,#EDE9FE)] flex items-center justify-center">
+                          <Play className="h-6 w-6 text-[var(--module-accent,#8B5CF6)] ml-0.5" />
                         </div>
                       )}
                     </div>
@@ -587,11 +587,11 @@ export function MediaLibrary({ companyId, initialData }: MediaLibraryProps) {
                   {selectionMode ? (
                     <div className="absolute top-1.5 right-1.5 rounded-full bg-black/55 p-1">
                       <CheckCircle2
-                        className={`h-4 w-4 ${isSelected ? "text-[#FA5E24]" : "text-white/60"}`}
+                        className={`h-4 w-4 ${isSelected ? "text-[var(--module-accent,#8B5CF6)]" : "text-white/60"}`}
                       />
                     </div>
                   ) : (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    <div className="absolute inset-0 bg-[#8B5CF6]/40 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
                       <button
                         type="button"
                         onClick={() => void handleDelete(item.id)}

@@ -99,15 +99,15 @@ export function DemandApprovalPage({ token }: DemandApprovalPageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FFF0EB] to-white">
-        <Loader2 className="h-8 w-8 animate-spin text-[#FA5E24]" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--color-primary-dim)] to-[var(--color-background)]">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--module-accent,#8B5CF6)]" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FFF0EB] to-white px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--color-primary-dim)] to-[var(--color-background)] px-4">
         <Card className="max-w-md w-full rounded-2xl shadow-lg">
           <CardContent className="pt-8 pb-8 text-center">
             <div className="h-12 w-12 rounded-full bg-[var(--color-danger-bg)] flex items-center justify-center mx-auto mb-4">
@@ -125,7 +125,7 @@ export function DemandApprovalPage({ token }: DemandApprovalPageProps) {
 
   if (result) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FFF0EB] to-white px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--color-primary-dim)] to-[var(--color-background)] px-4">
         <Card className="max-w-md w-full rounded-2xl shadow-lg">
           <CardContent className="pt-8 pb-8 text-center">
             <div className={`h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-4 ${
@@ -152,7 +152,7 @@ export function DemandApprovalPage({ token }: DemandApprovalPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FFF0EB] to-white py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-dim)] to-[var(--color-background)] py-8 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center">
@@ -227,7 +227,7 @@ export function DemandApprovalPage({ token }: DemandApprovalPageProps) {
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="Descreva as alterações necessárias..."
-                  className="w-full min-h-[100px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] resize-none focus:outline-none focus:ring-2 focus:ring-[#FA5E24] focus:border-transparent"
+                  className="w-full min-h-[100px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)] focus:border-transparent"
                 />
               </div>
             )}

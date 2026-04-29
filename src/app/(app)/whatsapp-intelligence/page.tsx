@@ -7,7 +7,7 @@
 
 import { redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
-import { CheckCircle2, MessageSquare } from "lucide-react";
+import { AlertCircle, CheckCircle2, MessageSquare } from "lucide-react";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { MetricCardWithSparkline } from "@/components/whatsapp/metric-card-with-sparkline";
@@ -167,11 +167,11 @@ export default async function WhatsAppDashboardPage() {
           <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
             <CheckCircle2 className="h-6 w-6 text-success" />
           </div>
-          <p className="text-lg font-medium text-text">
-            {syncedConversationsCount} conversa{syncedConversationsCount === 1 ? "" : "s"} sincronizada{syncedConversationsCount === 1 ? "" : "s"}
+          <p className="ax-t2">
+            {syncedConversationsCount} conversa{syncedConversationsCount === 1 ? "" : "s"} pronta{syncedConversationsCount === 1 ? "" : "s"} para análise
           </p>
-          <p className="mt-2 text-sm text-muted">
-            Agora analise com IA para gerar métricas de sentimento e intenção.
+          <p className="mt-2 ax-body text-[var(--color-text-secondary)]">
+            Rode a IA para extrair sentimento, intenção e oportunidades.
           </p>
           <div className="mt-6 flex gap-2">
             <BulkAnalyzeButton companyId={companyId} />
@@ -183,12 +183,12 @@ export default async function WhatsAppDashboardPage() {
 
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-12 text-center">
-        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-sidebar">
-          <MessageSquare className="h-6 w-6 text-muted" />
+        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-surface-2)]">
+          <MessageSquare className="h-6 w-6 text-[var(--color-text-tertiary)]" />
         </div>
-        <p className="text-lg font-medium text-text">Nenhuma análise nos últimos 7 dias</p>
-        <p className="mt-2 text-sm text-muted">
-          Sincronize conversas e analise com IA para ver métricas aqui.
+        <p className="ax-t2">Comece sincronizando conversas</p>
+        <p className="mt-2 ax-body text-[var(--color-text-secondary)]">
+          Conecte o Evo CRM para trazer conversas e desbloquear métricas de sentimento.
         </p>
         <div className="mt-6 flex gap-2">
           <BulkAnalyzeButton companyId={companyId} />
@@ -200,43 +200,53 @@ export default async function WhatsAppDashboardPage() {
 
   return (
     <>
-      {/* Ações rápidas */}
-      <div className="mb-6 flex justify-end gap-2">
-        <BulkAnalyzeButton companyId={companyId} />
-        <SyncConversationsButton companyId={companyId} />
+      {/* Command Bar — ações rápidas com hierarquia clara */}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          {criticalCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-danger-bg)] px-3 py-1.5 text-xs font-medium text-[var(--color-danger)]">
+              <AlertCircle className="h-3.5 w-3.5" />
+              {criticalCount} conversa{criticalCount === 1 ? "" : "s"} crítica{criticalCount === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <BulkAnalyzeButton companyId={companyId} />
+          <SyncConversationsButton companyId={companyId} />
+        </div>
       </div>
 
       {/* Métricas com sparklines */}
       <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCardWithSparkline
-          title="Conversas analisadas"
+          title={`${totalAnalyzed} conversa${totalAnalyzed === 1 ? "" : "s"} analisada${totalAnalyzed === 1 ? "" : "s"}`}
           value={totalAnalyzed}
-          subtitle="Últimos 7 dias"
+          subtitle={totalVariation !== null && totalVariation > 0 ? `${totalVariation}% a mais que semana passada` : "Últimos 7 dias"}
           icon="sparkles"
           sparklineData={sparklineData}
           change={totalVariation}
         />
 
         <MetricCardWithSparkline
-          title="Positivas"
+          title={sentimentCounts.positivo > 0 ? `${Math.round((sentimentCounts.positivo / totalAnalyzed) * 100)}% positivas` : "Sentimento positivo"}
           value={sentimentCounts.positivo}
-          subtitle={`${Math.round((sentimentCounts.positivo / totalAnalyzed) * 100)}% do total`}
+          subtitle={sentimentCounts.positivo > sentimentCounts.negativo ? "Clima favorável" : "Atenção ao tom das conversas"}
           color="success"
           sparklineData={sparklineData}
         />
 
         <MetricCardWithSparkline
-          title="Principal intenção"
+          title={topIntent?.[0] ? `Intenção: ${topIntent[0]}` : "Principal intenção"}
           value={topIntent?.[1] ?? 0}
-          subtitle={topIntent?.[0] ? topIntent[0].charAt(0).toUpperCase() + topIntent[0].slice(1) : "Nenhuma"}
+          subtitle={topIntent?.[0] ? `${topIntent[1]} conversa${topIntent[1] === 1 ? "" : "s"} com esse sinal` : "Nenhuma detectada ainda"}
           icon="target"
           color="primary"
         />
 
         <MetricCardWithSparkline
-          title="Precisam de atenção"
+          title={criticalCount > 0 ? `${criticalCount} precisam de ação` : "Tudo em ordem"}
           value={criticalCount}
-          subtitle="Negativas nas últimas 24h"
+          subtitle={criticalCount > 0 ? "Negativas nas últimas 24h — resolva já" : "Nenhuma conversa crítica recente"}
           icon="alert"
           color={criticalCount > 0 ? "danger" : undefined}
           className={criticalCount > 0 ? "border-danger" : ""}
@@ -245,7 +255,7 @@ export default async function WhatsAppDashboardPage() {
       </div>
 
       {/* Gráficos de análise */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="mt-2 grid gap-6 lg:grid-cols-2">
         <SentimentTrendChart data={sentimentTrendData} />
         <IntentDistributionChart data={intentDistributionData} />
       </div>

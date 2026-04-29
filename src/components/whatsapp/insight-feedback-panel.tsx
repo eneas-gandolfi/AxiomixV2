@@ -130,7 +130,7 @@ export function InsightFeedbackPanel({
                   }}
                   className={`rounded-md p-1.5 transition-colors ${
                     isActive
-                      ? "bg-[var(--color-primary-dim)] text-[var(--color-primary)]"
+                      ? "bg-[var(--module-accent-bg)] text-[var(--module-accent)]"
                       : "text-muted-light hover:bg-sidebar hover:text-text"
                   }`}
                 >
@@ -168,7 +168,7 @@ export function InsightFeedbackPanel({
                   onClick={() => setSelectedStatus(option.status)}
                   className={`rounded-md p-1.5 transition-colors ${
                     isActive
-                      ? "bg-[var(--color-primary-dim)] text-[var(--color-primary)]"
+                      ? "bg-[var(--module-accent-bg)] text-[var(--module-accent)]"
                       : "text-muted-light hover:bg-sidebar hover:text-text"
                   }`}
                 >
@@ -234,11 +234,11 @@ export function InsightFeedbackPanel({
               onClick={() => setSelectedStatus(option.status)}
               className={`flex items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors ${
                 isActive
-                  ? "border-[var(--color-primary)] bg-[var(--color-primary-dim)]"
+                  ? "border-[var(--module-accent)] bg-[var(--module-accent-bg)]"
                   : "border-border bg-card hover:border-border-strong hover:bg-sidebar"
               }`}
             >
-              <Icon className={`mt-0.5 h-4 w-4 ${isActive ? "text-[var(--color-primary)]" : "text-muted-light"}`} />
+              <Icon className={`mt-0.5 h-4 w-4 ${isActive ? "text-[var(--module-accent)]" : "text-muted-light"}`} />
               <div>
                 <p className="text-sm font-medium text-text">{option.label}</p>
                 <p className="text-xs text-muted">{option.hint}</p>

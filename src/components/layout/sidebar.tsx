@@ -29,21 +29,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { MODULES, sidebarColors } from "@/lib/module-colors";
+import type { ModuleId } from "@/lib/module-colors";
 
-type ModuleColors = {
-  color: string;
-  bgLight: string;
-  bgDark: string;
-};
-
-const MODULE_COLORS: Record<string, ModuleColors> = {
-  "/dashboard": { color: "#8A8A8A", bgLight: "#F1F5F9", bgDark: "#222222" },
-  "/whatsapp-intelligence": { color: "#2EC4B6", bgLight: "#E0FAF7", bgDark: "#164E4A" },
-  "/intelligence": { color: "#D4A853", bgLight: "#FDF6E3", bgDark: "#6B5429" },
-  "/social-publisher": { color: "#FA5E24", bgLight: "#FFF0EB", bgDark: "#7A2D11" },
-  "/campanhas": { color: "#25D366", bgLight: "#E8F8EE", bgDark: "#0D4D2B" },
-  "/base-conhecimento": { color: "#7C3AED", bgLight: "#F3EEFF", bgDark: "#3B1D72" },
-  "/settings": { color: "#8A8A8A", bgLight: "#F1F5F9", bgDark: "#222222" },
+/** Mapeamento href → ModuleId para derivar cores da sidebar */
+const HREF_TO_MODULE: Record<string, ModuleId> = {
+  "/dashboard": "dashboard",
+  "/whatsapp-intelligence": "whatsapp-intelligence",
+  "/intelligence": "intelligence",
+  "/social-publisher": "social-publisher",
+  "/campanhas": "campanhas",
+  "/base-conhecimento": "base-conhecimento",
+  "/settings": "settings",
 };
 
 export const NAV_ITEMS = [
@@ -70,17 +67,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [hovered, setHovered] = useState(false);
   const [criticalCount, setCriticalCount] = useState(0);
   const [companyName, setCompanyName] = useState<string | null>(null);
-  const [isDark, setIsDark] = useState(false);
   const isExpanded = !collapsed || hovered;
   const showTooltip = collapsed && !hovered;
-
-  useEffect(() => {
-    const checkDark = () => setIsDark(document.documentElement.classList.contains("dark"));
-    checkDark();
-    const observer = new MutationObserver(checkDark);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     let companyIdCache: string | null = null;
@@ -150,14 +138,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             "width 220ms cubic-bezier(0.4, 0, 0.2, 1), border-color 150ms ease",
           borderRightColor:
             hovered && collapsed
-              ? "rgba(250, 94, 36, 0.2)"
-              : "var(--color-border)",
+              ? "rgb(var(--color-primary-rgb) / 0.2)"
+              : "rgba(255,255,255,0.06)",
         }}
-        className="sticky top-0 flex h-screen flex-shrink-0 flex-col overflow-hidden border-r bg-[var(--color-surface-2)]"
+        className="sticky top-0 flex h-screen flex-shrink-0 flex-col overflow-hidden border-r bg-[var(--color-sidebar-nav)]"
       >
         {/* Header */}
         <div
-          className="relative flex h-16 flex-shrink-0 items-center border-b px-3"
+          className="relative flex h-16 flex-shrink-0 items-center border-b border-[rgba(255,255,255,0.06)] px-3"
           style={{ justifyContent: isExpanded ? "space-between" : "center" }}
         >
           <div
@@ -176,7 +164,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               height={24}
               className="flex-shrink-0 rounded-sm"
             />
-            <span className="whitespace-nowrap font-display text-sm font-bold tracking-wide text-[var(--color-primary)]">
+            <span className="whitespace-nowrap font-display text-sm font-bold tracking-wide text-[var(--color-primary-hover)]">
               AXIOMIX
             </span>
           </div>
@@ -185,7 +173,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             onClick={onToggle}
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             aria-expanded={!collapsed}
-            className="z-10 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text)]"
+            className="z-10 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[#8892A4] transition-colors hover:bg-[rgba(255,255,255,0.06)] hover:text-[#F0F4FA]"
           >
             {collapsed ? (
               <PanelLeftOpen size={16} aria-hidden="true" />
@@ -216,13 +204,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
-            const moduleColor = MODULE_COLORS[item.href];
+            const moduleId = HREF_TO_MODULE[item.href];
+            const moduleDef = moduleId ? MODULES[moduleId] : undefined;
+            const sidebarCol = moduleDef ? sidebarColors(moduleDef) : undefined;
             const showBadge = item.href === "/whatsapp-intelligence" && criticalCount > 0;
 
-            const activeBg = moduleColor
-              ? isDark ? moduleColor.bgDark : moduleColor.bgLight
-              : undefined;
-            const activeColor = moduleColor?.color;
+            const activeBg = sidebarCol?.bg;
+            const activeColor = sidebarCol?.color;
 
             const itemContent = (
               <Link
@@ -232,7 +220,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 className={cn(
                   "relative flex w-full items-center rounded-lg transition-colors duration-150",
                   !isExpanded ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
-                  !isActive && "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-3)]"
+                  !isActive && "text-[#8892A4] hover:text-[#F0F4FA] hover:bg-[rgba(255,255,255,0.06)]"
                 )}
                 style={
                   isActive && activeColor
@@ -263,7 +251,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   {item.label}
                 </span>
                 {showBadge && isExpanded && (
-                  <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--color-danger)] px-1.5 text-xs font-bold text-white">
+                  <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--color-danger)] px-1.5 font-mono text-xs font-semibold text-white">
                     {criticalCount > 99 ? "99+" : criticalCount}
                   </span>
                 )}
@@ -287,14 +275,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="mt-auto border-t p-3">
+        <div className="mt-auto border-t border-[rgba(255,255,255,0.06)] p-3">
           <div
             className={cn(
-              "cursor-pointer rounded-lg px-2 py-2 transition-colors hover:bg-[var(--color-surface-3)]",
+              "cursor-pointer rounded-lg px-2 py-2 transition-colors hover:bg-[rgba(255,255,255,0.06)]",
               isExpanded ? "flex items-center gap-3" : "flex items-center justify-center"
             )}
           >
-            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-dim)] text-xs font-bold text-[var(--color-primary)]">
+            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[rgb(var(--color-primary-rgb)/0.15)] text-xs font-bold text-[var(--color-primary-hover)]">
               {companyName
                 ? companyName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")
                 : "AX"}
@@ -307,7 +295,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 transition: "opacity 180ms ease, width 180ms ease",
               }}
             >
-              <p className="truncate text-xs font-medium leading-none text-[var(--color-text)]">
+              <p className="truncate text-xs font-medium leading-none text-[#F0F4FA]">
                 {companyName ?? "Minha Conta"}
               </p>
             </div>

@@ -390,7 +390,7 @@ export default async function SettingsPage({
   };
 
   return (
-    <div style={{ '--module-color': '#8A8A8A', '--module-color-bg': '#F1F5F9' } as React.CSSProperties}>
+    <div style={{ '--module-color-bg': 'var(--module-accent-bg, #F7F8FA)' } as React.CSSProperties}>
     <PageContainer
       title=""
       description=""

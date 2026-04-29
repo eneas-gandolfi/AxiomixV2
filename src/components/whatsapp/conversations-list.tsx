@@ -400,7 +400,7 @@ export function ConversationsList({ conversations, companyId, agents = [], initi
             <Progress
               percent={Math.round((analyzeProgress.current / analyzeProgress.total) * 100)}
               size="small"
-              strokeColor="var(--color-primary)"
+              strokeColor="var(--module-accent)"
               status={analyzeProgress.current === analyzeProgress.total ? "success" : "active"}
             />
           </div>

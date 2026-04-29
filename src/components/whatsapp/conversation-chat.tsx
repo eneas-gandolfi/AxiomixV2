@@ -317,9 +317,9 @@ export function ConversationChat({
 
           {/* Card de sugestão da IA */}
           {suggestion && (
-            <div className="mb-3 rounded-lg border border-[#FA5E24]/30 bg-[#FA5E24]/5 p-3">
+            <div className="mb-3 rounded-lg border border-[var(--module-accent)]/30 bg-[var(--module-accent)]/5 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-[#FA5E24]">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--module-accent)]">
                   <Sparkles className="h-3.5 w-3.5" />
                   Sugestão da IA
                 </div>
@@ -377,7 +377,7 @@ export function ConversationChat({
               onKeyDown={handleKeyDown}
               placeholder="Digite sua mensagem..."
               rows={2}
-              className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-text placeholder:text-muted focus:border-[#2EC4B6] focus:outline-none focus:ring-1 focus:ring-[#2EC4B6]"
+              className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-text placeholder:text-muted focus:border-[var(--module-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--module-accent)]"
               disabled={sending}
             />
             <Button
@@ -395,7 +395,7 @@ export function ConversationChat({
               Enter para enviar, Shift+Enter para quebra de linha
             </p>
             <div className="flex items-center gap-1 text-xs text-muted">
-              <Wifi className={`h-3 w-3 ${polling ? "text-[#2EC4B6] animate-pulse" : "text-success"}`} />
+              <Wifi className={`h-3 w-3 ${polling ? "text-[var(--module-accent)] animate-pulse" : "text-success"}`} />
               <span>Auto-sync {polling ? "..." : "ativo"}</span>
             </div>
           </div>

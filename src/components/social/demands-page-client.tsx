@@ -89,7 +89,7 @@ export function DemandsPageClient({ companyId, teamMembers }: DemandsPageClientP
                 onClick={() => setViewMode("table")}
                 className={`p-1.5 rounded-md transition-colors ${
                   viewMode === "table"
-                    ? "bg-[var(--color-surface)] shadow-sm text-[#FA5E24]"
+                    ? "bg-[var(--color-surface)] shadow-sm text-[var(--module-accent)]"
                     : "text-[var(--color-text-tertiary)]"
                 }`}
               >
@@ -100,7 +100,7 @@ export function DemandsPageClient({ companyId, teamMembers }: DemandsPageClientP
                 onClick={() => setViewMode("kanban")}
                 className={`p-1.5 rounded-md transition-colors ${
                   viewMode === "kanban"
-                    ? "bg-[var(--color-surface)] shadow-sm text-[#FA5E24]"
+                    ? "bg-[var(--color-surface)] shadow-sm text-[var(--module-accent)]"
                     : "text-[var(--color-text-tertiary)]"
                 }`}
               >
@@ -123,7 +123,7 @@ export function DemandsPageClient({ companyId, teamMembers }: DemandsPageClientP
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as DemandStatus | "all")}
-              className="h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#FA5E24] focus:border-transparent"
+              className="h-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--module-accent,#8B5CF6)] focus:border-transparent"
             >
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -136,7 +136,7 @@ export function DemandsPageClient({ companyId, teamMembers }: DemandsPageClientP
       <CardContent>
         {isLoading && demands.length === 0 ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-[#FA5E24]" />
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--module-accent)]" />
           </div>
         ) : viewMode === "table" ? (
           <div className="antd-scope">
