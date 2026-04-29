@@ -3,6 +3,12 @@
  * Propósito: Auto-assignment inteligente de conversas baseado em carga de trabalho e regras.
  * Autor: AXIOMIX
  * Data: 2026-03-27
+ *
+ * NOTA (F3 — 2026-04-29):
+ * Este service já delega para Evo CRM via `evoClient.assignConversation()`.
+ * A lógica de seleção (round-robin ponderado + regras por sentimento/intenção)
+ * é valor proprietário do Axiomix — manter mesmo quando Evo CRM tiver
+ * assignment nativo.
  */
 
 import "server-only";

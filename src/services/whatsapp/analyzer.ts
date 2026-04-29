@@ -1,8 +1,24 @@
 /**
  * Arquivo: src/services/whatsapp/analyzer.ts
- * Proposito: Analisar conversas com IA e aplicar acoes automaticas no Evo CRM.
+ * Propósito: Analisar conversas com IA e aplicar ações automáticas no Evo CRM.
  * Autor: AXIOMIX
  * Data: 2026-03-11
+ *
+ * NOTA DE DELEGAÇÃO (F3 — 2026-04-29):
+ * Este service atualmente usa OpenRouter para análise de conversas.
+ * Quando os agentes Evo CRM forem configurados (F4), a função
+ * `generateConversationInsight` pode ser delegada para o Evo CRM AI Assistance
+ * (endpoints /ai/suggest, /ai/summarize, /ai/sentiment).
+ *
+ * O que MANTER mesmo após delegação:
+ *   - assessConversationGuardrails (lógica de negócio local)
+ *   - executeAutomaticActions (auto-labels, auto-kanban, alertas)
+ *   - insightSchema (validação Zod do output)
+ *   - KB context enrichment (pode migrar para Evo KB)
+ *
+ * O que pode ser DELEGADO:
+ *   - generateConversationInsight → Evo CRM AI Assistance
+ *   - openRouterChatCompletion → substituir por Evo CRM agent endpoint
  */
 
 import { z } from "zod";

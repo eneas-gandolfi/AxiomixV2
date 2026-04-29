@@ -3,6 +3,13 @@
  * Propósito: Gerar sugestão de resposta IA para o atendente enviar ao cliente.
  * Autor: AXIOMIX
  * Data: 2026-03-19
+ *
+ * NOTA DE DELEGAÇÃO (F3 — 2026-04-29):
+ * Candidato a delegação para Evo CRM AI Assistance quando os agentes
+ * estiverem configurados com Knowledge Base própria.
+ * A função `generateResponseSuggestion` pode ser substituída por
+ * chamada ao endpoint /ai/suggest do Evo CRM, mantendo o fallback
+ * local para quando o Evo CRM estiver indisponível.
  */
 
 import "server-only";

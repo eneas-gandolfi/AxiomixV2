@@ -3,6 +3,11 @@
  * Propósito: Análise batch horária de conversas WhatsApp - classificação leve + resumo geral.
  * Autor: AXIOMIX
  * Data: 2026-03-17
+ *
+ * @deprecated (F3 — 2026-04-29)
+ * Candidato a remoção quando Evo CRM agents estiverem configurados com
+ * análise automática nativa. Mantido por enquanto como funcionalidade ativa.
+ * Avaliar remoção após 2 semanas de operação com agentes Evo CRM.
  */
 
 import "server-only";
