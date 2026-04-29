@@ -198,6 +198,95 @@ export async function adjustAgentParams(
 }
 
 // ---------------------------------------------------------------------------
+// Agent ↔ Inbox integration (vincular agente ao WhatsApp)
+// ---------------------------------------------------------------------------
+
+export type AgentIntegration = {
+  id: string
+  agent_id: string
+  provider: string
+  config: Record<string, unknown>
+  created_at: string | null
+}
+
+/**
+ * Lista integrações de um agente (inboxes vinculados, etc).
+ */
+export async function listAgentIntegrations(companyId: string, agentId: string): Promise<AgentIntegration[]> {
+  const client = await getEvoCrmClient(companyId)
+  const result = await agentRequest<Record<string, unknown>>(
+    client,
+    `/api/v1/agents/${encodeURIComponent(agentId)}/integrations`
+  )
+  const rawList = Array.isArray(result.data)
+    ? result.data
+    : Array.isArray(result) ? result : []
+
+  return (rawList as Record<string, unknown>[]).map((item) => ({
+    id: String(item.id ?? ''),
+    agent_id: String(item.agent_id ?? agentId),
+    provider: typeof item.provider === 'string' ? item.provider : 'unknown',
+    config: typeof item.config === 'object' && item.config !== null
+      ? item.config as Record<string, unknown>
+      : {},
+    created_at: typeof item.created_at === 'string' ? item.created_at : null,
+  }))
+}
+
+/**
+ * Vincula um agente a um inbox WhatsApp (ou outro canal).
+ * Faz o agente atender automaticamente novas conversas daquele inbox.
+ */
+export async function assignAgentToInbox(
+  companyId: string,
+  agentId: string,
+  inboxId: string
+): Promise<AgentIntegration> {
+  const client = await getEvoCrmClient(companyId)
+  const result = await agentRequest<Record<string, unknown>>(
+    client,
+    `/api/v1/agents/${encodeURIComponent(agentId)}/integrations`,
+    {
+      method: 'POST',
+      body: {
+        provider: 'crm_inbox',
+        config: { inbox_id: inboxId },
+      },
+    }
+  )
+
+  const item = typeof result.data === 'object' && result.data !== null
+    ? result.data as Record<string, unknown>
+    : result
+
+  return {
+    id: String(item.id ?? ''),
+    agent_id: String(item.agent_id ?? agentId),
+    provider: typeof item.provider === 'string' ? item.provider : 'crm_inbox',
+    config: typeof item.config === 'object' && item.config !== null
+      ? item.config as Record<string, unknown>
+      : { inbox_id: inboxId },
+    created_at: typeof item.created_at === 'string' ? item.created_at : null,
+  }
+}
+
+/**
+ * Remove a vinculação de um agente com um inbox.
+ */
+export async function removeAgentFromInbox(
+  companyId: string,
+  agentId: string,
+  integrationId: string
+): Promise<void> {
+  const client = await getEvoCrmClient(companyId)
+  await agentRequest(
+    client,
+    `/api/v1/agents/${encodeURIComponent(agentId)}/integrations/${encodeURIComponent(integrationId)}`,
+    { method: 'DELETE' }
+  )
+}
+
+// ---------------------------------------------------------------------------
 // HTTP helper (reutiliza credenciais do client)
 // ---------------------------------------------------------------------------
 

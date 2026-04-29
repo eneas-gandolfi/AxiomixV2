@@ -16,6 +16,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AgentForm } from "@/components/whatsapp/agents/agent-form";
 import { AgentTypeBadge } from "@/components/whatsapp/agents/agent-type-badge";
+import { AgentInboxLink } from "@/components/whatsapp/agents/agent-inbox-link";
 
 export const dynamic = "force-dynamic";
 
@@ -174,6 +175,12 @@ export default function AgentDetailPage({ params }: PageProps) {
         )}
       </div>
 
+      {/* Vinculação ao canal WhatsApp */}
+      <div className="rounded-xl border border-border bg-card p-6">
+        <AgentInboxLink companyId={companyId} agentId={agentId} />
+      </div>
+
+      {/* Formulário de edição */}
       <div className="rounded-xl border border-border bg-card p-6">
         <AgentForm
           mode={isAdmin ? "edit" : "adjust"}
