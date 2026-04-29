@@ -214,13 +214,18 @@ export type AgentIntegration = {
  */
 export async function listAgentIntegrations(companyId: string, agentId: string): Promise<AgentIntegration[]> {
   const client = await getEvoCrmClient(companyId)
-  const result = await agentRequest<Record<string, unknown>>(
+  const result = await agentRequest<unknown>(
     client,
     `/api/v1/agents/${encodeURIComponent(agentId)}/integrations`
   )
-  const rawList = Array.isArray(result.data)
-    ? result.data
-    : Array.isArray(result) ? result : []
+
+  // agentRequest já unwraps o envelope {success, data} → result é o array direto
+  // Mas também pode vir como {data: [...]} se o envelope for diferente
+  const rawList = Array.isArray(result)
+    ? result
+    : typeof result === 'object' && result !== null && Array.isArray((result as Record<string, unknown>).data)
+      ? (result as Record<string, unknown>).data as unknown[]
+      : []
 
   return (rawList as Record<string, unknown>[]).map((item) => ({
     id: String(item.id ?? ''),
@@ -243,7 +248,7 @@ export async function assignAgentToInbox(
   inboxId: string
 ): Promise<AgentIntegration> {
   const client = await getEvoCrmClient(companyId)
-  const result = await agentRequest<Record<string, unknown>>(
+  const result = await agentRequest<unknown>(
     client,
     `/api/v1/agents/${encodeURIComponent(agentId)}/integrations`,
     {
@@ -255,9 +260,11 @@ export async function assignAgentToInbox(
     }
   )
 
-  const item = typeof result.data === 'object' && result.data !== null
-    ? result.data as Record<string, unknown>
-    : result
+  // agentRequest unwraps envelope → result é o objeto direto ou pode ter .data
+  const raw = result as Record<string, unknown>
+  const item = typeof raw.data === 'object' && raw.data !== null
+    ? raw.data as Record<string, unknown>
+    : raw
 
   return {
     id: String(item.id ?? ''),
