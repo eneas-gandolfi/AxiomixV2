@@ -10,6 +10,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Bot,
   Clock,
   LayoutDashboard,
   MessageSquare,
@@ -51,6 +52,12 @@ const TABS: TabItem[] = [
     label: "Pipeline",
     href: "/whatsapp-intelligence/pipeline",
     icon: Kanban,
+  },
+  {
+    key: "agentes",
+    label: "Agentes IA",
+    href: "/whatsapp-intelligence/agentes",
+    icon: Bot,
   },
   {
     key: "sessoes",
