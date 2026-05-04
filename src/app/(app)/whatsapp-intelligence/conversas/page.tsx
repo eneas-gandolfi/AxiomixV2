@@ -41,7 +41,12 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
       const evoClient = await getEvoCrmClient(companyId);
       const users = await evoClient.listUsers();
       return users.map((u) => ({ id: u.id, name: u.name ?? null }));
-    } catch {
+    } catch (error) {
+      console.error("[conversas page] fetchAgents failed; degrading to empty list", {
+        companyId,
+        message: error instanceof Error ? error.message : String(error),
+        cause: error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause?.code : undefined,
+      });
       return [];
     }
   };

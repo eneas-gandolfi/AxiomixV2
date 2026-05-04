@@ -56,6 +56,11 @@ export async function GET(request: NextRequest) {
     if (error instanceof CompanyAccessError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     }
+    console.error("[api/whatsapp/agents GET] failed", {
+      message: error instanceof Error ? error.message : String(error),
+      cause: error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause?.code : undefined,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     const message = error instanceof Error ? error.message : "Erro ao listar agentes.";
     return NextResponse.json({ error: message, code: "AGENTS_ERROR" }, { status: 500 });
   }
@@ -84,6 +89,11 @@ export async function POST(request: NextRequest) {
     if (error instanceof CompanyAccessError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     }
+    console.error("[api/whatsapp/agents POST] failed", {
+      message: error instanceof Error ? error.message : String(error),
+      cause: error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause?.code : undefined,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     const message = error instanceof Error ? error.message : "Erro ao criar agente.";
     return NextResponse.json({ error: message, code: "AGENTS_ERROR" }, { status: 500 });
   }

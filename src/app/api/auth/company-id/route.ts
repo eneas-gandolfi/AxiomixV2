@@ -17,7 +17,11 @@ export async function GET() {
     }
 
     return NextResponse.json({ companyId });
-  } catch {
+  } catch (error) {
+    console.error("[api/auth/company-id GET] failed", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json({ error: "Erro ao obter company_id." }, { status: 500 });
   }
 }
