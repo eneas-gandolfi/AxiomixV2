@@ -526,13 +526,16 @@ export function KanbanBoard({
                       </div>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => setCreatingInStage(stage.id)}
-                      className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-border py-2 text-xs text-muted hover:border-[var(--module-accent)] hover:text-[var(--module-accent)] transition-colors"
+                    // Cards entram automaticamente quando uma conversa é vinculada ao pipeline.
+                    // Criação avulsa de card foi desabilitada — Evo CRM v4.2.0 trata pipeline_item
+                    // como vínculo contato↔pipeline, não card standalone (validado 2026-05-04).
+                    // Para criar lead novo, usar a aba Contatos + iniciar conversa pelo WhatsApp.
+                    <div
+                      title="Cards aparecem aqui automaticamente quando uma conversa entra neste pipeline. Para criar um lead novo, use a aba Contatos e inicie uma conversa."
+                      className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-border/60 py-2 text-[11px] text-muted/70 cursor-help"
                     >
-                      <Plus className="h-3 w-3" />
-                      Novo card
-                    </button>
+                      Cards entram via conversas
+                    </div>
                   )}
                 </StageColumn>
               );

@@ -70,21 +70,21 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "get") {
-      const { cardId } = parsed.data;
+      const { cardId, boardId } = parsed.data;
       if (!cardId) {
         return NextResponse.json({ error: "cardId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      const card = await evoClient.getCard(cardId);
+      const card = await evoClient.getCard(cardId, boardId);
       return NextResponse.json({ card });
     }
 
     if (action === "get-details") {
-      const { cardId } = parsed.data;
+      const { cardId, boardId } = parsed.data;
       if (!cardId) {
         return NextResponse.json({ error: "cardId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
 
-      const card = await evoClient.getCard(cardId);
+      const card = await evoClient.getCard(cardId, boardId);
 
       let contactName: string | null = null;
       if (card.contact_id) {
@@ -115,11 +115,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "update") {
-      const { cardId, title, description, stage_id, assigned_to, value_amount, phone, priority, tags, contact_id, conversation_id } = parsed.data;
-      if (!cardId) {
-        return NextResponse.json({ error: "cardId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
+      const { cardId, boardId, title, description, stage_id, assigned_to, value_amount, phone, priority, tags, contact_id, conversation_id } = parsed.data;
+      if (!cardId || !boardId) {
+        return NextResponse.json({ error: "cardId e boardId são obrigatórios.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      const updateData: Record<string, unknown> = {};
+      const updateData: Parameters<typeof evoClient.updateCard>[2] = {};
       if (title !== undefined) updateData.title = title;
       if (description !== undefined) updateData.description = description;
       if (stage_id !== undefined) updateData.stage_id = stage_id;
@@ -131,16 +131,16 @@ export async function POST(request: NextRequest) {
       if (contact_id !== undefined) updateData.contact_id = contact_id;
       if (conversation_id !== undefined) updateData.conversation_id = conversation_id;
 
-      await evoClient.updateCard(cardId, updateData);
+      await evoClient.updateCard(boardId, cardId, updateData);
       return NextResponse.json({ success: true });
     }
 
     if (action === "delete") {
-      const { cardId } = parsed.data;
-      if (!cardId) {
-        return NextResponse.json({ error: "cardId é obrigatório.", code: "VALIDATION_ERROR" }, { status: 400 });
+      const { cardId, boardId } = parsed.data;
+      if (!cardId || !boardId) {
+        return NextResponse.json({ error: "cardId e boardId são obrigatórios.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
-      await evoClient.deleteCard(cardId);
+      await evoClient.deleteCard(boardId, cardId);
       return NextResponse.json({ success: true });
     }
 

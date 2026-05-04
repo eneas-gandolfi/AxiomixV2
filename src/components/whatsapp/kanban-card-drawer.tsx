@@ -100,7 +100,7 @@ export function KanbanCardDrawer({
       const res = await fetch("/api/whatsapp/kanban/cards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, action: "get-details", cardId }),
+        body: JSON.stringify({ companyId, action: "get-details", cardId, boardId }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -150,6 +150,7 @@ export function KanbanCardDrawer({
           companyId,
           action: "update",
           cardId: card.id,
+          boardId,
           title: editTitle || null,
           description: editDescription || null,
           value_amount: parsedValue,
@@ -184,7 +185,7 @@ export function KanbanCardDrawer({
           await fetch("/api/whatsapp/kanban/cards", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ companyId, action: "delete", cardId: card.id }),
+            body: JSON.stringify({ companyId, action: "delete", cardId: card.id, boardId }),
           });
           onClose();
           onRefresh();

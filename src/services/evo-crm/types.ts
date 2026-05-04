@@ -76,6 +76,8 @@ export type EvoKanbanStage = {
   id: string
   name?: string | null
   position?: number | null
+  // Evo CRM v4.2.0 retorna "items" (validado 2026-05-04). "cards" mantido como alias legado.
+  items?: EvoKanbanCard[] | null
   cards?: EvoKanbanCard[] | null
 }
 
@@ -213,9 +215,11 @@ export type EvoCrmClient = {
   addContactLabel: (payload: { contactId: string; label: string }) => Promise<void>
   listBoards: () => Promise<EvoKanbanBoard[]>
   getBoard: (boardId: string) => Promise<EvoKanbanBoard>
-  getCard: (cardId: string) => Promise<EvoKanbanCard>
-  updateCard: (cardId: string, data: Partial<Pick<EvoKanbanCard, 'title' | 'description' | 'stage_id' | 'assigned_to' | 'value_amount' | 'phone' | 'priority' | 'tags' | 'contact_id' | 'conversation_id'>>) => Promise<void>
-  deleteCard: (cardId: string) => Promise<void>
+  // Pipeline item CRUD — pipelineId obrigatório (validado contra Evo CRM v4.2.0 em 2026-05-04).
+  // Evo não expõe rotas top-level por cardId; tudo passa por /pipelines/{pipelineId}/pipeline_items.
+  getCard: (cardId: string, pipelineId?: string) => Promise<EvoKanbanCard>
+  updateCard: (pipelineId: string, cardId: string, data: Partial<Pick<EvoKanbanCard, 'title' | 'description' | 'stage_id' | 'assigned_to' | 'value_amount' | 'phone' | 'priority' | 'tags' | 'contact_id' | 'conversation_id'>>) => Promise<void>
+  deleteCard: (pipelineId: string, cardId: string) => Promise<void>
   moveCard: (cardId: string, boardId: string, stageId: string) => Promise<void>
   // Equipe
   listUsers: () => Promise<EvoUserApi[]>

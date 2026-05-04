@@ -14,8 +14,21 @@
  * - Messages usam `message_type: "incoming"|"outgoing"` (não `from_me` boolean)
  * - Conversations incluem `display_id`, `inbox_id`, `last_activity_at`, `pipelines[]`, `labels[]`
  *
- * Endpoints verificados: conversations, messages, contacts, labels, pipelines, teams, inboxes.
- * Endpoints ainda UNVERIFIED: sendTemplate, kanban card CRUD sub-routes.
+ * Endpoints verificados: conversations, messages, contacts, labels, pipelines, teams, inboxes,
+ *   pipeline_items CRUD (validado 2026-05-04 via scripts/verify-evo-endpoints.mjs).
+ *
+ * Convenções específicas do recurso pipeline_items:
+ *   - Paths: /api/v1/pipelines/{pipelineId}/pipeline_items[/{itemId}[/move_to_stage]]
+ *   - createKanbanCard: POST com body { type, item_id, pipeline_stage_id, custom_fields }
+ *     - "type" suporta "contact" (e provavelmente "conversation"); "item_id" é o UUID do contato
+ *     - title/description vivem dentro de custom_fields
+ *   - updateCard: PUT com body wrapped em { pipeline_item: {...} } (Rails strong params)
+ *   - moveCard: PATCH .../move_to_stage com body { new_stage_id, notes? }
+ *   - deleteCard: DELETE .../{itemId}
+ *   - getCard: GET individual NÃO existe — ler via getBoard.stages[].items[]
+ *
+ * Endpoints BROKEN (não existem na API do Evo CRM v4.2.0, validado 2026-05-04):
+ *   - sendTemplate: usar Evolution API (`/message/sendTemplate/{instance}`), não Evo CRM.
  */
 
 import type { Json } from "@/database/types/database.types";
@@ -675,8 +688,10 @@ export async function buildEvoCrmClient(companyId: string): Promise<EvoCrmClient
       });
     },
 
-    // UNVERIFIED — revalidar após obter token: endpoint `/send-template` retornou 404 no Evo CRM.
-    // Pode ser necessário enviar via Evolution API WhatsApp (outro serviço) em vez do CRM.
+    // BROKEN 2026-05-04 — endpoint /api/v1/inboxes/{inboxId}/send-template confirmado 404 no
+    // Evo CRM v4.2.0 (validado em 2026-04-29 e re-validado em 2026-05-04 via verify-evo-endpoints).
+    // Para envio de template HSM, usar Evolution API: POST /message/sendTemplate/{instance}.
+    // Esta implementação fica como referência mas vai falhar em runtime — caller deve usar fallback.
     async sendTemplate(payload) {
       if (!config.inboxId) {
         throw new Error("Inbox ID não configurado. Não é possível enviar template.");
@@ -1000,70 +1015,136 @@ export async function buildEvoCrmClient(companyId: string): Promise<EvoCrmClient
       } as EvoKanbanBoard;
     },
 
-    // UNVERIFIED — sub-rotas de cards de pipeline. Tentativa baseada em REST convencional.
+    // VERIFIED 2026-05-04 — POST /api/v1/pipelines/{pipelineId}/pipeline_items
+    // Recurso "pipeline_items" vincula um contato (ou conversa) a um pipeline+stage.
+    // Body real: { type, item_id, pipeline_stage_id, custom_fields, conversation_id? }
+    // title/description e demais campos UI ficam em custom_fields (livre).
     async createKanbanCard(payload) {
+      const customFields: Record<string, unknown> = {
+        title: payload.title,
+        description: payload.description,
+        source: "axiomix",
+        ...(typeof payload.value_amount === "number" ? { value_amount: payload.value_amount } : {}),
+        ...(payload.phone ? { phone: payload.phone } : {}),
+        ...(payload.assigned_to ? { assigned_to: payload.assigned_to } : {}),
+        ...(payload.priority ? { priority: payload.priority } : {}),
+        ...(payload.tags && payload.tags.length > 0 ? { tags: payload.tags } : {}),
+      };
+      const body: Record<string, unknown> = {
+        type: payload.contact_id ? "contact" : "conversation",
+        item_id: payload.contact_id ?? payload.conversation_id ?? null,
+        pipeline_stage_id: payload.stage_id,
+        custom_fields: customFields,
+        ...(payload.conversation_id ? { conversation_id: payload.conversation_id } : {}),
+      };
       await requestJson<unknown>(
-        `/api/v1/pipelines/${encodeURIComponent(payload.boardId)}/cards`,
-        {
-          method: "POST",
-          body: {
-            title: payload.title,
-            description: payload.description,
-            source: "axiomix",
-            ...(payload.stage_id ? { stage_id: payload.stage_id } : {}),
-            ...(payload.contact_id ? { contact_id: payload.contact_id } : {}),
-            ...(typeof payload.value_amount === "number" ? { value_amount: payload.value_amount } : {}),
-            ...(payload.phone ? { phone: payload.phone } : {}),
-            ...(payload.assigned_to ? { assigned_to: payload.assigned_to } : {}),
-            ...(payload.priority ? { priority: payload.priority } : {}),
-            ...(payload.tags && payload.tags.length > 0 ? { tags: payload.tags } : {}),
-            ...(payload.conversation_id ? { conversation_id: payload.conversation_id } : {}),
-          },
-        }
+        `/api/v1/pipelines/${encodeURIComponent(payload.boardId)}/pipeline_items`,
+        { method: "POST", body: body as Json }
       );
     },
 
-    async getCard(cardId: string) {
-      const result = await requestJson<Record<string, unknown>>(`/api/v1/pipelines/cards/${encodeURIComponent(cardId)}`);
-      const item = typeof result.card === "object" && result.card !== null
-        ? (result.card as Record<string, unknown>)
-        : result;
-      return {
-        id: String(item.id ?? cardId),
-        title: typeof item.title === "string" ? item.title : null,
-        description: typeof item.description === "string" ? item.description : null,
-        stage_id: typeof item.stage_id === "string" ? item.stage_id : null,
-        board_id: typeof item.board_id === "string" ? item.board_id : typeof item.pipeline_id === "string" ? item.pipeline_id : null,
-        source: typeof item.source === "string" ? item.source : null,
-        contact_id: typeof item.contact_id === "string" ? item.contact_id : null,
-        created_at: typeof item.created_at === "string" ? item.created_at : null,
-        updated_at: typeof item.updated_at === "string" ? item.updated_at : null,
-        assigned_to: typeof item.assigned_to === "string" ? item.assigned_to : null,
-        assignee: typeof item.assignee === "string" ? item.assignee : null,
-        value_amount: typeof item.value_amount === "number" ? item.value_amount : null,
-        phone: typeof item.phone === "string" ? item.phone : null,
-        priority: typeof item.priority === "string" ? item.priority : null,
-        tags: Array.isArray(item.tags) ? item.tags.filter((t: unknown): t is string => typeof t === "string") : null,
-        conversation_id: typeof item.conversation_id === "string" ? item.conversation_id : null,
-      } as EvoKanbanCard;
+    // VERIFIED 2026-05-04 — Evo CRM v4.2.0 NÃO expõe GET individual de pipeline_item.
+    // Estratégia: ler via /pipelines/{pipelineId} (getBoard) e procurar nas stages[].items[].
+    // Se pipelineId não for passado, varre todos os pipelines (mais lento, fallback).
+    async getCard(cardId: string, pipelineId?: string): Promise<EvoKanbanCard> {
+      const flatten = (item: Record<string, unknown>, fallbackPipelineId?: string): EvoKanbanCard => {
+        const cf = (item.custom_fields as Record<string, unknown> | undefined) ?? {};
+        return {
+          id: String(item.id ?? cardId),
+          title: typeof cf.title === "string" ? cf.title
+            : typeof item.title === "string" ? item.title : null,
+          description: typeof cf.description === "string" ? cf.description
+            : typeof item.description === "string" ? item.description : null,
+          stage_id: typeof item.pipeline_stage_id === "string" ? item.pipeline_stage_id
+            : typeof item.stage_id === "string" ? item.stage_id : null,
+          board_id: typeof item.pipeline_id === "string" ? item.pipeline_id
+            : typeof item.board_id === "string" ? item.board_id : (fallbackPipelineId ?? null),
+          source: typeof cf.source === "string" ? cf.source : null,
+          contact_id: typeof item.contact_id === "string" ? item.contact_id : null,
+          created_at: typeof item.created_at === "string" ? item.created_at
+            : typeof item.created_at === "number" ? new Date(item.created_at * 1000).toISOString() : null,
+          updated_at: typeof item.updated_at === "string" ? item.updated_at : null,
+          assigned_to: typeof cf.assigned_to === "string" ? cf.assigned_to : null,
+          assignee: null,
+          value_amount: typeof cf.value_amount === "number" ? cf.value_amount
+            : typeof item.value === "number" ? item.value : null,
+          phone: typeof cf.phone === "string" ? cf.phone : null,
+          priority: typeof cf.priority === "string" ? cf.priority : null,
+          tags: Array.isArray(cf.tags) ? cf.tags.filter((t: unknown): t is string => typeof t === "string") : null,
+          conversation_id: typeof item.conversation_id === "string" ? item.conversation_id : null,
+        } as EvoKanbanCard;
+      };
+
+      const searchInBoard = async (pid: string): Promise<EvoKanbanCard | null> => {
+        try {
+          const board = await requestJson<Record<string, unknown>>(`/api/v1/pipelines/${encodeURIComponent(pid)}`);
+          const data = (board.data as Record<string, unknown>) ?? board;
+          const stages = Array.isArray(data.stages) ? data.stages : [];
+          for (const stage of stages as Record<string, unknown>[]) {
+            const items = Array.isArray(stage.items) ? stage.items : [];
+            const found = (items as Record<string, unknown>[]).find((i) => i?.id === cardId);
+            if (found) return flatten(found, pid);
+          }
+        } catch {
+          // continua para o próximo pipeline
+        }
+        return null;
+      };
+
+      if (pipelineId) {
+        const hit = await searchInBoard(pipelineId);
+        if (hit) return hit;
+      } else {
+        const pipelines = await this.listBoards();
+        for (const p of pipelines) {
+          const hit = await searchInBoard(p.id);
+          if (hit) return hit;
+        }
+      }
+      throw new Error(`Pipeline item ${cardId} não encontrado${pipelineId ? ` no pipeline ${pipelineId}` : ""}.`);
     },
 
-    async updateCard(cardId: string, data) {
-      await requestJson<unknown>(`/api/v1/pipelines/cards/${encodeURIComponent(cardId)}`, {
-        method: "PUT",
-        body: data as Json,
-      });
+    // VERIFIED 2026-05-04 — PUT /pipelines/{pipelineId}/pipeline_items/{cardId}
+    // Body precisa estar wrapped em { pipeline_item: {...} } (Rails strong params).
+    // title/description ficam em custom_fields, não top-level.
+    async updateCard(pipelineId: string, cardId: string, data) {
+      const cf: Record<string, unknown> = {};
+      if (data.title !== undefined) cf.title = data.title;
+      if (data.description !== undefined) cf.description = data.description;
+      if (data.value_amount !== undefined) cf.value_amount = data.value_amount;
+      if (data.phone !== undefined) cf.phone = data.phone;
+      if (data.priority !== undefined) cf.priority = data.priority;
+      if (data.tags !== undefined) cf.tags = data.tags;
+      if (data.assigned_to !== undefined) cf.assigned_to = data.assigned_to;
+      const inner: Record<string, unknown> = {};
+      if (Object.keys(cf).length > 0) inner.custom_fields = cf;
+      if (data.stage_id !== undefined) inner.pipeline_stage_id = data.stage_id;
+      if (data.contact_id !== undefined) inner.item_id = data.contact_id;
+      if (data.conversation_id !== undefined) inner.conversation_id = data.conversation_id;
+      await requestJson<unknown>(
+        `/api/v1/pipelines/${encodeURIComponent(pipelineId)}/pipeline_items/${encodeURIComponent(cardId)}`,
+        { method: "PUT", body: { pipeline_item: inner } as Json }
+      );
     },
 
-    async deleteCard(cardId: string) {
-      await requestJson<unknown>(`/api/v1/pipelines/cards/${encodeURIComponent(cardId)}`, { method: "DELETE" });
+    // VERIFIED 2026-05-04 — DELETE /pipelines/{pipelineId}/pipeline_items/{cardId}
+    async deleteCard(pipelineId: string, cardId: string) {
+      await requestJson<unknown>(
+        `/api/v1/pipelines/${encodeURIComponent(pipelineId)}/pipeline_items/${encodeURIComponent(cardId)}`,
+        { method: "DELETE" }
+      );
     },
 
+    // VERIFIED 2026-05-04 — PATCH /pipelines/{pipelineId}/pipeline_items/{cardId}/move_to_stage
+    // Body real: { new_stage_id, notes? } (NÃO {pipeline_id, stage_id}).
     async moveCard(cardId: string, boardId: string, stageId: string) {
-      await requestJson<unknown>(`/api/v1/pipelines/cards/${encodeURIComponent(cardId)}/move`, {
-        method: "POST",
-        body: { pipeline_id: boardId, stage_id: stageId },
-      });
+      await requestJson<unknown>(
+        `/api/v1/pipelines/${encodeURIComponent(boardId)}/pipeline_items/${encodeURIComponent(cardId)}/move_to_stage`,
+        {
+          method: "PATCH",
+          body: { new_stage_id: stageId },
+        }
+      );
     },
 
     // --- Equipe ---
