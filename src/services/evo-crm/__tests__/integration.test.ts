@@ -233,4 +233,45 @@ describe("Evo CRM Integration (API real)", () => {
       expect(Array.isArray(webhook.subscriptions)).toBe(true);
     });
   });
+
+  describe("Users", () => {
+    skipNoToken("lista users (atendentes/operadores)", async () => {
+      const { status, data } = await fetchJson("/api/v1/users");
+      expect(status).toBe(200);
+      // Endpoint pode retornar via .users, .data, ou .agents — conforme client.ts:listUsers
+      const list = Array.isArray(data.users)
+        ? data.users
+        : Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data.agents)
+            ? data.agents
+            : [];
+      expect(Array.isArray(list)).toBe(true);
+
+      if (list.length === 0) return;
+      const user = list[0];
+      expect(user.id).toBeDefined();
+    });
+  });
+
+  describe("Agents (IA)", () => {
+    // Esses testes existem para evitar regressao do bug de 2026-04 onde /api/v1/agents
+    // era chamado sem ter sido validado, retornava erro, e o catch silencioso engolia.
+    skipNoToken("lista agentes IA com envelope correto", async () => {
+      const { status, data } = await fetchJson("/api/v1/agents");
+      expect(status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
+    });
+
+    skipNoToken("agente tem campos esperados pelo Axiomix", async () => {
+      const { data } = await fetchJson("/api/v1/agents");
+      if (!data.data || data.data.length === 0) return;
+
+      const agent = data.data[0];
+      expect(agent.id).toBeDefined();
+      expect(agent.name).toBeDefined();
+      expect(agent.type).toBeDefined();
+    });
+  });
 });
