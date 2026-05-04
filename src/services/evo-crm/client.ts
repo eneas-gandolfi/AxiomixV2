@@ -63,7 +63,7 @@ export type {
   EvoWebhookApi,
   EvoCrmClient,
 } from "./types";
-const EVO_HTTP_TIMEOUT_MS = 15_000;
+const EVO_HTTP_TIMEOUT_MS = 5_000;
 
 function describeFetchError(error: unknown) {
   if (!(error instanceof Error)) {

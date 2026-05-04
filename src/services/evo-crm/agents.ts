@@ -297,7 +297,7 @@ export async function removeAgentFromInbox(
 // HTTP helper (reutiliza credenciais do client)
 // ---------------------------------------------------------------------------
 
-const TIMEOUT_MS = 15_000
+const TIMEOUT_MS = 5_000
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
