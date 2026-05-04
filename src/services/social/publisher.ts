@@ -767,11 +767,11 @@ function normalizeScheduledPostSummary(
 ): ScheduledPostSummary {
   return {
     id: row.id,
-    postType: row.post_type,
+    postType: row.post_type as SocialPostType,
     caption: row.caption ?? null,
     platforms: parsePlatforms(row.platforms),
     scheduledAt: row.scheduled_at,
-    status: row.status,
+    status: row.status as SocialPublishStatus,
     progress: parseProgress(row.progress),
     externalPostIds: parseResultMap(row.external_post_ids),
     errorDetails: parseErrorMap(row.error_details),
@@ -1267,7 +1267,7 @@ export async function publishScheduledPost(input: {
       companyId: processingCompanyId,
       scheduledPostId: processingPostId,
       platforms: platformsToPublish,
-      postType: processingRow.post_type,
+      postType: processingRow.post_type as SocialPostType,
       caption: processingRow.caption,
       mediaUrls,
       config: uploadPostConfig,
@@ -1458,11 +1458,11 @@ export async function listPostsByMonth(
 
   let items = (rows ?? []).map((row) => ({
     id: row.id,
-    postType: row.post_type,
+    postType: row.post_type as SocialPostType,
     caption: row.caption ?? null,
     platforms: parsePlatforms(row.platforms),
     scheduledAt: row.scheduled_at,
-    status: row.status,
+    status: row.status as SocialPublishStatus,
     progress: parseProgress(row.progress),
     mediaFileIds: row.media_file_ids,
   }));

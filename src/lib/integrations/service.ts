@@ -429,13 +429,14 @@ export function sanitizeIntegrationConfig(type: IntegrationType, payload: Json |
 export function buildIntegrationPublicItem(
   row: Database["public"]["Tables"]["integrations"]["Row"]
 ) {
+  const integrationType = row.type as IntegrationType;
   return {
     id: row.id,
-    type: row.type,
+    type: integrationType,
     isActive: Boolean(row.is_active),
     testStatus: row.test_status,
     lastTestedAt: row.last_tested_at,
-    config: sanitizeIntegrationConfig(row.type, row.config),
+    config: sanitizeIntegrationConfig(integrationType, row.config),
   };
 }
 

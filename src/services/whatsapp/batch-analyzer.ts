@@ -228,7 +228,7 @@ async function loadRecentMessages(
     const existing = grouped.get(msg.conversation_id) ?? [];
     if (existing.length < MESSAGES_PER_CONVERSATION) {
       existing.push({
-        direction: msg.direction,
+        direction: msg.direction as "inbound" | "outbound",
         content: msg.content,
         sent_at: msg.sent_at,
         message_type: msg.message_type,

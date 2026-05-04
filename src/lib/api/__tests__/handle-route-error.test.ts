@@ -39,7 +39,7 @@ describe("handleRouteError", () => {
         received: "undefined",
         path: ["companyId"],
         message: "companyId inválido.",
-      },
+      } as never,
     ]);
 
     const response = handleRouteError(zodError, "FALLBACK_ERROR");

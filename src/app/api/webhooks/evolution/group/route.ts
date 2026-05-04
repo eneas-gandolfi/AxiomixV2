@@ -17,7 +17,6 @@ import {
   isGroupJid,
   detectTrigger,
   resolveTimestamp,
-  handleMessageStatusUpdate,
   handleGroupsUpsert,
   isBotEcho,
   resolveCompanyId,
@@ -83,11 +82,6 @@ export async function POST(request: NextRequest) {
 
     if (rawEvent === "groups.upsert") {
       const result = await handleGroupsUpsert((rawBody as Record<string, unknown>).data, supabase);
-      return NextResponse.json(result);
-    }
-
-    if (rawEvent === "messages.update") {
-      const result = await handleMessageStatusUpdate((rawBody as Record<string, unknown>).data, supabase);
       return NextResponse.json(result);
     }
 

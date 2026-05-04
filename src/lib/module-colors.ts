@@ -10,7 +10,6 @@ export type ModuleId =
   | "whatsapp-intelligence"
   | "intelligence"
   | "social-publisher"
-  | "campanhas"
   | "base-conhecimento"
   | "settings";
 
@@ -66,14 +65,6 @@ export const MODULES: Record<ModuleId, ModuleColorDef> = {
     darkBg: "#0F0C18",
     darkLight: "#1E1538",
   },
-  campanhas: {
-    accent: "#16A34A",
-    accentRgb: "22 163 74",
-    light: "#DCFCE7",
-    bg: "#F0FDF4",
-    darkBg: "#08140C",
-    darkLight: "#0F2D1A",
-  },
   "base-conhecimento": {
     accent: "#7C3AED",
     accentRgb: "124 58 237",
@@ -98,7 +89,6 @@ const PATH_MAP: Record<string, ModuleId> = {
   "/whatsapp-intelligence": "whatsapp-intelligence",
   "/intelligence": "intelligence",
   "/social-publisher": "social-publisher",
-  "/campanhas": "campanhas",
   "/base-conhecimento": "base-conhecimento",
   "/settings": "settings",
 };

@@ -147,47 +147,6 @@ export function normalizeEvolutionPayload(raw: Record<string, unknown>): Record<
 /*  Event handlers                                                     */
 /* ------------------------------------------------------------------ */
 
-const EVOLUTION_STATUS_MAP: Record<number, string> = {
-  2: "sent_to_provider",
-  3: "delivered",
-  4: "read",
-};
-
-export async function handleMessageStatusUpdate(
-  rawData: unknown,
-  supabase: ReturnType<typeof createSupabaseAdminClient>
-): Promise<{ ok: boolean; delivery_updated: number }> {
-  const items = Array.isArray(rawData) ? rawData : [rawData];
-  let updated = 0;
-
-  for (const item of items) {
-    if (!item || typeof item !== "object") continue;
-    const rec = item as Record<string, unknown>;
-    const key = rec.key as Record<string, unknown> | undefined;
-    const statusNum = typeof rec.status === "number" ? rec.status : null;
-    if (!key || !statusNum) continue;
-
-    const messageId = typeof key.id === "string" ? key.id : null;
-    if (!messageId) continue;
-
-    const deliveryStatus = EVOLUTION_STATUS_MAP[statusNum];
-    if (!deliveryStatus) continue;
-
-    const { error, count } = await supabase
-      .from("campaign_recipients")
-      .update({ delivery_status: deliveryStatus, delivery_updated_at: new Date().toISOString() })
-      .eq("provider_message_id", messageId);
-
-    if (!error && count && count > 0) updated++;
-  }
-
-  if (updated > 0) {
-    console.log(LOG_PREFIX, `Delivery status atualizado para ${updated} recipient(s)`);
-  }
-
-  return { ok: true, delivery_updated: updated };
-}
-
 export async function handleGroupsUpsert(
   rawData: unknown,
   supabase: ReturnType<typeof createSupabaseAdminClient>

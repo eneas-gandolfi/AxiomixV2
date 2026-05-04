@@ -97,7 +97,7 @@ export default async function AnaliseLotePage({ searchParams }: AnaliseLotePageP
     if (row.conversation_id) {
       insightMap.set(row.conversation_id, {
         conversation_id: row.conversation_id,
-        sentiment: row.sentiment,
+        sentiment: row.sentiment as InsightRow["sentiment"],
         intent: row.intent,
         summary: row.summary,
         action_items: row.action_items,

@@ -18,7 +18,6 @@ export const COPY = {
     emptyDescription:
       'Conforme você usa o Axiomix, seus KPIs ganham vida — ao vivo.',
     emptyTip: 'Volte amanhã e esse painel vai estar vivo.',
-    emptyAction: 'Criar primeira campanha',
   },
 
   whatsapp: {
@@ -45,20 +44,6 @@ export const COPY = {
       `${n} ${n === 1 ? 'post pronto' : 'posts prontos'} pra essa semana. Tá no ritmo.`,
     contextualInactive: (days: number) =>
       `Faz ${days} ${days === 1 ? 'dia' : 'dias'} que você não publica. Bora voltar?`,
-  },
-
-  campaigns: {
-    title: 'Campanhas',
-    emptyTitle: 'Nenhuma campanha no radar',
-    emptyDescription:
-      'Crie sua primeira campanha e veja seus números decolarem. A gente guia cada passo.',
-    emptyTip: 'Sua primeira campanha leva menos de 5 minutos.',
-    emptyAction: 'Criar campanha',
-    sendingToast: 'Mensagens a caminho! Você pode acompanhar aqui.',
-    errorToast:
-      'Eita, algo deu errado no envio. Tenta de novo — se repetir, fala com a gente.',
-    deleteConfirm: (name: string) =>
-      `Excluir "${name}"? Essa ação não pode ser desfeita.`,
   },
 
   knowledge: {

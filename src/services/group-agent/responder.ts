@@ -28,6 +28,7 @@ import { extractAndSaveNotes } from "@/services/group-agent/note-extractor";
 import { resolvePreferredEvolutionInstance } from "@/services/integrations/evolution";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import type {
+  AgentTone,
   GroupAgentResponseResult,
   GroupAgentResponseType,
   SessionMessage,
@@ -205,7 +206,7 @@ export async function processGroupAgentResponse(
 
   const systemPrompt = buildGroupAgentSystemPrompt({
     agentName: config.agent_name,
-    agentTone: config.agent_tone,
+    agentTone: config.agent_tone as AgentTone,
     groupName: config.group_name ?? "Grupo",
     triggerMessage: cleanedQuery,
     senderName: message.sender_name ?? "Usuário",

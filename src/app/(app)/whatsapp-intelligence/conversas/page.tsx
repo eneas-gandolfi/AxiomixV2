@@ -78,7 +78,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
   for (const insight of insights ?? []) {
     if (insight.conversation_id) {
       insightMap.set(insight.conversation_id, {
-        sentiment: insight.sentiment,
+        sentiment: insight.sentiment as Sentiment | null,
         intent: insight.intent,
       });
     }

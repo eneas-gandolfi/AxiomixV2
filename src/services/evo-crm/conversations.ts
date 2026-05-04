@@ -456,7 +456,7 @@ export async function syncMessages(
     existingSet.add(
       buildMessageFingerprint({
         content: item.content,
-        direction: item.direction,
+        direction: item.direction as "inbound" | "outbound",
         sent_at: normalizeSentAt(item.sent_at),
       })
     );

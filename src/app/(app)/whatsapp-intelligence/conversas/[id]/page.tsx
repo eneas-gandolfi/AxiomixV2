@@ -504,7 +504,7 @@ export default async function ConversationDetailsPage({ params }: ConversationDe
               <InsightFeedbackPanel
                 companyId={companyId}
                 conversationId={conversation.id}
-                initialStatus={insight.feedback_status}
+                initialStatus={insight.feedback_status as "helpful" | "needs_review" | "incorrect" | null}
                 initialNote={insight.feedback_note}
                 initialFeedbackAt={insight.feedback_at}
                 compact

@@ -14,7 +14,6 @@ import { useState, useEffect } from "react";
 import {
   BookOpen,
   LayoutDashboard,
-  Megaphone,
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
@@ -38,7 +37,6 @@ const HREF_TO_MODULE: Record<string, ModuleId> = {
   "/whatsapp-intelligence": "whatsapp-intelligence",
   "/intelligence": "intelligence",
   "/social-publisher": "social-publisher",
-  "/campanhas": "campanhas",
   "/base-conhecimento": "base-conhecimento",
   "/settings": "settings",
 };
@@ -52,7 +50,6 @@ export const NAV_ITEMS = [
   },
   { label: "Intelligence", href: "/intelligence", icon: TrendingUp },
   { label: "Social Publisher", href: "/social-publisher", icon: Share2 },
-  { label: "Campanhas em Massa", href: "/campanhas", icon: Megaphone },
   { label: "Base de Conhecimento", href: "/base-conhecimento", icon: BookOpen },
   { label: "Configurações", href: "/settings", icon: Settings },
 ];

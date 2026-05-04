@@ -25,7 +25,6 @@ export const paths = {
     biblioteca: "/social-publisher/biblioteca",
     demandas: "/social-publisher/demandas",
   },
-  campanhas: "/campanhas",
   rag: "/base-conhecimento",
   onboarding: "/onboarding",
 } as const;

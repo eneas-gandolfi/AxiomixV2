@@ -155,7 +155,7 @@ export async function DashboardChartsSection({ companyId }: { companyId: string 
     .slice(0, 3)
     .map((post) => ({
       id: post.id,
-      platform: post.platform ?? "instagram",
+      platform: (post.platform ?? "instagram") as "instagram" | "linkedin" | "tiktok",
       content: (post.content ?? "").slice(0, 120),
       engagementScore: post.engagement_score ?? 0,
       postUrl: post.post_url,

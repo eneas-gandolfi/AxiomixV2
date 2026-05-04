@@ -124,7 +124,7 @@ export default async function IntelligencePage() {
 
   const radarCards = (radarPosts ?? []).map((post) => ({
     id: post.id,
-    platform: post.platform,
+    platform: post.platform as "instagram" | "linkedin" | "tiktok" | null,
     postUrl: post.post_url,
     content: post.content,
     likesCount: post.likes_count ?? 0,

@@ -297,11 +297,14 @@ export default async function SettingsPage({
 
   // ── Reports tab data ──
 
-  const integrationStatusItems = toIntegrationStatusItems(integrationsFull, {
-    openRouterEnvEnabled,
-  });
+  const integrationStatusItems = toIntegrationStatusItems(
+    integrationsFull as IntegrationRowForStatus[],
+    { openRouterEnvEnabled },
+  );
   const evolutionIntegration = integrationsFull.find((i) => i.type === "evolution_api");
-  const evolutionStatus = resolveEvolutionDisplayStatus(evolutionIntegration);
+  const evolutionStatus = resolveEvolutionDisplayStatus(
+    evolutionIntegration as IntegrationRowForStatus | undefined,
+  );
 
   let managerPhoneMasked = "●●●●●●●●●●●";
   try {
