@@ -7,13 +7,14 @@
 
 import "server-only";
 
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type MembershipCompanyRow = {
   company_id: string | null;
 };
 
-export async function getUserCompanyId(): Promise<string | null> {
+export const getUserCompanyId = cache(async (): Promise<string | null> => {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -37,4 +38,4 @@ export async function getUserCompanyId(): Promise<string | null> {
   }
 
   return data?.company_id ?? null;
-}
+});

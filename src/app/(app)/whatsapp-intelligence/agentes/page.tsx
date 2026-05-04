@@ -13,6 +13,7 @@ import { Bot, Loader2, Plus, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AgentCard } from "@/components/whatsapp/agents/agent-card";
+import { useCompanyId } from "@/lib/contexts/company-id-context";
 
 export const dynamic = "force-dynamic";
 
@@ -38,30 +39,14 @@ type Integration = {
 };
 
 export default function AgentsPage() {
-  const [companyId, setCompanyId] = useState<string | null>(null);
+  const companyId = useCompanyId();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [inboxes, setInboxes] = useState<Inbox[]>([]);
   const [integrationsByAgent, setIntegrationsByAgent] = useState<Record<string, Integration[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function getCompany() {
-      try {
-        const res = await fetch("/api/auth/company-id");
-        if (res.ok) {
-          const data = await res.json();
-          setCompanyId(data.companyId);
-        }
-      } catch {
-        // Silently fail
-      }
-    }
-    getCompany();
-  }, []);
-
   const fetchAll = useCallback(async () => {
-    if (!companyId) return;
     setLoading(true);
     setError(null);
     try {
@@ -98,8 +83,12 @@ export default function AgentsPage() {
             const data = await res.json();
             return { agentId: agent.id, integrations: data.integrations ?? [] };
           }
-        } catch {
-          // silently fail per agent
+        } catch (innerErr) {
+          console.error("[agentes page] fetch integrations for agent failed", {
+            companyId,
+            agentId: agent.id,
+            message: innerErr instanceof Error ? innerErr.message : String(innerErr),
+          });
         }
         return { agentId: agent.id, integrations: [] };
       });
@@ -111,6 +100,10 @@ export default function AgentsPage() {
       }
       setIntegrationsByAgent(map);
     } catch (err) {
+      console.error("[agentes page] fetchAll failed", {
+        companyId,
+        message: err instanceof Error ? err.message : String(err),
+      });
       setError(err instanceof Error ? err.message : "Erro ao carregar.");
     } finally {
       setLoading(false);
@@ -121,7 +114,7 @@ export default function AgentsPage() {
     fetchAll();
   }, [fetchAll]);
 
-  if (!companyId || loading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted" />

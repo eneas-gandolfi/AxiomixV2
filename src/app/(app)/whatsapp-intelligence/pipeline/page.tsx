@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Kanban, Loader2 } from "lucide-react";
 import { KanbanBoard } from "@/components/whatsapp/kanban-board";
 import type { RichKanbanCard, KanbanStage, TeamMember } from "@/components/whatsapp/kanban-types";
+import { useCompanyId } from "@/lib/contexts/company-id-context";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ type Board = {
 };
 
 export default function PipelinePage() {
-  const [companyId, setCompanyId] = useState<string | null>(null);
+  const companyId = useCompanyId();
   const [boards, setBoards] = useState<Board[]>([]);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [selectedBoard, setSelectedBoard] = useState<Board | null>(null);
@@ -29,26 +30,8 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [loadingBoard, setLoadingBoard] = useState(false);
 
-  // Get companyId
-  useEffect(() => {
-    async function getCompany() {
-      try {
-        const res = await fetch("/api/auth/company-id", { method: "GET" });
-        if (res.ok) {
-          const data = await res.json();
-          setCompanyId(data.companyId);
-        }
-      } catch {
-        // Silently fail
-      }
-    }
-    getCompany();
-  }, []);
-
   // Fetch boards list + team members
   useEffect(() => {
-    if (!companyId) return;
-
     async function fetchInitialData() {
       setLoading(true);
       try {
@@ -85,8 +68,11 @@ export default function PipelinePage() {
             }))
           );
         }
-      } catch {
-        // Silently fail
+      } catch (error) {
+        console.error("[pipeline page] fetchInitialData failed", {
+          companyId,
+          message: error instanceof Error ? error.message : String(error),
+        });
       } finally {
         setLoading(false);
       }
@@ -96,7 +82,7 @@ export default function PipelinePage() {
   }, [companyId]);
 
   const fetchBoard = useCallback(async () => {
-    if (!companyId || !selectedBoardId) return;
+    if (!selectedBoardId) return;
     setLoadingBoard(true);
     try {
       const response = await fetch(`/api/whatsapp/kanban/boards/${selectedBoardId}`, {
@@ -108,8 +94,12 @@ export default function PipelinePage() {
         const data = await response.json();
         setSelectedBoard(data.board);
       }
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error("[pipeline page] fetchBoard failed", {
+        companyId,
+        boardId: selectedBoardId,
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setLoadingBoard(false);
     }
@@ -119,7 +109,7 @@ export default function PipelinePage() {
     fetchBoard();
   }, [fetchBoard]);
 
-  if (!companyId || loading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted" />

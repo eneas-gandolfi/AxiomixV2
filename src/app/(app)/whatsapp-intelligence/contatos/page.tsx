@@ -14,6 +14,7 @@ import { ContactsTable } from "@/components/whatsapp/contacts-table";
 import { ContactDetailDrawer } from "@/components/whatsapp/contact-detail-drawer";
 import { CreateContactModal } from "@/components/whatsapp/create-contact-modal";
 import { LabelsManager } from "@/components/whatsapp/labels-manager";
+import { useCompanyId } from "@/lib/contexts/company-id-context";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ type ContactData = {
 };
 
 export default function ContatosPage() {
-  const [companyId, setCompanyId] = useState<string | null>(null);
+  const companyId = useCompanyId();
   const [contacts, setContacts] = useState<ContactData[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -36,24 +37,7 @@ export default function ContatosPage() {
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Get companyId from auth
-  useEffect(() => {
-    async function getCompany() {
-      try {
-        const res = await fetch("/api/auth/company-id", { method: "GET" });
-        if (res.ok) {
-          const data = await res.json();
-          setCompanyId(data.companyId);
-        }
-      } catch {
-        // Silently fail
-      }
-    }
-    getCompany();
-  }, []);
-
   const fetchContacts = useCallback(async () => {
-    if (!companyId) return;
     setLoading(true);
     try {
       const response = await fetch("/api/whatsapp/contacts", {
@@ -70,8 +54,11 @@ export default function ContatosPage() {
         const data = await response.json();
         setContacts(data.contacts ?? []);
       }
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error("[contatos page] fetchContacts failed", {
+        companyId,
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setLoading(false);
     }
@@ -85,14 +72,6 @@ export default function ContatosPage() {
     setSelectedContactId(contactId);
     setDrawerOpen(true);
   };
-
-  if (!companyId) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted" />
-      </div>
-    );
-  }
 
   return (
     <>

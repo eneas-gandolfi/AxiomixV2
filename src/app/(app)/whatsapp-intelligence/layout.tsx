@@ -6,31 +6,41 @@
  */
 
 import type React from "react";
+import { redirect } from "next/navigation";
 import { WhatsAppModuleNav } from "@/components/whatsapp/whatsapp-module-nav";
+import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
+import { CompanyIdProvider } from "@/lib/contexts/company-id-context";
 
-export default function WhatsAppIntelligenceLayout({
+export default async function WhatsAppIntelligenceLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const companyId = await getUserCompanyId();
+  if (!companyId) {
+    redirect("/onboarding");
+  }
+
   return (
-    <div style={{ '--module-color-bg': 'var(--module-accent-bg, #F0FDFA)' } as React.CSSProperties}>
-      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-6">
-          <h1 className="ax-t1 text-xl md:text-2xl">
-            WhatsApp Intelligence
-          </h1>
-          <p className="mt-1 ax-body text-[var(--color-text-secondary)]">
-            Sincronize, analise e priorize oportunidades de atendimento.
-          </p>
-        </header>
+    <CompanyIdProvider companyId={companyId}>
+      <div style={{ '--module-color-bg': 'var(--module-accent-bg, #F0FDFA)' } as React.CSSProperties}>
+        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <header className="mb-6">
+            <h1 className="ax-t1 text-xl md:text-2xl">
+              WhatsApp Intelligence
+            </h1>
+            <p className="mt-1 ax-body text-[var(--color-text-secondary)]">
+              Sincronize, analise e priorize oportunidades de atendimento.
+            </p>
+          </header>
 
-        <WhatsAppModuleNav />
+          <WhatsAppModuleNav />
 
-        <div className="mt-6">
-          {children}
+          <div className="mt-6">
+            {children}
+          </div>
         </div>
       </div>
-    </div>
+    </CompanyIdProvider>
   );
 }
