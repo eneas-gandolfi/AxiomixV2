@@ -19,6 +19,7 @@ import {
   formatAlertRecipientPhone,
 } from "@/lib/alerts/format";
 import { cn } from "@/lib/utils";
+import { useCriticalCount } from "@/lib/whatsapp/use-critical-count";
 
 type AlertLogEntry = {
   id: string;
@@ -29,10 +30,6 @@ type AlertLogEntry = {
   status: string;
   errorDetail: string | null;
   sentAt: string;
-};
-
-type CriticalCountResponse = {
-  count?: number;
 };
 
 type AlertLogsResponse = {
@@ -109,7 +106,7 @@ export function TopbarNotifications() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   const [isOpen, setIsOpen] = useState(false);
-  const [criticalCount, setCriticalCount] = useState(0);
+  const { count: criticalCount, refresh: refreshCriticalCount } = useCriticalCount();
   const [logs, setLogs] = useState<AlertLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearingAll, setIsClearingAll] = useState(false);
@@ -122,22 +119,13 @@ export function TopbarNotifications() {
 
     try {
       const [countResult, logsResult] = await Promise.allSettled([
-        fetch("/api/whatsapp/critical-count", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: "{}",
-          cache: "no-store",
-        }),
-        fetch("/api/settings/alerts/log?limit=5", {
-          cache: "no-store",
-        }),
+        refreshCriticalCount(),
+        fetch("/api/settings/alerts/log?limit=5", { cache: "no-store" }),
       ]);
 
       let loadedAnyResource = false;
 
-      if (countResult.status === "fulfilled" && countResult.value.ok) {
-        const countData = (await countResult.value.json()) as CriticalCountResponse;
-        setCriticalCount(countData.count ?? 0);
+      if (countResult.status === "fulfilled") {
         loadedAnyResource = true;
       }
 
@@ -155,7 +143,7 @@ export function TopbarNotifications() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [refreshCriticalCount]);
 
   const clearAllLogs = useCallback(async () => {
     setIsClearingAll(true);

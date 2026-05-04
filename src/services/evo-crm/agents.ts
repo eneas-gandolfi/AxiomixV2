@@ -297,7 +297,7 @@ export async function removeAgentFromInbox(
 // HTTP helper (reutiliza credenciais do client)
 // ---------------------------------------------------------------------------
 
-const TIMEOUT_MS = 5_000
+const TIMEOUT_MS = 15_000
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
@@ -347,6 +347,13 @@ async function agentRequest<T = unknown>(
     }
 
     return json as T
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(
+        `Tempo esgotado ao chamar Evo CRM Agents (${method} ${path}, >${TIMEOUT_MS}ms). Tente novamente.`
+      )
+    }
+    throw err
   } finally {
     clearTimeout(timeout)
   }

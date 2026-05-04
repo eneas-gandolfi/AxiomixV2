@@ -66,8 +66,17 @@ export default function AgentsPage() {
         agentsList = data.agents ?? [];
         setAgents(agentsList);
       } else {
-        const data = await agentsRes.json();
-        throw new Error(data.error ?? "Erro ao carregar agentes.");
+        const data = await agentsRes.json().catch(() => ({}));
+        const knownMessages: Record<string, string> = {
+          AGENTS_ERROR: "Não foi possível carregar os agentes. Tente novamente.",
+          VALIDATION_ERROR: "Dados inválidos retornados pelo servidor.",
+          EVO_CRM_NOT_CONFIGURED: "Evo CRM não está configurado para esta empresa.",
+        };
+        const code = typeof data.code === "string" ? data.code : null;
+        const friendly = (code && knownMessages[code])
+          ?? "Não foi possível carregar os agentes. Tente novamente.";
+        console.error("[agentes page] backend error", { code, raw: data.error });
+        throw new Error(friendly);
       }
 
       if (inboxesRes.ok) {

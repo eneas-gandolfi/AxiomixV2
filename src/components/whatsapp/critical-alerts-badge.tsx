@@ -1,52 +1,17 @@
 /**
  * Arquivo: src/components/whatsapp/critical-alerts-badge.tsx
  * Propósito: Badge para indicar conversas críticas que precisam de atenção.
+ * Consome o store singleton compartilhado — não faz fetch próprio.
  * Autor: AXIOMIX
- * Data: 2026-03-12
+ * Data: 2026-03-12 (refatorado 2026-05-04)
  */
 
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useCriticalCount } from "@/lib/whatsapp/use-critical-count";
 
-type CriticalAlertsBadgeProps = {
-  companyId: string | null;
-};
-
-export function CriticalAlertsBadge({ companyId }: CriticalAlertsBadgeProps) {
-  const [count, setCount] = useState(0);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (!companyId) {
-      return;
-    }
-
-    const fetchCriticalCount = async () => {
-      try {
-        const response = await fetch("/api/whatsapp/critical-count", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyId }),
-        });
-
-        if (response.ok) {
-          const data = (await response.json()) as { count: number };
-          setCount(data.count ?? 0);
-        }
-      } catch (error) {
-        // Silently fail - não queremos quebrar a UI por causa do badge
-        console.error("Erro ao buscar contagem de alertas críticos:", error);
-      }
-    };
-
-    fetchCriticalCount();
-
-    // Atualizar a cada 2 minutos
-    const interval = setInterval(fetchCriticalCount, 120000);
-    return () => clearInterval(interval);
-  }, [companyId, pathname]); // Re-fetch quando a rota mudar
+export function CriticalAlertsBadge() {
+  const { count } = useCriticalCount();
 
   if (count === 0) {
     return null;

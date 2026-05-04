@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MODULES, sidebarColors } from "@/lib/module-colors";
 import type { ModuleId } from "@/lib/module-colors";
+import { useCriticalCount } from "@/lib/whatsapp/use-critical-count";
 
 /** Mapeamento href → ModuleId para derivar cores da sidebar */
 const HREF_TO_MODULE: Record<string, ModuleId> = {
@@ -82,59 +83,27 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [hovered, setHovered] = useState(false);
-  const [criticalCount, setCriticalCount] = useState(0);
+  const { count: criticalCount } = useCriticalCount();
   const [companyName, setCompanyName] = useState<string | null>(null);
   const isExpanded = !collapsed || hovered;
   const showTooltip = collapsed && !hovered;
 
   useEffect(() => {
-    let companyIdCache: string | null = null;
-
-    const fetchSidebarData = async () => {
-      if (document.visibilityState === "hidden") return;
-
+    let cancelled = false;
+    (async () => {
       try {
-        // Primeira chamada: buscar companyId (cachear para reusar)
-        if (!companyIdCache) {
-          const response = await fetch("/api/company");
-          if (!response.ok) return;
-
-          const companyData = (await response.json()) as { company?: { id: string; name?: string } };
-          companyIdCache = companyData.company?.id ?? null;
-          if (companyData.company?.name) {
-            setCompanyName(companyData.company.name);
-          }
-          if (!companyIdCache) return;
-        }
-
-        const countResponse = await fetch("/api/whatsapp/critical-count", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyId: companyIdCache }),
-        });
-
-        if (countResponse.ok) {
-          const data = (await countResponse.json()) as { count: number };
-          setCriticalCount(data.count ?? 0);
+        const response = await fetch("/api/company");
+        if (!response.ok || cancelled) return;
+        const companyData = (await response.json()) as { company?: { name?: string } };
+        if (companyData.company?.name) {
+          setCompanyName(companyData.company.name);
         }
       } catch (error) {
-        console.error("Erro ao buscar contagem de alertas críticos:", error);
+        console.error("[sidebar] erro ao buscar empresa:", error);
       }
-    };
-
-    fetchSidebarData();
-    const interval = setInterval(fetchSidebarData, 120000);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        fetchSidebarData();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
+    })();
     return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      cancelled = true;
     };
   }, []);
 
