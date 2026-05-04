@@ -41,15 +41,35 @@ const HREF_TO_MODULE: Record<string, ModuleId> = {
   "/settings": "settings",
 };
 
-export const NAV_ITEMS = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  comingSoon?: boolean;
+};
+
+const FEATURE_INTELLIGENCE = process.env.NEXT_PUBLIC_FEATURE_INTELLIGENCE === "true";
+const FEATURE_SOCIAL_PUBLISHER = process.env.NEXT_PUBLIC_FEATURE_SOCIAL_PUBLISHER === "true";
+
+export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   {
     label: "WhatsApp Intelligence",
     href: "/whatsapp-intelligence",
     icon: MessageSquare,
   },
-  { label: "Intelligence", href: "/intelligence", icon: TrendingUp },
-  { label: "Social Publisher", href: "/social-publisher", icon: Share2 },
+  {
+    label: "Intelligence",
+    href: "/intelligence",
+    icon: TrendingUp,
+    comingSoon: !FEATURE_INTELLIGENCE,
+  },
+  {
+    label: "Social Publisher",
+    href: "/social-publisher",
+    icon: Share2,
+    comingSoon: !FEATURE_SOCIAL_PUBLISHER,
+  },
   { label: "Base de Conhecimento", href: "/base-conhecimento", icon: BookOpen },
   { label: "Configurações", href: "/settings", icon: Settings },
 ];
@@ -199,25 +219,35 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         >
           {NAV_ITEMS.map((item) => {
             const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+              !item.comingSoon &&
+              (pathname === item.href || pathname.startsWith(`${item.href}/`));
             const Icon = item.icon;
             const moduleId = HREF_TO_MODULE[item.href];
             const moduleDef = moduleId ? MODULES[moduleId] : undefined;
             const sidebarCol = moduleDef ? sidebarColors(moduleDef) : undefined;
             const showBadge = item.href === "/whatsapp-intelligence" && criticalCount > 0;
+            const isComingSoon = Boolean(item.comingSoon);
 
             const activeBg = sidebarCol?.bg;
             const activeColor = sidebarCol?.color;
+
+            const tooltipLabel = isComingSoon ? `${item.label} (Em breve)` : item.label;
 
             const itemContent = (
               <Link
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
-                title={showTooltip ? item.label : undefined}
+                aria-disabled={isComingSoon ? true : undefined}
+                tabIndex={isComingSoon ? -1 : undefined}
+                onClick={isComingSoon ? (e) => e.preventDefault() : undefined}
+                title={showTooltip ? tooltipLabel : undefined}
                 className={cn(
                   "relative flex w-full items-center rounded-lg transition-colors duration-150",
                   !isExpanded ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
-                  !isActive && "text-[#8892A4] hover:text-[#F0F4FA] hover:bg-[rgba(255,255,255,0.06)]"
+                  !isActive &&
+                    !isComingSoon &&
+                    "text-[#8892A4] hover:text-[#F0F4FA] hover:bg-[rgba(255,255,255,0.06)]",
+                  isComingSoon && "cursor-default text-[#8892A4]"
                 )}
                 style={
                   isActive && activeColor
@@ -225,7 +255,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         color: activeColor,
                         backgroundColor: activeBg,
                       }
-                    : undefined
+                    : isComingSoon
+                      ? { opacity: 0.55, color: "#8892A4" }
+                      : undefined
                 }
               >
                 {/* Left accent bar for active item */}
@@ -238,7 +270,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 )}
                 <Icon size={18} aria-hidden="true" className="flex-shrink-0" />
                 <span
-                  className="overflow-hidden whitespace-nowrap text-sm font-medium"
+                  className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-sm font-medium"
                   style={{
                     opacity: isExpanded ? 1 : 0,
                     width: isExpanded ? "auto" : 0,
@@ -247,6 +279,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 >
                   {item.label}
                 </span>
+                {isComingSoon && isExpanded && (
+                  <span
+                    aria-hidden="true"
+                    className="ml-auto flex-shrink-0 whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                    style={{
+                      backgroundColor: "rgba(255, 100, 0, 0.12)",
+                      color: "#FF6400",
+                      borderColor: "rgba(255, 100, 0, 0.25)",
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    Em breve
+                  </span>
+                )}
                 {showBadge && isExpanded && (
                   <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--color-danger)] px-1.5 font-mono text-xs font-semibold text-white">
                     {criticalCount > 99 ? "99+" : criticalCount}
@@ -262,7 +308,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               <Tooltip key={item.href}>
                 <TooltipTrigger asChild>{itemContent}</TooltipTrigger>
                 <TooltipContent side="right" className="text-xs">
-                  {item.label}
+                  {tooltipLabel}
                 </TooltipContent>
               </Tooltip>
             ) : (

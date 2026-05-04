@@ -8,12 +8,19 @@
 import type React from "react";
 import { Share2 } from "lucide-react";
 import { SocialModuleNav } from "@/components/social/social-module-nav";
+import { ComingSoonSection } from "@/components/layout/coming-soon-section";
+
+const FEATURE_ENABLED = process.env.NEXT_PUBLIC_FEATURE_SOCIAL_PUBLISHER === "true";
 
 export default function SocialPublisherLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  if (!FEATURE_ENABLED) {
+    return <ComingSoonSection moduleLabel="Social Publisher" icon={Share2} />;
+  }
+
   return (
     <div style={{ '--module-color-bg': 'var(--module-accent-bg, #F5F3FF)' } as React.CSSProperties}>
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

@@ -15,6 +15,26 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const requestId = resolveRequestId(request);
 
+  // ── Feature flag gate (defense-in-depth para módulos em desenvolvimento) ──
+  if (
+    path.startsWith("/api/intelligence") &&
+    process.env.NEXT_PUBLIC_FEATURE_INTELLIGENCE !== "true"
+  ) {
+    return NextResponse.json(
+      { error: "feature_disabled", module: "intelligence" },
+      { status: 403, headers: { [REQUEST_ID_HEADER]: requestId } },
+    );
+  }
+  if (
+    path.startsWith("/api/social") &&
+    process.env.NEXT_PUBLIC_FEATURE_SOCIAL_PUBLISHER !== "true"
+  ) {
+    return NextResponse.json(
+      { error: "feature_disabled", module: "social-publisher" },
+      { status: 403, headers: { [REQUEST_ID_HEADER]: requestId } },
+    );
+  }
+
   // ── CSRF check para API routes mutantes ──
   if (path.startsWith("/api/")) {
     const csrfBlocked = verifyCsrf(request);

@@ -8,10 +8,14 @@
 
 import type React from "react";
 import { redirect } from "next/navigation";
+import { TrendingUp } from "lucide-react";
 import { PageContainer } from "@/components/layouts/page-container";
+import { ComingSoonSection } from "@/components/layout/coming-soon-section";
 import { IntelligenceModuleEnhanced } from "@/components/intelligence/intelligence-module-enhanced";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+const FEATURE_ENABLED = process.env.NEXT_PUBLIC_FEATURE_INTELLIGENCE === "true";
 
 type CompetitorMetrics = {
   competitor_id: string | null;
@@ -33,6 +37,10 @@ function average(values: number[]) {
 }
 
 export default async function IntelligencePage() {
+  if (!FEATURE_ENABLED) {
+    return <ComingSoonSection moduleLabel="Intelligence" icon={TrendingUp} />;
+  }
+
   const companyId = await getUserCompanyId();
   if (!companyId) {
     redirect("/onboarding");
