@@ -19,6 +19,7 @@
  */
 
 import { getEvoCrmClient } from './client'
+import { clearEvoAuthCache, getEvoAuthJwt } from './auth'
 import type { EvoCrmClient } from './types'
 
 // ---------------------------------------------------------------------------
@@ -309,8 +310,19 @@ async function agentRequest<T = unknown>(
   path: string,
   options?: RequestOptions
 ): Promise<T> {
+  return doAgentRequest<T>(client, path, options, false)
+}
+
+async function doAgentRequest<T>(
+  client: EvoCrmClient,
+  path: string,
+  options: RequestOptions | undefined,
+  isRetry: boolean
+): Promise<T> {
   const method = options?.method ?? 'GET'
   const url = `${client.baseUrl}${path}`
+
+  const jwt = await getEvoAuthJwt()
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
@@ -319,7 +331,7 @@ async function agentRequest<T = unknown>(
     const res = await fetch(url, {
       method,
       headers: {
-        api_access_token: client.apiToken,
+        Authorization: `Bearer ${jwt}`,
         'content-type': 'application/json',
         accept: 'application/json',
       },
@@ -329,6 +341,13 @@ async function agentRequest<T = unknown>(
 
     if (res.status === 204 || res.status === 202) {
       return {} as T
+    }
+
+    // 401: JWT expirado ou inválido. Limpa cache e tenta uma vez mais.
+    if (res.status === 401 && !isRetry) {
+      clearEvoAuthCache()
+      clearTimeout(timeout)
+      return doAgentRequest<T>(client, path, options, true)
     }
 
     const text = await res.text()
@@ -351,6 +370,16 @@ async function agentRequest<T = unknown>(
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error(
         `Tempo esgotado ao chamar Evo CRM Agents (${method} ${path}, >${TIMEOUT_MS}ms). Tente novamente.`
+      )
+    }
+    if (err instanceof Error && (err.name === 'TypeError' || err.message === 'fetch failed')) {
+      const cause =
+        typeof err.cause === 'object' && err.cause !== null
+          ? (err.cause as Record<string, unknown>)
+          : null
+      const code = cause && typeof cause.code === 'string' ? cause.code : 'unknown'
+      throw new Error(
+        `Falha de rede ao chamar Evo CRM Agents (${method} ${path}, ${code}). Tente novamente.`
       )
     }
     throw err
