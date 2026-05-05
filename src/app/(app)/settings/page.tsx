@@ -97,7 +97,6 @@ function toIntegrationStatusItems(
   const allTypes: IntegrationStatusItem["type"][] = [
     "evo_crm",
     "evolution_api",
-    "upload_post",
     "openrouter",
   ];
 

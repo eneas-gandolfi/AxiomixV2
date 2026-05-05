@@ -39,8 +39,6 @@ type AlertLogsResponse = {
 const ALERT_LABELS: Record<string, string> = {
   purchase_intent: "Intenção de compra",
   negative_sentiment: "Sentimento negativo",
-  failed_post: "Falha na publicação",
-  viral_content: "Conteúdo viral",
 };
 
 const NOTIFICATIONS_PANEL_ID = "topbar-notifications-panel";

@@ -13,8 +13,6 @@ import {
   DollarSign,
   Download,
   Frown,
-  XCircle,
-  Flame,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -63,22 +61,6 @@ const ALERT_CONFIG = [
     color: "text-danger",
     bgColor: "bg-danger/10",
   },
-  {
-    type: "failed_post",
-    title: "Falha na Publicação",
-    description: "Quando um post agendado falha parcial ou totalmente ao ser publicado.",
-    icon: XCircle,
-    color: "text-warning",
-    bgColor: "bg-warning/10",
-  },
-  {
-    type: "viral_content",
-    title: "Conteúdo Viral",
-    description: "Quando o radar detecta conteúdo com alto score de engajamento (>= 300).",
-    icon: Flame,
-    color: "text-info",
-    bgColor: "bg-info/10",
-  },
 ] as const;
 
 const COOLDOWN_OPTIONS = [
@@ -91,8 +73,6 @@ const COOLDOWN_OPTIONS = [
 const ALERT_TYPE_LABELS: Record<string, string> = {
   purchase_intent: "Intenção de Compra",
   negative_sentiment: "Sentimento Negativo",
-  failed_post: "Falha na Publicação",
-  viral_content: "Conteúdo Viral",
 };
 
 function escapeCsvField(value: string | null | undefined): string {
