@@ -1,8 +1,10 @@
 /**
  * Arquivo: src/app/api/onboarding/company/route.ts
- * Propósito: Criar empresa inicial no onboarding e vincular usuário como owner.
+ * Propósito: Criar empresa no onboarding com configuração por nicho
+ *            (niche_slug curado, business_hours, vocabulário default).
+ *            Vincula usuário como owner.
  * Autor: AXIOMIX
- * Data: 2026-03-11
+ * Data: 2026-05-05
  */
 
 import { z } from "zod";
@@ -10,14 +12,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
+import { NICHE_SLUGS, getNicheBySlug } from "@/lib/niches";
 
 export const dynamic = "force-dynamic";
 
+const dayScheduleSchema = z
+  .object({
+    open: z.string().regex(/^\d{2}:\d{2}$/),
+    close: z.string().regex(/^\d{2}:\d{2}$/),
+  })
+  .nullable();
+
+const businessHoursSchema = z.object({
+  mon: dayScheduleSchema,
+  tue: dayScheduleSchema,
+  wed: dayScheduleSchema,
+  thu: dayScheduleSchema,
+  fri: dayScheduleSchema,
+  sat: dayScheduleSchema,
+  sun: dayScheduleSchema,
+});
+
 const onboardingSchema = z.object({
   name: z.string().trim().min(2, "Nome da empresa é obrigatório."),
-  niche: z.string().trim().min(2, "Nicho é obrigatório."),
-  subNiche: z.string().trim().optional(),
-  websiteUrl: z.string().trim().url("URL do site inválida.").optional().or(z.literal("")),
+  nicheSlug: z.enum(NICHE_SLUGS, { message: "Nicho inválido." }),
+  businessHours: businessHoursSchema,
 });
 
 type DatabaseError = {
@@ -32,7 +51,7 @@ type CreatedCompany = {
 
 async function generateUniqueSlug(
   baseName: string,
-  findBySlug: (slug: string) => Promise<boolean>
+  findBySlug: (slug: string) => Promise<boolean>,
 ) {
   const fallbackSlug = `empresa-${Date.now()}`;
   const baseSlug = slugify(baseName) || fallbackSlug;
@@ -63,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json(
         { error: "Usuário não autenticado.", code: "AUTH_REQUIRED" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -72,10 +91,18 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Payload inválido.", code: "VALIDATION_ERROR" },
-        { status: 400 }
+        {
+          error: parsed.error.issues[0]?.message ?? "Payload inválido.",
+          code: "VALIDATION_ERROR",
+        },
+        { status: 400 },
       );
     }
+
+    // Deriva label de exibição e descrição a partir do slug curado.
+    // O label fica em `niche` (text) por compat retroativa; `niche_slug` é a
+    // referência canônica daqui em diante.
+    const nicheDef = getNicheBySlug(parsed.data.nicheSlug);
 
     const admin = createSupabaseAdminClient();
 
@@ -89,15 +116,21 @@ export async function POST(request: NextRequest) {
 
     if (membershipLookupError) {
       return NextResponse.json(
-        { error: "Falha ao verificar empresa existente.", code: "MEMBERSHIP_LOOKUP_ERROR" },
-        { status: 500 }
+        {
+          error: "Falha ao verificar empresa existente.",
+          code: "MEMBERSHIP_LOOKUP_ERROR",
+        },
+        { status: 500 },
       );
     }
 
     if (existingMembership?.company_id) {
       return NextResponse.json(
-        { error: "Usuário já possui empresa vinculada.", code: "COMPANY_ALREADY_EXISTS" },
-        { status: 409 }
+        {
+          error: "Usuário já possui empresa vinculada.",
+          code: "COMPANY_ALREADY_EXISTS",
+        },
+        { status: 409 },
       );
     }
 
@@ -107,21 +140,24 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email ?? "",
         full_name:
-          typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : null,
+          typeof user.user_metadata?.full_name === "string"
+            ? user.user_metadata.full_name
+            : null,
         avatar_url:
           typeof user.user_metadata?.avatar_url === "string"
             ? user.user_metadata.avatar_url
             : null,
       },
-      {
-        onConflict: "id",
-      }
+      { onConflict: "id" },
     );
 
     if (userProfileError) {
       return NextResponse.json(
-        { error: "Não foi possível preparar perfil do usuário.", code: "USER_PROFILE_ERROR" },
-        { status: 500 }
+        {
+          error: "Não foi possível preparar perfil do usuário.",
+          code: "USER_PROFILE_ERROR",
+        },
+        { status: 500 },
       );
     }
 
@@ -147,9 +183,9 @@ export async function POST(request: NextRequest) {
         .from("companies")
         .insert({
           name: parsed.data.name,
-          niche: parsed.data.niche,
-          sub_niche: parsed.data.subNiche || null,
-          website_url: parsed.data.websiteUrl || null,
+          niche: nicheDef.label,
+          niche_slug: parsed.data.nicheSlug,
+          business_hours: parsed.data.businessHours,
           slug,
         })
         .select("id, slug")
@@ -182,7 +218,7 @@ export async function POST(request: NextRequest) {
                   dbMessage: companyError?.message ?? null,
                 },
         },
-        { status }
+        { status },
       );
     }
 
@@ -206,17 +242,22 @@ export async function POST(request: NextRequest) {
                   dbMessage: membershipCreateError.message ?? null,
                 },
         },
-        { status: membershipStatus }
+        { status: membershipStatus },
       );
     }
 
     return NextResponse.json({
       companyId: company.id,
       slug: company.slug,
-      redirectTo: "/settings?tab=integrations",
+      // Pós-onboarding aterrissa direto na Operação. Estado vazio guia o
+      // próximo passo (conectar WhatsApp).
+      redirectTo: "/whatsapp-intelligence/operacao",
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
-    return NextResponse.json({ error: detail, code: "ONBOARDING_ERROR" }, { status: 500 });
+    return NextResponse.json(
+      { error: detail, code: "ONBOARDING_ERROR" },
+      { status: 500 },
+    );
   }
 }

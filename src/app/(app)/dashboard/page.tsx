@@ -20,6 +20,8 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { RetryDashboardButton } from "@/components/dashboard/retry-dashboard-button";
 import { DashboardChartsSection } from "@/components/dashboard/dashboard-charts-section";
 import { DashboardSidebarSection } from "@/components/dashboard/dashboard-sidebar-section";
+import { WeeklySummaryCard } from "@/components/dashboard/weekly-summary-card";
+import { NicheBenchmarkCard } from "@/components/dashboard/niche-benchmark-card";
 import { Button } from "@/components/ui/button";
 import { DecisionAxis } from "@/components/ui/decision-axis";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -107,6 +109,16 @@ function SidebarSkeleton() {
         <div className="skeleton-shimmer animate-shimmer mb-4 h-5 w-36 rounded" />
         <div className="skeleton-shimmer animate-shimmer min-h-0 flex-1 rounded-lg" />
       </div>
+    </div>
+  );
+}
+
+function DashboardCardSkeleton() {
+  return (
+    <div className="dashboard-panel rounded-[24px] p-5">
+      <div className="skeleton-shimmer animate-shimmer mb-3 h-4 w-32 rounded" />
+      <div className="skeleton-shimmer animate-shimmer mb-4 h-6 w-48 rounded" />
+      <div className="skeleton-shimmer animate-shimmer h-24 w-full rounded-lg" />
     </div>
   );
 }
@@ -530,6 +542,17 @@ async function DashboardContent() {
                   animationDelay="delay-400"
                 />
               </div>
+            </section>
+
+            {/* Resumo da semana + Benchmark vs nicho — fatos factuais e
+                comparação com peers anônimos do mesmo nicho. */}
+            <section className="grid gap-4 md:grid-cols-2">
+              <Suspense fallback={<DashboardCardSkeleton />}>
+                <WeeklySummaryCard companyId={companyId} />
+              </Suspense>
+              <Suspense fallback={<DashboardCardSkeleton />}>
+                <NicheBenchmarkCard companyId={companyId} />
+              </Suspense>
             </section>
 
             {/* Charts carregam independentemente via Suspense */}

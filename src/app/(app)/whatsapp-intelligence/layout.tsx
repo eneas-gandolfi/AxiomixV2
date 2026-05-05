@@ -27,10 +27,10 @@ export default async function WhatsAppIntelligenceLayout({
         <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <header className="mb-6">
             <h1 className="ax-t1 text-xl md:text-2xl">
-              WhatsApp Intelligence
+              Inteligência
             </h1>
             <p className="mt-1 ax-body text-[var(--color-text-secondary)]">
-              Sincronize, analise e priorize oportunidades de atendimento.
+              Operação ao vivo, análise de IA, conversas, contatos e pipeline.
             </p>
           </header>
 

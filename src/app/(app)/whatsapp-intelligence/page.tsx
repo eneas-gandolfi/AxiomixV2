@@ -1,23 +1,57 @@
 /**
  * Arquivo: src/app/(app)/whatsapp-intelligence/page.tsx
- * Propósito: Dashboard de métricas do WhatsApp Intelligence (sentimento, intenções, tendências).
+ * Propósito: Aba "Análise" do módulo Inteligência. Reorganizada por
+ *            PERGUNTAS (não métricas), seguindo o mockup v2:
+ *
+ *              [Mudanças notáveis · 3 fatos]   [Sincronizar / Analisar]
+ *
+ *              [Banner crítico se houver]
+ *
+ *              ① Quem da minha equipe está em queda? (per-vendor table)
+ *              ② Como estamos vs nicho? (benchmark)
+ *              ③ Está vindo mais ou menos cliente? (volume + intent bars)
+ *
+ *            §4 Heatmap dia × hora será adicionado em iteração futura.
  * Autor: AXIOMIX
- * Data: 2026-03-13
+ * Data: 2026-05-07
  */
 
+import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
-import { AlertCircle, CheckCircle2, MessageSquare } from "lucide-react";
+import { AlertCircle, ChevronRight, MessageSquare } from "lucide-react";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { MetricCardWithSparkline } from "@/components/whatsapp/metric-card-with-sparkline";
-import { SentimentTrendChart } from "@/components/whatsapp/sentiment-trend-chart";
 import { IntentDistributionChart } from "@/components/whatsapp/intent-distribution-chart";
+import { AnaliseVolumeChart } from "@/components/whatsapp/analise-volume-chart";
 import { SyncConversationsButton } from "@/components/whatsapp/sync-conversations-button";
 import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
+import { AnaliseNotableChanges } from "@/components/whatsapp/analise-notable-changes";
+import {
+  AnaliseVendorPerformance,
+  SectionWrapper,
+} from "@/components/whatsapp/analise-vendor-performance";
+import { AnaliseHeatmap } from "@/components/whatsapp/analise-heatmap";
+import {
+  AnalisePeriodPicker,
+  parsePeriodFromParam,
+} from "@/components/whatsapp/analise-period-picker";
+import { NicheBenchmarkCard } from "@/components/dashboard/niche-benchmark-card";
 
-export default async function WhatsAppDashboardPage() {
+const DAY_MS = 86_400_000;
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function WhatsAppDashboardPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   noStore();
+
+  const params = await searchParams;
+  const period = parsePeriodFromParam(params.period);
 
   const companyId = await getUserCompanyId();
   if (!companyId) {
@@ -27,35 +61,26 @@ export default async function WhatsAppDashboardPage() {
   const supabase = await createSupabaseServerClient();
 
   const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000);
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
-
-  const oneDayAgo = new Date(now.getTime() - 86400000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
+  const periodAgo = new Date(now.getTime() - period * DAY_MS);
+  const oneDayAgo = new Date(now.getTime() - DAY_MS);
 
   const [
     { data: recentInsights },
-    { data: previousInsights },
-    { data: thirtyDaysInsights },
+    { data: periodInsights },
     { count: syncedConversationsCount },
     { data: criticalConversations },
   ] = await Promise.all([
     supabase
       .from("conversation_insights")
-      .select("sentiment, intent, generated_at")
+      .select("intent, generated_at")
       .eq("company_id", companyId)
       .gte("generated_at", sevenDaysAgo.toISOString()),
     supabase
       .from("conversation_insights")
-      .select("sentiment, intent, generated_at")
+      .select("sentiment, generated_at")
       .eq("company_id", companyId)
-      .gte("generated_at", fourteenDaysAgo.toISOString())
-      .lt("generated_at", sevenDaysAgo.toISOString()),
-    supabase
-      .from("conversation_insights")
-      .select("sentiment, intent, generated_at")
-      .eq("company_id", companyId)
-      .gte("generated_at", thirtyDaysAgo.toISOString()),
+      .gte("generated_at", periodAgo.toISOString()),
     supabase
       .from("conversations")
       .select("id", { count: "exact", head: true })
@@ -68,127 +93,134 @@ export default async function WhatsAppDashboardPage() {
       .gte("generated_at", oneDayAgo.toISOString()),
   ]);
 
-  // Métricas
+  // Empty state — sem insights ainda
   const totalAnalyzed = (recentInsights ?? []).length;
-  const sentimentCounts = {
-    positivo: (recentInsights ?? []).filter((i) => i.sentiment === "positivo").length,
-    neutro: (recentInsights ?? []).filter((i) => i.sentiment === "neutro").length,
-    negativo: (recentInsights ?? []).filter((i) => i.sentiment === "negativo").length,
-  };
+  if (totalAnalyzed === 0) {
+    return <EmptyState companyId={companyId} hasSynced={Boolean(syncedConversationsCount)} />;
+  }
 
+  // Distribuição de intenções (§3)
   const intentCounts: Record<string, number> = {};
   for (const insight of recentInsights ?? []) {
     if (insight.intent) {
       intentCounts[insight.intent] = (intentCounts[insight.intent] ?? 0) + 1;
     }
   }
-  const topIntent = Object.entries(intentCounts).sort((a, b) => b[1] - a[1])[0];
+  const intentDistributionData = Object.entries(intentCounts)
+    .map(([name, value]) => ({ name, value, color: "" }))
+    .sort((a, b) => b.value - a.value);
+
+  // Volume diário (§3) — count de insights por dia na janela escolhida.
+  const volumeByDate = new Map<string, number>();
+  for (const insight of periodInsights ?? []) {
+    if (!insight.generated_at) continue;
+    const date = new Date(insight.generated_at).toISOString().split("T")[0];
+    volumeByDate.set(date, (volumeByDate.get(date) ?? 0) + 1);
+  }
+  const lastPeriodDays: string[] = [];
+  for (let i = period - 1; i >= 0; i--) {
+    const date = new Date(now.getTime() - i * DAY_MS);
+    lastPeriodDays.push(date.toISOString().split("T")[0]);
+  }
+  const volumeData = lastPeriodDays.map((date) => ({
+    date,
+    count: volumeByDate.get(date) ?? 0,
+  }));
 
   const criticalCount = (criticalConversations ?? []).length;
 
-  // Variação vs período anterior
-  const totalAnalyzedPrevious = (previousInsights ?? []).length;
-
-  const calculateVariation = (current: number, previous: number) => {
-    if (previous === 0) return null;
-    return Math.round(((current - previous) / previous) * 100);
-  };
-
-  const totalVariation = calculateVariation(totalAnalyzed, totalAnalyzedPrevious);
-
-  // Sparklines (últimos 7 dias)
-  const sparklineMap = new Map<string, number>();
-  for (const insight of recentInsights ?? []) {
-    if (!insight.generated_at) continue;
-    const date = new Date(insight.generated_at).toISOString().split("T")[0];
-    sparklineMap.set(date, (sparklineMap.get(date) ?? 0) + 1);
-  }
-
-  const last7Days: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 86400000);
-    last7Days.push(date.toISOString().split("T")[0]);
-  }
-
-  const sparklineData = last7Days.map((date) => ({
-    value: sparklineMap.get(date) ?? 0,
-  }));
-
-  // Tendência de sentimento (30 dias)
-  const sentimentByDate = new Map<string, { positivo: number; neutro: number; negativo: number }>();
-
-  for (const insight of thirtyDaysInsights ?? []) {
-    if (!insight.generated_at || !insight.sentiment) continue;
-    const date = new Date(insight.generated_at).toISOString().split("T")[0];
-    const current = sentimentByDate.get(date) ?? { positivo: 0, neutro: 0, negativo: 0 };
-
-    if (insight.sentiment === "positivo") {
-      current.positivo++;
-    } else if (insight.sentiment === "neutro") {
-      current.neutro++;
-    } else if (insight.sentiment === "negativo") {
-      current.negativo++;
-    }
-
-    sentimentByDate.set(date, current);
-  }
-
-  const last30Days: string[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 86400000);
-    last30Days.push(date.toISOString().split("T")[0]);
-  }
-
-  const sentimentTrendData = last30Days.map((date) => {
-    const data = sentimentByDate.get(date) ?? { positivo: 0, neutro: 0, negativo: 0 };
-    return {
-      date,
-      positivo: data.positivo,
-      neutro: data.neutro,
-      negativo: data.negativo,
-    };
-  });
-
-  // Distribuição de intenções
-  const intentDistributionData = Object.entries(intentCounts)
-    .map(([name, value]) => ({
-      name,
-      value,
-      color: "",
-    }))
-    .sort((a, b) => b.value - a.value);
-
-  if (totalAnalyzed === 0) {
-    const hasSyncedConversations = (syncedConversationsCount ?? 0) > 0;
-
-    if (hasSyncedConversations) {
-      return (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-success/30 bg-success-light p-12 text-center">
-          <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
-            <CheckCircle2 className="h-6 w-6 text-success" />
-          </div>
-          <p className="ax-t2">
-            {syncedConversationsCount} conversa{syncedConversationsCount === 1 ? "" : "s"} pronta{syncedConversationsCount === 1 ? "" : "s"} para análise
-          </p>
-          <p className="mt-2 ax-body text-[var(--color-text-secondary)]">
-            Rode a IA para extrair sentimento, intenção e oportunidades.
-          </p>
-          <div className="mt-6 flex gap-2">
+  return (
+    <div className="space-y-6">
+      {/* Top strip: 3 fatos + period picker + ações primárias */}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_auto]">
+        <Suspense fallback={<NotableChangesSkeleton />}>
+          <AnaliseNotableChanges companyId={companyId} />
+        </Suspense>
+        <div className="flex flex-col items-start gap-2 lg:items-end">
+          <AnalisePeriodPicker />
+          <div className="flex flex-wrap gap-2 lg:justify-end">
             <BulkAnalyzeButton companyId={companyId} />
             <SyncConversationsButton companyId={companyId} />
           </div>
         </div>
-      );
-    }
+      </div>
 
-    return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-12 text-center">
-        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-surface-2)]">
-          <MessageSquare className="h-6 w-6 text-[var(--color-text-tertiary)]" />
+      {/* Banner crítico */}
+      {criticalCount > 0 ? (
+        <div className="flex items-center gap-3 rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger-bg)] px-4 py-3">
+          <span className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-danger)] text-white">
+            <AlertCircle className="h-4 w-4" />
+          </span>
+          <p className="flex-1 text-sm text-[var(--color-text)]">
+            <strong className="font-semibold text-[var(--color-danger)]">
+              {criticalCount} conversa{criticalCount === 1 ? "" : "s"} crítica
+              {criticalCount === 1 ? "" : "s"}
+            </strong>{" "}
+            nas últimas 24h — sentimento negativo detectado, ainda em aberto.
+          </p>
+          <Link
+            href="/whatsapp-intelligence/conversas?sentiment=negativo&period=1"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-danger)] hover:underline"
+          >
+            Ver no fluxo
+            <ChevronRight className="h-4 w-4" />
+          </Link>
         </div>
-        <p className="ax-t2">Comece sincronizando conversas</p>
+      ) : null}
+
+      {/* §1 — Quem da minha equipe está em queda? */}
+      <Suspense fallback={<SectionSkeleton number={1} />}>
+        <AnaliseVendorPerformance companyId={companyId} />
+      </Suspense>
+
+      {/* §2 — Você vs nicho */}
+      <SectionWrapper
+        number={2}
+        question="Como estamos vs outros do mesmo nicho?"
+        subtitle="Network effect: cada novo tenant melhora a média do nicho pra todos."
+      >
+        <Suspense fallback={<div className="h-32 animate-pulse rounded-lg bg-[var(--color-surface-2)]" />}>
+          <NicheBenchmarkCard companyId={companyId} />
+        </Suspense>
+      </SectionWrapper>
+
+      {/* §3 — Está vindo mais ou menos cliente? */}
+      <SectionWrapper
+        number={3}
+        question="Está vindo mais ou menos cliente que antes?"
+        subtitle={`Volume diário de insights · janela ${period} dias · distribuição de intenções (últimos 7 dias).`}
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <AnaliseVolumeChart data={volumeData} windowDays={period} />
+          <IntentDistributionChart data={intentDistributionData} />
+        </div>
+      </SectionWrapper>
+
+      {/* §4 — Algum padrão preocupante? */}
+      <Suspense fallback={<SectionSkeleton number={4} />}>
+        <AnaliseHeatmap companyId={companyId} windowDays={period} />
+      </Suspense>
+    </div>
+  );
+}
+
+// =============================================================================
+// Empty states
+// =============================================================================
+
+function EmptyState({
+  companyId,
+  hasSynced,
+}: {
+  companyId: string;
+  hasSynced: boolean;
+}) {
+  if (hasSynced) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] p-12 text-center">
+        <p className="ax-t2">Conversas prontas para análise</p>
         <p className="mt-2 ax-body text-[var(--color-text-secondary)]">
-          Conecte o Evo CRM para trazer conversas e desbloquear métricas de sentimento.
+          Rode a IA para extrair sentimento, intenção e oportunidades.
         </p>
         <div className="mt-6 flex gap-2">
           <BulkAnalyzeButton companyId={companyId} />
@@ -199,66 +231,49 @@ export default async function WhatsAppDashboardPage() {
   }
 
   return (
-    <>
-      {/* Command Bar — ações rápidas com hierarquia clara */}
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          {criticalCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-danger-bg)] px-3 py-1.5 text-xs font-medium text-[var(--color-danger)]">
-              <AlertCircle className="h-3.5 w-3.5" />
-              {criticalCount} conversa{criticalCount === 1 ? "" : "s"} crítica{criticalCount === 1 ? "" : "s"}
-            </span>
-          )}
+    <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-12 text-center">
+      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-surface-2)]">
+        <MessageSquare className="h-6 w-6 text-[var(--color-text-tertiary)]" />
+      </div>
+      <p className="ax-t2">Comece sincronizando conversas</p>
+      <p className="mt-2 ax-body text-[var(--color-text-secondary)]">
+        Conecte o Evo CRM para trazer conversas e desbloquear métricas de sentimento.
+      </p>
+      <div className="mt-6 flex gap-2">
+        <BulkAnalyzeButton companyId={companyId} />
+        <SyncConversationsButton companyId={companyId} />
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Skeletons
+// =============================================================================
+
+function NotableChangesSkeleton() {
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="h-20 animate-pulse rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+        />
+      ))}
+    </div>
+  );
+}
+
+function SectionSkeleton({ number }: { number: number }) {
+  return (
+    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+      <div className="mb-4 flex items-center gap-3 border-b border-[var(--color-border)] pb-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-2)] font-bricolage text-sm font-bold text-[var(--color-text-tertiary)]">
+          {number}
         </div>
-        <div className="flex gap-2">
-          <BulkAnalyzeButton companyId={companyId} />
-          <SyncConversationsButton companyId={companyId} />
-        </div>
+        <div className="h-5 w-64 animate-pulse rounded bg-[var(--color-surface-2)]" />
       </div>
-
-      {/* Métricas com sparklines */}
-      <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCardWithSparkline
-          title={`${totalAnalyzed} conversa${totalAnalyzed === 1 ? "" : "s"} analisada${totalAnalyzed === 1 ? "" : "s"}`}
-          value={totalAnalyzed}
-          subtitle={totalVariation !== null && totalVariation > 0 ? `${totalVariation}% a mais que semana passada` : "Últimos 7 dias"}
-          icon="sparkles"
-          sparklineData={sparklineData}
-          change={totalVariation}
-        />
-
-        <MetricCardWithSparkline
-          title={sentimentCounts.positivo > 0 ? `${Math.round((sentimentCounts.positivo / totalAnalyzed) * 100)}% positivas` : "Sentimento positivo"}
-          value={sentimentCounts.positivo}
-          subtitle={sentimentCounts.positivo > sentimentCounts.negativo ? "Clima favorável" : "Atenção ao tom das conversas"}
-          color="success"
-          sparklineData={sparklineData}
-        />
-
-        <MetricCardWithSparkline
-          title={topIntent?.[0] ? `Intenção: ${topIntent[0]}` : "Principal intenção"}
-          value={topIntent?.[1] ?? 0}
-          subtitle={topIntent?.[0] ? `${topIntent[1]} conversa${topIntent[1] === 1 ? "" : "s"} com esse sinal` : "Nenhuma detectada ainda"}
-          icon="target"
-          color="primary"
-        />
-
-        <MetricCardWithSparkline
-          title={criticalCount > 0 ? `${criticalCount} precisam de ação` : "Tudo em ordem"}
-          value={criticalCount}
-          subtitle={criticalCount > 0 ? "Negativas nas últimas 24h — resolva já" : "Nenhuma conversa crítica recente"}
-          icon="alert"
-          color={criticalCount > 0 ? "danger" : undefined}
-          className={criticalCount > 0 ? "border-danger" : ""}
-          href={criticalCount > 0 ? "/whatsapp-intelligence/conversas?sentiment=negativo&period=1" : undefined}
-        />
-      </div>
-
-      {/* Gráficos de análise */}
-      <div className="mt-2 grid gap-6 lg:grid-cols-2">
-        <SentimentTrendChart data={sentimentTrendData} />
-        <IntentDistributionChart data={intentDistributionData} />
-      </div>
-    </>
+      <div className="h-32 animate-pulse rounded-lg bg-[var(--color-surface-2)]" />
+    </section>
   );
 }

@@ -10,13 +10,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { log } from "@/lib/logger";
+import { NICHE_SLUGS, getNicheBySlug } from "@/lib/niches";
 
 export const dynamic = "force-dynamic";
+
+const dayScheduleSchema = z
+  .object({
+    open: z.string().regex(/^\d{2}:\d{2}$/),
+    close: z.string().regex(/^\d{2}:\d{2}$/),
+  })
+  .nullable();
+
+const businessHoursSchema = z.object({
+  mon: dayScheduleSchema,
+  tue: dayScheduleSchema,
+  wed: dayScheduleSchema,
+  thu: dayScheduleSchema,
+  fri: dayScheduleSchema,
+  sat: dayScheduleSchema,
+  sun: dayScheduleSchema,
+});
 
 const companyUpdateSchema = z
   .object({
     name: z.string().trim().min(2, "Nome inválido.").optional(),
     niche: z.string().trim().min(2, "Nicho inválido.").optional(),
+    nicheSlug: z.enum(NICHE_SLUGS, { message: "Nicho inválido." }).optional(),
+    businessHours: businessHoursSchema.optional(),
     subNiche: z.string().trim().max(120, "Sub-nicho muito longo.").optional().or(z.literal("")),
     websiteUrl: z
       .string()
@@ -36,6 +56,8 @@ const companyUpdateSchema = z
     (value) =>
       value.name ||
       value.niche ||
+      typeof value.nicheSlug !== "undefined" ||
+      typeof value.businessHours !== "undefined" ||
       typeof value.subNiche !== "undefined" ||
       typeof value.websiteUrl !== "undefined" ||
       typeof value.timezone !== "undefined" ||
@@ -86,7 +108,9 @@ export async function GET(request: NextRequest) {
 
     const { data: company, error } = await supabase
       .from("companies")
-      .select("id, name, niche, sub_niche, website_url, timezone, logo_url, slug")
+      .select(
+        "id, name, niche, sub_niche, website_url, timezone, logo_url, slug, niche_slug, business_hours",
+      )
       .eq("id", membership.company_id)
       .single();
 
@@ -102,6 +126,8 @@ export async function GET(request: NextRequest) {
         id: company.id,
         name: company.name,
         niche: company.niche,
+        nicheSlug: company.niche_slug,
+        businessHours: company.business_hours ?? null,
         subNiche: company.sub_niche,
         websiteUrl: company.website_url,
         timezone: company.timezone,
@@ -155,8 +181,16 @@ export async function PATCH(request: NextRequest) {
     if (typeof parsed.data.name !== "undefined") {
       updatePayload.name = parsed.data.name;
     }
-    if (typeof parsed.data.niche !== "undefined") {
+    if (typeof parsed.data.nicheSlug !== "undefined") {
+      // Sincroniza ambos: slug canônico + label legível.
+      updatePayload.niche_slug = parsed.data.nicheSlug;
+      updatePayload.niche = getNicheBySlug(parsed.data.nicheSlug).label;
+    } else if (typeof parsed.data.niche !== "undefined") {
+      // Caminho legado: tenant sem slug ainda, edita só o label livre.
       updatePayload.niche = parsed.data.niche;
+    }
+    if (typeof parsed.data.businessHours !== "undefined") {
+      updatePayload.business_hours = parsed.data.businessHours;
     }
     if (typeof parsed.data.subNiche !== "undefined") {
       updatePayload.sub_niche = parsed.data.subNiche || null;
@@ -175,7 +209,9 @@ export async function PATCH(request: NextRequest) {
       .from("companies")
       .update(updatePayload)
       .eq("id", membership.company_id)
-      .select("id, name, niche, sub_niche, website_url, timezone, logo_url, slug")
+      .select(
+        "id, name, niche, sub_niche, website_url, timezone, logo_url, slug, niche_slug, business_hours",
+      )
       .single();
 
     if (error || !updatedCompany) {
@@ -190,6 +226,8 @@ export async function PATCH(request: NextRequest) {
         id: updatedCompany.id,
         name: updatedCompany.name,
         niche: updatedCompany.niche,
+        nicheSlug: updatedCompany.niche_slug,
+        businessHours: updatedCompany.business_hours ?? null,
         subNiche: updatedCompany.sub_niche,
         websiteUrl: updatedCompany.website_url,
         timezone: updatedCompany.timezone,

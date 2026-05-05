@@ -154,6 +154,10 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
     sent_at: sentAt,
     message_type: typeof data.message_type === "string" ? data.message_type : null,
     media_url: typeof data.media_url === "string" ? data.media_url : null,
+    // Persiste payload bruto pra discovery de campos (multi-atendente, etc).
+    // Migration 20260508 adicionou a coluna. Se a coluna ainda não existir,
+    // o Supabase ignora colunas desconhecidas no INSERT (não lança erro).
+    raw_payload: data as Json,
   });
 
   await supabase

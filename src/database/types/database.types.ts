@@ -376,39 +376,48 @@ export type Database = {
       }
       companies: {
         Row: {
+          business_hours: Json | null
           created_at: string | null
           id: string
           logo_url: string | null
           name: string
           niche: string | null
+          niche_slug: string | null
           settings: Json | null
           slug: string
           sub_niche: string | null
           timezone: string
+          vocabulary_overrides: Json | null
           website_url: string | null
         }
         Insert: {
+          business_hours?: Json | null
           created_at?: string | null
           id?: string
           logo_url?: string | null
           name: string
           niche?: string | null
+          niche_slug?: string | null
           settings?: Json | null
           slug: string
           sub_niche?: string | null
           timezone?: string
+          vocabulary_overrides?: Json | null
           website_url?: string | null
         }
         Update: {
+          business_hours?: Json | null
           created_at?: string | null
           id?: string
           logo_url?: string | null
           name?: string
           niche?: string | null
+          niche_slug?: string | null
           settings?: Json | null
           slug?: string
           sub_niche?: string | null
           timezone?: string
+          vocabulary_overrides?: Json | null
           website_url?: string | null
         }
         Relationships: []
@@ -1525,6 +1534,7 @@ export type Database = {
           id: string
           media_url: string | null
           message_type: string | null
+          raw_payload: Json | null
           sent_at: string | null
         }
         Insert: {
@@ -1535,6 +1545,7 @@ export type Database = {
           id?: string
           media_url?: string | null
           message_type?: string | null
+          raw_payload?: Json | null
           sent_at?: string | null
         }
         Update: {
@@ -1545,6 +1556,7 @@ export type Database = {
           id?: string
           media_url?: string | null
           message_type?: string | null
+          raw_payload?: Json | null
           sent_at?: string | null
         }
         Relationships: [
@@ -1557,6 +1569,87 @@ export type Database = {
           },
           {
             foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      niche_aggregates: {
+        Row: {
+          avg_weekly_volume: number | null
+          computed_at: string
+          niche_slug: string
+          opportunity_pct: number | null
+          peer_count: number
+          sentiment_positive_pct: number | null
+          window_days: number
+        }
+        Insert: {
+          avg_weekly_volume?: number | null
+          computed_at?: string
+          niche_slug: string
+          opportunity_pct?: number | null
+          peer_count?: number
+          sentiment_positive_pct?: number | null
+          window_days?: number
+        }
+        Update: {
+          avg_weekly_volume?: number | null
+          computed_at?: string
+          niche_slug?: string
+          opportunity_pct?: number | null
+          peer_count?: number
+          sentiment_positive_pct?: number | null
+          window_days?: number
+        }
+        Relationships: []
+      }
+      operator_nudges: {
+        Row: {
+          company_id: string
+          conversation_id: string | null
+          created_at: string
+          customer_name: string | null
+          from_user_id: string
+          id: string
+          read_at: string | null
+          to_user_id: string
+          wait_seconds: number | null
+        }
+        Insert: {
+          company_id: string
+          conversation_id?: string | null
+          created_at?: string
+          customer_name?: string | null
+          from_user_id: string
+          id?: string
+          read_at?: string | null
+          to_user_id: string
+          wait_seconds?: number | null
+        }
+        Update: {
+          company_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          customer_name?: string | null
+          from_user_id?: string
+          id?: string
+          read_at?: string | null
+          to_user_id?: string
+          wait_seconds?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operator_nudges_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_nudges_conversation_id_fkey"
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
@@ -1865,6 +1958,7 @@ export type Database = {
               similarity: number
             }[]
           }
+      recompute_niche_aggregates: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never

@@ -14,6 +14,7 @@ import { TopbarBreadcrumb } from "@/components/layout/topbar-breadcrumb";
 import { TopbarClock } from "@/components/layout/topbar-clock";
 import { TopbarSessionTimer } from "@/components/layout/topbar-session-timer";
 import { TopbarNotifications } from "@/components/layout/topbar-notifications";
+import { OperatorNudgesBell } from "@/components/layout/operator-nudges-bell";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { REMEMBER_ME_COOKIE } from "@/lib/auth/constants";
@@ -72,6 +73,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <OperatorNudgesBell />
           <TopbarNotifications />
 
           <div className="hidden h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary-dim)] text-xs font-bold text-[var(--color-primary)] sm:flex">

@@ -1,14 +1,16 @@
 /**
  * Arquivo: src/components/whatsapp/intent-distribution-chart.tsx
- * Propósito: Grafico de rosca mostrando distribuicao de intencoes.
+ * Propósito: Distribuição de intenções como barras horizontais.
+ *            Substitui o donut anterior — Caravaggio's principle: humanos
+ *            interpretam comprimentos muito mais rápido do que ângulos.
+ *            Sortado por count desc, cor por intenção, click opcional.
  * Autor: AXIOMIX
- * Data: 2026-03-12
+ * Data: 2026-05-07
  */
 
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 type IntentDistributionData = {
   name: string;
@@ -34,32 +36,34 @@ function getIntentColor(intent: string): string {
   return INTENT_COLORS[intent.toLowerCase()] ?? "var(--color-muted-light)";
 }
 
-export function IntentDistributionChart({ data, onIntentClick }: IntentDistributionChartProps) {
+function capitalize(value: string): string {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export function IntentDistributionChart({
+  data,
+  onIntentClick,
+}: IntentDistributionChartProps) {
   if (data.length === 0 || data.every((item) => item.value === 0)) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Distribuição de Intenções</CardTitle>
-          <CardDescription>Últimos 7 dias</CardDescription>
+          <CardDescription>Sem dados suficientes</CardDescription>
         </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
-          <p className="text-sm text-muted">Sem dados suficientes para exibir o gráfico.</p>
+        <CardContent className="flex h-[200px] items-center justify-center">
+          <p className="text-sm text-muted">
+            Quando houver conversas analisadas, a distribuição aparece aqui.
+          </p>
         </CardContent>
       </Card>
     );
   }
 
-  const chartData = data.map((item) => ({
-    ...item,
-    color: getIntentColor(item.name),
-  }));
-
   const total = data.reduce((sum, item) => sum + item.value, 0);
-
-  const renderCustomLabel = (entry: { name: string; value: number; percent: number }) => {
-    const percentage = ((entry.value / total) * 100).toFixed(0);
-    return `${percentage}%`;
-  };
+  const sorted = [...data].sort((a, b) => b.value - a.value);
+  const max = sorted[0]?.value ?? 1;
 
   return (
     <Card>
@@ -68,50 +72,55 @@ export function IntentDistributionChart({ data, onIntentClick }: IntentDistribut
         <CardDescription>{total} conversas analisadas</CardDescription>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={100}
-              paddingAngle={2}
-              dataKey="value"
-              label={renderCustomLabel}
-              labelLine={false}
-              onClick={(entry) => {
-                if (onIntentClick) {
-                  onIntentClick(entry.name);
-                }
-              }}
-              cursor="pointer"
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "var(--color-card)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "8px",
-                fontSize: "14px",
-              }}
-              formatter={(value: number) => [`${value} conversas`, ""]}
-            />
-            <Legend
-              verticalAlign="bottom"
-              height={36}
-              iconType="circle"
-              formatter={(value: string, entry: any) => {
-                const count = entry.payload?.value ?? 0;
-                return `${value.charAt(0).toUpperCase() + value.slice(1)} (${count})`;
-              }}
-              wrapperStyle={{ fontSize: "13px", color: "var(--color-text)" }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        <ul className="flex flex-col gap-3 py-2">
+          {sorted.map((item) => {
+            const percentage = total === 0 ? 0 : (item.value / total) * 100;
+            const widthPct = max === 0 ? 0 : (item.value / max) * 100;
+            const color = getIntentColor(item.name);
+            const isClickable = Boolean(onIntentClick);
+
+            return (
+              <li key={item.name}>
+                <button
+                  type="button"
+                  disabled={!isClickable}
+                  onClick={() => onIntentClick?.(item.name)}
+                  className={`block w-full text-left ${
+                    isClickable ? "cursor-pointer" : "cursor-default"
+                  } rounded-lg p-2 transition-colors ${
+                    isClickable
+                      ? "hover:bg-[var(--color-surface-2)]"
+                      : ""
+                  }`}
+                >
+                  <div className="grid grid-cols-[120px_1fr_60px_64px] items-center gap-3">
+                    <span className="text-sm font-medium text-[var(--color-text)]">
+                      {capitalize(item.name)}
+                    </span>
+                    <div className="h-3 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${widthPct}%`,
+                          backgroundColor: color,
+                        }}
+                      />
+                    </div>
+                    <span className="text-right font-mono text-xs text-[var(--color-text)]">
+                      {item.value}
+                    </span>
+                    <span
+                      className="text-right font-mono text-xs font-semibold"
+                      style={{ color }}
+                    >
+                      {percentage.toFixed(0)}%
+                    </span>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </CardContent>
     </Card>
   );
