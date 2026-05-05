@@ -34,6 +34,12 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
 
 type CellKey = `${DayOfWeek}_${number}`;
 
+type CellData = {
+  count: number;
+  /** Datas concretas (formato dd/MM) das ocorrências naquela célula */
+  dates: string[];
+};
+
 function buildHourRange(): number[] {
   const hours: number[] = [];
   for (let h = HOUR_START; h < HOUR_END; h++) hours.push(h);
@@ -121,27 +127,38 @@ export async function AnaliseHeatmap({
   const untilLabel = dateFormatter.format(new Date());
   const rangeLabel = `${sinceLabel} → ${untilLabel}`;
 
-  const cells = new Map<CellKey, number>();
+  const cells = new Map<CellKey, CellData>();
+
+  // Formatador dd/MM no fuso do tenant pra cada ocorrência
+  const dayMonthFormatter = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: timezone,
+    day: "2-digit",
+    month: "2-digit",
+  });
 
   for (const insight of insights ?? []) {
     if (!insight.generated_at) continue;
-    const z = toZonedDate(new Date(insight.generated_at), timezone);
+    const date = new Date(insight.generated_at);
+    const z = toZonedDate(date, timezone);
     if (z.hour < HOUR_START || z.hour >= HOUR_END) continue;
     const key: CellKey = `${z.dow}_${z.hour}`;
-    cells.set(key, (cells.get(key) ?? 0) + 1);
+    const existing = cells.get(key) ?? { count: 0, dates: [] };
+    existing.count += 1;
+    existing.dates.push(dayMonthFormatter.format(date));
+    cells.set(key, existing);
   }
 
   // Encontra hotspot (cell com mais volume) pra insight automático
-  let hotspot: { dow: DayOfWeek; hour: number; count: number } | null = null;
-  for (const [key, count] of cells.entries()) {
-    if (!hotspot || count > hotspot.count) {
+  let hotspot: { dow: DayOfWeek; hour: number; count: number; dates: string[] } | null = null;
+  for (const [key, data] of cells.entries()) {
+    if (!hotspot || data.count > hotspot.count) {
       const [dow, hour] = key.split("_") as [DayOfWeek, string];
-      hotspot = { dow, hour: parseInt(hour, 10), count };
+      hotspot = { dow, hour: parseInt(hour, 10), count: data.count, dates: data.dates };
     }
   }
 
   const max = hotspot?.count ?? 0;
-  const total = Array.from(cells.values()).reduce((s, v) => s + v, 0);
+  const total = Array.from(cells.values()).reduce((s, v) => s + v.count, 0);
 
   if (total === 0) {
     return (
@@ -170,7 +187,7 @@ export async function AnaliseHeatmap({
   for (const dow of DAYS) {
     let rowSum = 0;
     for (const hour of hours) {
-      const v = cells.get(`${dow}_${hour}`) ?? 0;
+      const v = cells.get(`${dow}_${hour}`)?.count ?? 0;
       rowSum += v;
       colTotals.set(hour, (colTotals.get(hour) ?? 0) + v);
     }
@@ -231,12 +248,32 @@ export async function AnaliseHeatmap({
                   {DAY_LABELS[dow]}
                 </div>
                 {hours.map((hour) => {
-                  const value = cells.get(`${dow}_${hour}`) ?? 0;
+                  const cell = cells.get(`${dow}_${hour}`);
+                  const value = cell?.count ?? 0;
                   const isHotspotCell =
                     hotspot && hotspot.dow === dow && hotspot.hour === hour && value > 0;
                   const showHotspotRing =
                     isHotspotCell && total >= SPARSE_DATA_THRESHOLD;
                   const boundary = isHourBoundary(hour);
+
+                  // Tooltip com datas concretas: "Seg 16h: 1 insight em 28/04"
+                  // ou "Seg 16h: 3 insights · 06/04, 20/04, 27/04"
+                  let titleText: string;
+                  if (value === 0) {
+                    titleText = `${DAY_LABELS[dow]} ${hour}h: sem dados`;
+                  } else if (value === 1 && cell?.dates[0]) {
+                    titleText = `${DAY_LABELS[dow]} ${hour}h · 1 insight em ${cell.dates[0]}`;
+                  } else if (cell) {
+                    // Ordena datas únicas crescentes
+                    const uniqueDates = Array.from(new Set(cell.dates)).sort((a, b) => {
+                      const [ad, am] = a.split("/").map(Number);
+                      const [bd, bm] = b.split("/").map(Number);
+                      return am - bm || ad - bd;
+                    });
+                    titleText = `${DAY_LABELS[dow]} ${hour}h · ${value} insights · ${uniqueDates.join(", ")}`;
+                  } else {
+                    titleText = `${DAY_LABELS[dow]} ${hour}h`;
+                  }
 
                   return (
                     <div
@@ -247,11 +284,7 @@ export async function AnaliseHeatmap({
                     >
                       <div
                         className={`h-7 rounded-md transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-[var(--color-text-secondary)]/30 ${intensityClass(value, max, total)} ${showHotspotRing ? "ring-2 ring-[var(--color-danger)]" : ""}`}
-                        title={
-                          value > 0
-                            ? `${DAY_LABELS[dow]} ${hour}h: ${value} insight${value === 1 ? "" : "s"}`
-                            : `${DAY_LABELS[dow]} ${hour}h: sem dados`
-                        }
+                        title={titleText}
                       />
                     </div>
                   );
@@ -327,8 +360,19 @@ export async function AnaliseHeatmap({
             <strong className="font-semibold text-[var(--color-warning)]">
               {DAY_LABELS[hotspot.dow]} às {hotspot.hour}h
             </strong>{" "}
-            concentra o maior volume da janela ({hotspot.count} de {total}).
-            Considere reforçar equipe ou ativar auto-resposta de boas-vindas
+            concentra o maior volume da janela ({hotspot.count} de {total}
+            {hotspot.dates.length > 0 ? (
+              <>
+                {" "}· datas:{" "}
+                <span className="font-mono text-xs">
+                  {Array.from(new Set(hotspot.dates))
+                    .slice(0, 4)
+                    .join(", ")}
+                  {new Set(hotspot.dates).size > 4 ? "…" : ""}
+                </span>
+              </>
+            ) : null}
+            ). Considere reforçar equipe ou ativar auto-resposta de boas-vindas
             nesse horário.
           </p>
         </div>
