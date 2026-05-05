@@ -284,6 +284,50 @@ export function OperacaoLivePanel() {
     [context, fetchData, toast],
   );
 
+  // Handler "Liberar conversa" — desatribui (assignedTo: null). Útil pro
+  // gestor que assumiu temporariamente e quer devolver pra fila, ou pro
+  // atendente que precisa passar adiante.
+  const handleReleaseConversation = useCallback(
+    async (conversationId: string) => {
+      if (!context) return;
+      setPendingActionConvId(conversationId);
+      try {
+        const res = await fetch("/api/whatsapp/assign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companyId: context.companyId,
+            conversationId,
+            assignedTo: null,
+          }),
+        });
+        const json = (await res.json()) as { error?: string; message?: string };
+        if (!res.ok) {
+          toast({
+            title: "Não foi possível liberar",
+            description: json.error ?? "Tente novamente em alguns segundos.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Conversa liberada",
+            description: "Voltou pra fila sem responsável. Atualizando painel...",
+          });
+          await fetchData();
+        }
+      } catch (e) {
+        toast({
+          title: "Erro de rede",
+          description: e instanceof Error ? e.message : "Tente novamente.",
+          variant: "destructive",
+        });
+      } finally {
+        setPendingActionConvId(null);
+      }
+    },
+    [context, fetchData, toast],
+  );
+
   // Handler "Avisar [Operador]" — cria notificação in-app via
   //   /api/whatsapp/operator-nudges. O operador vê o aviso no sino do topbar
   //   na próxima vez que abrir qualquer página do Axiomix.
@@ -474,8 +518,10 @@ export function OperacaoLivePanel() {
               amberSeconds={data.thresholds.amberSeconds}
               redSeconds={data.thresholds.redSeconds}
               isPending={pendingActionConvId === data.mostForgotten.conversationId}
+              currentUserId={context?.currentUserId ?? null}
               onAssume={handleAssumeConversation}
               onNudge={handleNudgeOperator}
+              onRelease={handleReleaseConversation}
             />
           ) : (
             <EmptyHero />
@@ -587,16 +633,20 @@ function HeroCard({
   amberSeconds,
   redSeconds,
   isPending,
+  currentUserId,
   onAssume,
   onNudge,
+  onRelease,
 }: {
   conversation: WaitingConversation;
   currentWaitSeconds: number;
   amberSeconds: number;
   redSeconds: number;
   isPending: boolean;
+  currentUserId: string | null;
   onAssume: (conversationId: string) => void;
   onNudge: (conversation: WaitingConversation) => void;
+  onRelease: (conversationId: string) => void;
 }) {
   const severity: ConversationSeverity =
     currentWaitSeconds >= redSeconds
@@ -604,6 +654,24 @@ function HeroCard({
       : currentWaitSeconds >= amberSeconds
         ? "amber"
         : "ok";
+
+  // Ação primária depende de quem é o assignee — não só da severidade.
+  // Severidade só decide a urgência visual (cor/destaque).
+  const hasAssignee = !!conversation.assigneeId;
+  const isMine =
+    !!currentUserId && conversation.assigneeId === currentUserId;
+  // primaryAction:
+  //   - "assume": ninguém pegou ainda → atribui pra mim
+  //   - "view":   já é minha (ou severidade ok) → só abrir
+  //   - "nudge":  é de outro atendente que não respondeu → notificar
+  const primaryAction: "assume" | "view" | "nudge" =
+    severity === "ok"
+      ? "view"
+      : !hasAssignee
+        ? "assume"
+        : isMine
+          ? "view"
+          : "nudge";
 
   const bgClass =
     severity === "red"
@@ -633,17 +701,20 @@ function HeroCard({
         ? "text-warning"
         : "text-text";
 
+  // Cor do botão segue severidade quando ainda há ação urgente (assume/nudge).
+  // Pra "view" o botão fica neutro mesmo em red/amber — pq nesse caso é só
+  // navegação, não ação que destrava o cliente.
   const buttonClass =
-    severity === "red"
-      ? "bg-danger hover:bg-danger/90 text-white"
-      : severity === "amber"
-        ? "bg-primary hover:bg-primary-hover text-white"
-        : "bg-card border border-border hover:bg-surface-2 text-text";
+    primaryAction === "view"
+      ? "bg-card border border-border hover:bg-surface-2 text-text"
+      : severity === "red"
+        ? "bg-danger hover:bg-danger/90 text-white"
+        : "bg-primary hover:bg-primary-hover text-white";
 
   const buttonLabel =
-    severity === "red"
+    primaryAction === "assume"
       ? "Assumir conversa agora"
-      : severity === "amber"
+      : primaryAction === "nudge"
         ? `Avisar ${conversation.assigneeName ?? "atendente"}`
         : "Ver conversa";
 
@@ -730,7 +801,7 @@ function HeroCard({
       )}
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {severity === "red" ? (
+        {primaryAction === "assume" ? (
           <button
             type="button"
             disabled={isPending}
@@ -749,7 +820,7 @@ function HeroCard({
               </>
             )}
           </button>
-        ) : severity === "amber" ? (
+        ) : primaryAction === "nudge" ? (
           <button
             type="button"
             disabled={isPending}
@@ -777,12 +848,38 @@ function HeroCard({
             <ArrowRight className="h-4 w-4" />
           </Link>
         )}
-        <Link
-          href={`/whatsapp-intelligence/conversas/${conversation.conversationId}`}
-          className="inline-flex h-11 items-center rounded-lg border border-border bg-card px-5 text-sm font-medium text-text hover:bg-surface-2"
-        >
-          Ver conversa
-        </Link>
+
+        {/* Botão "Ver conversa" só faz sentido como secundário quando o
+            primário NÃO é "view" (senão fica duplicado). */}
+        {primaryAction !== "view" ? (
+          <Link
+            href={`/whatsapp-intelligence/conversas/${conversation.conversationId}`}
+            className="inline-flex h-11 items-center rounded-lg border border-border bg-card px-5 text-sm font-medium text-text hover:bg-surface-2"
+          >
+            Ver conversa
+          </Link>
+        ) : null}
+
+        {/* "Liberar" só aparece quando a conversa é minha — devolve pra fila
+            sem responsável. Visual sutil pra não competir com a ação primária. */}
+        {isMine ? (
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => onRelease(conversation.conversationId)}
+            className="inline-flex h-11 items-center rounded-lg border border-border bg-transparent px-4 text-sm font-medium text-muted hover:text-text hover:bg-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            title="Devolve a conversa pra fila sem responsável"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Liberando...
+              </>
+            ) : (
+              "Liberar"
+            )}
+          </button>
+        ) : null}
       </div>
     </section>
   );
