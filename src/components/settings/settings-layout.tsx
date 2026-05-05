@@ -14,7 +14,6 @@ import {
   Building2,
   Coins,
   Plug,
-  Share2,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -23,7 +22,6 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompanySettingsForm } from "@/components/forms/company-settings-form";
-import { SocialConnectionsSettings } from "@/components/forms/social-connections-settings";
 import { IntegrationsSettingsForm } from "@/components/forms/integrations-settings-form";
 import type { IntegrationStatusItem } from "@/components/dashboard/integrations-status-card";
 import type { RecentReportItem } from "@/components/dashboard/recent-reports-card";
@@ -32,12 +30,10 @@ import { GroupAgentSettings } from "@/components/settings/group-agent-settings";
 import { AiUsagePanel } from "@/components/settings/ai-usage-panel";
 import { TeamSettings } from "@/components/settings/team-settings";
 
-type TabKey = "overview" | "company" | "team" | "integrations" | "social" | "notifications" | "group-agent" | "usage";
+type TabKey = "overview" | "company" | "team" | "integrations" | "notifications" | "group-agent" | "usage";
 
 type SettingsStats = {
   companyConfigured: boolean;
-  socialConnections: number;
-  totalSocialPlatforms: number;
   integrationsActive: number;
   totalIntegrations: number;
   lastUpdate: string | null;
@@ -70,12 +66,6 @@ const TABS = [
     description: "Conexões com sistemas externos",
   },
   {
-    key: "social" as const,
-    label: "Redes Sociais",
-    icon: Share2,
-    description: "Conexões de redes sociais",
-  },
-  {
     key: "notifications" as const,
     label: "Notificações",
     icon: Bell,
@@ -100,7 +90,7 @@ type TabDefinition = (typeof TABS)[number];
 
 const TAB_GROUPS: Array<{ label: string; keys: TabKey[] }> = [
   { label: "Empresa", keys: ["overview", "company", "team"] },
-  { label: "Integrações", keys: ["integrations", "social"] },
+  { label: "Integrações", keys: ["integrations"] },
   { label: "Automação", keys: ["group-agent", "notifications"] },
   { label: "Avançado", keys: ["usage"] },
 ];
@@ -130,11 +120,12 @@ type SettingsLayoutProps = {
   userRole?: "owner" | "admin" | "member";
 };
 
-const VALID_TABS: TabKey[] = ["overview", "company", "team", "integrations", "social", "notifications", "group-agent", "usage"];
+const VALID_TABS: TabKey[] = ["overview", "company", "team", "integrations", "notifications", "group-agent", "usage"];
 
 const LEGACY_TAB_MAP: Record<string, TabKey> = {
   reports: "notifications",
   alerts: "notifications",
+  social: "integrations",
 };
 
 function resolveInitialTab(input: TabKey | string | undefined): TabKey {
@@ -155,18 +146,13 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
   // Default stats (can be populated from props)
   const stats: SettingsStats = {
     companyConfigured: initialStats?.companyConfigured ?? true,
-    socialConnections: initialStats?.socialConnections ?? 0,
-    totalSocialPlatforms: initialStats?.totalSocialPlatforms ?? 3,
     integrationsActive: initialStats?.integrationsActive ?? 0,
     totalIntegrations: initialStats?.totalIntegrations ?? 2,
     lastUpdate: initialStats?.lastUpdate ?? null,
   };
 
-  const completionPercentage = Math.round(
-    ((Number(stats.companyConfigured) +
-      stats.socialConnections / stats.totalSocialPlatforms +
-      stats.integrationsActive / stats.totalIntegrations) / 3) * 100
-  );
+  const integrationsConfigured = stats.integrationsActive >= stats.totalIntegrations;
+  const allConfigured = stats.companyConfigured && integrationsConfigured;
 
   return (
     <div className="space-y-6">
@@ -181,12 +167,28 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
 
         <Card className="border border-border rounded-xl">
           <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-light">
-              <CheckCircle2 className="h-6 w-6 text-primary" />
+            <div
+              className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                allConfigured ? "bg-success-light" : "bg-primary-light"
+              }`}
+            >
+              {allConfigured ? (
+                <CheckCircle2 className="h-6 w-6 text-success" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-primary" />
+              )}
             </div>
-            <div>
-              <p className="text-2xl font-semibold text-text">{completionPercentage}%</p>
-              <p className="text-xs text-muted">Configuração completa</p>
+            <div className="space-y-0.5">
+              <p className="text-sm font-semibold text-text">
+                {allConfigured ? "Tudo configurado" : "Configuração pendente"}
+              </p>
+              <p className="text-xs text-muted">
+                {stats.companyConfigured ? "Empresa OK" : "Empresa pendente"}
+                {" · "}
+                {integrationsConfigured
+                  ? "Integrações OK"
+                  : `Integrações ${stats.integrationsActive}/${stats.totalIntegrations}`}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -282,7 +284,6 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
           {activeTab === "company" && <CompanyTab />}
           {activeTab === "team" && canViewUsage && <TeamSettings />}
           {activeTab === "integrations" && <IntegrationsTab />}
-          {activeTab === "social" && <SocialTab />}
           {activeTab === "notifications" && <NotificationsSettings reportData={reportData} />}
           {activeTab === "group-agent" && <GroupAgentTab companyId={companyId} />}
           {activeTab === "usage" && canViewUsage && <AiUsagePanel />}
@@ -295,7 +296,7 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
 function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: (tab: TabKey) => void }) {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {/* Company Status */}
         <Card
           className="cursor-pointer transition-all border border-border rounded-xl hover:border-border-strong"
@@ -368,47 +369,6 @@ function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: 
           </CardContent>
         </Card>
 
-        {/* Social Connections Status */}
-        <Card
-          className="cursor-pointer transition-all border border-border rounded-xl hover:border-border-strong"
-          onClick={() => onNavigate("social")}
-        >
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <Share2 className="h-8 w-8 text-primary" />
-              <div className="flex items-center gap-1">
-                <span className="text-2xl font-semibold text-text">
-                  {stats.socialConnections}
-                </span>
-                <span className="text-sm text-muted">
-                  /{stats.totalSocialPlatforms}
-                </span>
-              </div>
-            </div>
-            <CardTitle className="text-lg text-text">Redes Sociais</CardTitle>
-            <CardDescription className="text-muted">
-              {stats.socialConnections === 0
-                ? "Nenhuma conectada"
-                : `${stats.socialConnections} conectada(s)`
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 bg-sidebar rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{
-                    width: `${(stats.socialConnections / stats.totalSocialPlatforms) * 100}%`
-                  }}
-                />
-              </div>
-              <span className="text-xs text-muted">
-                {Math.round((stats.socialConnections / stats.totalSocialPlatforms) * 100)}%
-              </span>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Quick Actions */}
@@ -418,7 +378,7 @@ function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: 
           <CardDescription className="text-muted">Configure rapidamente os principais recursos</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <button
               onClick={() => onNavigate("company")}
               className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-border-strong hover:bg-background"
@@ -438,17 +398,6 @@ function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: 
               <div>
                 <p className="font-medium text-sm text-text">Configurar Integrações</p>
                 <p className="text-xs text-muted mt-1">Evo CRM, Evolution API</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => onNavigate("social")}
-              className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-border-strong hover:bg-background"
-            >
-              <Share2 className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <p className="font-medium text-sm text-text">Conectar Redes</p>
-                <p className="text-xs text-muted mt-1">Instagram, LinkedIn, TikTok</p>
               </div>
             </button>
 
@@ -475,8 +424,8 @@ function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: 
           <div className="space-y-1">
             <p className="font-medium text-sm text-text">Precisa de ajuda?</p>
             <p className="text-xs text-muted">
-              Configure suas integrações para começar a usar todos os recursos do AXIOMIX.
-              Comece conectando suas redes sociais para publicar conteúdo automaticamente.
+              Complete os dados da empresa e conecte o Evo CRM e a Evolution API
+              para que seus agentes IA possam atender pelo WhatsApp.
             </p>
           </div>
         </CardContent>
@@ -497,14 +446,6 @@ function IntegrationsTab() {
   return (
     <div className="space-y-6">
       <IntegrationsSettingsForm />
-    </div>
-  );
-}
-
-function SocialTab() {
-  return (
-    <div className="space-y-6">
-      <SocialConnectionsSettings />
     </div>
   );
 }

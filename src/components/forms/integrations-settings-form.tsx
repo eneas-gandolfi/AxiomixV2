@@ -10,9 +10,8 @@
 import { z } from "zod";
 import { useCallback, useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { AlertCircle, CheckCircle2, Link2, Loader2, QrCode, Smartphone, Trash2, UsersRound, X } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { AlertCircle, CheckCircle2, Link2, Loader2, QrCode, Smartphone, Trash2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { OpenRouterModelSettings } from "@/components/settings/openrouter-model-settings";
 
@@ -978,26 +977,6 @@ export function IntegrationsSettingsForm() {
           }
         />
       </div>
-
-      <Card className="mt-4 border border-dashed border-border rounded-xl">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="space-y-1">
-              <p className="inline-flex items-center gap-2 text-sm text-muted">
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                Upload-Post e redes sociais agora ficam na aba Settings da empresa.
-              </p>
-              <p className="inline-flex items-center gap-2 text-sm text-muted">
-                <UsersRound className="h-4 w-4 text-primary" />
-                Cada empresa possui seu próprio perfil de redes sociais.
-              </p>
-            </div>
-            <Link href="/settings?tab=social" className={buttonVariants({ variant: "secondary" })}>
-              Ir para Settings de redes sociais
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
 
       <OpenRouterModelSettings />
 

@@ -12,57 +12,10 @@ import { SettingsLayout } from "@/components/settings/settings-layout";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
-import type { UploadPostConfig } from "@/lib/integrations/types";
 import type { IntegrationStatusItem } from "@/components/dashboard/integrations-status-card";
 import type { RecentReportItem } from "@/components/dashboard/recent-reports-card";
 import type { Json } from "@/database/types/database.types";
 import { markStaleJobsFailed } from "@/lib/jobs/queue";
-
-function decodeUploadPostFallback(config: unknown): UploadPostConfig {
-  if (typeof config !== "object" || config === null || Array.isArray(config)) {
-    return {};
-  }
-
-  const raw = config as Record<string, unknown>;
-  const rawConnections = Array.isArray(raw.social_connections)
-    ? raw.social_connections
-    : Array.isArray(raw.socialConnections)
-      ? raw.socialConnections
-      : [];
-
-  return {
-    socialConnections: rawConnections
-      .map((entry) => {
-        if (typeof entry !== "object" || entry === null) return null;
-        const conn = entry as Record<string, unknown>;
-        const platform = conn.platform;
-        if (platform !== "instagram" && platform !== "linkedin" && platform !== "tiktok") {
-          return null;
-        }
-        return {
-          id: typeof conn.id === "string" ? conn.id : crypto.randomUUID(),
-          platform: platform as "instagram" | "linkedin" | "tiktok",
-          status: (conn.status === "connected" || conn.status === "error" || conn.status === "pending"
-            ? conn.status
-            : "pending") as "connected" | "error" | "pending",
-          externalConnectionId: null,
-          accountName: null,
-          connectUrl: null,
-          connectedAt: null,
-          lastError: null,
-        };
-      })
-      .filter((entry): entry is NonNullable<typeof entry> => entry !== null),
-  };
-}
-
-function decodeUploadPost(config: unknown): UploadPostConfig {
-  try {
-    return decodeIntegrationConfig("upload_post", config as never);
-  } catch {
-    return decodeUploadPostFallback(config);
-  }
-}
 
 function parseReportText(payload: Json | null, fallback?: Json | null) {
   const parseObject = (value?: Json | null) => {
@@ -237,7 +190,7 @@ export default async function SettingsPage({
     // Lightweight integrations for overview stats
     supabase
       .from("integrations")
-      .select("type, is_active, config")
+      .select("type, is_active")
       .eq("company_id", companyId),
     // Full integrations for Reports tab
     supabase
@@ -272,24 +225,11 @@ export default async function SettingsPage({
   const activeIntegrations = integrations?.filter((i) => i.is_active).length ?? 0;
   const totalIntegrations = 2; // Evo CRM + Evolution API
 
-  // Count social connections
-  const uploadPostIntegration = integrations?.find((i) => i.type === "upload_post");
-  let socialConnections = 0;
-
-  if (uploadPostIntegration?.config) {
-    const decoded = decodeUploadPost(uploadPostIntegration.config);
-    socialConnections = decoded.socialConnections?.filter((c) => c.status === "connected").length ?? 0;
-  }
-
-  const totalSocialPlatforms = 3; // Instagram, LinkedIn, TikTok
-
   // Company is configured if it has name and niche
   const companyConfigured = Boolean(company?.name && company?.niche);
 
   const initialStats = {
     companyConfigured,
-    socialConnections,
-    totalSocialPlatforms,
     integrationsActive: activeIntegrations,
     totalIntegrations,
     lastUpdate: company?.created_at ?? null,
