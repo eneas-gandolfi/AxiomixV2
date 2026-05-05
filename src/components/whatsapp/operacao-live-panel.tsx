@@ -48,6 +48,18 @@ const TICK_INTERVAL_MS = 1_000; // pra cronômetro contar localmente entre polls
 // Helpers de formatação
 // =============================================================================
 
+/** Formato "longo" pra waits >= 24h — substitui o cronometro h:mm:ss
+ *  por uma narrativa "Há N dias" porque o numero absurdo nao agrega
+ *  decisao (cliente abandonado != cliente em espera ativa). */
+function formatLongWait(totalSeconds: number): string {
+  const days = Math.floor(totalSeconds / 86400);
+  if (days >= 1) {
+    return `Há ${days} ${days === 1 ? "dia" : "dias"}`;
+  }
+  const hours = Math.floor(totalSeconds / 3600);
+  return `Há ${hours} h`;
+}
+
 function formatTimer(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(s / 3600);
@@ -59,13 +71,28 @@ function formatTimer(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+const LONG_WAIT_THRESHOLD_SECONDS = 86400; // 24h
+const DATETIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** Formata "desde dd/MM às HH:mm" pro subtitle do cronometro longo. */
+function formatSinceLabel(isoTimestamp: string): string {
+  return `desde ${DATETIME_FORMATTER.format(new Date(isoTimestamp))}`;
+}
+
 function formatCompact(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));
   if (s < 60) return `${s}s`;
   const minutes = Math.floor(s / 60);
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
-  return `${hours}h ${minutes % 60}m`;
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
 }
 
 function formatRelative(isoTimestamp: string | null): string {
@@ -666,16 +693,36 @@ function HeroCard({
         ) : null;
       })()}
 
-      <div className="mt-4 flex items-baseline gap-4">
-        <span
-          className={`font-mono text-6xl font-bold leading-none tracking-tight tabular-nums md:text-7xl ${timerColor}`}
-        >
-          {formatTimer(currentWaitSeconds)}
-        </span>
-        <span className="text-xs uppercase tracking-[0.18em] text-muted">
-          sem resposta
-        </span>
-      </div>
+      {currentWaitSeconds >= LONG_WAIT_THRESHOLD_SECONDS ? (
+        // Espera longa (>=24h) — narrativa "Há N dias" + data exata.
+        // Cronometro h:mm:ss perde sentido aqui (cliente ja foi).
+        <div className="mt-4 flex flex-col gap-1">
+          <span
+            className={`font-bricolage text-4xl font-bold leading-tight tracking-tight md:text-5xl ${timerColor}`}
+          >
+            {formatLongWait(currentWaitSeconds)}
+          </span>
+          <span className="text-xs text-muted">
+            <span className="uppercase tracking-[0.18em]">sem resposta</span>
+            {" · "}
+            <span className="font-mono">
+              {formatSinceLabel(conversation.lastInboundAt)}
+            </span>
+          </span>
+        </div>
+      ) : (
+        // Espera curta (<24h) — cronometro acionavel padrao h:mm:ss.
+        <div className="mt-4 flex items-baseline gap-4">
+          <span
+            className={`font-mono text-6xl font-bold leading-none tracking-tight tabular-nums md:text-7xl ${timerColor}`}
+          >
+            {formatTimer(currentWaitSeconds)}
+          </span>
+          <span className="text-xs uppercase tracking-[0.18em] text-muted">
+            sem resposta
+          </span>
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-2">
         {severity === "red" ? (
@@ -813,6 +860,11 @@ function QueueCard({
                 >
                   <p className="truncate text-sm font-medium text-text">
                     {item.customerName}
+                    {item.customerPhone ? (
+                      <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-light">
+                        {item.customerPhone}
+                      </span>
+                    ) : null}
                   </p>
                   <p className="truncate text-[11px] text-muted">
                     com {item.assigneeName ?? "não atribuído"}
@@ -821,6 +873,17 @@ function QueueCard({
                         · {item.pipelineStage}
                       </span>
                     ) : null}
+                    {(() => {
+                      const preview = formatMessagePreview(
+                        item.lastMessage,
+                        item.lastMessageType,
+                      );
+                      return preview ? (
+                        <span className="ml-1.5 italic text-muted-light">
+                          · &ldquo;{preview}&rdquo;
+                        </span>
+                      ) : null;
+                    })()}
                   </p>
                 </Link>
                 <span
