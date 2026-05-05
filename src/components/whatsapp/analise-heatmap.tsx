@@ -208,8 +208,11 @@ export async function AnaliseHeatmap({
               {h}h
             </div>
           ))}
-          <div className="pb-1 text-right text-[9px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
-            Σ
+          <div
+            className="pb-1 text-right text-[9px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]"
+            title="Total por linha (à direita) e por coluna (em baixo)"
+          >
+            Total
           </div>
 
           {/* Linhas: dia + 14 cells + total */}
@@ -267,8 +270,11 @@ export async function AnaliseHeatmap({
           })}
 
           {/* Footer — totais por hora */}
-          <div className="pt-1 pr-2 text-right text-[9px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
-            Σ
+          <div
+            className="pt-1 pr-2 text-right text-[9px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]"
+            title="Total da hora — soma vertical de todos os dias da semana"
+          >
+            Total
           </div>
           {hours.map((hour) => {
             const colSum = colTotals.get(hour) ?? 0;
