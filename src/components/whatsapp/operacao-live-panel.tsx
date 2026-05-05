@@ -19,7 +19,6 @@ import Link from "next/link";
 import {
   Activity,
   ArrowRight,
-  Bell,
   Loader2,
   Moon,
   Pause,
@@ -986,11 +985,8 @@ function OperatorCard({ operator }: { operator: OperatorWorkload }) {
           : "—"}
       </p>
 
-      <div className="mt-2 flex items-baseline justify-between border-t border-border/60 pt-2 text-[11px]">
-        <span className="text-muted">
-          {operator.activeCount} {operator.activeCount === 1 ? "ativa" : "ativas"}
-        </span>
-        <Bell className="h-3 w-3 text-muted-light" aria-hidden="true" />
+      <div className="mt-2 border-t border-border/60 pt-2 text-[11px] text-muted">
+        {operator.activeCount} {operator.activeCount === 1 ? "ativa" : "ativas"}
       </div>
     </article>
   );
