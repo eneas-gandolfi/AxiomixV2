@@ -33,10 +33,8 @@ import {
   SectionWrapper,
 } from "@/components/whatsapp/analise-vendor-performance";
 import { AnaliseHeatmap } from "@/components/whatsapp/analise-heatmap";
-import {
-  AnalisePeriodPicker,
-  parsePeriodFromParam,
-} from "@/components/whatsapp/analise-period-picker";
+import { AnalisePeriodPicker } from "@/components/whatsapp/analise-period-picker";
+import { parsePeriodFromParam } from "@/lib/whatsapp/analise-period";
 import { NicheBenchmarkCard } from "@/components/dashboard/niche-benchmark-card";
 
 const DAY_MS = 86_400_000;

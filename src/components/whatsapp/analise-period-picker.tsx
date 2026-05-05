@@ -2,7 +2,7 @@
  * Arquivo: src/components/whatsapp/analise-period-picker.tsx
  * Propósito: Picker de janela temporal pra aba Análise (7d/30d/90d).
  *            Atualiza ?period= na URL — Server Components da página leem
- *            via searchParams e re-fetcham com a nova janela.
+ *            via parsePeriodFromParam (em @/lib/whatsapp/analise-period).
  * Autor: AXIOMIX
  * Data: 2026-05-07
  */
@@ -10,27 +10,18 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  DEFAULT_PERIOD,
+  parsePeriodFromParam,
+  VALID_PERIODS,
+  type PeriodDays,
+} from "@/lib/whatsapp/analise-period";
 
-const PERIODS = [
-  { value: 7, label: "7d" },
-  { value: 30, label: "30d" },
-  { value: 90, label: "90d" },
-] as const;
-
-export type PeriodDays = (typeof PERIODS)[number]["value"];
-
-export const VALID_PERIODS: ReadonlyArray<PeriodDays> = PERIODS.map((p) => p.value);
-export const DEFAULT_PERIOD: PeriodDays = 30;
-
-export function isValidPeriod(value: unknown): value is PeriodDays {
-  return typeof value === "number" && (VALID_PERIODS as readonly number[]).includes(value);
-}
-
-export function parsePeriodFromParam(raw: string | string[] | undefined): PeriodDays {
-  if (typeof raw !== "string") return DEFAULT_PERIOD;
-  const num = parseInt(raw, 10);
-  return isValidPeriod(num) ? num : DEFAULT_PERIOD;
-}
+const PERIOD_LABELS: Record<PeriodDays, string> = {
+  7: "7d",
+  30: "30d",
+  90: "90d",
+};
 
 export function AnalisePeriodPicker() {
   const router = useRouter();
@@ -57,13 +48,13 @@ export function AnalisePeriodPicker() {
       role="group"
       aria-label="Janela temporal"
     >
-      {PERIODS.map((p) => {
-        const isActive = current === p.value;
+      {VALID_PERIODS.map((period) => {
+        const isActive = current === period;
         return (
           <button
-            key={p.value}
+            key={period}
             type="button"
-            onClick={() => handleSelect(p.value)}
+            onClick={() => handleSelect(period)}
             aria-pressed={isActive}
             className={`px-3 py-1 font-mono text-xs rounded-md transition-colors ${
               isActive
@@ -71,7 +62,7 @@ export function AnalisePeriodPicker() {
                 : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
             }`}
           >
-            {p.label}
+            {PERIOD_LABELS[period]}
           </button>
         );
       })}

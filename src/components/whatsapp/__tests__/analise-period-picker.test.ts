@@ -10,7 +10,7 @@ import {
   VALID_PERIODS,
   isValidPeriod,
   parsePeriodFromParam,
-} from "@/components/whatsapp/analise-period-picker";
+} from "@/lib/whatsapp/analise-period";
 
 describe("VALID_PERIODS", () => {
   it("inclui 7, 30 e 90 dias", () => {
