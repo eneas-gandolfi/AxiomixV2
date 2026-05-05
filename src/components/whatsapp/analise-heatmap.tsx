@@ -71,24 +71,52 @@ function ContainerRow({
   );
 }
 
-function intensityClass(value: number, max: number, total: number): string {
-  if (max === 0 || value === 0) return "bg-[var(--color-surface-2)]";
+type IntensityLevel = "empty" | "subtle" | "low" | "mid" | "high" | "alarm";
 
-  // Volume total muito baixo → escala absoluta, evita pintar tudo de vermelho
+/** Determina o nível de intensidade da célula. Centraliza a lógica pra
+ *  derivar bg e cor de texto em sincronia. */
+function getIntensityLevel(
+  value: number,
+  max: number,
+  total: number,
+): IntensityLevel {
+  if (max === 0 || value === 0) return "empty";
   if (total < SPARSE_DATA_THRESHOLD) {
-    if (value >= 5) return "bg-[var(--color-danger)]";
-    if (value >= 3) return "bg-[var(--color-warning)]";
-    if (value >= 2) return "bg-[#FFB370]";
-    return "bg-[#A6E3DC]"; // 1 = mais claro
+    if (value >= 5) return "alarm";
+    if (value >= 3) return "high";
+    if (value >= 2) return "mid";
+    return "subtle";
   }
-
-  // Escala relativa quando há dados suficientes
   const ratio = value / max;
-  if (ratio >= 0.85) return "bg-[var(--color-danger)]";
-  if (ratio >= 0.65) return "bg-[var(--color-warning)]";
-  if (ratio >= 0.4) return "bg-[#FFB370]";
-  if (ratio >= 0.2) return "bg-[#5CC9BD]";
-  return "bg-[#A6E3DC]";
+  if (ratio >= 0.85) return "alarm";
+  if (ratio >= 0.65) return "high";
+  if (ratio >= 0.4) return "mid";
+  if (ratio >= 0.2) return "low";
+  return "subtle";
+}
+
+const INTENSITY_BG: Record<IntensityLevel, string> = {
+  empty: "bg-[var(--color-surface-2)]",
+  subtle: "bg-[#A6E3DC]",
+  low: "bg-[#5CC9BD]",
+  mid: "bg-[#FFB370]",
+  high: "bg-[var(--color-warning)]",
+  alarm: "bg-[var(--color-danger)]",
+};
+
+/** Cor do texto que aparece DENTRO da célula. Branco em fundos escuros
+ *  (high/alarm), preto em fundos claros. */
+const INTENSITY_TEXT: Record<IntensityLevel, string> = {
+  empty: "text-[var(--color-text-tertiary)]",
+  subtle: "text-[#0F4F49]",
+  low: "text-[#0F4F49]",
+  mid: "text-[#5C2D00]",
+  high: "text-white",
+  alarm: "text-white",
+};
+
+function intensityClass(value: number, max: number, total: number): string {
+  return INTENSITY_BG[getIntensityLevel(value, max, total)];
 }
 
 export async function AnaliseHeatmap({
@@ -255,22 +283,24 @@ export async function AnaliseHeatmap({
                   const showHotspotRing =
                     isHotspotCell && total >= SPARSE_DATA_THRESHOLD;
                   const boundary = isHourBoundary(hour);
+                  const level = getIntensityLevel(value, max, total);
 
-                  // Tooltip com datas concretas: "Seg 16h: 1 insight em 28/04"
-                  // ou "Seg 16h: 3 insights · 06/04, 20/04, 27/04"
+                  // Tooltip com datas concretas
                   let titleText: string;
+                  let inlineText: string | null = null;
                   if (value === 0) {
                     titleText = `${DAY_LABELS[dow]} ${hour}h: sem dados`;
                   } else if (value === 1 && cell?.dates[0]) {
                     titleText = `${DAY_LABELS[dow]} ${hour}h · 1 insight em ${cell.dates[0]}`;
+                    inlineText = cell.dates[0]; // Mostra "28/04" dentro da célula
                   } else if (cell) {
-                    // Ordena datas únicas crescentes
                     const uniqueDates = Array.from(new Set(cell.dates)).sort((a, b) => {
                       const [ad, am] = a.split("/").map(Number);
                       const [bd, bm] = b.split("/").map(Number);
                       return am - bm || ad - bd;
                     });
                     titleText = `${DAY_LABELS[dow]} ${hour}h · ${value} insights · ${uniqueDates.join(", ")}`;
+                    inlineText = String(value); // Múltiplas: mostra o número
                   } else {
                     titleText = `${DAY_LABELS[dow]} ${hour}h`;
                   }
@@ -283,9 +313,11 @@ export async function AnaliseHeatmap({
                       }`}
                     >
                       <div
-                        className={`h-7 rounded-md transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-[var(--color-text-secondary)]/30 ${intensityClass(value, max, total)} ${showHotspotRing ? "ring-2 ring-[var(--color-danger)]" : ""}`}
+                        className={`flex h-7 items-center justify-center rounded-md font-mono text-[9px] font-semibold leading-none transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-[var(--color-text-secondary)]/30 ${INTENSITY_BG[level]} ${INTENSITY_TEXT[level]} ${showHotspotRing ? "ring-2 ring-[var(--color-danger)]" : ""}`}
                         title={titleText}
-                      />
+                      >
+                        {inlineText}
+                      </div>
                     </div>
                   );
                 })}
