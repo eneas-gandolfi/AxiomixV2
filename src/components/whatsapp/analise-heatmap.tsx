@@ -102,13 +102,24 @@ export async function AnaliseHeatmap({
     .maybeSingle();
   const timezone = company?.timezone ?? "America/Sao_Paulo";
 
-  const since = new Date(Date.now() - windowDays * DAY_MS).toISOString();
+  const sinceDate = new Date(Date.now() - windowDays * DAY_MS);
+  const since = sinceDate.toISOString();
 
   const { data: insights } = await supabase
     .from("conversation_insights")
     .select("generated_at")
     .eq("company_id", companyId)
     .gte("generated_at", since);
+
+  // Formata range "06/04 — 05/05" pra o subtitle (sempre no fuso do tenant)
+  const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: timezone,
+    day: "2-digit",
+    month: "2-digit",
+  });
+  const sinceLabel = dateFormatter.format(sinceDate);
+  const untilLabel = dateFormatter.format(new Date());
+  const rangeLabel = `${sinceLabel} → ${untilLabel}`;
 
   const cells = new Map<CellKey, number>();
 
@@ -136,8 +147,8 @@ export async function AnaliseHeatmap({
     return (
       <SectionWrapper number={4} question="Algum padrão de horário preocupante?">
         <p className="py-8 text-center text-sm italic text-[var(--color-text-tertiary)]">
-          O mapa de calor aparece quando houver insights nos últimos {windowDays}{" "}
-          dias.
+          O mapa de calor aparece quando houver insights entre {sinceLabel} e{" "}
+          {untilLabel} ({windowDays} dias).
         </p>
       </SectionWrapper>
     );
@@ -174,7 +185,7 @@ export async function AnaliseHeatmap({
     <SectionWrapper
       number={4}
       question="Algum padrão de horário preocupante?"
-      subtitle={`Volume de insights por dia × hora · janela ${windowDays} dias · fuso ${timezone}`}
+      subtitle={`Volume de insights por dia × hora · ${windowDays} dias (${rangeLabel}) · fuso ${timezone}`}
     >
       <div className="overflow-x-auto">
         <div
