@@ -32,6 +32,9 @@ type Nudge = {
 type NudgesResponse = {
   nudges?: Nudge[];
   unreadCount?: number;
+  /** True quando o user já foi atendente em alguma conversa OU já recebeu
+   *  nudge. Usado pra esconder o sino de gestores puros (que nunca recebem). */
+  isOperator?: boolean;
   error?: string;
 };
 
@@ -55,6 +58,9 @@ function formatWait(seconds: number | null): string {
 
 export function OperatorNudgesBell() {
   const [nudges, setNudges] = useState<Nudge[]>([]);
+  // null enquanto não temos resposta — esconde o sino até saber se o user
+  // é operador. Evita "flash" do sino vazio pra gestores puros.
+  const [isOperator, setIsOperator] = useState<boolean | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,6 +72,9 @@ export function OperatorNudgesBell() {
       if (!res.ok) return;
       const json = (await res.json()) as NudgesResponse;
       setNudges(json.nudges ?? []);
+      if (typeof json.isOperator === "boolean") {
+        setIsOperator(json.isOperator);
+      }
     } catch {
       // Falha silenciosa — sino não bloqueia operação.
     }
@@ -133,6 +142,13 @@ export function OperatorNudgesBell() {
   }, [fetchNudges]);
 
   const unreadCount = nudges.length;
+
+  // Esconde o sino quando o user nunca foi atendente nem recebeu nudge —
+  // gestor puro não tem nada pra ver aqui. Também esconde no estado inicial
+  // (isOperator === null) pra evitar flash antes do primeiro fetch.
+  if (isOperator !== true) {
+    return null;
+  }
 
   return (
     <div ref={containerRef} className="relative">

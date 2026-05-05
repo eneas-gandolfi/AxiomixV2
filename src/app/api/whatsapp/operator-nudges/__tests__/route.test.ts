@@ -18,6 +18,7 @@ const mockSelectNudges = vi.fn();
 const mockSelectConversation = vi.fn();
 const mockInsertNudge = vi.fn();
 const mockUpdateAllNudges = vi.fn();
+const mockCountAssignedConversations = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseRouteHandlerClient: () => ({
@@ -53,7 +54,12 @@ vi.mock("@/lib/supabase/server", () => ({
       if (table === "conversations") {
         return {
           select: () => ({
-            eq: () => ({ maybeSingle: mockSelectConversation }),
+            eq: () => ({
+              // POST path: lookup da conversa por id
+              maybeSingle: mockSelectConversation,
+              // GET path (paralelo com nudges): count de assigned_to=user
+              limit: mockCountAssignedConversations,
+            }),
           }),
         };
       }
@@ -77,7 +83,11 @@ function makeRequest(method: "GET" | "POST" | "PATCH", body?: unknown): NextRequ
 // =============================================================================
 
 describe("GET /api/whatsapp/operator-nudges", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default: nenhuma conversa atribuída ao user (gestor puro)
+    mockCountAssignedConversations.mockResolvedValue({ count: 0, error: null });
+  });
 
   it("retorna 401 sem auth", async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: "no" } });
@@ -149,6 +159,66 @@ describe("GET /api/whatsapp/operator-nudges", () => {
 
     expect(response.status).toBe(500);
     expect(body.code).toBe("FETCH_ERROR");
+  });
+
+  it("retorna isOperator=false quando user não tem conversas atribuídas e nem nudges", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "gestor-puro" } },
+      error: null,
+    });
+    mockSelectNudges.mockResolvedValue({ data: [], error: null });
+    mockCountAssignedConversations.mockResolvedValue({ count: 0, error: null });
+
+    const response = await GET(makeRequest("GET"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.isOperator).toBe(false);
+  });
+
+  it("retorna isOperator=true quando user tem conversas atribuídas", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "atendente-1" } },
+      error: null,
+    });
+    mockSelectNudges.mockResolvedValue({ data: [], error: null });
+    mockCountAssignedConversations.mockResolvedValue({ count: 7, error: null });
+
+    const response = await GET(makeRequest("GET"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.isOperator).toBe(true);
+  });
+
+  it("retorna isOperator=true quando user tem nudges (mesmo sem conversas atribuídas no momento)", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "ex-atendente" } },
+      error: null,
+    });
+    mockSelectNudges.mockResolvedValue({
+      data: [
+        {
+          id: "nudge-old",
+          company_id: "co-1",
+          conversation_id: "conv-1",
+          from_user_id: "manager-1",
+          customer_name: "Maria",
+          wait_seconds: 510,
+          created_at: "2026-05-07T15:00:00Z",
+          read_at: null,
+        },
+      ],
+      error: null,
+    });
+    mockCountAssignedConversations.mockResolvedValue({ count: 0, error: null });
+
+    const response = await GET(makeRequest("GET"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.isOperator).toBe(true);
+    expect(body.unreadCount).toBe(1);
   });
 });
 

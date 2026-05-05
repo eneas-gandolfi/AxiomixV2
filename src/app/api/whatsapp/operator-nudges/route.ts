@@ -40,14 +40,24 @@ export async function GET(request: NextRequest) {
     }
 
     // RLS já filtra pra só nudges destinadas ao usuário atual.
-    const { data, error } = await supabase
-      .from("operator_nudges")
-      .select(
-        "id, company_id, conversation_id, from_user_id, customer_name, wait_seconds, created_at, read_at",
-      )
-      .is("read_at", null)
-      .order("created_at", { ascending: false })
-      .limit(20);
+    // Em paralelo: descobre se o usuário é operador (pelo menos 1 conversa
+    // já foi atribuída a ele) — usado pelo client pra esconder o sino
+    // quando o user é só gestor que nunca recebe aviso.
+    const [{ data, error }, { count: assignedCount }] = await Promise.all([
+      supabase
+        .from("operator_nudges")
+        .select(
+          "id, company_id, conversation_id, from_user_id, customer_name, wait_seconds, created_at, read_at",
+        )
+        .is("read_at", null)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("assigned_to", user.id)
+        .limit(1),
+    ]);
 
     if (error) {
       return NextResponse.json(
@@ -56,9 +66,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const nudges = data ?? [];
     return NextResponse.json({
-      nudges: data ?? [],
-      unreadCount: data?.length ?? 0,
+      nudges,
+      unreadCount: nudges.length,
+      // True quando o user já apareceu como assigned_to em alguma conversa,
+      // OU quando já recebeu nudge (mesmo que lida — caso de operador
+      // legado sem conversas atuais).
+      isOperator: (assignedCount ?? 0) > 0 || nudges.length > 0,
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Erro inesperado.";
