@@ -669,10 +669,16 @@ function HeroCard({
             {conversation.customerName}
           </h2>
           <p className="mt-0.5 text-sm text-muted">
-            com{" "}
-            <strong className="font-medium text-text">
-              {conversation.assigneeName ?? "operador não atribuído"}
-            </strong>
+            {conversation.assigneeName ? (
+              <>
+                com{" "}
+                <strong className="font-medium text-text">
+                  {conversation.assigneeName}
+                </strong>
+              </>
+            ) : (
+              <strong className="font-medium text-text">sem atendente</strong>
+            )}
             {conversation.pipelineStage ? (
               <span className="ml-2 inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted">
                 {conversation.pipelineStage}
@@ -866,7 +872,7 @@ function QueueCard({
                     ) : null}
                   </p>
                   <p className="truncate text-[11px] text-muted">
-                    com {item.assigneeName ?? "não atribuído"}
+                    {item.assigneeName ? `com ${item.assigneeName}` : "sem atendente"}
                     {item.pipelineStage ? (
                       <span className="ml-1.5 text-muted-light">
                         · {item.pipelineStage}
