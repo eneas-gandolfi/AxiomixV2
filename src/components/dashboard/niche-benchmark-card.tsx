@@ -90,7 +90,10 @@ export async function NicheBenchmarkCard({ companyId }: { companyId: string }) {
     .maybeSingle();
 
   if (!aggregates || aggregates.peer_count < 5) {
-    return <EmptyState reason="not-enough-peers" nicheSlug={nicheSlug} />;
+    // Sem peers suficientes no nicho → não renderiza nada. O card vazio
+    // ocupava espaço sem agregar valor (gestor não pode acelerar o
+    // crescimento do SaaS). Volta automaticamente quando peer_count >= 5.
+    return null;
   }
 
   // 3) Métricas do próprio tenant (mesmo cálculo do cron, só pra este tenant)
@@ -118,7 +121,9 @@ export async function NicheBenchmarkCard({ companyId }: { companyId: string }) {
   const totalCount = totalResult.count ?? 0;
 
   if (totalCount < MIN_OWN_INSIGHTS) {
-    return <EmptyState reason="not-enough-own-data" nicheSlug={nicheSlug} />;
+    // Tenant ainda não tem volume próprio pra comparar honestamente. CTA
+    // pra conectar WhatsApp já existe no estado vazio do dashboard.
+    return null;
   }
 
   const ownSentimentPct = ((positiveResult.count ?? 0) / totalCount) * 100;

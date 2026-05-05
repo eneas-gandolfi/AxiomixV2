@@ -64,21 +64,11 @@ export async function WeeklySummaryCard({ companyId }: { companyId: string }) {
   const currentRows = currentResult.data ?? [];
   const previousRows = previousResult.data ?? [];
 
-  // Empty state — não há dado suficiente pra gerar fatos honestos.
+  // Sem dado suficiente pra gerar fatos honestos — não renderiza nada.
+  // Volta automaticamente quando o tenant acumular >= 5 conversas analisadas
+  // na janela de 7 dias.
   if (currentRows.length < MIN_INSIGHTS_FOR_SUMMARY) {
-    return (
-      <section className="dashboard-panel rounded-[24px] p-5">
-        <p className="section-label">Resumo da última semana</p>
-        <h2 className="mt-1 text-lg font-semibold text-text">
-          Aguardando dados suficientes
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          Quando houver pelo menos {MIN_INSIGHTS_FOR_SUMMARY} conversas
-          analisadas na última semana, os fatos aparecem aqui em linguagem
-          humana.
-        </p>
-      </section>
-    );
+    return null;
   }
 
   const facts: Fact[] = [];

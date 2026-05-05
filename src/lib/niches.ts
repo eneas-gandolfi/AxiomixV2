@@ -39,6 +39,10 @@ export type NicheVocabulary = {
   customerPlural: string;
   /** Label do 3º KPI no rodapé do dashboard (varia por nicho). */
   primaryKpiLabel: string;
+  /** Label do número-herói do dashboard global ("conversas paradas" e variações). */
+  heroMetricLabel: string;
+  /** Label do count de itens analisados no rodapé do dashboard. */
+  analyzedLabel: string;
 };
 
 export type NicheDefinition = {
@@ -140,6 +144,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Cliente",
       customerPlural: "Clientes",
       primaryKpiLabel: "Conversão",
+      heroMetricLabel: "Conversas paradas",
+      analyzedLabel: "Conversas analisadas",
     },
     defaultBusinessHours: HOURS_RETAIL_LONG,
   },
@@ -156,6 +162,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Cliente",
       customerPlural: "Clientes",
       primaryKpiLabel: "Conversão",
+      heroMetricLabel: "Conversas paradas",
+      analyzedLabel: "Conversas analisadas",
     },
     defaultBusinessHours: HOURS_24_7,
   },
@@ -172,6 +180,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Cliente",
       customerPlural: "Clientes",
       primaryKpiLabel: "Pedidos",
+      heroMetricLabel: "Pedidos parados",
+      analyzedLabel: "Pedidos analisados",
     },
     defaultBusinessHours: HOURS_FOOD,
   },
@@ -188,6 +198,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Lead",
       customerPlural: "Leads",
       primaryKpiLabel: "Visitas marcadas",
+      heroMetricLabel: "Leads esperando",
+      analyzedLabel: "Leads analisados",
     },
     defaultBusinessHours: HOURS_BUSINESS,
   },
@@ -204,6 +216,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Paciente",
       customerPlural: "Pacientes",
       primaryKpiLabel: "Agendados",
+      heroMetricLabel: "Pacientes esperando",
+      analyzedLabel: "Atendimentos analisados",
     },
     defaultBusinessHours: HOURS_HEALTH,
   },
@@ -220,6 +234,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Cliente",
       customerPlural: "Clientes",
       primaryKpiLabel: "Agendados",
+      heroMetricLabel: "Clientes esperando",
+      analyzedLabel: "Atendimentos analisados",
     },
     defaultBusinessHours: HOURS_BEAUTY,
   },
@@ -236,6 +252,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Aluno",
       customerPlural: "Alunos",
       primaryKpiLabel: "Matrículas",
+      heroMetricLabel: "Alunos esperando",
+      analyzedLabel: "Conversas analisadas",
     },
     defaultBusinessHours: HOURS_BUSINESS,
   },
@@ -252,6 +270,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Cliente",
       customerPlural: "Clientes",
       primaryKpiLabel: "Casos abertos",
+      heroMetricLabel: "Clientes esperando",
+      analyzedLabel: "Casos analisados",
     },
     defaultBusinessHours: HOURS_BUSINESS,
   },
@@ -268,6 +288,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Cliente",
       customerPlural: "Clientes",
       primaryKpiLabel: "Orçamentos",
+      heroMetricLabel: "Clientes esperando",
+      analyzedLabel: "Atendimentos analisados",
     },
     defaultBusinessHours: HOURS_BUSINESS,
   },
@@ -284,6 +306,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Lead",
       customerPlural: "Leads",
       primaryKpiLabel: "Demos agendadas",
+      heroMetricLabel: "Leads esperando",
+      analyzedLabel: "Conversas analisadas",
     },
     defaultBusinessHours: HOURS_BUSINESS,
   },
@@ -300,6 +324,8 @@ export const NICHES: NicheDefinition[] = [
       customerSingular: "Cliente",
       customerPlural: "Clientes",
       primaryKpiLabel: "Conversão",
+      heroMetricLabel: "Conversas paradas",
+      analyzedLabel: "Conversas analisadas",
     },
     defaultBusinessHours: HOURS_BUSINESS,
   },

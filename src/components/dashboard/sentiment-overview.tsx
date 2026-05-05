@@ -26,6 +26,11 @@ function percent(count: number, total: number) {
   return Math.round((count / total) * 100);
 }
 
+/** Amostra mínima pra mostrar percentuais. Abaixo disso o donut mente
+ *  estatisticamente (ex: 1 de 2 conversas → "50%" não significa nada).
+ *  Sally cravou: melhor honesto que aparente. */
+export const SENTIMENT_MIN_SAMPLE = 5;
+
 const COLORS = {
   positive: "var(--color-success)",
   neutral: "var(--color-warning)",
@@ -48,6 +53,29 @@ export function SentimentOverview({ data }: SentimentOverviewProps) {
           </span>
           <p className="max-w-[280px] text-sm text-muted">
             Nenhuma conversa analisada ainda. Conecte o Evo CRM para começar.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  if (data.total < SENTIMENT_MIN_SAMPLE) {
+    const remaining = SENTIMENT_MIN_SAMPLE - data.total;
+    return (
+      <section className="rounded-xl border border-border bg-card p-4 shadow-card-modern">
+        <header className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-medium text-text">Sentimento das conversas</h2>
+          <span className="rounded-md bg-sidebar px-2 py-1 text-xs text-muted">
+            Últimos 7 dias
+          </span>
+        </header>
+        <div className="flex min-h-[80px] flex-col items-center justify-center gap-3 rounded-lg bg-surface-subtle py-4 text-center">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sidebar">
+            <MessageSquare size={20} className="text-muted-light" aria-hidden="true" />
+          </span>
+          <p className="max-w-[280px] text-sm text-muted">
+            Coletando amostra: {data.total} de {SENTIMENT_MIN_SAMPLE} conversas analisadas.
+            Faltam {remaining} pra mostrar percentuais confiáveis.
           </p>
         </div>
       </section>

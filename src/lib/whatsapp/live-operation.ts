@@ -69,6 +69,9 @@ export type LiveOperationData = {
   };
   /** Total de conversas em espera (pra "X conversas em risco" no badge) */
   totalWaiting: number;
+  /** Conversas com severidade âmbar ou vermelha — fonte do "Conversas paradas"
+   *  no dashboard global. Espelho 1:1 do que a Operação destaca. */
+  stalledCount: number;
   /** True se estamos atualmente dentro do horário comercial. Quando false,
    *  cronômetros locais devem pausar (a UI mostra "Loja fechada"). */
   isCurrentlyOpen: boolean;
@@ -136,6 +139,7 @@ export async function getLiveOperationData(
       operators: [],
       thresholds: { amberSeconds, redSeconds, nicheSlug },
       totalWaiting: 0,
+      stalledCount: 0,
       isCurrentlyOpen,
       hasBusinessHours: businessHours !== null,
     };
@@ -305,12 +309,15 @@ export async function getLiveOperationData(
       return (b.worstWaitSeconds ?? 0) - (a.worstWaitSeconds ?? 0);
     });
 
+  const stalledCount = waiting.filter((w) => w.severity !== "ok").length;
+
   return {
     mostForgotten,
     inRiskQueue,
     operators,
     thresholds: { amberSeconds, redSeconds, nicheSlug },
     totalWaiting: waiting.length,
+    stalledCount,
     isCurrentlyOpen,
     hasBusinessHours: businessHours !== null,
   };

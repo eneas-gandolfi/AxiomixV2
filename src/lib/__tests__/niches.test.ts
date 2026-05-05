@@ -62,13 +62,15 @@ describe("NICHES", () => {
       );
     });
 
-    it("vocabulário tem todas as 5 chaves obrigatórias e nenhuma vazia", () => {
+    it("vocabulário tem todas as 7 chaves obrigatórias e nenhuma vazia", () => {
       const v = niche.vocabulary;
       expect(v.operatorSingular.length).toBeGreaterThan(0);
       expect(v.operatorPlural.length).toBeGreaterThan(0);
       expect(v.customerSingular.length).toBeGreaterThan(0);
       expect(v.customerPlural.length).toBeGreaterThan(0);
       expect(v.primaryKpiLabel.length).toBeGreaterThan(0);
+      expect(v.heroMetricLabel.length).toBeGreaterThan(0);
+      expect(v.analyzedLabel.length).toBeGreaterThan(0);
     });
 
     it("business hours tem 7 dias, formato HH:MM válido quando aberto", () => {
@@ -256,6 +258,35 @@ describe("inferNicheSlug — fallback pra tenants antigos com texto livre", () =
     expect(inferNicheSlug("Coisa aleatória")).toBeNull();
     expect(inferNicheSlug("xyz")).toBeNull();
     expect(inferNicheSlug("123")).toBeNull();
+  });
+});
+
+describe("Vocabulário do dashboard global (varejo é piloto MVP)", () => {
+  it("varejo usa 'Conversas paradas' como hero label (AC-F1.1)", () => {
+    expect(getNicheBySlug("varejo").vocabulary.heroMetricLabel).toBe(
+      "Conversas paradas",
+    );
+  });
+
+  it("varejo usa 'Conversas analisadas' como analyzed label", () => {
+    expect(getNicheBySlug("varejo").vocabulary.analyzedLabel).toBe(
+      "Conversas analisadas",
+    );
+  });
+
+  it("saúde adapta vocabulário pra paciente (release 2)", () => {
+    const v = getNicheBySlug("saude").vocabulary;
+    expect(v.heroMetricLabel).toBe("Pacientes esperando");
+    expect(v.analyzedLabel).toBe("Atendimentos analisados");
+  });
+
+  it("imobiliário e b2b_saas falam de 'Leads esperando'", () => {
+    expect(getNicheBySlug("imobiliario").vocabulary.heroMetricLabel).toBe(
+      "Leads esperando",
+    );
+    expect(getNicheBySlug("b2b_saas").vocabulary.heroMetricLabel).toBe(
+      "Leads esperando",
+    );
   });
 });
 
