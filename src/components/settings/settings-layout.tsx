@@ -12,7 +12,6 @@ import {
   Bell,
   Bot,
   Building2,
-  Coins,
   Plug,
   CheckCircle2,
   AlertCircle,
@@ -27,10 +26,9 @@ import type { IntegrationStatusItem } from "@/components/dashboard/integrations-
 import type { RecentReportItem } from "@/components/dashboard/recent-reports-card";
 import { NotificationsSettings } from "@/components/settings/notifications-settings";
 import { GroupAgentSettings } from "@/components/settings/group-agent-settings";
-import { AiUsagePanel } from "@/components/settings/ai-usage-panel";
 import { TeamSettings } from "@/components/settings/team-settings";
 
-type TabKey = "overview" | "company" | "team" | "integrations" | "notifications" | "group-agent" | "usage";
+type TabKey = "overview" | "company" | "team" | "integrations" | "notifications" | "group-agent";
 
 type SettingsStats = {
   companyConfigured: boolean;
@@ -77,13 +75,6 @@ const TABS = [
     icon: Bot,
     description: "IA para grupos WhatsApp",
   },
-  {
-    key: "usage" as const,
-    label: "Uso & Custos",
-    icon: Coins,
-    description: "Consumo de IA e custos estimados",
-    privilegedOnly: true,
-  },
 ] as const;
 
 type TabDefinition = (typeof TABS)[number];
@@ -92,7 +83,6 @@ const TAB_GROUPS: Array<{ label: string; keys: TabKey[] }> = [
   { label: "Empresa", keys: ["overview", "company", "team"] },
   { label: "Integrações", keys: ["integrations"] },
   { label: "Automação", keys: ["group-agent", "notifications"] },
-  { label: "Avançado", keys: ["usage"] },
 ];
 
 function getTab(key: TabKey): TabDefinition | undefined {
@@ -120,7 +110,7 @@ type SettingsLayoutProps = {
   userRole?: "owner" | "admin" | "member";
 };
 
-const VALID_TABS: TabKey[] = ["overview", "company", "team", "integrations", "notifications", "group-agent", "usage"];
+const VALID_TABS: TabKey[] = ["overview", "company", "team", "integrations", "notifications", "group-agent"];
 
 const LEGACY_TAB_MAP: Record<string, TabKey> = {
   reports: "notifications",
@@ -286,7 +276,6 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
           {activeTab === "integrations" && <IntegrationsTab />}
           {activeTab === "notifications" && <NotificationsSettings reportData={reportData} />}
           {activeTab === "group-agent" && <GroupAgentTab companyId={companyId} />}
-          {activeTab === "usage" && canViewUsage && <AiUsagePanel />}
         </div>
       </div>
     </div>
