@@ -36,8 +36,8 @@ type CellKey = `${DayOfWeek}_${number}`;
 
 type CellData = {
   count: number;
-  /** Datas concretas (formato dd/MM) das ocorrências naquela célula */
-  dates: string[];
+  /** Timestamps (ms epoch) das ocorrências — sort confiável + formato no render */
+  timestamps: number[];
 };
 
 function buildHourRange(): number[] {
@@ -145,24 +145,30 @@ export async function AnaliseHeatmap({
     .eq("company_id", companyId)
     .gte("generated_at", since);
 
-  // Formata range "06/04 — 05/05" pra o subtitle (sempre no fuso do tenant)
-  const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
+  // Formatadores no fuso do tenant. Usa "month: short" pra exibir nome
+  // abreviado em PT-BR ("abr", "mai", "jun") em vez de numero ("04", "05")
+  // que exige traducao mental.
+  const dayParts = new Intl.DateTimeFormat("pt-BR", {
     timeZone: timezone,
     day: "2-digit",
-    month: "2-digit",
   });
-  const sinceLabel = dateFormatter.format(sinceDate);
-  const untilLabel = dateFormatter.format(new Date());
+  const monthParts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: timezone,
+    month: "short",
+  });
+
+  const formatDayMonth = (date: Date): string => {
+    const day = dayParts.format(date);
+    // Intl PT-BR retorna "abr." com ponto — remove pra ficar mais compacto
+    const month = monthParts.format(date).replace(/\.$/, "");
+    return `${day} ${month}`;
+  };
+
+  const sinceLabel = formatDayMonth(sinceDate);
+  const untilLabel = formatDayMonth(new Date());
   const rangeLabel = `${sinceLabel} → ${untilLabel}`;
 
   const cells = new Map<CellKey, CellData>();
-
-  // Formatador dd/MM no fuso do tenant pra cada ocorrência
-  const dayMonthFormatter = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: timezone,
-    day: "2-digit",
-    month: "2-digit",
-  });
 
   for (const insight of insights ?? []) {
     if (!insight.generated_at) continue;
@@ -170,18 +176,23 @@ export async function AnaliseHeatmap({
     const z = toZonedDate(date, timezone);
     if (z.hour < HOUR_START || z.hour >= HOUR_END) continue;
     const key: CellKey = `${z.dow}_${z.hour}`;
-    const existing = cells.get(key) ?? { count: 0, dates: [] };
+    const existing = cells.get(key) ?? { count: 0, timestamps: [] };
     existing.count += 1;
-    existing.dates.push(dayMonthFormatter.format(date));
+    existing.timestamps.push(date.getTime());
     cells.set(key, existing);
   }
 
   // Encontra hotspot (cell com mais volume) pra insight automático
-  let hotspot: { dow: DayOfWeek; hour: number; count: number; dates: string[] } | null = null;
+  let hotspot: { dow: DayOfWeek; hour: number; count: number; timestamps: number[] } | null = null;
   for (const [key, data] of cells.entries()) {
     if (!hotspot || data.count > hotspot.count) {
       const [dow, hour] = key.split("_") as [DayOfWeek, string];
-      hotspot = { dow, hour: parseInt(hour, 10), count: data.count, dates: data.dates };
+      hotspot = {
+        dow,
+        hour: parseInt(hour, 10),
+        count: data.count,
+        timestamps: data.timestamps,
+      };
     }
   }
 
@@ -285,22 +296,26 @@ export async function AnaliseHeatmap({
                   const boundary = isHourBoundary(hour);
                   const level = getIntensityLevel(value, max, total);
 
-                  // Tooltip com datas concretas
+                  // Tooltip com datas concretas (formatadas no render)
                   let titleText: string;
                   let inlineText: string | null = null;
                   if (value === 0) {
                     titleText = `${DAY_LABELS[dow]} ${hour}h: sem dados`;
-                  } else if (value === 1 && cell?.dates[0]) {
-                    titleText = `${DAY_LABELS[dow]} ${hour}h · 1 insight em ${cell.dates[0]}`;
-                    inlineText = cell.dates[0]; // Mostra "28/04" dentro da célula
+                  } else if (value === 1 && cell?.timestamps[0] !== undefined) {
+                    const dateLabel = formatDayMonth(new Date(cell.timestamps[0]));
+                    titleText = `${DAY_LABELS[dow]} ${hour}h · 1 insight em ${dateLabel}`;
+                    inlineText = dateLabel; // "29 abr" dentro da célula
                   } else if (cell) {
-                    const uniqueDates = Array.from(new Set(cell.dates)).sort((a, b) => {
-                      const [ad, am] = a.split("/").map(Number);
-                      const [bd, bm] = b.split("/").map(Number);
-                      return am - bm || ad - bd;
-                    });
+                    // Sort numérico por timestamp + dedupe por dia (yyyy-mm-dd)
+                    const uniqueByDay = new Map<string, number>();
+                    for (const ts of cell.timestamps) {
+                      const dayKey = new Date(ts).toISOString().split("T")[0];
+                      if (!uniqueByDay.has(dayKey)) uniqueByDay.set(dayKey, ts);
+                    }
+                    const sortedTs = Array.from(uniqueByDay.values()).sort((a, b) => a - b);
+                    const uniqueDates = sortedTs.map((ts) => formatDayMonth(new Date(ts)));
                     titleText = `${DAY_LABELS[dow]} ${hour}h · ${value} insights · ${uniqueDates.join(", ")}`;
-                    inlineText = String(value); // Múltiplas: mostra o número
+                    inlineText = String(value);
                   } else {
                     titleText = `${DAY_LABELS[dow]} ${hour}h`;
                   }
@@ -393,14 +408,27 @@ export async function AnaliseHeatmap({
               {DAY_LABELS[hotspot.dow]} às {hotspot.hour}h
             </strong>{" "}
             concentra o maior volume da janela ({hotspot.count} de {total}
-            {hotspot.dates.length > 0 ? (
+            {hotspot.timestamps.length > 0 ? (
               <>
                 {" "}· datas:{" "}
                 <span className="font-mono text-xs">
-                  {Array.from(new Set(hotspot.dates))
-                    .slice(0, 4)
-                    .join(", ")}
-                  {new Set(hotspot.dates).size > 4 ? "…" : ""}
+                  {(() => {
+                    const uniqueByDay = new Map<string, number>();
+                    for (const ts of hotspot.timestamps) {
+                      const key = new Date(ts).toISOString().split("T")[0];
+                      if (!uniqueByDay.has(key)) uniqueByDay.set(key, ts);
+                    }
+                    const sortedTs = Array.from(uniqueByDay.values()).sort(
+                      (a, b) => a - b,
+                    );
+                    const labels = sortedTs.map((ts) =>
+                      formatDayMonth(new Date(ts)),
+                    );
+                    const shown = labels.slice(0, 4);
+                    return labels.length > 4
+                      ? `${shown.join(", ")}…`
+                      : shown.join(", ");
+                  })()}
                 </span>
               </>
             ) : null}
