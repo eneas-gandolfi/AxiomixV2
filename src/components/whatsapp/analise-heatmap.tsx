@@ -168,6 +168,52 @@ export async function AnaliseHeatmap({
   const untilLabel = formatDayMonth(new Date());
   const rangeLabel = `${sinceLabel} → ${untilLabel}`;
 
+  // === LINHA DO TEMPO CRONOLÓGICA ===
+  // Cria 1 cell por dia da janela em ordem cronológica. Pra dataset esparso
+  // isso faz mais sentido que o heatmap dia-da-semana × hora (que agrega).
+  type DailyBucket = {
+    date: Date;
+    dayLabel: string;     // "5"
+    monthLabel: string;   // "abr"
+    isMonthStart: boolean;
+    isToday: boolean;
+    count: number;
+  };
+
+  const dayPartsOnly = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: timezone,
+    day: "numeric",
+  });
+
+  // Agrupa insights por chave yyyy-mm-dd (no timezone do tenant)
+  const insightsByDay = new Map<string, number>();
+  for (const insight of insights ?? []) {
+    if (!insight.generated_at) continue;
+    const z = toZonedDate(new Date(insight.generated_at), timezone);
+    const key = `${z.year}-${String(z.month).padStart(2, "0")}-${String(z.day).padStart(2, "0")}`;
+    insightsByDay.set(key, (insightsByDay.get(key) ?? 0) + 1);
+  }
+
+  const todayZ = toZonedDate(new Date(), timezone);
+  const todayKey = `${todayZ.year}-${String(todayZ.month).padStart(2, "0")}-${String(todayZ.day).padStart(2, "0")}`;
+
+  const timeline: DailyBucket[] = [];
+  for (let i = windowDays - 1; i >= 0; i--) {
+    const dayDate = new Date(Date.now() - i * DAY_MS);
+    const z = toZonedDate(dayDate, timezone);
+    const key = `${z.year}-${String(z.month).padStart(2, "0")}-${String(z.day).padStart(2, "0")}`;
+    timeline.push({
+      date: dayDate,
+      dayLabel: dayPartsOnly.format(dayDate),
+      monthLabel: monthParts.format(dayDate).replace(/\.$/, ""),
+      isMonthStart: timeline.length === 0 || z.day === 1,
+      isToday: key === todayKey,
+      count: insightsByDay.get(key) ?? 0,
+    });
+  }
+  // Garante que o primeiro dia do timeline também marque o mês
+  if (timeline.length > 0) timeline[0].isMonthStart = true;
+
   const cells = new Map<CellKey, CellData>();
 
   for (const insight of insights ?? []) {
@@ -237,12 +283,56 @@ export async function AnaliseHeatmap({
   const isHourBoundary = (h: number) => h === 12 || h === 18;
   const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
 
+  // Max diário pra colorir os cells da timeline
+  const dailyMax = Math.max(0, ...timeline.map((d) => d.count));
+
   return (
     <SectionWrapper
       number={4}
       question="Algum padrão de horário preocupante?"
-      subtitle={`Volume de insights por dia × hora · ${windowDays} dias (${rangeLabel}) · fuso ${timezone}`}
+      subtitle={`Volume de insights · ${windowDays} dias (${rangeLabel}) · fuso ${timezone}`}
     >
+      {/* === LINHA DO TEMPO CRONOLÓGICA === */}
+      <div className="mb-6">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+          Linha do tempo · esquerda = mais antigo · direita = hoje
+        </p>
+        <div className="overflow-x-auto">
+          <div className="flex items-end gap-1 min-w-fit pb-1">
+            {timeline.map((day, idx) => {
+              const level = getIntensityLevel(day.count, dailyMax || 1, total);
+              const showMonthLabel = day.isMonthStart;
+              return (
+                <div
+                  key={idx}
+                  className="flex flex-col items-center gap-0.5"
+                  style={{ minWidth: "28px" }}
+                >
+                  {/* Header opcional do mês — só aparece em isMonthStart */}
+                  <div className="h-3 text-[9px] font-semibold uppercase text-[var(--color-text-tertiary)]">
+                    {showMonthLabel ? day.monthLabel : ""}
+                  </div>
+                  <div
+                    className={`flex h-9 w-7 items-center justify-center rounded-md font-mono text-[10px] font-semibold transition-all hover:scale-110 ${INTENSITY_BG[level]} ${INTENSITY_TEXT[level]} ${day.isToday ? "ring-2 ring-[var(--color-primary)]" : ""}`}
+                    title={
+                      day.count > 0
+                        ? `${day.dayLabel} ${day.monthLabel} · ${day.count} insight${day.count === 1 ? "" : "s"}${day.isToday ? " (hoje)" : ""}`
+                        : `${day.dayLabel} ${day.monthLabel}${day.isToday ? " (hoje)" : ""}: sem dados`
+                    }
+                  >
+                    {day.dayLabel}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* === HEATMAP DIA DA SEMANA × HORA (padrão) === */}
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+        Padrão semanal · agregado dia da semana × hora (não cronológico)
+      </p>
       <div className="overflow-x-auto">
         <div
           className="grid items-center gap-x-1 gap-y-1.5"
