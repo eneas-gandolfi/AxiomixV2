@@ -41,25 +41,54 @@ function decodeJwtExpMs(jwt: string): number {
   }
 }
 
+function looksLikeJwt(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const parts = value.split(".");
+  if (parts.length !== 3) return false;
+  return parts.every((p) => p.length > 0 && /^[A-Za-z0-9_-]+$/.test(p));
+}
+
+function extractTokenDeep(value: unknown, depth = 0): string | null {
+  if (depth > 6) return null;
+  if (looksLikeJwt(value)) return value;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = extractTokenDeep(item, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (value && typeof value === "object") {
+    for (const v of Object.values(value as Record<string, unknown>)) {
+      const found = extractTokenDeep(v, depth + 1);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 function extractToken(json: unknown): string | null {
   if (!json || typeof json !== "object") return null;
   const root = json as Record<string, unknown>;
 
   // Tenta múltiplos formatos comuns de resposta de auth services
-  const direct =
-    typeof root.access_token === "string" ? root.access_token
-    : typeof root.token === "string" ? root.token
-    : typeof root.jwt === "string" ? root.jwt
-    : typeof root.id_token === "string" ? root.id_token
-    : null;
-  if (direct) return direct;
+  const directKeys = [
+    "access_token", "token", "jwt", "id_token",
+    "auth_token", "accessToken", "authToken", "bearer", "bearerToken",
+  ];
+  for (const key of directKeys) {
+    const value = root[key];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
 
   // Envelope { success, data: { ... } }
   if (root.success === true && typeof root.data === "object" && root.data !== null) {
-    return extractToken(root.data);
+    const fromData = extractToken(root.data);
+    if (fromData) return fromData;
   }
 
-  return null;
+  // Fallback: procura recursivamente qualquer string que pareça JWT (3 partes base64url)
+  return extractTokenDeep(json);
 }
 
 async function performLogin(): Promise<string> {
@@ -107,6 +136,12 @@ async function performLogin(): Promise<string> {
 
     const token = extractToken(json);
     if (!token) {
+      console.error(
+        "[evo-auth] token não encontrado no payload — chaves de topo:",
+        json && typeof json === "object" ? Object.keys(json as Record<string, unknown>) : typeof json,
+        "preview:",
+        JSON.stringify(json).slice(0, 500)
+      );
       throw new Error(
         "Evo Auth Service respondeu OK mas sem token reconhecível no payload."
       );
