@@ -44,6 +44,27 @@ function buildHourRange(): number[] {
  *  vermelho só porque é o max). Acima disso usamos relativa (% do max). */
 const SPARSE_DATA_THRESHOLD = 10;
 
+/**
+ * Wrapper que faz a linha do heatmap se distribuir no mesmo subgrid do
+ * container pai (`subgrid` em col), permitindo aplicar fundo discreto pro
+ * fim de semana sem quebrar o alinhamento das colunas.
+ */
+function ContainerRow({
+  children,
+  weekend,
+}: {
+  children: React.ReactNode;
+  weekend: boolean;
+}) {
+  return (
+    <div
+      className={`col-span-full grid grid-cols-subgrid items-center rounded-md ${weekend ? "bg-[var(--color-surface-2)]/40" : ""}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 function intensityClass(value: number, max: number, total: number): string {
   if (max === 0 || value === 0) return "bg-[var(--color-surface-2)]";
 
@@ -132,6 +153,23 @@ export async function AnaliseHeatmap({
     total >= SPARSE_DATA_THRESHOLD &&
     hotspot.count / total >= 0.1;
 
+  // Totais por linha (dia) e coluna (hora) — micro-summaries marginais
+  const rowTotals = new Map<DayOfWeek, number>();
+  const colTotals = new Map<number, number>();
+  for (const dow of DAYS) {
+    let rowSum = 0;
+    for (const hour of hours) {
+      const v = cells.get(`${dow}_${hour}`) ?? 0;
+      rowSum += v;
+      colTotals.set(hour, (colTotals.get(hour) ?? 0) + v);
+    }
+    rowTotals.set(dow, rowSum);
+  }
+
+  // Boundaries semanticos: 12h = almoço, 18h = fim do expediente
+  const isHourBoundary = (h: number) => h === 12 || h === 18;
+  const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
+
   return (
     <SectionWrapper
       number={4}
@@ -139,51 +177,108 @@ export async function AnaliseHeatmap({
       subtitle={`Volume de insights por dia × hora · janela ${windowDays} dias · fuso ${timezone}`}
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px] border-collapse">
-          <thead>
-            <tr>
-              <th className="w-12" />
-              {hours.map((h) => (
-                <th
-                  key={h}
-                  className="pb-2 text-center font-mono text-[10px] text-[var(--color-text-tertiary)]"
+        <div
+          className="grid items-center gap-x-1 gap-y-1.5"
+          style={{
+            gridTemplateColumns: `48px repeat(${hours.length}, minmax(28px, 1fr)) 44px`,
+          }}
+        >
+          {/* Header — labels de hora */}
+          <div />
+          {hours.map((h) => (
+            <div
+              key={`hh-${h}`}
+              className={`pb-1 text-center font-mono ${
+                isHourBoundary(h)
+                  ? "text-[10px] font-semibold text-[var(--color-text-secondary)]"
+                  : "text-[10px] text-[var(--color-text-tertiary)]"
+              }`}
+            >
+              {h}h
+            </div>
+          ))}
+          <div className="pb-1 text-right text-[9px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
+            Σ
+          </div>
+
+          {/* Linhas: dia + 14 cells + total */}
+          {DAYS.map((dow) => {
+            const rowSum = rowTotals.get(dow) ?? 0;
+            const weekend = isWeekend(dow);
+            return (
+              <ContainerRow key={dow} weekend={weekend}>
+                <div
+                  className={`pr-2 text-right text-xs font-medium ${
+                    weekend
+                      ? "text-[var(--color-text-tertiary)]"
+                      : "text-[var(--color-text-secondary)]"
+                  }`}
                 >
-                  {h}h
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {DAYS.map((dow) => (
-              <tr key={dow}>
-                <th className="pr-2 text-right text-xs font-medium text-[var(--color-text-secondary)]">
                   {DAY_LABELS[dow]}
-                </th>
+                </div>
                 {hours.map((hour) => {
                   const value = cells.get(`${dow}_${hour}`) ?? 0;
-                  const isHotspot =
+                  const isHotspotCell =
                     hotspot && hotspot.dow === dow && hotspot.hour === hour && value > 0;
-                  // Não destaca o "hotspot" quando dataset é esparso — não há
-                  // hot spot real, é só falta de dados.
                   const showHotspotRing =
-                    isHotspot && total >= SPARSE_DATA_THRESHOLD;
+                    isHotspotCell && total >= SPARSE_DATA_THRESHOLD;
+                  const boundary = isHourBoundary(hour);
+
                   return (
-                    <td key={hour} className="p-0.5">
+                    <div
+                      key={hour}
+                      className={`relative ${
+                        boundary ? "ml-2 border-l border-[var(--color-border)] pl-1" : ""
+                      }`}
+                    >
                       <div
-                        className={`aspect-square rounded ${intensityClass(value, max, total)} ${showHotspotRing ? "ring-2 ring-[var(--color-danger)]" : ""}`}
+                        className={`h-7 rounded-md transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-[var(--color-text-secondary)]/30 ${intensityClass(value, max, total)} ${showHotspotRing ? "ring-2 ring-[var(--color-danger)]" : ""}`}
                         title={
                           value > 0
                             ? `${DAY_LABELS[dow]} ${hour}h: ${value} insight${value === 1 ? "" : "s"}`
                             : `${DAY_LABELS[dow]} ${hour}h: sem dados`
                         }
                       />
-                    </td>
+                    </div>
                   );
                 })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                <div
+                  className={`pl-2 text-right font-mono text-xs ${
+                    rowSum > 0
+                      ? "font-semibold text-[var(--color-text)]"
+                      : "text-[var(--color-text-tertiary)]"
+                  }`}
+                >
+                  {rowSum || "·"}
+                </div>
+              </ContainerRow>
+            );
+          })}
+
+          {/* Footer — totais por hora */}
+          <div className="pt-1 pr-2 text-right text-[9px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
+            Σ
+          </div>
+          {hours.map((hour) => {
+            const colSum = colTotals.get(hour) ?? 0;
+            const boundary = isHourBoundary(hour);
+            return (
+              <div
+                key={`col-${hour}`}
+                className={`pt-1 text-center font-mono text-[10px] ${
+                  colSum > 0
+                    ? "font-semibold text-[var(--color-text)]"
+                    : "text-[var(--color-text-tertiary)]"
+                } ${boundary ? "ml-2 pl-1" : ""}`}
+              >
+                {colSum || "·"}
+              </div>
+            );
+          })}
+          <div className="pt-1 pl-2 text-right font-mono text-xs font-semibold text-[var(--color-text)]">
+            {total}
+          </div>
+        </div>
       </div>
 
       {/* Legenda */}
@@ -199,7 +294,8 @@ export async function AnaliseHeatmap({
         </div>
         <span>Volume maior</span>
         <span className="ml-auto text-[var(--color-text-tertiary)]">
-          {total} insights · pico em {hotspot ? `${DAY_LABELS[hotspot.dow]} ${hotspot.hour}h (${hotspot.count})` : "—"}
+          {total} insights · pico em{" "}
+          {hotspot ? `${DAY_LABELS[hotspot.dow]} ${hotspot.hour}h (${hotspot.count})` : "—"}
         </span>
       </div>
 
