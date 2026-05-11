@@ -1,11 +1,16 @@
 /**
  * Arquivo: src/components/whatsapp/whatsapp-module-nav.tsx
- * Propósito: Navegação por abas do módulo Inteligência (anteriormente
- *            "WhatsApp Intelligence"). Estrutura em 3 grupos visuais separados
- *            por divider sutil:
- *              [Operação · Análise] | [Conversas · Contatos · Pipeline] | [Agentes IA · Sessões]
+ * Propósito: Navegação por abas do módulo Inteligência. Reduzida para 4 abas
+ *            como parte do redesign 7→3 (onda 1):
+ *              [Operação · Análise] | [Conversas] | [Agentes IA]
+ *
+ *            Removidas da nav (rotas continuam vivas como fallback ate
+ *            ondas 2/3 finalizarem):
+ *              - Contatos -> futuro drill-down lateral em Conversas
+ *              - Pipeline -> feature flag, volta como feature futura
+ *              - Sessões  -> migra para /settings/conexoes em onda 2
  * Autor: AXIOMIX
- * Data: 2026-05-05
+ * Data: 2026-05-11
  */
 
 "use client";
@@ -15,11 +20,8 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   Bot,
-  Clock,
   LayoutDashboard,
   MessageSquare,
-  Users,
-  Kanban,
 } from "lucide-react";
 
 type TabItem = {
@@ -36,9 +38,10 @@ type Separator = { kind: "separator" };
 type NavEntry = TabItem | Separator;
 
 /**
- * Ordem importa: agrupada por frequência de uso e tipo.
- *   Visões consolidadas → fluxo de atendimento → config de IA + canais.
- * Equipe foi pra Configurações (cross-módulo, não pertence à Inteligência).
+ * Ordem importa: visões consolidadas → fluxo de atendimento → config de IA.
+ * Onda 1 do redesign 7→3: Contatos, Pipeline e Sessões saem da navegação
+ * principal. Operação + Análise continuam separados até onda 2 (Painel
+ * unificado com toggle Ao Vivo/Histórico).
  */
 const NAV: NavEntry[] = [
   {
@@ -64,20 +67,6 @@ const NAV: NavEntry[] = [
     href: "/whatsapp-intelligence/conversas",
     icon: MessageSquare,
   },
-  {
-    kind: "tab",
-    key: "contatos",
-    label: "Contatos",
-    href: "/whatsapp-intelligence/contatos",
-    icon: Users,
-  },
-  {
-    kind: "tab",
-    key: "pipeline",
-    label: "Pipeline",
-    href: "/whatsapp-intelligence/pipeline",
-    icon: Kanban,
-  },
   { kind: "separator" },
   {
     kind: "tab",
@@ -85,13 +74,6 @@ const NAV: NavEntry[] = [
     label: "Agentes IA",
     href: "/whatsapp-intelligence/agentes",
     icon: Bot,
-  },
-  {
-    kind: "tab",
-    key: "sessoes",
-    label: "Sessões",
-    href: "/whatsapp-intelligence/sessoes",
-    icon: Clock,
   },
 ];
 
