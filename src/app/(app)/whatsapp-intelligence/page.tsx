@@ -1,19 +1,17 @@
 /**
  * Arquivo: src/app/(app)/whatsapp-intelligence/page.tsx
- * Propósito: Aba "Análise" do módulo Inteligência. Reorganizada por
- *            PERGUNTAS (não métricas), seguindo o mockup v2:
+ * Propósito: Painel da Inteligência — porta única com dois modos:
  *
- *              [Mudanças notáveis · 3 fatos]   [Sincronizar / Analisar]
+ *              ?modo=agora      -> Operacao ao vivo (default)
+ *              ?modo=historico  -> Inteligencia Comercial historica
+ *                                  (Pulso, Cold leads, Funil, Objecoes,
+ *                                   Heatmap chegada x resposta, Recomendacoes
+ *                                   + secoes analiticas §1-§4 quando ha insights)
  *
- *              [Banner crítico se houver]
- *
- *              ① Quem da minha equipe está em queda? (per-vendor table)
- *              ② Como estamos vs nicho? (benchmark)
- *              ③ Está vindo mais ou menos cliente? (volume + intent bars)
- *
- *            §4 Heatmap dia × hora será adicionado em iteração futura.
+ *            Decisao da Onda 2 do redesign 7->3 abas (party mode). Header da
+ *            pagina mostra toggle segmentado.
  * Autor: AXIOMIX
- * Data: 2026-05-07
+ * Data: 2026-05-11
  */
 
 import { Suspense } from "react";
@@ -60,6 +58,11 @@ import { AnaliseHeatmap } from "@/components/whatsapp/analise-heatmap";
 import { AnalisePeriodPicker } from "@/components/whatsapp/analise-period-picker";
 import { parsePeriodFromParam } from "@/lib/whatsapp/analise-period";
 import { NicheBenchmarkCard } from "@/components/dashboard/niche-benchmark-card";
+import { PainelAoVivo } from "@/components/whatsapp/painel-ao-vivo";
+import {
+  PainelModeToggle,
+  parsePainelModo,
+} from "@/components/whatsapp/painel-mode-toggle";
 
 const DAY_MS = 86_400_000;
 
@@ -73,11 +76,22 @@ export default async function WhatsAppDashboardPage({
   noStore();
 
   const params = await searchParams;
+  const modo = parsePainelModo(params.modo);
   const period = parsePeriodFromParam(params.period);
 
   const companyId = await getUserCompanyId();
   if (!companyId) {
     redirect("/onboarding");
+  }
+
+  // Modo "Ao vivo" — engole o que era a aba Operacao
+  if (modo === "agora") {
+    return (
+      <div className="space-y-3.5">
+        <PainelHeader active="agora" />
+        <PainelAoVivo companyId={companyId} />
+      </div>
+    );
   }
 
   const supabase = await createSupabaseServerClient();
@@ -150,6 +164,8 @@ export default async function WhatsAppDashboardPage({
 
   return (
     <div className="space-y-3.5">
+      <PainelHeader active="historico" />
+
       {/* Camada 1 — Pulso Comercial (acima da dobra) */}
       <Suspense fallback={<PulsoComercialSkeleton />}>
         <PulsoComercial companyId={companyId} />
@@ -263,6 +279,23 @@ export default async function WhatsAppDashboardPage({
         <RecomendacoesAcoesCard companyId={companyId} />
       </Suspense>
     </div>
+  );
+}
+
+// =============================================================================
+// PainelHeader — toggle Ao vivo / Historico no topo do Painel
+// =============================================================================
+
+function PainelHeader({ active }: { active: "agora" | "historico" }) {
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-2">
+      <PainelModeToggle active={active} />
+      <p className="text-[11.5px] text-[var(--color-text-tertiary)]">
+        {active === "agora"
+          ? "Veja quem está esperando agora · atualiza a cada 30s"
+          : "Métricas históricas e tendências do funil"}
+      </p>
+    </header>
   );
 }
 

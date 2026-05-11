@@ -1,14 +1,13 @@
 /**
  * Arquivo: src/components/whatsapp/whatsapp-module-nav.tsx
- * Propósito: Navegação por abas do módulo Inteligência. Reduzida para 4 abas
- *            como parte do redesign 7→3 (onda 1):
- *              [Operação · Análise] | [Conversas] | [Agentes IA]
+ * Propósito: Navegação por abas do módulo Inteligência. Reduzida para 3 abas
+ *            (Onda 2 do redesign 7→3):
+ *              [Painel] | [Conversas] | [Agentes IA]
  *
- *            Removidas da nav (rotas continuam vivas como fallback ate
- *            ondas 2/3 finalizarem):
- *              - Contatos -> futuro drill-down lateral em Conversas
- *              - Pipeline -> feature flag, volta como feature futura
- *              - Sessões  -> migra para /settings/conexoes em onda 2
+ *            Painel engole Operacao + Analise via toggle interno
+ *            (?modo=agora | ?modo=historico). Outras rotas removidas da nav
+ *            (Contatos, Pipeline, Sessoes) continuam vivas como fallback ate
+ *            ondas seguintes.
  * Autor: AXIOMIX
  * Data: 2026-05-11
  */
@@ -18,7 +17,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Activity,
   Bot,
   LayoutDashboard,
   MessageSquare,
@@ -38,28 +36,18 @@ type Separator = { kind: "separator" };
 type NavEntry = TabItem | Separator;
 
 /**
- * Ordem importa: visões consolidadas → fluxo de atendimento → config de IA.
- * Onda 1 do redesign 7→3: Contatos, Pipeline e Sessões saem da navegação
- * principal. Operação + Análise continuam separados até onda 2 (Painel
- * unificado com toggle Ao Vivo/Histórico).
+ * Onda 2 do redesign 7→3: Operacao virou modo do Painel (?modo=agora).
+ * Apenas 3 abas no chrome — separators sumiram (so ha 1 grupo + Agentes IA).
  */
 const NAV: NavEntry[] = [
   {
     kind: "tab",
-    key: "operacao",
-    label: "Operação",
-    href: "/whatsapp-intelligence/operacao",
-    icon: Activity,
-  },
-  {
-    kind: "tab",
-    key: "analise",
-    label: "Análise",
+    key: "painel",
+    label: "Painel",
     href: "/whatsapp-intelligence",
     icon: LayoutDashboard,
     exact: true,
   },
-  { kind: "separator" },
   {
     kind: "tab",
     key: "conversas",
