@@ -17,15 +17,10 @@
 import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Clock } from "lucide-react";
-
-export type PainelModo = "agora" | "historico";
-
-export const PAINEL_MODO_DEFAULT: PainelModo = "agora";
-
-export function parsePainelModo(value: string | string[] | undefined): PainelModo {
-  if (Array.isArray(value)) value = value[0];
-  return value === "historico" ? "historico" : "agora";
-}
+import {
+  PAINEL_MODO_DEFAULT,
+  type PainelModo,
+} from "@/lib/whatsapp/painel-modo";
 
 export function PainelModeToggle({ active }: { active: PainelModo }) {
   const router = useRouter();

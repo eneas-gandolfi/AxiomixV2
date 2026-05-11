@@ -59,10 +59,8 @@ import { AnalisePeriodPicker } from "@/components/whatsapp/analise-period-picker
 import { parsePeriodFromParam } from "@/lib/whatsapp/analise-period";
 import { NicheBenchmarkCard } from "@/components/dashboard/niche-benchmark-card";
 import { PainelAoVivo } from "@/components/whatsapp/painel-ao-vivo";
-import {
-  PainelModeToggle,
-  parsePainelModo,
-} from "@/components/whatsapp/painel-mode-toggle";
+import { PainelModeToggle } from "@/components/whatsapp/painel-mode-toggle";
+import { parsePainelModo } from "@/lib/whatsapp/painel-modo";
 
 const DAY_MS = 86_400_000;
 
