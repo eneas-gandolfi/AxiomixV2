@@ -35,6 +35,8 @@ ENV QSTASH_NEXT_SIGNING_KEY=$QSTASH_NEXT_SIGNING_KEY
 ENV QSTASH_TOKEN=$QSTASH_TOKEN
 ENV QSTASH_URL=$QSTASH_URL
 
+# Build trace collection (pdfjs-dist + standalone) estourava heap default de 1.5GB
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 # Debug: verificar estrutura do standalone
