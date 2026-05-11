@@ -389,17 +389,17 @@ function SectionWrapper({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-      <header className="mb-4 flex items-start gap-3 border-b border-[var(--color-border)] pb-4">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[rgba(212,168,83,0.15)] font-bricolage text-sm font-bold text-[#D4A853]">
+    <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5">
+      <header className="mb-3 flex items-start gap-2.5 border-b border-[var(--color-border)] pb-3">
+        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[rgba(212,168,83,0.15)] font-bricolage text-xs font-bold text-[#D4A853]">
           {number}
         </div>
         <div>
-          <h2 className="font-bricolage text-lg font-bold tracking-tight text-[var(--color-text)]">
+          <h2 className="font-bricolage text-[15px] font-bold leading-tight tracking-tight text-[var(--color-text)]">
             {question}
           </h2>
           {subtitle ? (
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+            <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--color-text-secondary)]">
               {subtitle}
             </p>
           ) : null}

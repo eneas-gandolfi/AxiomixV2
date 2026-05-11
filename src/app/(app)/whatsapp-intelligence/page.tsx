@@ -32,6 +32,30 @@ import {
   AnaliseVendorPerformance,
   SectionWrapper,
 } from "@/components/whatsapp/analise-vendor-performance";
+import {
+  ColdLeadsCard,
+  ColdLeadsCardSkeleton,
+} from "@/components/whatsapp/cold-leads-card";
+import {
+  PulsoComercial,
+  PulsoComercialSkeleton,
+} from "@/components/whatsapp/pulso-comercial";
+import {
+  FunilComercialCard,
+  FunilComercialCardSkeleton,
+} from "@/components/whatsapp/funil-comercial";
+import {
+  ObjecoesFrequentesCard,
+  ObjecoesFrequentesCardSkeleton,
+} from "@/components/whatsapp/objecoes-frequentes";
+import {
+  HeatmapRespostaCard,
+  HeatmapRespostaCardSkeleton,
+} from "@/components/whatsapp/heatmap-resposta";
+import {
+  RecomendacoesAcoesCard,
+  RecomendacoesAcoesCardSkeleton,
+} from "@/components/whatsapp/recomendacoes-acoes";
 import { AnaliseHeatmap } from "@/components/whatsapp/analise-heatmap";
 import { AnalisePeriodPicker } from "@/components/whatsapp/analise-period-picker";
 import { parsePeriodFromParam } from "@/lib/whatsapp/analise-period";
@@ -91,11 +115,8 @@ export default async function WhatsAppDashboardPage({
       .gte("generated_at", oneDayAgo.toISOString()),
   ]);
 
-  // Empty state — sem insights ainda
   const totalAnalyzed = (recentInsights ?? []).length;
-  if (totalAnalyzed === 0) {
-    return <EmptyState companyId={companyId} hasSynced={Boolean(syncedConversationsCount)} />;
-  }
+  const showAnalysisEmptyBanner = totalAnalyzed === 0;
 
   // Distribuição de intenções (§3)
   const intentCounts: Record<string, number> = {};
@@ -128,20 +149,25 @@ export default async function WhatsAppDashboardPage({
   const criticalCount = (criticalConversations ?? []).length;
 
   return (
-    <div className="space-y-6">
-      {/* Top strip: 3 fatos + period picker + ações primárias */}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_auto]">
-        <Suspense fallback={<NotableChangesSkeleton />}>
-          <AnaliseNotableChanges companyId={companyId} />
-        </Suspense>
-        <div className="flex flex-col items-start gap-2 lg:items-end">
-          <AnalisePeriodPicker />
-          <div className="flex flex-wrap gap-2 lg:justify-end">
-            <BulkAnalyzeButton companyId={companyId} />
-            <SyncConversationsButton companyId={companyId} />
-          </div>
+    <div className="space-y-3.5">
+      {/* Camada 1 — Pulso Comercial (acima da dobra) */}
+      <Suspense fallback={<PulsoComercialSkeleton />}>
+        <PulsoComercial companyId={companyId} />
+      </Suspense>
+
+      {/* Toolbar: period + ações primárias */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <AnalisePeriodPicker />
+        <div className="flex flex-wrap gap-2">
+          <BulkAnalyzeButton companyId={companyId} />
+          <SyncConversationsButton companyId={companyId} />
         </div>
       </div>
+
+      {/* Mudanças notáveis · grid full width */}
+      <Suspense fallback={<NotableChangesSkeleton />}>
+        <AnaliseNotableChanges companyId={companyId} />
+      </Suspense>
 
       {/* Banner crítico */}
       {criticalCount > 0 ? (
@@ -166,47 +192,87 @@ export default async function WhatsAppDashboardPage({
         </div>
       ) : null}
 
-      {/* §1 — Quem da minha equipe está em queda? */}
-      <Suspense fallback={<SectionSkeleton number={1} />}>
-        <AnaliseVendorPerformance companyId={companyId} />
+      {/* §0 — Leads esfriando agora (Inteligência Comercial v0.1) */}
+      <Suspense fallback={<ColdLeadsCardSkeleton />}>
+        <ColdLeadsCard companyId={companyId} />
       </Suspense>
 
-      {/* §2 — Você vs nicho */}
-      <SectionWrapper
-        number={2}
-        question="Como estamos vs outros do mesmo nicho?"
-        subtitle="Network effect: cada novo tenant melhora a média do nicho pra todos."
-      >
-        <Suspense fallback={<div className="h-32 animate-pulse rounded-lg bg-[var(--color-surface-2)]" />}>
-          <NicheBenchmarkCard companyId={companyId} />
-        </Suspense>
-      </SectionWrapper>
+      {/* Banner de "rode a IA" — só aparece quando faltam insights p/ §1-§4 */}
+      {showAnalysisEmptyBanner ? (
+        <AnalysisEmptyBanner
+          companyId={companyId}
+          hasSynced={Boolean(syncedConversationsCount)}
+        />
+      ) : null}
 
-      {/* §3 — Está vindo mais ou menos cliente? */}
-      <SectionWrapper
-        number={3}
-        question="Está vindo mais ou menos cliente que antes?"
-        subtitle={`Volume diário de insights · janela ${period} dias · distribuição de intenções (últimos 7 dias).`}
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <AnaliseVolumeChart data={volumeData} windowDays={period} />
-          <IntentDistributionChart data={intentDistributionData} />
-        </div>
-      </SectionWrapper>
+      {/* §1-§4 só aparecem quando ha insights analiticos */}
+      {!showAnalysisEmptyBanner ? (
+        <>
+          {/* §1 — Quem da minha equipe está em queda? */}
+          <Suspense fallback={<SectionSkeleton number={1} />}>
+            <AnaliseVendorPerformance companyId={companyId} />
+          </Suspense>
 
-      {/* §4 — Algum padrão preocupante? */}
-      <Suspense fallback={<SectionSkeleton number={4} />}>
-        <AnaliseHeatmap companyId={companyId} windowDays={period} />
+          {/* §2 — Você vs nicho */}
+          <SectionWrapper
+            number={2}
+            question="Como estamos vs outros do mesmo nicho?"
+            subtitle="Network effect: cada novo tenant melhora a média do nicho pra todos."
+          >
+            <Suspense fallback={<div className="h-32 animate-pulse rounded-lg bg-[var(--color-surface-2)]" />}>
+              <NicheBenchmarkCard companyId={companyId} />
+            </Suspense>
+          </SectionWrapper>
+
+          {/* §3 — Está vindo mais ou menos cliente? */}
+          <SectionWrapper
+            number={3}
+            question="Está vindo mais ou menos cliente que antes?"
+            subtitle={`Volume diário de insights · janela ${period} dias · distribuição de intenções (últimos 7 dias).`}
+          >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <AnaliseVolumeChart data={volumeData} windowDays={period} />
+              <IntentDistributionChart data={intentDistributionData} />
+            </div>
+          </SectionWrapper>
+
+          {/* §4 — Algum padrão preocupante? */}
+          <Suspense fallback={<SectionSkeleton number={4} />}>
+            <AnaliseHeatmap companyId={companyId} windowDays={period} />
+          </Suspense>
+        </>
+      ) : null}
+
+      {/* §5 — Funil comercial */}
+      <Suspense fallback={<FunilComercialCardSkeleton />}>
+        <FunilComercialCard companyId={companyId} />
+      </Suspense>
+
+      {/* §6 — Objeções mais frequentes */}
+      <Suspense fallback={<ObjecoesFrequentesCardSkeleton />}>
+        <ObjecoesFrequentesCard companyId={companyId} />
+      </Suspense>
+
+      {/* §7 — Heatmap chegada × resposta */}
+      <Suspense fallback={<HeatmapRespostaCardSkeleton />}>
+        <HeatmapRespostaCard companyId={companyId} />
+      </Suspense>
+
+      {/* §8 — Próximas Ações Sugeridas */}
+      <Suspense fallback={<RecomendacoesAcoesCardSkeleton />}>
+        <RecomendacoesAcoesCard companyId={companyId} />
       </Suspense>
     </div>
   );
 }
 
 // =============================================================================
-// Empty states
+// Banner condicional: aparece quando faltam insights p/ as secoes analiticas
+// (§1-§4). NAO bloqueia o Pulso, Cold leads, Funil, Objeções, Heatmap-resposta
+// e Recomendações — esses tem proprios empty states amigaveis.
 // =============================================================================
 
-function EmptyState({
+function AnalysisEmptyBanner({
   companyId,
   hasSynced,
 }: {
@@ -215,12 +281,16 @@ function EmptyState({
 }) {
   if (hasSynced) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] p-12 text-center">
-        <p className="ax-t2">Conversas prontas para análise</p>
-        <p className="mt-2 ax-body text-[var(--color-text-secondary)]">
-          Rode a IA para extrair sentimento, intenção e oportunidades.
-        </p>
-        <div className="mt-6 flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-[var(--color-text)]">
+            Conversas prontas para análise de IA
+          </p>
+          <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--color-text-secondary)]">
+            Rode a análise para liberar §1–§4 (sentimento, intenção, benchmark e heatmap de volume).
+          </p>
+        </div>
+        <div className="flex gap-2">
           <BulkAnalyzeButton companyId={companyId} />
           <SyncConversationsButton companyId={companyId} />
         </div>
@@ -229,15 +299,21 @@ function EmptyState({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-12 text-center">
-      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-surface-2)]">
-        <MessageSquare className="h-6 w-6 text-[var(--color-text-tertiary)]" />
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-2)]">
+          <MessageSquare className="h-4 w-4 text-[var(--color-text-tertiary)]" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-[var(--color-text)]">
+            Conecte o Evo CRM para liberar análise de IA
+          </p>
+          <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--color-text-secondary)]">
+            Sentimento, intenção e benchmark precisam de conversas sincronizadas.
+          </p>
+        </div>
       </div>
-      <p className="ax-t2">Comece sincronizando conversas</p>
-      <p className="mt-2 ax-body text-[var(--color-text-secondary)]">
-        Conecte o Evo CRM para trazer conversas e desbloquear métricas de sentimento.
-      </p>
-      <div className="mt-6 flex gap-2">
+      <div className="flex gap-2">
         <BulkAnalyzeButton companyId={companyId} />
         <SyncConversationsButton companyId={companyId} />
       </div>
