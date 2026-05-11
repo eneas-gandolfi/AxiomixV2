@@ -10,8 +10,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isCronAuthorized } from "@/lib/auth/cron-auth";
+import { NICHE_AGGREGATES_TAG } from "@/lib/dashboard/niche-aggregates-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +46,12 @@ export async function GET(request: NextRequest) {
     }
 
     const affectedNiches = typeof data === "number" ? data : 0;
+
+    // Invalida o cache da leitura `niche_aggregates` do dashboard pra que o
+    // benchmark passe a refletir os agregados recem-recomputados sem esperar
+    // os 3600s de revalidate natural. Next 16 exige profile no segundo arg —
+    // 'hours' casa com o lifetime ja configurado no unstable_cache.
+    revalidateTag(NICHE_AGGREGATES_TAG, "hours");
 
     return NextResponse.json({
       ok: true,

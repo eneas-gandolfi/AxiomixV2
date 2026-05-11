@@ -2,78 +2,34 @@
  * Arquivo: src/components/dashboard/risk-control-card.tsx
  * Propósito: 3º card do tríptico de KPIs — Controle de Risco. Mostra contagem
  *            de alertas críticos (conversas negativas sem resolver + integrações
- *            com erro) em formato KPI: número-herói + narrativa + CTA.
- *            Espelha a lógica da DashboardSidebarSection mas em formato compacto.
+ *            com erro + posts falhos) em formato KPI compacto: número-herói +
+ *            narrativa + CTA.
+ *
+ *            Fonte unica de verdade: `getDashboardAlertsData` (React.cache),
+ *            compartilhada com DashboardSidebarSection — sem queries duplicadas.
  * Autor: AXIOMIX
  * Data: 2026-05-11
  */
 
-import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-const DAY_MS = 86_400_000;
+import { getDashboardAlertsData } from "@/lib/dashboard/shared-queries";
 
 export async function RiskControlCard({ companyId }: { companyId: string }) {
-  noStore();
-
-  const supabase = await createSupabaseServerClient();
-  const fortyEightHoursAgoIso = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-  const sevenDaysAgoIso = new Date(Date.now() - 7 * DAY_MS).toISOString();
-
-  const [negativeInsightsResult, integrationsResult, failedPostsResult] = await Promise.all([
-    supabase
-      .from("conversation_insights")
-      .select("conversation_id")
-      .eq("company_id", companyId)
-      .eq("sentiment", "negativo")
-      .gte("generated_at", fortyEightHoursAgoIso),
-    supabase
-      .from("integrations")
-      .select("test_status")
-      .eq("company_id", companyId),
-    supabase
-      .from("scheduled_posts")
-      .select("id", { count: "exact", head: true })
-      .eq("company_id", companyId)
-      .eq("status", "failed")
-      .gte("created_at", sevenDaysAgoIso),
-  ]);
-
-  const negativeConversationIds = new Set(
-    (negativeInsightsResult.data ?? [])
-      .map((row) => row.conversation_id)
-      .filter((id): id is string => typeof id === "string"),
-  );
-
-  // Resolver: descobrir quantas conversas negativas estão NÃO-resolvidas
-  let unresolvedNegativeCount = 0;
-  if (negativeConversationIds.size > 0) {
-    const { data: conversationsData } = await supabase
-      .from("conversations")
-      .select("id, status")
-      .eq("company_id", companyId)
-      .in("id", Array.from(negativeConversationIds));
-
-    unresolvedNegativeCount = (conversationsData ?? []).filter(
-      (conv) => conv.status?.toLowerCase().trim() !== "resolved",
-    ).length;
-  }
-
-  const integrationsWithError = (integrationsResult.data ?? []).filter(
-    (i) => i.test_status === "error",
-  ).length;
-  const failedPostsCount = failedPostsResult.count ?? 0;
+  const data = await getDashboardAlertsData(companyId);
 
   const totalAlerts =
-    unresolvedNegativeCount + integrationsWithError + failedPostsCount;
+    data.unresolvedNegativeCount + data.integrationsWithErrorCount + data.failedPostsCount;
 
   const isOk = totalAlerts === 0;
   const narrative = isOk
     ? "Tudo em dia. Nenhum alerta crítico ativo."
-    : buildNarrative(unresolvedNegativeCount, integrationsWithError, failedPostsCount);
+    : buildNarrative(
+        data.unresolvedNegativeCount,
+        data.integrationsWithErrorCount,
+        data.failedPostsCount,
+      );
 
   return (
     <article

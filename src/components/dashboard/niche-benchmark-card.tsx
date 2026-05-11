@@ -14,6 +14,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { Users2, ChevronRight } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getNicheBySlug, inferNicheSlug } from "@/lib/niches";
+import { getNicheAggregates } from "@/lib/dashboard/niche-aggregates-cache";
 
 const DAY_MS = 86_400_000;
 const WINDOW_DAYS = 30;
@@ -80,14 +81,10 @@ export async function NicheBenchmarkCard({ companyId }: { companyId: string }) {
     return <EmptyState reason="no-niche" />;
   }
 
-  // 2) Agregados do nicho (se já houver dados suficientes)
-  const { data: aggregates } = await supabase
-    .from("niche_aggregates")
-    .select(
-      "peer_count, sentiment_positive_pct, opportunity_pct, avg_weekly_volume, computed_at",
-    )
-    .eq("niche_slug", nicheSlug)
-    .maybeSingle();
+  // 2) Agregados do nicho (cacheados por 1h, invalidados pela tag quando
+  //    o cron diario `/api/cron/niche-aggregates` termina). Usa admin client
+  //    via helper porque a tabela tem RLS off (dado publico-agregado).
+  const aggregates = await getNicheAggregates(nicheSlug);
 
   if (!aggregates || aggregates.peer_count < 5) {
     // Sem peers suficientes no nicho → não renderiza nada. O card vazio

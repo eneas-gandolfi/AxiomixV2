@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       ai_usage_daily_summary: {
@@ -1834,6 +1809,25 @@ export type Database = {
           id: string
         }[]
       }
+      dashboard_bootstrap: {
+        Args: never
+        Returns: {
+          company_id: string
+          company_name: string
+          niche_slug: string
+          role: string
+          user_id: string
+        }[]
+      }
+      dashboard_sentiment_trend_30d: {
+        Args: { p_company_id: string }
+        Returns: {
+          day: string
+          negativo: number
+          neutro: number
+          positivo: number
+        }[]
+      }
       match_rag_chunks:
         | {
             Args: {
@@ -1995,9 +1989,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

@@ -1,6 +1,10 @@
 /**
  * Arquivo: src/components/dashboard/dashboard-charts-section.tsx
  * Propósito: Seção de gráficos do dashboard carregada com Suspense independente.
+ *
+ *            Fase 5 (2026-05-13): troca a varredura de 5000 linhas + agregação
+ *            em JS pela RPC `dashboard_sentiment_trend_30d`. Retorna 30 linhas
+ *            agregadas, com zeros para dias sem dado.
  */
 
 import { unstable_noStore as noStore } from "next/cache";
@@ -12,56 +16,53 @@ import {
 } from "@/components/dashboard/sentiment-overview";
 import type { SentimentTrendDataPoint } from "@/types/modules/dashboard.types";
 
-const DAY_MS = 86_400_000;
-
 export async function DashboardChartsSection({ companyId }: { companyId: string }) {
   noStore();
 
   const supabase = await createSupabaseServerClient();
-  const now = new Date();
-  const sevenDaysAgoIso = new Date(now.getTime() - 7 * DAY_MS).toISOString();
-  const thirtyDaysAgoIso = new Date(now.getTime() - 30 * DAY_MS).toISOString();
-  const nowIso = now.toISOString();
 
-  const sentimentTrendResult = await supabase
-    .from("conversation_insights")
-    .select("sentiment, generated_at")
-    .eq("company_id", companyId)
-    .gte("generated_at", thirtyDaysAgoIso)
-    .lte("generated_at", nowIso)
-    .limit(5000);
-
-  // Sentiment trend (30 dias)
-  const allSentiments = sentimentTrendResult.data ?? [];
-  const sevenDaysAgoDate = new Date(sevenDaysAgoIso);
-
-  const sentimentByDate = new Map<string, { positivo: number; neutro: number; negativo: number }>();
-  for (const insight of allSentiments) {
-    if (!insight.generated_at || !insight.sentiment) continue;
-    const dateKey = new Date(insight.generated_at).toISOString().split("T")[0];
-    const current = sentimentByDate.get(dateKey) ?? { positivo: 0, neutro: 0, negativo: 0 };
-    if (insight.sentiment === "positivo") current.positivo++;
-    else if (insight.sentiment === "neutro") current.neutro++;
-    else if (insight.sentiment === "negativo") current.negativo++;
-    sentimentByDate.set(dateKey, current);
-  }
-
-  const sentimentTrendData: SentimentTrendDataPoint[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(Date.now() - i * DAY_MS).toISOString().split("T")[0];
-    const counts = sentimentByDate.get(date) ?? { positivo: 0, neutro: 0, negativo: 0 };
-    sentimentTrendData.push({ date, ...counts });
-  }
-
-  const recentSentiments = allSentiments.filter(
-    (s) => s.generated_at && new Date(s.generated_at) >= sevenDaysAgoDate
+  const { data: trendRows, error } = await supabase.rpc(
+    "dashboard_sentiment_trend_30d",
+    { p_company_id: companyId },
   );
-  const sentimentData: SentimentOverviewData = {
-    positive: recentSentiments.filter((s) => s.sentiment === "positivo").length,
-    neutral: recentSentiments.filter((s) => s.sentiment === "neutro").length,
-    negative: recentSentiments.filter((s) => s.sentiment === "negativo").length,
-    total: recentSentiments.length,
-  };
+
+  if (error || !trendRows) {
+    // Em caso de falha, renderiza graficos vazios — o componente nao quebra
+    // a pagina inteira.
+    return (
+      <>
+        <section>
+          <DashboardSentimentTrendChart data={[]} />
+        </section>
+        <section>
+          <SentimentOverview
+            data={{ positive: 0, neutral: 0, negative: 0, total: 0 }}
+          />
+        </section>
+      </>
+    );
+  }
+
+  // RPC ja retorna 30 linhas em ordem cronologica. `day` vem como ISO date
+  // (YYYY-MM-DD) — mesma forma que o chart espera em `date`.
+  const sentimentTrendData: SentimentTrendDataPoint[] = trendRows.map((row) => ({
+    date: row.day,
+    positivo: row.positivo,
+    neutro: row.neutro,
+    negativo: row.negativo,
+  }));
+
+  // SentimentOverview soma os ultimos 7 dias do mesmo set.
+  const last7 = sentimentTrendData.slice(-7);
+  const sentimentData: SentimentOverviewData = last7.reduce<SentimentOverviewData>(
+    (acc, row) => ({
+      positive: acc.positive + row.positivo,
+      neutral: acc.neutral + row.neutro,
+      negative: acc.negative + row.negativo,
+      total: acc.total + row.positivo + row.neutro + row.negativo,
+    }),
+    { positive: 0, neutral: 0, negative: 0, total: 0 },
+  );
 
   return (
     <>

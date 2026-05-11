@@ -9,6 +9,7 @@ import { NextRequest } from "next/server";
 
 const mockRpc = vi.fn();
 const mockIsCronAuthorized = vi.fn();
+const mockRevalidateTag = vi.fn();
 
 vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => ({
@@ -18,6 +19,14 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 vi.mock("@/lib/auth/cron-auth", () => ({
   isCronAuthorized: (request: NextRequest) => mockIsCronAuthorized(request),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidateTag: (tag: string, profile?: string) => mockRevalidateTag(tag, profile),
+  // `unstable_cache` e usado transitivamente por niche-aggregates-cache; o
+  // teste nao exercita a leitura cacheada, so precisa que a importacao nao
+  // quebre. Retornamos a funcao crua.
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
 }));
 
 import { GET } from "../route";
@@ -54,6 +63,7 @@ describe("GET /api/cron/niche-aggregates", () => {
 
     expect(response.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith("recompute_niche_aggregates");
+    expect(mockRevalidateTag).toHaveBeenCalledWith("niche-aggregates", "hours");
     expect(body).toMatchObject({
       ok: true,
       affectedNiches: 3,
