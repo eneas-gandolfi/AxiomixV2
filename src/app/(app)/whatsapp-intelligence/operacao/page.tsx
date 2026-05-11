@@ -54,21 +54,25 @@ export default async function OperacaoPage() {
 
 function OperacaoEmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col items-center justify-center px-6 py-16 text-center">
+      <span className="section-label mb-4 rounded-full border border-border/70 bg-card/70 px-3 py-1.5">
+        Operação · Aguardando primeira conversa
+      </span>
+
       <BreathingDot />
 
-      <h2 className="ax-t1 text-xl md:text-2xl mt-6">
+      <h2 className="mt-6 font-display text-xl font-semibold tracking-tight text-[var(--color-text)] sm:text-2xl">
         Aguardando primeira conversa
       </h2>
       <p className="ax-body mt-2 max-w-md text-[var(--color-text-secondary)]">
-        Conecte sua conta WhatsApp pra começar. Quando a primeira mensagem
-        chegar, ela aparece aqui em tempo quase-real.
+        Conecte sua conta WhatsApp pra começar. Quando a primeira mensagem chegar,
+        ela aparece aqui em tempo quase-real.
       </p>
 
-      <div className="flex flex-col sm:flex-row items-center gap-3 mt-8">
+      <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
         <Link
           href="/settings?tab=integrations"
-          className="inline-flex items-center gap-2 h-11 px-5 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-medium text-sm transition-colors"
+          className="inline-flex h-11 items-center gap-2 rounded-lg bg-[var(--color-primary)] px-5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
         >
           <Plug className="h-4 w-4" />
           Conectar WhatsApp
@@ -76,26 +80,26 @@ function OperacaoEmptyState() {
         </Link>
         <Link
           href="/whatsapp-intelligence"
-          className="inline-flex items-center gap-2 h-11 px-5 rounded-lg border border-[var(--color-border-strong)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] font-medium text-sm transition-colors"
+          className="inline-flex h-11 items-center gap-2 rounded-lg border border-[var(--color-border-strong)] px-5 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-2)]"
         >
           Ver demonstração
         </Link>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-4 mt-12 max-w-3xl w-full">
+      <div className="mt-12 grid w-full gap-4 sm:grid-cols-3">
         <FeaturePreview
           icon={Activity}
-          title="Cliente esquecido"
-          description="Cronômetro destacado no topo mostra qual cliente espera há mais tempo, com nome do atendente responsável."
+          label="Cliente esquecido"
+          description="Cronômetro destacado mostra qual cliente espera há mais tempo, com nome do atendente responsável."
         />
         <FeaturePreview
           icon={Sparkles}
-          title="Decisão em 2 segundos"
-          description="One-thumb reach. Botão de ação primário pronto pro polegar — avisar o atendente, assumir conversa, atribuir."
+          label="Decisão em 2 segundos"
+          description="Botão de ação primário pronto pro polegar — avisar atendente, assumir conversa, atribuir."
         />
         <FeaturePreview
           icon={Plug}
-          title="Polling 30s · sem alarme falso"
+          label="Polling 30s · sem alarme falso"
           description={`Cronômetro pausa fora do horário cadastrado. Vermelho é raro — só pra "larga tudo agora".`}
         />
       </div>
@@ -116,19 +120,19 @@ function BreathingDot() {
 
 function FeaturePreview({
   icon: Icon,
-  title,
+  label,
   description,
 }: {
   icon: LucideIcon;
-  title: string;
+  label: string;
   description: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-left">
-      <div className="h-8 w-8 rounded-lg bg-[var(--module-accent-light,_#E0FAF7)]/40 text-[var(--module-accent,_#2EC4B6)] flex items-center justify-center">
+    <div className="flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-left shadow-card-modern">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--module-accent-light,_#E0FAF7)]/40 text-[var(--module-accent,_#2EC4B6)]">
         <Icon className="h-4 w-4" />
       </div>
-      <h3 className="text-sm font-semibold text-[var(--color-text)]">{title}</h3>
+      <p className="section-label">{label}</p>
       <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
         {description}
       </p>

@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Users
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { CompanySettingsForm } from "@/components/forms/company-settings-form";
 import { IntegrationsSettingsForm } from "@/components/forms/integrations-settings-form";
 import { NotificationsSettings } from "@/components/settings/notifications-settings";
@@ -267,142 +268,135 @@ export function SettingsLayout({ companyId, initialStats, initialTab, userRole }
 }
 
 function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: (tab: TabKey) => void }) {
+  const integrationsPercent = stats.totalIntegrations > 0
+    ? Math.round((stats.integrationsActive / stats.totalIntegrations) * 100)
+    : 0;
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Company Status */}
-        <Card
-          className="cursor-pointer transition-all border border-border rounded-xl hover:border-border-strong"
+        {/* Empresa */}
+        <button
+          type="button"
           onClick={() => onNavigate("company")}
+          className="group flex flex-col items-start gap-4 rounded-xl border border-border bg-card p-5 text-left shadow-card-modern transition-all hover:-translate-y-0.5 hover:shadow-card-hover-modern"
         >
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <Building2 className="h-8 w-8 text-primary" />
-              {stats.companyConfigured ? (
-                <CheckCircle2 className="h-5 w-5 text-success" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-warning" />
+          <div className="flex w-full items-start justify-between gap-3">
+            <p className="section-label">Empresa</p>
+            <span
+              className={cn(
+                "inline-flex h-8 w-8 items-center justify-center rounded-lg",
+                stats.companyConfigured ? "bg-success-light" : "bg-warning-light"
               )}
-            </div>
-            <CardTitle className="text-lg text-text">Empresa</CardTitle>
-            <CardDescription className="text-muted">
-              {stats.companyConfigured ? "Configurada" : "Configuração pendente"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 text-xs text-muted">
-              <Clock className="h-3 w-3" />
-              {stats.lastUpdate
-                ? `Atualizado ${new Date(stats.lastUpdate).toLocaleDateString("pt-BR")}`
-                : "Não atualizado"
-              }
-            </div>
-          </CardContent>
-        </Card>
+            >
+              {stats.companyConfigured ? (
+                <CheckCircle2 className="h-4 w-4 text-success" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-warning" />
+              )}
+            </span>
+          </div>
+          <p className="ax-metric-lg text-text">
+            {stats.companyConfigured ? "OK" : "—"}
+          </p>
+          <p className="text-xs text-muted">
+            {stats.companyConfigured ? "Configurada" : "Configuração pendente"}
+          </p>
+          <div className="mt-auto flex items-center gap-2 text-xs text-muted">
+            <Clock className="h-3 w-3" />
+            {stats.lastUpdate
+              ? `Atualizado ${new Date(stats.lastUpdate).toLocaleDateString("pt-BR")}`
+              : "Não atualizado"}
+          </div>
+        </button>
 
-        {/* Integrations Status */}
-        <Card
-          className="cursor-pointer transition-all border border-border rounded-xl hover:border-border-strong"
+        {/* Integrações */}
+        <button
+          type="button"
           onClick={() => onNavigate("integrations")}
+          className="group flex flex-col items-start gap-4 rounded-xl border border-border bg-card p-5 text-left shadow-card-modern transition-all hover:-translate-y-0.5 hover:shadow-card-hover-modern"
         >
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <Plug className="h-8 w-8 text-primary" />
-              <div className="flex items-center gap-1">
-                <span className="text-2xl font-semibold text-text">
-                  {stats.integrationsActive}
-                </span>
-                <span className="text-sm text-muted">
-                  /{stats.totalIntegrations}
-                </span>
-              </div>
+          <div className="flex w-full items-start justify-between gap-3">
+            <p className="section-label">Integrações ativas</p>
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary-light">
+              <Plug className="h-4 w-4 text-primary" />
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="ax-metric-lg text-text">
+              {stats.integrationsActive}
+            </span>
+            <span className="text-sm text-muted tabular-nums">
+              / {stats.totalIntegrations}
+            </span>
+          </div>
+          <p className="text-xs text-muted">
+            {stats.integrationsActive === 0
+              ? "Nenhuma ativa"
+              : `${stats.integrationsActive} ativa${stats.integrationsActive === 1 ? "" : "s"}`}
+          </p>
+          <div className="mt-auto flex w-full items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${integrationsPercent}%` }}
+              />
             </div>
-            <CardTitle className="text-lg text-text">Integrações</CardTitle>
-            <CardDescription className="text-muted">
-              {stats.integrationsActive === 0
-                ? "Nenhuma ativa"
-                : `${stats.integrationsActive} ativa(s)`
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 bg-sidebar rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{
-                    width: `${(stats.integrationsActive / stats.totalIntegrations) * 100}%`
-                  }}
-                />
-              </div>
-              <span className="text-xs text-muted">
-                {Math.round((stats.integrationsActive / stats.totalIntegrations) * 100)}%
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
+            <span className="font-mono text-xs tabular-nums text-muted">
+              {integrationsPercent}%
+            </span>
+          </div>
+        </button>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="border border-border rounded-xl">
-        <CardHeader>
-          <CardTitle className="text-text">Ações Rápidas</CardTitle>
-          <CardDescription className="text-muted">Configure rapidamente os principais recursos</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <button
-              onClick={() => onNavigate("company")}
-              className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-border-strong hover:bg-background"
-            >
-              <Building2 className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <p className="font-medium text-sm text-text">Editar Empresa</p>
-                <p className="text-xs text-muted mt-1">Nome, nicho e logo</p>
-              </div>
-            </button>
+      {/* Ações Rápidas */}
+      <section className="rounded-xl border border-border bg-card p-5 shadow-card-modern">
+        <div className="mb-4">
+          <p className="section-label">Ações rápidas</p>
+          <p className="mt-1 text-xs text-muted">Configure os principais recursos sem sair daqui.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { tab: "company" as const, icon: Building2, label: "Editar empresa", sub: "Nome, nicho e logo" },
+            { tab: "integrations" as const, icon: Plug, label: "Configurar integrações", sub: "Evo CRM, Evolution API" },
+            { tab: "notifications" as const, icon: Bell, label: "Notificações", sub: "Alertas em tempo real" },
+          ].map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.tab}
+                type="button"
+                onClick={() => onNavigate(action.tab)}
+                className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-2"
+              >
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-light">
+                  <Icon className="h-4 w-4 text-primary" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-text">{action.label}</p>
+                  <p className="mt-0.5 text-xs text-muted">{action.sub}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
-            <button
-              onClick={() => onNavigate("integrations")}
-              className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-border-strong hover:bg-background"
-            >
-              <Plug className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <p className="font-medium text-sm text-text">Configurar Integrações</p>
-                <p className="text-xs text-muted mt-1">Evo CRM, Evolution API</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => onNavigate("notifications")}
-              className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-border-strong hover:bg-background"
-            >
-              <Bell className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <p className="font-medium text-sm text-text">Notificações</p>
-                <p className="text-xs text-muted mt-1">Alertas em tempo real via WhatsApp</p>
-              </div>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Help Section */}
-      <Card className="border border-border rounded-xl bg-primary-light/30">
-        <CardContent className="flex items-start gap-4 p-6">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-light">
+      {/* Help */}
+      <section className="rounded-xl border border-border bg-primary-light/30 p-5">
+        <div className="flex items-start gap-4">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-light">
             <AlertCircle className="h-5 w-5 text-primary" />
-          </div>
+          </span>
           <div className="space-y-1">
-            <p className="font-medium text-sm text-text">Precisa de ajuda?</p>
-            <p className="text-xs text-muted">
+            <p className="section-label">Precisa de ajuda?</p>
+            <p className="text-xs leading-5 text-muted">
               Complete os dados da empresa e conecte o Evo CRM e a Evolution API
-              para que seus agentes IA possam atender pelo WhatsApp.
+              pra que seus agentes IA possam atender pelo WhatsApp.
             </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

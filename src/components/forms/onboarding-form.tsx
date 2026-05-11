@@ -354,7 +354,8 @@ export function OnboardingForm() {
             {step === 1 && (
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-text">
+                  <p className="section-label mb-2">Passo 1 de 3 · Empresa</p>
+                  <h2 className="font-display text-xl font-semibold tracking-tight text-text sm:text-2xl">
                     Vamos começar.
                   </h2>
                   <p className="text-sm text-muted mt-1">
@@ -392,7 +393,8 @@ export function OnboardingForm() {
             {step === 2 && (
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-text">
+                  <p className="section-label mb-2">Passo 2 de 3 · Nicho</p>
+                  <h2 className="font-display text-xl font-semibold tracking-tight text-text sm:text-2xl">
                     Qual o nicho da {fields.name || "empresa"}?
                   </h2>
                   <p className="text-sm text-muted mt-1">
@@ -459,7 +461,8 @@ export function OnboardingForm() {
             {step === 3 && (
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-text">
+                  <p className="section-label mb-2">Passo 3 de 3 · Horário</p>
+                  <h2 className="font-display text-xl font-semibold tracking-tight text-text sm:text-2xl">
                     Quando vocês atendem?
                   </h2>
                   <p className="text-sm text-muted mt-1">
