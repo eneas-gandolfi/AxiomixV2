@@ -20,7 +20,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
-import { AlertCircle, ChevronRight, MessageSquare } from "lucide-react";
+import { AlertCircle, ChevronRight, MessageSquare, Sparkles } from "lucide-react";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { IntentDistributionChart } from "@/components/whatsapp/intent-distribution-chart";
@@ -281,42 +281,23 @@ function AnalysisEmptyBanner({
 }) {
   if (hasSynced) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] px-4 py-3">
-        <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-[var(--color-text)]">
-            Suas conversas estão prontas para análise
-          </p>
-          <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--color-text-secondary)]">
-            Rode a IA para extrair sentimento, intenção e oportunidades de cada conversa.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <BulkAnalyzeButton companyId={companyId} />
-          <SyncConversationsButton companyId={companyId} />
-        </div>
+      <div className="flex items-center gap-2.5 rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] px-4 py-2.5">
+        <Sparkles className="h-4 w-4 flex-shrink-0 text-[var(--color-success)]" />
+        <p className="text-[12.5px] leading-snug text-[var(--color-text-secondary)]">
+          <span className="font-semibold text-[var(--color-text)]">Suas conversas estão prontas para análise.</span>{" "}
+          Toque em <b>Analisar todas pendentes</b> acima para extrair sentimento e intenção.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-2)]">
-          <MessageSquare className="h-4 w-4 text-[var(--color-text-tertiary)]" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-[var(--color-text)]">
-            Conecte o WhatsApp para começar
-          </p>
-          <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--color-text-secondary)]">
-            Importe suas conversas pra ver sentimento, intenção e onde tá escapando venda.
-          </p>
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <BulkAnalyzeButton companyId={companyId} />
-        <SyncConversationsButton companyId={companyId} />
-      </div>
+    <div className="flex items-center gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5">
+      <MessageSquare className="h-4 w-4 flex-shrink-0 text-[var(--color-text-tertiary)]" />
+      <p className="text-[12.5px] leading-snug text-[var(--color-text-secondary)]">
+        <span className="font-semibold text-[var(--color-text)]">Conecte o WhatsApp para começar.</span>{" "}
+        Toque em <b>Sincronizar</b> acima para importar suas conversas.
+      </p>
     </div>
   );
 }

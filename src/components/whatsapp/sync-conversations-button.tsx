@@ -63,7 +63,7 @@ export function SyncConversationsButton({ companyId }: SyncConversationsButtonPr
 
   const progressLabel = (() => {
     if (!isFullSyncing) {
-      return "Sincronizar com Evo CRM";
+      return "Sincronizar conversas";
     }
     if (!progress) {
       return "Sincronizando...";
