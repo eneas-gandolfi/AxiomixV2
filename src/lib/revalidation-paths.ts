@@ -14,8 +14,11 @@ export const paths = {
   whatsapp: {
     root: "/whatsapp-intelligence",
     conversas: "/whatsapp-intelligence/conversas",
-    contatos: "/whatsapp-intelligence/contatos",
-    pipeline: "/whatsapp-intelligence/pipeline",
+    // Onda 3: contatos virou drill-down lateral em /conversas e pipeline
+    // foi gated por NEXT_PUBLIC_FEATURE_PIPELINE. Mantemos os caminhos para
+    // revalidar a aba Conversas quando dados de contato/pipeline mudam.
+    contatos: "/whatsapp-intelligence/conversas",
+    pipeline: "/whatsapp-intelligence/conversas",
   },
   intelligence: "/intelligence",
   social: {

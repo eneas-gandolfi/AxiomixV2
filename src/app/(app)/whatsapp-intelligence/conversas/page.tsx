@@ -16,6 +16,7 @@ import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 import { ConversationsList } from "@/components/whatsapp/conversations-list";
 import { StartConversationButton } from "@/components/whatsapp/start-conversation-button";
 import { AutoSyncIndicator } from "@/components/whatsapp/auto-sync-indicator";
+import { ContactsManagerSheet } from "@/components/whatsapp/contacts-manager-sheet";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 type Sentiment = "positivo" | "neutro" | "negativo";
@@ -120,6 +121,10 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
         <AutoSyncIndicator companyId={companyId} intervalSeconds={180} />
         <div className="flex flex-wrap gap-2">
           <StartConversationButton companyId={companyId} />
+          <ContactsManagerSheet
+            companyId={companyId}
+            defaultOpen={params.contatos === "1"}
+          />
           <BulkAnalyzeButton companyId={companyId} />
           <SyncConversationsButton companyId={companyId} />
         </div>

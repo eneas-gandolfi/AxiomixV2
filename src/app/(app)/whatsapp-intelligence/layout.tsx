@@ -37,11 +37,11 @@ export default async function WhatsAppIntelligenceLayout({
               </p>
             </div>
             <Link
-              href="/whatsapp-intelligence/sessoes"
+              href="/settings?tab=connections"
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12.5px] font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
             >
               <SettingsIcon className="h-3.5 w-3.5" />
-              Configurar
+              Conexões
             </Link>
           </header>
 

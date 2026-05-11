@@ -1,6 +1,9 @@
 /**
  * Arquivo: src/app/(app)/whatsapp-intelligence/pipeline/page.tsx
  * Propósito: Visualização e gestão do Kanban/pipeline via Evo CRM.
+ *            Onda 3 do redesign 7->3: rota gated por NEXT_PUBLIC_FEATURE_PIPELINE.
+ *            Default off — mostra ComingSoonSection. Implementacao do board fica
+ *            preservada para quando a feature voltar.
  * Autor: AXIOMIX
  * Data: 2026-03-13
  */
@@ -12,8 +15,11 @@ import { Kanban, Loader2 } from "lucide-react";
 import { KanbanBoard } from "@/components/whatsapp/kanban-board";
 import type { RichKanbanCard, KanbanStage, TeamMember } from "@/components/whatsapp/kanban-types";
 import { useCompanyId } from "@/lib/contexts/company-id-context";
+import { ComingSoonSection } from "@/components/layout/coming-soon-section";
 
 export const dynamic = "force-dynamic";
+
+const FEATURE_ENABLED = process.env.NEXT_PUBLIC_FEATURE_PIPELINE === "true";
 
 type Board = {
   id: string;
@@ -22,6 +28,19 @@ type Board = {
 };
 
 export default function PipelinePage() {
+  if (!FEATURE_ENABLED) {
+    return (
+      <ComingSoonSection
+        moduleLabel="Pipeline"
+        icon={Kanban}
+        description="O Kanban de pipeline volta numa próxima onda. Por enquanto, use Conversas e o status da Operação ao vivo."
+      />
+    );
+  }
+  return <PipelineBoard />;
+}
+
+function PipelineBoard() {
   const companyId = useCompanyId();
   const [boards, setBoards] = useState<Board[]>([]);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);

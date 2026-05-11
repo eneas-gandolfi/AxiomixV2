@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  MessageSquare,
   TrendingUp,
   Users
 } from "lucide-react";
@@ -26,8 +27,9 @@ import { IntegrationsSettingsForm } from "@/components/forms/integrations-settin
 import { NotificationsSettings } from "@/components/settings/notifications-settings";
 import { GroupAgentSettings } from "@/components/settings/group-agent-settings";
 import { TeamSettings } from "@/components/settings/team-settings";
+import { SessionsPanelClient } from "@/components/whatsapp/sessions-panel-client";
 
-type TabKey = "overview" | "company" | "team" | "integrations" | "notifications" | "group-agent";
+type TabKey = "overview" | "company" | "team" | "integrations" | "connections" | "notifications" | "group-agent";
 
 type SettingsStats = {
   companyConfigured: boolean;
@@ -63,6 +65,12 @@ const TABS = [
     description: "Conexões com sistemas externos",
   },
   {
+    key: "connections" as const,
+    label: "Conexões WhatsApp",
+    icon: MessageSquare,
+    description: "Sessões ativas e expirações",
+  },
+  {
     key: "notifications" as const,
     label: "Notificações",
     icon: Bell,
@@ -80,7 +88,7 @@ type TabDefinition = (typeof TABS)[number];
 
 const TAB_GROUPS: Array<{ label: string; keys: TabKey[] }> = [
   { label: "Empresa", keys: ["overview", "company", "team"] },
-  { label: "Integrações", keys: ["integrations"] },
+  { label: "Integrações", keys: ["integrations", "connections"] },
   { label: "Automação", keys: ["group-agent", "notifications"] },
 ];
 
@@ -95,12 +103,15 @@ type SettingsLayoutProps = {
   userRole?: "owner" | "admin" | "member";
 };
 
-const VALID_TABS: TabKey[] = ["overview", "company", "team", "integrations", "notifications", "group-agent"];
+const VALID_TABS: TabKey[] = ["overview", "company", "team", "integrations", "connections", "notifications", "group-agent"];
 
 const LEGACY_TAB_MAP: Record<string, TabKey> = {
   reports: "notifications",
   alerts: "notifications",
   social: "integrations",
+  sessoes: "connections",
+  sessions: "connections",
+  conexoes: "connections",
 };
 
 function resolveInitialTab(input: TabKey | string | undefined): TabKey {
@@ -259,6 +270,7 @@ export function SettingsLayout({ companyId, initialStats, initialTab, userRole }
           {activeTab === "company" && <CompanyTab />}
           {activeTab === "team" && canViewUsage && <TeamSettings />}
           {activeTab === "integrations" && <IntegrationsTab />}
+          {activeTab === "connections" && <SessionsPanelClient companyId={companyId} />}
           {activeTab === "notifications" && <NotificationsSettings />}
           {activeTab === "group-agent" && <GroupAgentTab companyId={companyId} />}
         </div>
