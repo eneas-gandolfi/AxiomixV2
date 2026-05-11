@@ -22,8 +22,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompanySettingsForm } from "@/components/forms/company-settings-form";
 import { IntegrationsSettingsForm } from "@/components/forms/integrations-settings-form";
-import type { IntegrationStatusItem } from "@/components/dashboard/integrations-status-card";
-import type { RecentReportItem } from "@/components/dashboard/recent-reports-card";
 import { NotificationsSettings } from "@/components/settings/notifications-settings";
 import { GroupAgentSettings } from "@/components/settings/group-agent-settings";
 import { TeamSettings } from "@/components/settings/team-settings";
@@ -67,7 +65,7 @@ const TABS = [
     key: "notifications" as const,
     label: "Notificações",
     icon: Bell,
-    description: "Alertas em tempo real e relatórios periódicos",
+    description: "Alertas em tempo real",
   },
   {
     key: "group-agent" as const,
@@ -89,23 +87,9 @@ function getTab(key: TabKey): TabDefinition | undefined {
   return TABS.find((tab) => tab.key === key);
 }
 
-type ReportData = {
-  integrations: IntegrationStatusItem[];
-  nextSendAtLabel: string;
-  managerPhone: string;
-  evolutionStatus: { state: "active" | "error" | "missing"; label: string };
-  canManageReports: boolean;
-  canSendNow: boolean;
-  sendDisabledReason?: string;
-  recentReports: RecentReportItem[];
-  hasRunningJob: boolean;
-  runningJobCreatedAt?: string | null;
-};
-
 type SettingsLayoutProps = {
   companyId: string;
   initialStats?: Partial<SettingsStats>;
-  reportData?: ReportData;
   initialTab?: TabKey | string;
   userRole?: "owner" | "admin" | "member";
 };
@@ -125,7 +109,7 @@ function resolveInitialTab(input: TabKey | string | undefined): TabKey {
   return mapped ?? "overview";
 }
 
-export function SettingsLayout({ companyId, initialStats, reportData, initialTab, userRole }: SettingsLayoutProps) {
+export function SettingsLayout({ companyId, initialStats, initialTab, userRole }: SettingsLayoutProps) {
   const canViewUsage = userRole === "owner" || userRole === "admin";
   const [activeTab, setActiveTab] = useState<TabKey>(() => resolveInitialTab(initialTab));
 
@@ -274,7 +258,7 @@ export function SettingsLayout({ companyId, initialStats, reportData, initialTab
           {activeTab === "company" && <CompanyTab />}
           {activeTab === "team" && canViewUsage && <TeamSettings />}
           {activeTab === "integrations" && <IntegrationsTab />}
-          {activeTab === "notifications" && <NotificationsSettings reportData={reportData} />}
+          {activeTab === "notifications" && <NotificationsSettings />}
           {activeTab === "group-agent" && <GroupAgentTab companyId={companyId} />}
         </div>
       </div>
@@ -397,7 +381,7 @@ function OverviewTab({ stats, onNavigate }: { stats: SettingsStats; onNavigate: 
               <Bell className="h-5 w-5 text-primary mt-0.5" />
               <div>
                 <p className="font-medium text-sm text-text">Notificações</p>
-                <p className="text-xs text-muted mt-1">Alertas e relatórios via WhatsApp</p>
+                <p className="text-xs text-muted mt-1">Alertas em tempo real via WhatsApp</p>
               </div>
             </button>
           </div>

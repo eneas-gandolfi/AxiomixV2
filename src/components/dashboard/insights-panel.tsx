@@ -48,6 +48,12 @@ export function InsightsPanel({
 
 function DashboardInsightCard({ insight }: { insight: Insight }) {
   const accent = severityAccent(insight.severity);
+  const metricColor =
+    insight.severity === "red"
+      ? "var(--color-danger)"
+      : insight.severity === "amber"
+        ? "var(--color-warning)"
+        : "var(--color-primary)";
 
   return (
     <div
@@ -63,7 +69,29 @@ function DashboardInsightCard({ insight }: { insight: Insight }) {
         Insight prioritário
       </div>
 
-      <h3 className="ax-t2">{insight.title}</h3>
+      {insight.metric ? (
+        <div className="flex flex-col gap-0.5" data-testid="dashboard-insight-metric">
+          <span
+            className="ax-metric-lg leading-none"
+            style={{ color: metricColor }}
+          >
+            {insight.metric.value}
+          </span>
+          {insight.metric.sub ? (
+            <span className="text-xs font-medium text-[var(--color-text-secondary)]">
+              {insight.metric.sub}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <h3
+        className={cn(
+          insight.metric ? "text-base font-semibold leading-snug text-[var(--color-text)]" : "ax-t2",
+        )}
+      >
+        {insight.title}
+      </h3>
       <p className="ax-body text-[var(--color-text-secondary)]">
         {insight.body}
       </p>

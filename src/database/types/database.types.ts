@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       ai_usage_daily_summary: {
@@ -825,60 +850,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      daily_reports: {
-        Row: {
-          company_id: string | null
-          created_at: string | null
-          delivery_response: Json | null
-          delivery_status: string
-          id: string
-          job_id: string | null
-          report_date: string
-          report_text: string
-          sent_at: string | null
-          sent_to: string | null
-        }
-        Insert: {
-          company_id?: string | null
-          created_at?: string | null
-          delivery_response?: Json | null
-          delivery_status?: string
-          id?: string
-          job_id?: string | null
-          report_date: string
-          report_text: string
-          sent_at?: string | null
-          sent_to?: string | null
-        }
-        Update: {
-          company_id?: string | null
-          created_at?: string | null
-          delivery_response?: Json | null
-          delivery_status?: string
-          id?: string
-          job_id?: string | null
-          report_date?: string
-          report_text?: string
-          sent_at?: string | null
-          sent_to?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "daily_reports_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "daily_reports_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "async_jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -1850,69 +1821,6 @@ export type Database = {
         }
         Relationships: []
       }
-      weekly_reports: {
-        Row: {
-          company_id: string | null
-          created_at: string | null
-          delivery_response: Json | null
-          delivery_status: string
-          id: string
-          job_id: string | null
-          pdf_public_url: string | null
-          pdf_storage_path: string | null
-          report_text: string
-          sent_at: string | null
-          sent_to: string | null
-          week_end: string
-          week_start: string
-        }
-        Insert: {
-          company_id?: string | null
-          created_at?: string | null
-          delivery_response?: Json | null
-          delivery_status?: string
-          id?: string
-          job_id?: string | null
-          pdf_public_url?: string | null
-          pdf_storage_path?: string | null
-          report_text: string
-          sent_at?: string | null
-          sent_to?: string | null
-          week_end: string
-          week_start: string
-        }
-        Update: {
-          company_id?: string | null
-          created_at?: string | null
-          delivery_response?: Json | null
-          delivery_status?: string
-          id?: string
-          job_id?: string | null
-          pdf_public_url?: string | null
-          pdf_storage_path?: string | null
-          report_text?: string
-          sent_at?: string | null
-          sent_to?: string | null
-          week_end?: string
-          week_start?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "weekly_reports_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "weekly_reports_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "async_jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -2087,6 +1995,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

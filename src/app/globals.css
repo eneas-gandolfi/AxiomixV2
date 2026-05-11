@@ -299,6 +299,28 @@
     color: var(--color-text);
   }
 
+  /* Número-herói do bloco principal (72px). Único por viewport. */
+  .ax-metric-hero {
+    font-family: var(--font-bricolage), 'Bricolage Grotesque', sans-serif;
+    font-weight: 600;
+    font-size: 4.5rem;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+  }
+
+  /* Número-herói de KPI card (56px). Tríptico de KPIs e variantes. */
+  .ax-metric-lg {
+    font-family: var(--font-bricolage), 'Bricolage Grotesque', sans-serif;
+    font-weight: 600;
+    font-size: 3.5rem;
+    line-height: 1.07;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+  }
+
   /* KPI label — Instrument Regular, espaçado, uppercase */
   .ax-kpi-label {
     font-family: var(--font-instrument), 'Instrument Sans', sans-serif;

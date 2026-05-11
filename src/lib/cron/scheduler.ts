@@ -51,18 +51,6 @@ export function startCronScheduler(): void {
     await safeRun("group-rag-batch", runGroupRagBatchCron);
   });
 
-  // Relatorio diario: diario as 22:00 UTC
-  cron.schedule("0 22 * * *", async () => {
-    const { runDailyReportCron } = await import("@/lib/cron/report-daily");
-    await safeRun("report-daily", runDailyReportCron);
-  });
-
-  // Relatorio semanal: segunda as 11:00 UTC
-  cron.schedule("0 11 * * 1", async () => {
-    const { runWeeklyReportCron } = await import("@/lib/cron/report-send");
-    await safeRun("report-send", runWeeklyReportCron);
-  });
-
   // WhatsApp sync: a cada 10 minutos
   cron.schedule("*/10 * * * *", async () => {
     const { runWhatsappSyncCron } = await import("@/lib/cron/whatsapp-sync");
@@ -81,5 +69,5 @@ export function startCronScheduler(): void {
     await safeRun("social-publisher", processDueScheduledPosts);
   });
 
-  console.log("[cron] 9 crons agendados com sucesso.");
+  console.log("[cron] 7 crons agendados com sucesso.");
 }

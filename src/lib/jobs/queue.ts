@@ -237,29 +237,6 @@ export async function updateJobProgress(jobId: string, progress: unknown): Promi
   }
 }
 
-export async function markStaleJobsFailed(companyId: string): Promise<void> {
-  const supabase = createSupabaseAdminClient();
-  const stalePendingCutoff = new Date(Date.now() - 10 * 60_000).toISOString();
-  const staleRunningCutoff = new Date(Date.now() - 30 * 60_000).toISOString();
-  const now = new Date().toISOString();
-
-  await supabase
-    .from("async_jobs")
-    .update({ status: "failed", error_message: "Job expirou (stale).", completed_at: now })
-    .eq("company_id", companyId)
-    .eq("job_type", "weekly_report")
-    .eq("status", "pending")
-    .lt("created_at", stalePendingCutoff);
-
-  await supabase
-    .from("async_jobs")
-    .update({ status: "failed", error_message: "Job expirou (stale).", completed_at: now })
-    .eq("company_id", companyId)
-    .eq("job_type", "weekly_report")
-    .eq("status", "running")
-    .lt("started_at", staleRunningCutoff);
-}
-
 export async function recoverAllStaleJobs(staleMinutes = 5): Promise<number> {
   const supabase = createSupabaseAdminClient();
   const staleThreshold = new Date(Date.now() - staleMinutes * 60_000).toISOString();

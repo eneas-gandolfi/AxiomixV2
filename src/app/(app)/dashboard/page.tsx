@@ -18,10 +18,9 @@ import { InsightsPanel } from "@/components/dashboard/insights-panel";
 import { RetryDashboardButton } from "@/components/dashboard/retry-dashboard-button";
 import { DashboardChartsSection } from "@/components/dashboard/dashboard-charts-section";
 import { DashboardSidebarSection } from "@/components/dashboard/dashboard-sidebar-section";
-import { WeeklySummaryCard } from "@/components/dashboard/weekly-summary-card";
 import { NicheBenchmarkCard } from "@/components/dashboard/niche-benchmark-card";
+import { RiskControlCard } from "@/components/dashboard/risk-control-card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { markStaleJobsFailed } from "@/lib/jobs/queue";
 import { getNicheBySlug, isValidNicheSlug } from "@/lib/niches";
 import { selectStalledConversations } from "@/lib/dashboard/selectors/stalledConversations";
 import { createDefaultInsightRegistry } from "@/lib/dashboard/insights/defaultRegistry";
@@ -86,25 +85,6 @@ function ChartsSkeleton() {
   );
 }
 
-function SidebarSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-card p-4 shadow-card-modern">
-        <div className="skeleton-shimmer animate-shimmer mb-3 h-5 w-40 rounded" />
-        <div className="skeleton-shimmer animate-shimmer h-16 w-full rounded-lg" />
-      </div>
-      <div className="flex h-[200px] flex-col rounded-xl border border-border bg-card p-4 shadow-card-modern">
-        <div className="skeleton-shimmer animate-shimmer mb-4 h-5 w-36 rounded" />
-        <div className="skeleton-shimmer animate-shimmer min-h-0 flex-1 rounded-lg" />
-      </div>
-      <div className="flex h-[240px] flex-col rounded-xl border border-border bg-card p-4 shadow-card-modern">
-        <div className="skeleton-shimmer animate-shimmer mb-4 h-5 w-36 rounded" />
-        <div className="skeleton-shimmer animate-shimmer min-h-0 flex-1 rounded-lg" />
-      </div>
-    </div>
-  );
-}
-
 function DashboardCardSkeleton() {
   return (
     <div className="dashboard-panel rounded-[24px] p-5">
@@ -162,9 +142,6 @@ async function DashboardContent() {
     ? companyRow.niche_slug
     : "outro";
   const niche = getNicheBySlug(nicheSlug);
-
-  // Fire-and-forget: nao bloquear rendering enquanto marca jobs stale
-  void markStaleJobsFailed(companyId);
 
   try {
     const now = new Date();
@@ -266,15 +243,19 @@ async function DashboardContent() {
         style={{ "--module-color": "var(--color-primary)", "--module-color-bg": "var(--color-primary-dim)" } as CSSProperties}
       >
         <section className="dashboard-mesh overflow-hidden rounded-[28px] border border-border/70 p-5 sm:p-6 lg:p-7">
-          <div className="mb-5 flex flex-wrap items-center gap-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="section-label rounded-full border border-border/70 bg-card/70 px-3 py-1.5">
-              Dashboard executivo
+              Painel executivo
+              {companyName ? ` · ${companyName.toUpperCase()}` : ""}
             </span>
           </div>
-          <h1 className="ax-t1 sm:text-4xl">
+          <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--color-text)] sm:text-2xl">
             {greeting}
             {companyName ? `, ${companyName}` : ""}.
           </h1>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            Em menos de 90 segundos: o que está sangrando, o que está crescendo, onde colocar a próxima hora.
+          </p>
 
           <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,340px)] xl:items-stretch">
             <HeroMetric
@@ -292,13 +273,52 @@ async function DashboardContent() {
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="space-y-4">
-            <section className="relative">
-              <div className="dot-pattern-bg pointer-events-none absolute inset-0 rounded-[24px] opacity-30" />
-              <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Próxima Ação Recomendada — placeholder honesto até calibrar IA de priorização. */}
+        <section className="rounded-[20px] border border-border/70 bg-[var(--color-surface-sunken,var(--color-surface-2))] p-5 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info-light text-info">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="section-label">Próxima ação recomendada</p>
+              <p className="mt-1 text-base font-semibold text-text sm:text-lg">
+                {stalled.count > 0 && stalled.items[0]
+                  ? `Retomar conversa com ${stalled.items[0].customerName}`
+                  : "Nenhuma ação urgente agora"}
+              </p>
+              <p className="mt-1 text-xs italic leading-5 text-muted">
+                {stalled.count > 0
+                  ? "Coletando padrões de priorização — em ~30 conversas a IA começa a recomendar ações além das paradas."
+                  : "Sua semana está fluindo. Bom momento pra prospectar ou descansar."}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Alertas críticos (só renderiza quando há algo pendente — silencioso quando OK) */}
+        <Suspense fallback={null}>
+          <DashboardSidebarSection companyId={companyId} isOwnerOrAdmin={isOwnerOrAdmin} />
+        </Suspense>
+
+        <section className="space-y-4">
+          <section className="relative">
+            <div className="dot-pattern-bg pointer-events-none absolute inset-0 rounded-[24px] opacity-30" />
+            <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <MetricCard
-                  label="Conversas analisadas"
+                  label="Conversas analisadas · últimos 7 dias"
                   value={conversationsCurrent}
                   icon="message-square"
                   sublabel="últimos 7 dias"
@@ -306,6 +326,7 @@ async function DashboardContent() {
                   emptyMessage="Primeiros dados desta semana"
                   ctaLabel="Ver conversas"
                   ctaHref="/whatsapp-intelligence"
+                  narrative="Volume de interação do seu time esta semana."
                   emptyHint={
                     conversationsCurrent === 0
                       ? "Conecte o Evo CRM em Configurações para começar a sincronizar conversas."
@@ -316,7 +337,7 @@ async function DashboardContent() {
                   animationDelay="delay-100"
                 />
                 <MetricCard
-                  label="Oportunidades de venda"
+                  label="Oportunidades de venda ativas"
                   value={opportunitiesCurrent}
                   icon="shopping-cart"
                   sublabel="intenção de compra detectada"
@@ -324,36 +345,50 @@ async function DashboardContent() {
                   emptyMessage="Nenhuma intenção de compra detectada ainda"
                   ctaLabel="Ver oportunidades"
                   ctaHref="/whatsapp-intelligence?filter=compra"
+                  narrative={
+                    opportunitiesCurrent > 0
+                      ? "Clientes com sinal de compra detectado pela IA."
+                      : "A IA está aprendendo o padrão de compra do seu nicho. Volte amanhã."
+                  }
+                  variant="hero"
                   sparkData={opportunitySparkData}
                   animationDelay="delay-200"
                 />
-              </div>
-            </section>
-
-            {/* Resumo da semana + Benchmark vs nicho — fatos factuais e
-                comparação com peers anônimos do mesmo nicho. */}
-            <section className="grid gap-4 md:grid-cols-2">
               <Suspense fallback={<DashboardCardSkeleton />}>
-                <WeeklySummaryCard companyId={companyId} />
+                <RiskControlCard companyId={companyId} />
               </Suspense>
-              <Suspense fallback={<DashboardCardSkeleton />}>
-                <NicheBenchmarkCard companyId={companyId} />
-              </Suspense>
-            </section>
+            </div>
+          </section>
 
-            {/* Charts carregam independentemente via Suspense */}
-            <Suspense fallback={<ChartsSkeleton />}>
-              <DashboardChartsSection companyId={companyId} />
+          {/* Benchmark vs nicho — comparação com peers anônimos do mesmo nicho. */}
+          <section>
+            <Suspense fallback={<DashboardCardSkeleton />}>
+              <NicheBenchmarkCard companyId={companyId} />
             </Suspense>
-          </div>
+          </section>
 
-          {/* Sidebar carrega independentemente via Suspense */}
-          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-            <Suspense fallback={<SidebarSkeleton />}>
-              <DashboardSidebarSection companyId={companyId} isOwnerOrAdmin={isOwnerOrAdmin} />
-            </Suspense>
-          </aside>
+          {/* Charts carregam independentemente via Suspense */}
+          <Suspense fallback={<ChartsSkeleton />}>
+            <DashboardChartsSection companyId={companyId} />
+          </Suspense>
         </section>
+
+        {/* Footer silencioso — fonte dos dados e link pra configurar sincronização. */}
+        <footer className="mt-2 flex flex-wrap items-center gap-2 px-1 text-[11px] text-[var(--color-text-tertiary)]">
+          <span>Dados sincronizados de Evo CRM</span>
+          <span aria-hidden="true">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" aria-hidden="true" />
+            Operacional
+          </span>
+          <span aria-hidden="true">·</span>
+          <a
+            href="/settings?tab=integrations"
+            className="border-b border-border/70 text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+          >
+            Configurar sincronização →
+          </a>
+        </footer>
       </main>
     );
   } catch {

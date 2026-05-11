@@ -3,14 +3,6 @@
   "framework": "nextjs",
   "crons": [
     {
-      "path": "/api/report/send",
-      "schedule": "0 11 * * 1"
-    },
-    {
-      "path": "/api/report/daily",
-      "schedule": "0 22 * * *"
-    },
-    {
       "path": "/api/cron/group-rag-batch",
       "schedule": "0 3 * * *"
     }

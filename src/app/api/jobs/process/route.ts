@@ -18,7 +18,6 @@ export const maxDuration = 300;
 const allowedJobTypes = [
   "evo_crm_sync",
   "whatsapp_analyze",
-  "weekly_report",
   "competitor_scrape",
   "radar_collect",
   "group_agent_respond",

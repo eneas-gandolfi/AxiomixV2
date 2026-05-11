@@ -1,14 +1,17 @@
 /**
  * Arquivo: src/components/dashboard/sentiment-overview.tsx
- * Propósito: Donut chart de sentimento das conversas com legenda rica
+ * Propósito: Donut de sentimento das conversas (últimos 7 dias) com legenda
+ *            sóbria (sem emoji-icons — Caravaggio's red line). Estados vazio
+ *            e calibrando seguem o padrão "Coletando amostra X de Y" da Sally,
+ *            com badge HEURÍSTICA tracejado quando amostra insuficiente.
  * Autor: AXIOMIX
- * Data: 2026-03-19
+ * Data: 2026-05-11
  */
 
 "use client";
 
+import { Hourglass, MessageSquare, TrendingUp } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { Frown, Meh, MessageSquare, Smile } from "lucide-react";
 
 export type SentimentOverviewData = {
   positive: number;
@@ -37,23 +40,45 @@ const COLORS = {
   negative: "var(--color-danger)",
 };
 
+function CardHeader() {
+  return (
+    <header className="mb-4 flex items-start justify-between gap-3">
+      <div>
+        <div className="mb-1 flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
+          <p className="section-label">Sentimento das conversas</p>
+        </div>
+        <p className="text-xs text-muted">Últimos 7 dias</p>
+      </div>
+    </header>
+  );
+}
+
+function HeuristicBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-card px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted">
+      Heurística · amostra insuficiente
+    </span>
+  );
+}
+
 export function SentimentOverview({ data }: SentimentOverviewProps) {
   if (data.total === 0) {
     return (
-      <section className="rounded-xl border border-border bg-card p-4 shadow-card-modern">
-        <header className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-text">Sentimento das conversas</h2>
-          <span className="rounded-md bg-sidebar px-2 py-1 text-xs text-muted">
-            Últimos 7 dias
+      <section className="rounded-xl border border-border bg-card p-4 shadow-card-modern sm:p-5">
+        <CardHeader />
+        <div className="flex min-h-[160px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-surface-subtle p-6 text-center">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-card">
+            <MessageSquare className="h-5 w-5 text-muted" aria-hidden="true" />
           </span>
-        </header>
-        <div className="flex min-h-[80px] flex-col items-center justify-center gap-3 rounded-lg bg-surface-subtle py-4 text-center">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sidebar">
-            <MessageSquare size={20} className="text-muted-light" aria-hidden="true" />
-          </span>
-          <p className="max-w-[280px] text-sm text-muted">
-            Nenhuma conversa analisada ainda. Conecte o Evo CRM para começar.
-          </p>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-text">
+              Nenhuma conversa analisada ainda
+            </p>
+            <p className="max-w-md text-xs leading-5 text-muted">
+              Conecte o Evo CRM em Configurações pra começar a sincronizar conversas.
+            </p>
+          </div>
         </div>
       </section>
     );
@@ -62,21 +87,23 @@ export function SentimentOverview({ data }: SentimentOverviewProps) {
   if (data.total < SENTIMENT_MIN_SAMPLE) {
     const remaining = SENTIMENT_MIN_SAMPLE - data.total;
     return (
-      <section className="rounded-xl border border-border bg-card p-4 shadow-card-modern">
-        <header className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-text">Sentimento das conversas</h2>
-          <span className="rounded-md bg-sidebar px-2 py-1 text-xs text-muted">
-            Últimos 7 dias
+      <section className="rounded-xl border border-border bg-card p-4 shadow-card-modern sm:p-5">
+        <CardHeader />
+        <div className="flex min-h-[160px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-surface-subtle p-6 text-center">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-card">
+            <Hourglass className="h-5 w-5 text-muted" aria-hidden="true" />
           </span>
-        </header>
-        <div className="flex min-h-[80px] flex-col items-center justify-center gap-3 rounded-lg bg-surface-subtle py-4 text-center">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sidebar">
-            <MessageSquare size={20} className="text-muted-light" aria-hidden="true" />
-          </span>
-          <p className="max-w-[280px] text-sm text-muted">
-            Coletando amostra: {data.total} de {SENTIMENT_MIN_SAMPLE} conversas analisadas.
-            Faltam {remaining} pra mostrar percentuais confiáveis.
-          </p>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-text">
+              Coletando amostra: {data.total} de {SENTIMENT_MIN_SAMPLE} conversas analisadas
+            </p>
+            <p className="max-w-md text-xs leading-5 text-muted">
+              {remaining === 1
+                ? "Falta 1 conversa pra mostrar percentuais confiáveis."
+                : `Faltam ${remaining} conversas pra mostrar percentuais confiáveis.`}
+            </p>
+          </div>
+          <HeuristicBadge />
         </div>
       </section>
     );
@@ -93,16 +120,10 @@ export function SentimentOverview({ data }: SentimentOverviewProps) {
   ].filter((d) => d.value > 0);
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4 shadow-card-modern">
-      <header className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-text">Sentimento das conversas</h2>
-        <span className="rounded-md bg-sidebar px-2 py-1 text-xs text-muted">
-          Últimos 7 dias
-        </span>
-      </header>
+    <section className="rounded-xl border border-border bg-card p-4 shadow-card-modern sm:p-5">
+      <CardHeader />
 
       <div className="flex items-center gap-6">
-        {/* Donut */}
         <div className="relative h-[140px] w-[140px] flex-shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -123,7 +144,6 @@ export function SentimentOverview({ data }: SentimentOverviewProps) {
               </Pie>
             </PieChart>
           </ResponsiveContainer>
-          {/* Total centralizado */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-lg font-bold tabular-nums text-text">
               {data.total.toLocaleString("pt-BR")}
@@ -132,39 +152,55 @@ export function SentimentOverview({ data }: SentimentOverviewProps) {
           </div>
         </div>
 
-        {/* Legenda */}
-        <div className="flex flex-1 flex-col gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-success-light">
-              <Smile className="h-3.5 w-3.5 text-success" />
-            </span>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text">Positivo</p>
-              <p className="text-xs text-muted tabular-nums">{positivePercent}% · {data.positive} conv.</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-warning-light">
-              <Meh className="h-3.5 w-3.5 text-warning" />
-            </span>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text">Neutro</p>
-              <p className="text-xs text-muted tabular-nums">{neutralPercent}% · {data.neutral} conv.</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-danger-light">
-              <Frown className="h-3.5 w-3.5 text-danger" />
-            </span>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text">Negativo</p>
-              <p className="text-xs text-muted tabular-nums">{negativePercent}% · {data.negative} conv.</p>
-            </div>
-          </div>
-        </div>
+        <ul className="flex flex-1 flex-col gap-3">
+          <LegendRow
+            label="Positivo"
+            value={data.positive}
+            percent={positivePercent}
+            color={COLORS.positive}
+          />
+          <LegendRow
+            label="Neutro"
+            value={data.neutral}
+            percent={neutralPercent}
+            color={COLORS.neutral}
+          />
+          <LegendRow
+            label="Negativo"
+            value={data.negative}
+            percent={negativePercent}
+            color={COLORS.negative}
+          />
+        </ul>
       </div>
     </section>
+  );
+}
+
+function LegendRow({
+  label,
+  value,
+  percent,
+  color,
+}: {
+  label: string;
+  value: number;
+  percent: number;
+  color: string;
+}) {
+  return (
+    <li className="flex items-center gap-2.5">
+      <span
+        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+        style={{ background: color }}
+        aria-hidden="true"
+      />
+      <div className="flex-1">
+        <p className="text-sm font-medium text-text">{label}</p>
+        <p className="text-xs text-muted tabular-nums">
+          {percent}% · {value} conv.
+        </p>
+      </div>
+    </li>
   );
 }

@@ -14,6 +14,16 @@ import type { StalledConversations } from "@/lib/dashboard/selectors/stalledConv
 
 export type InsightSeverity = "info" | "amber" | "red";
 
+/** Métrica concreta exibida em destaque no card de insight. Sally + Caravaggio
+ *  + John + Mary alinharam: insight sem número é fofoca. Esse campo dá ao
+ *  insight a magnitude que o HeroMetric (contagem) não cobre. */
+export type InsightMetric = {
+  /** Valor principal em destaque (ex: "18min", "R$ 4.280", "+38%"). */
+  value: string;
+  /** Contexto curto opcional (ex: "meta 5min · em 3 conversas"). */
+  sub?: string;
+};
+
 export type Insight = {
   /** Identificador da regra que produziu este insight (ex: "tfr-breach"). */
   ruleId: string;
@@ -29,6 +39,9 @@ export type Insight = {
   ctaLabel: string;
   /** Destino do CTA (rota interna). */
   ctaHref: string;
+  /** Métrica concreta a destacar no topo do card (opcional). Quando ausente,
+   *  o card é só texto + CTA — fallback pra strategies que não têm número. */
+  metric?: InsightMetric;
 };
 
 export type InsightContext = {

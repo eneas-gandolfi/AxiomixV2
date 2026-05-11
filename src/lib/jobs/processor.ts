@@ -35,11 +35,6 @@ const whatsappAnalyzePayloadSchema = z.object({
   conversationId: z.string().uuid("conversationId inválido."),
 });
 
-const weeklyReportPayloadSchema = z.object({
-  weekStartIso: z.string().datetime().optional(),
-  weekEndIso: z.string().datetime().optional(),
-});
-
 const ragProcessPayloadSchema = z.object({
   documentId: z.string().uuid("documentId inválido."),
 });
@@ -108,29 +103,6 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
       const parsed = whatsappAnalyzePayloadSchema.parse(payload);
       const { analyzeConversation } = await import("@/services/whatsapp/analyzer");
       return analyzeConversation(job.company_id, parsed.conversationId);
-    }
-    case "weekly_report": {
-      const parsed = weeklyReportPayloadSchema.parse(payload);
-      const { runWeeklyReportJob } = await import("@/services/report/weekly-job");
-      return runWeeklyReportJob({
-        companyId: job.company_id,
-        jobId: job.id,
-        period: {
-          weekStartIso: parsed.weekStartIso,
-          weekEndIso: parsed.weekEndIso,
-        },
-      });
-    }
-    case "daily_report": {
-      const parsed = z.object({
-        reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-      }).parse(payload);
-      const { runDailyReportJob } = await import("@/services/report/daily-job");
-      return runDailyReportJob({
-        companyId: job.company_id,
-        jobId: job.id,
-        reportDate: parsed.reportDate,
-      });
     }
     case "rag_process": {
       const parsed = ragProcessPayloadSchema.parse(payload);

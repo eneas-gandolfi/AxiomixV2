@@ -1,25 +1,18 @@
 /**
  * Arquivo: src/components/dashboard/dashboard-sidebar-section.tsx
  * Propósito: Seção lateral do dashboard carregada com Suspense independente.
- *            Mostra alertas críticos (ou "Tudo em dia") + relatórios recentes.
- *            "Status das integrações" e "Próximo relatório semanal" foram
- *            movidos pra Configurações — eram setup/plumbing, não decisão.
+ *            Mostra alertas críticos (ou "Tudo em dia") com base em conversas
+ *            negativas não resolvidas e integrações com erro.
  * Autor: AXIOMIX
- * Data: 2026-05-05
+ * Data: 2026-05-11
  */
 
 import { unstable_noStore as noStore } from "next/cache";
-import { ShieldCheck } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AlertsCard, type DashboardAlert } from "@/components/dashboard/alerts-card";
-import {
-  RecentReportsCard,
-  type RecentReportItem,
-} from "@/components/dashboard/recent-reports-card";
 import type { Database, Json } from "@/database/types/database.types";
 
 type IntegrationRow = Database["public"]["Tables"]["integrations"]["Row"];
-type AsyncJobRow = Database["public"]["Tables"]["async_jobs"]["Row"];
 
 const DAY_MS = 86_400_000;
 
@@ -42,36 +35,11 @@ function extractPlatforms(rawPlatforms: Json) {
     .filter((p): p is string => Boolean(p));
 }
 
-function parseReportText(payload: Json | null, fallback?: Json | null) {
-  const parseObject = (value?: Json | null) => {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-    return value;
-  };
-  const resultObject = parseObject(fallback);
-  if (resultObject) {
-    const text = resultObject.reportText ?? resultObject.report_text;
-    if (typeof text === "string" && text.trim().length > 0) return text;
-  }
-  const payloadObject = parseObject(payload);
-  if (payloadObject) {
-    const text = payloadObject.reportText ?? payloadObject.report_text;
-    if (typeof text === "string" && text.trim().length > 0) return text;
-  }
-  return "Relatório sem conteúdo disponível.";
-}
-
 export async function DashboardSidebarSection({
   companyId,
-  isOwnerOrAdmin: _isOwnerOrAdmin,
 }: {
   companyId: string;
-  /**
-   * Mantido na API por compatibilidade — anteriormente usado pelo
-   * NextReportCard pra decidir se o botão "Enviar agora" aparecia.
-   * O card foi movido pra Configurações; o flag continua aqui pra não
-   * quebrar o callsite enquanto a refatoração avança.
-   */
-  isOwnerOrAdmin: boolean;
+  isOwnerOrAdmin?: boolean;
 }) {
   noStore();
 
@@ -85,8 +53,6 @@ export async function DashboardSidebarSection({
     negativeInsightsResult,
     integrationsResult,
     failedPostsResult,
-    reportsDoneResult,
-    reportsQueueResult,
   ] = await Promise.all([
     supabase
       .from("conversation_insights")
@@ -106,21 +72,6 @@ export async function DashboardSidebarSection({
       .eq("status", "failed")
       .gte("created_at", sevenDaysAgoIso)
       .lte("created_at", nowIso),
-    supabase
-      .from("async_jobs")
-      .select("id, completed_at, payload, result, status, error_message")
-      .eq("company_id", companyId)
-      .eq("job_type", "weekly_report")
-      .in("status", ["done", "failed"])
-      .order("completed_at", { ascending: false })
-      .limit(3),
-    supabase
-      .from("async_jobs")
-      .select("id, status, created_at")
-      .eq("company_id", companyId)
-      .eq("job_type", "weekly_report")
-      .in("status", ["pending", "running"])
-      .gte("created_at", new Date(Date.now() - 30 * 60_000).toISOString()),
   ]);
 
   // Negative conversations resolution
@@ -234,71 +185,12 @@ export async function DashboardSidebarSection({
       });
     });
 
-  // Recent reports — seguem aqui (é conteúdo, não config).
-  const reportQueue = (reportsQueueResult.data ?? []) as Pick<
-    AsyncJobRow,
-    "id" | "status" | "created_at"
-  >[];
-  const hasRunningReport = reportQueue.some((job) => job.status === "running");
-  const runningJobCreatedAt = reportQueue[0]?.created_at ?? null;
+  // Quando não há alertas, retorna null — o RiskControlCard no tríptico
+  // já mostra "0 alertas / Tudo em dia". Evita duplicação e elimina o
+  // espaço vazio na sidebar quando o sistema está saudável.
+  if (alerts.length === 0) {
+    return null;
+  }
 
-  const recentReports: RecentReportItem[] = (
-    (reportsDoneResult.data ?? []) as Array<
-      Pick<
-        AsyncJobRow,
-        "id" | "completed_at" | "payload" | "result" | "status" | "error_message"
-      >
-    >
-  ).map((row) => {
-    const resultObj =
-      typeof row.result === "object" && row.result !== null && !Array.isArray(row.result)
-        ? (row.result as Record<string, unknown>)
-        : null;
-    const deliveryFailed = resultObj?.deliveryStatus === "failed";
-    const deliveryError =
-      typeof resultObj?.deliveryError === "string" ? resultObj.deliveryError : null;
-    let displayStatus: "done" | "failed" | "delivery_failed" = row.status as "done" | "failed";
-    if (row.status === "done" && deliveryFailed) displayStatus = "delivery_failed";
-    const pdfStoragePath =
-      typeof resultObj?.pdfStoragePath === "string" ? resultObj.pdfStoragePath : null;
-
-    return {
-      id: row.id,
-      completedAt: row.completed_at,
-      reportText: parseReportText(row.payload, row.result),
-      status: displayStatus,
-      errorMessage: row.error_message ?? deliveryError,
-      pdfStoragePath,
-    };
-  });
-
-  return (
-    <>
-      {alerts.length > 0 ? (
-        <AlertsCard alerts={alerts} />
-      ) : (
-        <section className="dashboard-panel rounded-[24px] p-5">
-          <div className="flex items-start gap-3">
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-success-light">
-              <ShieldCheck className="h-5 w-5 text-success" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="section-label">Controle de risco</p>
-              <h2 className="mt-1 text-lg font-semibold text-text">Tudo em dia</h2>
-              <p className="mt-2 text-sm leading-6 text-muted">
-                Nenhum alerta crítico ativo. Sistema saudável, nada exigindo
-                sua intervenção.
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      <RecentReportsCard
-        reports={recentReports}
-        hasRunningJob={hasRunningReport}
-        runningJobCreatedAt={runningJobCreatedAt}
-      />
-    </>
-  );
+  return <AlertsCard alerts={alerts} />;
 }

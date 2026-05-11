@@ -55,6 +55,8 @@ export interface MetricCardProps {
   variant?: "default" | "hero" | "status";
   sparkData?: SparkData;
   animationDelay?: string;
+  /** Frase narrativa conclusiva (padrão "Controle de Risco" da Mary). */
+  narrative?: string;
 }
 
 function renderDelta(delta: number | null | undefined, emptyMessage?: string) {
@@ -136,6 +138,7 @@ export function MetricCard({
   variant = "default",
   sparkData,
   animationDelay,
+  narrative,
 }: MetricCardProps) {
   const Icon = ICON_MAP[icon];
   const animatedValue = useAnimatedValue(value);
@@ -165,62 +168,49 @@ export function MetricCard({
   return (
     <article
       className={cn(
-        "group rounded-xl border bg-card p-3 transition-all duration-200 sm:p-4",
+        "group flex flex-col rounded-xl border bg-card p-4 transition-all duration-200 sm:p-5",
         "opacity-0 animate-ax-cascade",
-        isHero
-          ? "gradient-border-card shadow-card-elevated hover:shadow-card-hover-modern"
-          : isStatus
-            ? "border-border/80 bg-surface-2/50 shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern hover:border-[rgb(var(--color-primary-rgb)/0.25)]"
-            : "border-border shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern hover:border-[rgb(var(--color-primary-rgb)/0.25)]",
+        isStatus
+          ? "border-border/80 bg-surface-2/50 shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern"
+          : "border-border shadow-card-modern hover:-translate-y-0.5 hover:shadow-card-hover-modern",
         animationDelay
       )}
     >
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <p className={cn("text-sm text-muted", (isHero || isStatus) && "section-label")}>{label}</p>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <p className="section-label">{label}</p>
         <span
           className={cn(
-            "inline-flex items-center justify-center rounded-lg transition-all duration-200 group-hover:shadow-md",
-            isStatus
-              ? "bg-warning-light group-hover:bg-warning group-hover:shadow-warning/20"
-              : "bg-primary-light group-hover:bg-primary group-hover:shadow-primary/20",
-            isHero ? "h-9 w-9" : "h-8 w-8"
+            "inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-200",
+            isStatus ? "bg-warning-light" : "bg-primary-light"
           )}
         >
           <Icon
-            className={cn(
-              "transition-colors duration-200 group-hover:text-white",
-              isStatus ? "text-warning" : "text-primary",
-              "h-4 w-4"
-            )}
+            className={cn(isStatus ? "text-warning" : "text-primary", "h-4 w-4")}
             aria-label={label}
           />
         </span>
       </div>
 
-      <p
-        className={cn(
-          "font-bold tracking-tight tabular-nums text-text",
-          isHero ? "font-display text-2xl sm:text-3xl" : "text-xl sm:text-2xl"
-        )}
-      >
+      <p className={cn(isHero ? "ax-metric-lg" : "ax-kpi", "text-text")}>
         {animatedValue.toLocaleString("pt-BR")}
       </p>
 
-      <div className="mt-1">{renderDelta(change, emptyMessage)}</div>
+      <div className="mt-2">{renderDelta(change, emptyMessage)}</div>
 
       {sparkData && sparkData.length > 0 && (
-        <div className={cn("mt-2", isHero ? "h-[36px]" : "h-[32px]")}>
-          <Sparkline
-            data={sparkData}
-            color={isHero ? "var(--color-primary)" : "var(--color-text-tertiary)"}
-          />
+        <div className={cn("mt-3", isHero ? "h-[36px]" : "h-[32px]")}>
+          <Sparkline data={sparkData} color="var(--color-text-tertiary)" />
         </div>
       )}
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <p className="text-xs text-muted">{sublabel}</p>
         {alert && alert.count > 0 ? <AlertBadge alert={alert} /> : null}
       </div>
+
+      {narrative ? (
+        <p className="mt-2 text-xs leading-5 text-muted">{narrative}</p>
+      ) : null}
 
       {value === 0 && emptyHint ? (
         <div className="mt-2">
@@ -237,10 +227,10 @@ export function MetricCard({
       ) : null}
 
       {ctaHref && ctaLabel ? (
-        <div className="mt-2 border-t border-border pt-2">
+        <div className="mt-auto border-t border-border pt-3">
           <Link
             href={ctaHref}
-            className="flex items-center gap-1 text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {ctaLabel}
             <ArrowRight className="h-[11px] w-[11px]" aria-hidden="true" />

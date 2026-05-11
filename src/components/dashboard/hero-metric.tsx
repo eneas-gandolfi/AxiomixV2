@@ -142,19 +142,19 @@ export function HeroMetric({
         ? "var(--color-warning)"
         : "var(--color-primary)";
 
+  const showHeroNumber = state === "amber" || state === "red";
+
   return (
     <div
       data-testid="hero-metric"
       data-state={state}
       className={cn(
-        "dashboard-panel relative flex flex-col gap-3 rounded-[24px] p-5 sm:p-6",
+        "dashboard-panel relative flex flex-col gap-4 rounded-[24px] p-5 sm:p-6",
         className,
       )}
     >
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
-          {label}
-        </span>
+        <span className="section-label">{label}</span>
         {showBadge && (
           <span className={badgeClasses} aria-live="polite">
             <Clock className="h-3 w-3" aria-hidden="true" />
@@ -163,29 +163,51 @@ export function HeroMetric({
         )}
       </div>
 
-      <h2 className="font-display font-bold leading-snug tracking-tight text-xl sm:text-2xl">
-        {copy.title}
-      </h2>
-
-      <p className="ax-body text-[var(--color-text-secondary)]">{copy.body}</p>
+      {showHeroNumber ? (
+        <div className="flex items-end gap-5">
+          <span
+            className="ax-metric-hero shrink-0"
+            style={{ color: accentColor }}
+            aria-label={`${count} ${count === 1 ? customerNoun.singular : customerNoun.plural}`}
+          >
+            {count}
+          </span>
+          <div className="flex flex-col gap-1 pb-2">
+            <h2 className="font-display text-base font-semibold leading-snug text-[var(--color-text)] sm:text-lg">
+              {copy.title}
+            </h2>
+            <p className="ax-body text-[var(--color-text-secondary)]">{copy.body}</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <h2 className="font-display font-bold leading-snug tracking-tight text-xl sm:text-2xl">
+            {copy.title}
+          </h2>
+          <p className="ax-body text-[var(--color-text-secondary)]">{copy.body}</p>
+        </>
+      )}
 
       {previewItems.length > 0 && (
         <ul
           data-testid="hero-metric-preview"
-          className="flex flex-col gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
+          className="flex flex-col gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-2"
         >
           {previewItems.map((item) => (
             <li
               key={item.conversationId}
-              className="flex items-center justify-between gap-3 text-sm"
+              className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-[var(--color-surface)]"
             >
-              <span className="flex items-center gap-2 truncate text-[var(--color-text)]">
+              <span className="flex min-w-0 items-center gap-2 truncate text-[var(--color-text)]">
                 <span
                   className="h-1.5 w-1.5 shrink-0 rounded-full"
                   style={{ background: accentColor }}
                   aria-hidden="true"
                 />
                 <span className="truncate font-medium">{item.customerName}</span>
+                <span className="hidden shrink-0 font-mono text-[11px] text-[var(--color-text-tertiary)] sm:inline">
+                  #{item.conversationId.slice(0, 8)}
+                </span>
               </span>
               <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--color-text-secondary)]">
                 {formatWaitLabel(item.waitSeconds)}
@@ -193,14 +215,14 @@ export function HeroMetric({
             </li>
           ))}
           {overflow > 0 && (
-            <li className="pt-0.5 text-xs text-[var(--color-text-tertiary)]">
+            <li className="px-2 pt-0.5 text-xs text-[var(--color-text-tertiary)]">
               + {overflow} {overflow === 1 ? "outro" : "outros"} esperando
             </li>
           )}
         </ul>
       )}
 
-      <div className="mt-auto pt-2">
+      <div className="mt-auto flex justify-end pt-1">
         <Link
           href={ctaHref}
           className={cn(
@@ -209,7 +231,7 @@ export function HeroMetric({
               ? "bg-[var(--color-danger)] text-white hover:opacity-90"
               : state === "amber"
                 ? "bg-[var(--color-warning)] text-white hover:opacity-90"
-                : "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]",
+                : "border border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]",
           )}
         >
           {copy.ctaLabel}
