@@ -284,10 +284,10 @@ function AnalysisEmptyBanner({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] px-4 py-3">
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-[var(--color-text)]">
-            Conversas prontas para análise de IA
+            Suas conversas estão prontas para análise
           </p>
           <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--color-text-secondary)]">
-            Rode a análise para liberar §1–§4 (sentimento, intenção, benchmark e heatmap de volume).
+            Rode a IA para extrair sentimento, intenção e oportunidades de cada conversa.
           </p>
         </div>
         <div className="flex gap-2">
@@ -306,10 +306,10 @@ function AnalysisEmptyBanner({
         </div>
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-[var(--color-text)]">
-            Conecte o Evo CRM para liberar análise de IA
+            Conecte o WhatsApp para começar
           </p>
           <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--color-text-secondary)]">
-            Sentimento, intenção e benchmark precisam de conversas sincronizadas.
+            Importe suas conversas pra ver sentimento, intenção e onde tá escapando venda.
           </p>
         </div>
       </div>
