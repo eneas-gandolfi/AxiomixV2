@@ -27,6 +27,12 @@ import { SessionStatusBadge } from "@/components/whatsapp/session-status-badge";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { cn } from "@/lib/utils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  canonicalIntent,
+  canonicalSentiment,
+  canonicalStage,
+  fixAccents,
+} from "@/lib/whatsapp/normalize-ia-text";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export type ConversationDetailMode = "full" | "drawer";
@@ -41,6 +47,30 @@ type ParsedInsightData = {
 function formatDate(value?: string | null) {
   if (!value) return "Sem data";
   return new Date(value).toLocaleString("pt-BR");
+}
+
+function formatShortDate(value?: string | null) {
+  if (!value) return "—";
+  const d = new Date(value);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const months = [
+    "jan",
+    "fev",
+    "mar",
+    "abr",
+    "mai",
+    "jun",
+    "jul",
+    "ago",
+    "set",
+    "out",
+    "nov",
+    "dez",
+  ];
+  const mm = months[d.getMonth()];
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd} ${mm} · ${hh}:${mi}`;
 }
 
 function getIntentIcon(intent?: string | null) {
@@ -95,22 +125,7 @@ function parseInsightData(raw: unknown): ParsedInsightData {
 }
 
 function getStageLabel(stage?: string | null) {
-  switch (stage) {
-    case "discovery":
-      return "Discovery";
-    case "qualification":
-      return "Qualificação";
-    case "proposal":
-      return "Proposta";
-    case "negotiation":
-      return "Negociação";
-    case "closing":
-      return "Fechamento";
-    case "post_sale":
-      return "Pós-venda";
-    default:
-      return "Indefinido";
-  }
+  return canonicalStage(stage);
 }
 
 function parseStringArray(raw: unknown) {
@@ -366,9 +381,9 @@ export async function ConversationDetailView({
             >
               Briefing
             </h2>
-            <span className="font-mono text-[10px] tracking-[0.02em] text-[var(--color-text-tertiary,var(--color-text-secondary))]">
+            <span className="font-mono text-[10.5px] tracking-[0.02em] text-[var(--color-text-tertiary,var(--color-text-secondary))]">
               {insight?.generated_at
-                ? formatDate(insight.generated_at)
+                ? formatShortDate(insight.generated_at)
                 : "ainda não analisado"}
             </span>
           </div>
@@ -381,7 +396,7 @@ export async function ConversationDetailView({
           <>
             {/* Diagnóstico */}
             <section className="border-b border-[var(--color-border)] px-5 py-4">
-              <h3 className="mb-3 pl-3.5 text-[9.5px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-tertiary,var(--color-text-secondary))] relative before:absolute before:left-0 before:top-1/2 before:h-px before:w-1.5 before:-translate-y-1/2 before:bg-current">
+              <h3 className="mb-3 text-[9.5px] font-bold uppercase tracking-[0.22em] text-[var(--color-text-tertiary,var(--color-text-secondary))]">
                 Diagnóstico
               </h3>
               <div
@@ -412,7 +427,7 @@ export async function ConversationDetailView({
                         color: getSentimentColor(insight.sentiment),
                       }}
                     >
-                      {insight.sentiment ?? "—"}
+                      {canonicalSentiment(insight.sentiment) || "—"}
                     </div>
                   </div>
                   <div>
@@ -454,21 +469,32 @@ export async function ConversationDetailView({
 
                 {insight.intent ? (
                   <div className="mt-4 flex items-center gap-3 border-t border-dashed border-[var(--color-border)] pt-4">
-                    <span className="min-w-[60px] text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-tertiary,var(--color-text-secondary))]">
-                      Intenção
-                    </span>
-                    <span
-                      className="text-[16px] font-semibold leading-none text-[var(--color-text)]"
-                      style={{ letterSpacing: "-0.015em", textTransform: "capitalize" }}
-                    >
-                      {insight.intent}
-                    </span>
                     {(() => {
                       const Icon = getIntentIcon(insight.intent);
                       return (
-                        <Icon className="ml-auto h-4 w-4 text-[var(--color-text-secondary)]" />
+                        <span
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md"
+                          style={{
+                            backgroundColor: "var(--color-surface)",
+                            color: "var(--color-text-secondary)",
+                          }}
+                          aria-hidden="true"
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
                       );
                     })()}
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-tertiary,var(--color-text-secondary))]">
+                        Intenção
+                      </span>
+                      <span
+                        className="text-[15.5px] font-semibold leading-none text-[var(--color-text)]"
+                        style={{ letterSpacing: "-0.015em" }}
+                      >
+                        {canonicalIntent(insight.intent)}
+                      </span>
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -476,7 +502,7 @@ export async function ConversationDetailView({
 
             {/* Leitura estruturada */}
             <section className="border-b border-[var(--color-border)] px-5 py-4">
-              <h3 className="mb-3 pl-3.5 text-[9.5px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-tertiary,var(--color-text-secondary))] relative before:absolute before:left-0 before:top-1/2 before:h-px before:w-1.5 before:-translate-y-1/2 before:bg-current">
+              <h3 className="mb-3 text-[9.5px] font-bold uppercase tracking-[0.22em] text-[var(--color-text-tertiary,var(--color-text-secondary))]">
                 Leitura
               </h3>
               <div className="grid grid-cols-2 gap-x-5 gap-y-4">
@@ -496,19 +522,19 @@ export async function ConversationDetailView({
                 />
                 <BriefCell
                   label="Próximo"
-                  value={insight.next_commitment ?? "não definido"}
+                  value={fixAccents(insight.next_commitment) || "não definido"}
                   dim={!insight.next_commitment}
                 />
                 <BriefCell
                   label="Travamento"
-                  value={insight.stall_reason ?? "não identificado"}
+                  value={fixAccents(insight.stall_reason) || "não identificado"}
                   dim={!insight.stall_reason}
                 />
                 {insight.implicit_need ? (
-                  <BriefCell label="Necessidade implícita" value={insight.implicit_need} fullWidth />
+                  <BriefCell label="Necessidade implícita" value={fixAccents(insight.implicit_need)} fullWidth />
                 ) : null}
                 {insight.explicit_need ? (
-                  <BriefCell label="Necessidade explícita" value={insight.explicit_need} fullWidth />
+                  <BriefCell label="Necessidade explícita" value={fixAccents(insight.explicit_need)} fullWidth />
                 ) : null}
               </div>
 
@@ -521,13 +547,13 @@ export async function ConversationDetailView({
                     {objections.map((item) => (
                       <span
                         key={item}
-                        className="rounded-full px-2 py-0.5 text-xs"
+                        className="rounded-full px-2.5 py-1 text-[11.5px] font-medium"
                         style={{
                           color: "var(--color-warning)",
                           backgroundColor: "var(--color-warning-bg)",
                         }}
                       >
-                        {item}
+                        {fixAccents(item)}
                       </span>
                     ))}
                   </div>
@@ -538,14 +564,14 @@ export async function ConversationDetailView({
             {/* Resumo */}
             {insight.summary ? (
               <section className="border-b border-[var(--color-border)] px-5 py-4">
-                <h3 className="mb-3 pl-3.5 text-[9.5px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-tertiary,var(--color-text-secondary))] relative before:absolute before:left-0 before:top-1/2 before:h-px before:w-1.5 before:-translate-y-1/2 before:bg-current">
+                <h3 className="mb-3 text-[9.5px] font-bold uppercase tracking-[0.22em] text-[var(--color-text-tertiary,var(--color-text-secondary))]">
                   Resumo
                 </h3>
                 <div
                   className="rounded-r-lg border-l-2 bg-[var(--color-surface)] px-4 py-3 text-[13px] leading-relaxed text-[var(--color-text-secondary)]"
                   style={{ borderColor: "var(--color-warning)" }}
                 >
-                  {insight.summary}
+                  {fixAccents(insight.summary)}
                 </div>
               </section>
             ) : null}
@@ -553,7 +579,7 @@ export async function ConversationDetailView({
             {/* Resposta sugerida */}
             {insightData.suggestedResponse ? (
               <section className="border-b border-[var(--color-border)] px-5 py-4">
-                <h3 className="mb-3 pl-3.5 text-[9.5px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-tertiary,var(--color-text-secondary))] relative before:absolute before:left-0 before:top-1/2 before:h-px before:w-1.5 before:-translate-y-1/2 before:bg-current">
+                <h3 className="mb-3 text-[9.5px] font-bold uppercase tracking-[0.22em] text-[var(--color-text-tertiary,var(--color-text-secondary))]">
                   Resposta sugerida
                 </h3>
                 <div
@@ -564,7 +590,7 @@ export async function ConversationDetailView({
                     borderColor: "rgba(232, 96, 15, 0.25)",
                   }}
                 >
-                  {insightData.suggestedResponse}
+                  {fixAccents(insightData.suggestedResponse)}
                 </div>
               </section>
             ) : null}
@@ -572,11 +598,13 @@ export async function ConversationDetailView({
             {/* Ações sugeridas */}
             {insightData.actionItems.length > 0 ? (
               <section className="border-b border-[var(--color-border)] px-5 py-4">
-                <h3 className="mb-3 pl-3.5 text-[9.5px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-tertiary,var(--color-text-secondary))] relative before:absolute before:left-0 before:top-1/2 before:h-px before:w-1.5 before:-translate-y-1/2 before:bg-current">
+                <h3 className="mb-3 text-[9.5px] font-bold uppercase tracking-[0.22em] text-[var(--color-text-tertiary,var(--color-text-secondary))]">
                   Ações
                 </h3>
                 <ul className="space-y-2">
-                  {insightData.actionItems.map((item, index) => (
+                  {insightData.actionItems.map((rawItem, index) => {
+                    const item = fixAccents(rawItem);
+                    return (
                     <li
                       key={item}
                       className="flex items-start gap-2.5 text-[13px] text-[var(--color-text-secondary)]"
@@ -592,7 +620,8 @@ export async function ConversationDetailView({
                       </span>
                       <span className="leading-snug">{item}</span>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               </section>
             ) : null}
