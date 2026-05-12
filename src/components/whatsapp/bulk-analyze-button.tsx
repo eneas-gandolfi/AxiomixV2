@@ -181,7 +181,7 @@ export function BulkAnalyzeButton({ companyId }: BulkAnalyzeButtonProps) {
         disabled={isLoading || isPolling}
       >
         <Sparkles className={`h-4 w-4 ${isLoading || isPolling ? "animate-pulse" : ""}`} />
-        {isLoading ? "Enfileirando..." : isPolling ? "Analisando..." : "Analisar todas pendentes"}
+        {isLoading ? "Enfileirando..." : isPolling ? "Analisando..." : "Analisar pendentes"}
       </Button>
       {isPolling && progressPct !== null ? (
         <div className="h-1.5 w-full max-w-[200px] overflow-hidden rounded-full bg-muted/30">

@@ -114,29 +114,55 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
 
   return (
     <>
-      {/* Toolbar de ações · sync é via webhook real-time do Evo CRM,
-          então não há botão "Sincronizar" nem indicador de polling aqui. */}
-      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
-        <ContactsManagerSheet
-          companyId={companyId}
-          defaultOpen={params.contatos === "1"}
-        />
-        <BulkAnalyzeButton companyId={companyId} />
-        <StartConversationButton companyId={companyId} />
-      </div>
-
-      {/* Nudge de conversas sem análise */}
-      {unanalyzedCount > 0 && (conversations ?? []).length > 0 && (
-        <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5">
-          <Sparkles className="h-4 w-4 flex-shrink-0 text-[var(--color-warning)]" />
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            <span className="font-medium text-[var(--color-text)]">{unanalyzedCount}</span>
-            {" "}conversa{unanalyzedCount !== 1 ? "s" : ""} sem análise de IA — use o filtro{" "}
-            <span className="font-medium">&quot;Sem análise&quot;</span> para encontrá-las ou{" "}
-            <span className="font-medium">&quot;Analisar em lote&quot;</span> para processar automaticamente.
-          </p>
+      {/* Header da seção · contador KPI à esquerda + ações à direita.
+          Sync é via webhook real-time do Evo CRM — sem botão "Sincronizar". */}
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        {/* Esquerda: KPI compacto · número grande + status sutil abaixo */}
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[24px] font-semibold leading-none tabular-nums text-[var(--color-text)]">
+              {(conversations ?? []).length}
+            </span>
+            <span className="text-[13px] text-[var(--color-text-secondary)]">
+              {(conversations ?? []).length === 1 ? "conversa" : "conversas"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-[11.5px] text-[var(--color-text-tertiary)]">
+            <span
+              className="flex items-center gap-1.5"
+              title="Mensagens novas aparecem aqui automaticamente via webhook do Evo CRM."
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)] animate-pulse"
+                aria-hidden
+              />
+              Tempo real
+            </span>
+            {unanalyzedCount > 0 && (conversations ?? []).length > 0 ? (
+              <>
+                <span aria-hidden>·</span>
+                <span className="flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-[var(--color-warning)]" />
+                  <span className="tabular-nums font-medium text-[var(--color-warning)]">
+                    {unanalyzedCount}
+                  </span>
+                  {" sem análise"}
+                </span>
+              </>
+            ) : null}
+          </div>
         </div>
-      )}
+
+        {/* Direita: ações */}
+        <div className="flex flex-wrap gap-2">
+          <ContactsManagerSheet
+            companyId={companyId}
+            defaultOpen={params.contatos === "1"}
+          />
+          <BulkAnalyzeButton companyId={companyId} />
+          <StartConversationButton companyId={companyId} />
+        </div>
+      </div>
 
       {(conversations ?? []).length === 0 ? (
         <EmptyState

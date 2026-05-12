@@ -51,7 +51,7 @@ export function StartConversationButton({ companyId }: StartConversationButtonPr
 
   return (
     <>
-      <Button type="button" variant="default" size="sm" onClick={() => setOpen(true)}>
+      <Button type="button" variant="default" onClick={() => setOpen(true)}>
         <Plus className="h-4 w-4" />
         Nova Conversa
       </Button>
