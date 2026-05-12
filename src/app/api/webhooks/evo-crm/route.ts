@@ -80,8 +80,17 @@ async function loadWebhookSecret(companyId: string): Promise<string | null> {
 }
 
 function epochToIso(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" && value > 0) return new Date(value * 1000).toISOString();
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const n = Number(trimmed);
+      return new Date(n < 1e12 ? n * 1000 : n).toISOString();
+    }
+    return trimmed;
+  }
+  if (typeof value === "number" && value > 0) {
+    return new Date(value < 1e12 ? value * 1000 : value).toISOString();
+  }
   return new Date().toISOString();
 }
 
@@ -94,7 +103,11 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
 
   if (!conversationExternalId) return;
 
-  // Idempotência: extrair external_id da mensagem
+  const msgType = typeof data.message_type === "string" ? data.message_type.toLowerCase() : null;
+
+  // Activity events ("Conversation was reopened by …") não são mensagens reais — ignora.
+  if (msgType === "activity") return;
+
   const messageExternalId =
     typeof data.id === "string" || typeof data.id === "number"
       ? String(data.id)
@@ -102,31 +115,50 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
         ? data.message_id
         : null;
 
-  // Se temos external_id, verificar se já processamos esta mensagem
   if (messageExternalId) {
-    const { data: existing } = await supabase
+    const { data: existing, error: existErr } = await supabase
       .from("messages")
       .select("id")
       .eq("company_id", companyId)
       .eq("external_id", messageExternalId)
       .maybeSingle();
-
-    if (existing) {
-      // Mensagem já processada — skip silencioso (retorna 200 para Evo CRM não re-enviar)
-      return;
+    if (existErr) {
+      console.error(`[evo-crm webhook] erro checando idempotência ${messageExternalId}:`, existErr.message);
+      throw new Error(`Idempotency check failed: ${existErr.message}`);
     }
+    if (existing) return;
   }
 
-  const { data: conversation } = await supabase
+  let { data: conversation } = await supabase
     .from("conversations")
     .select("id")
     .eq("company_id", companyId)
     .eq("external_id", conversationExternalId)
     .maybeSingle();
 
-  if (!conversation) return;
+  // Se a conversa ainda não foi criada localmente (race: message_created antes de
+  // conversation_created), cria stub mínimo aqui e deixa o próximo conversation_updated
+  // enriquecer com contato/labels. Evita perda silenciosa de mensagem (H1).
+  if (!conversation) {
+    const stub = {
+      company_id: companyId,
+      external_id: conversationExternalId,
+      remote_jid: "unknown",
+      status: "open",
+      last_synced_at: new Date().toISOString(),
+    };
+    const { data: created, error: createErr } = await supabase
+      .from("conversations")
+      .insert(stub)
+      .select("id")
+      .single();
+    if (createErr || !created) {
+      console.error(`[evo-crm webhook] falha criando conversa stub ${conversationExternalId}:`, createErr?.message);
+      throw new Error(`Stub conversation insert failed: ${createErr?.message}`);
+    }
+    conversation = created;
+  }
 
-  const msgType = typeof data.message_type === "string" ? data.message_type.toLowerCase() : null;
   const directionRaw =
     typeof data.direction === "string" ? data.direction.toLowerCase() : null;
   const fromMe =
@@ -145,7 +177,7 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
 
   const sentAt = epochToIso(data.created_at);
 
-  await supabase.from("messages").insert({
+  const { error: insertErr } = await supabase.from("messages").insert({
     company_id: companyId,
     conversation_id: conversation.id,
     external_id: messageExternalId,
@@ -154,11 +186,12 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
     sent_at: sentAt,
     message_type: typeof data.message_type === "string" ? data.message_type : null,
     media_url: typeof data.media_url === "string" ? data.media_url : null,
-    // Persiste payload bruto pra discovery de campos (multi-atendente, etc).
-    // Migration 20260508 adicionou a coluna. Se a coluna ainda não existir,
-    // o Supabase ignora colunas desconhecidas no INSERT (não lança erro).
     raw_payload: data as Json,
   });
+  if (insertErr) {
+    console.error(`[evo-crm webhook] falha inserindo mensagem ${messageExternalId}:`, insertErr.message);
+    throw new Error(`Message insert failed: ${insertErr.message}`);
+  }
 
   await supabase
     .from("conversations")

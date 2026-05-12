@@ -374,16 +374,14 @@ function parseMessagesResponse(payload: unknown): EvoMessageApi[] {
 
     const content = rawContent || caption || null;
 
+    const epochToIso = (n: number) => new Date(n < 1e12 ? n * 1000 : n).toISOString();
+    const createdAtRaw = row.created_at ?? row.createdAt ?? row.sent_at ?? row.timestamp;
     const createdAt =
-      typeof row.created_at === "string"
-        ? row.created_at
-        : typeof row.createdAt === "string"
-          ? row.createdAt
-          : typeof row.sent_at === "string"
-            ? row.sent_at
-            : typeof row.timestamp === "string"
-              ? row.timestamp
-              : null;
+      typeof createdAtRaw === "string"
+        ? (/^\d+$/.test(createdAtRaw.trim()) ? epochToIso(Number(createdAtRaw.trim())) : createdAtRaw)
+        : typeof createdAtRaw === "number" && createdAtRaw > 0
+          ? epochToIso(createdAtRaw)
+          : null;
 
     if (!content && !createdAt && !messageType) continue;
 
