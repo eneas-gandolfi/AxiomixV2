@@ -507,6 +507,31 @@ export async function buildEvoCrmClient(companyId: string): Promise<EvoCrmClient
     throw new Error("Credenciais do Evo CRM incompletas para esta empresa.");
   }
 
+  return createEvoCrmClient({
+    baseUrl: config.baseUrl,
+    apiToken: config.apiToken,
+    inboxId: config.inboxId || undefined,
+    syncInboxIds: config.syncInboxIds?.length ? config.syncInboxIds : undefined,
+  });
+}
+
+/**
+ * Configuração pura (sem dependência do Supabase) para construir um EvoCrmClient.
+ * Útil para testes e para callers que já têm as credenciais em mãos.
+ */
+export type EvoCrmClientConfig = {
+  baseUrl: string;
+  apiToken: string;
+  inboxId?: string;
+  syncInboxIds?: string[];
+};
+
+/**
+ * Constrói um EvoCrmClient a partir de credenciais já resolvidas.
+ * Esta é a fronteira testável: passe uma baseUrl apontando para MSW e
+ * exercite os métodos públicos contra cenários de chaos (401, 504, etc).
+ */
+export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
   const baseUrl = normalizeEvoBaseUrl(config.baseUrl);
   if (!baseUrl) {
     throw new Error("URL base do Evo CRM inválida.");
@@ -531,7 +556,9 @@ export async function buildEvoCrmClient(companyId: string): Promise<EvoCrmClient
 
     for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRIES; attempt++) {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), EVO_HTTP_TIMEOUT_MS);
+      // Override via env permite testes determinísticos com timeout curto (e.g. 100ms).
+      const timeoutMs = Number(process.env.EVO_HTTP_TIMEOUT_MS_OVERRIDE) || EVO_HTTP_TIMEOUT_MS;
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
       let res: Response;
       try {
