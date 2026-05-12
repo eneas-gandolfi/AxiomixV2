@@ -18,7 +18,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
-import { AlertCircle, ChevronRight, MessageSquare, Sparkles } from "lucide-react";
+import { Activity, AlertCircle, ChevronRight, MessageSquare, Sparkles, Users2 } from "lucide-react";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { IntentDistributionChart } from "@/components/whatsapp/intent-distribution-chart";
@@ -219,60 +219,61 @@ export default async function WhatsAppDashboardPage({
         />
       ) : null}
 
-      {/* §1-§4 só aparecem quando ha insights analiticos */}
+      {/* Volume diário + intenções · full-width antes do masonry (gráficos
+          precisam de largura) */}
       {!showAnalysisEmptyBanner ? (
-        <>
-          {/* §1 — Quem da minha equipe está em queda? */}
-          <Suspense fallback={<SectionSkeleton number={1} />}>
-            <AnaliseVendorPerformance companyId={companyId} />
-          </Suspense>
-
-          {/* §2 — Você vs nicho */}
-          <SectionWrapper
-            number={2}
-            question="Como estamos vs outros do mesmo nicho?"
-            subtitle="Network effect: cada novo tenant melhora a média do nicho pra todos."
-          >
-            <Suspense fallback={<div className="h-32 animate-pulse rounded-lg bg-[var(--color-surface-2)]" />}>
-              <NicheBenchmarkCard companyId={companyId} />
-            </Suspense>
-          </SectionWrapper>
-
-          {/* §3 — Está vindo mais ou menos cliente? */}
-          <SectionWrapper
-            number={3}
-            question="Está vindo mais ou menos cliente que antes?"
-            subtitle={`Volume diário de insights · janela ${period} dias · distribuição de intenções (últimos 7 dias).`}
-          >
-            <div className="grid gap-4 lg:grid-cols-2">
-              <AnaliseVolumeChart data={volumeData} windowDays={period} />
-              <IntentDistributionChart data={intentDistributionData} />
-            </div>
-          </SectionWrapper>
-
-          {/* §4 — Algum padrão preocupante? */}
-          <Suspense fallback={<SectionSkeleton number={4} />}>
-            <AnaliseHeatmap companyId={companyId} windowDays={period} />
-          </Suspense>
-        </>
+        <SectionWrapper
+          icon={Activity}
+          question="Está vindo mais ou menos cliente que antes?"
+          subtitle={`Volume diário de insights · janela ${period} dias · distribuição de intenções (últimos 7 dias).`}
+        >
+          <div className="grid gap-4 lg:grid-cols-2">
+            <AnaliseVolumeChart data={volumeData} windowDays={period} />
+            <IntentDistributionChart data={intentDistributionData} />
+          </div>
+        </SectionWrapper>
       ) : null}
 
-      {/* §5 — Funil comercial */}
-      <Suspense fallback={<FunilComercialCardSkeleton />}>
-        <FunilComercialCard companyId={companyId} />
-      </Suspense>
+      {/* Masonry de cards analíticos · 1col mobile · 2col desktop.
+          CSS columns flui os cards verticalmente preenchendo gaps automaticamente —
+          cada filho ganha break-inside-avoid pra não cortar entre colunas. */}
+      <div className="lg:columns-2 lg:gap-3.5 [&>*]:mb-3.5 [&>*]:break-inside-avoid">
+        {!showAnalysisEmptyBanner ? (
+          <>
+            <Suspense fallback={<SectionSkeleton />}>
+              <AnaliseVendorPerformance companyId={companyId} />
+            </Suspense>
 
-      {/* §6 — Objeções mais frequentes */}
-      <Suspense fallback={<ObjecoesFrequentesCardSkeleton />}>
-        <ObjecoesFrequentesCard companyId={companyId} />
-      </Suspense>
+            <SectionWrapper
+              icon={Users2}
+              question="Como estamos vs outros do mesmo nicho?"
+              subtitle="Network effect: cada novo tenant melhora a média do nicho pra todos."
+            >
+              <Suspense fallback={<div className="h-32 animate-pulse rounded-lg bg-[var(--color-surface-2)]" />}>
+                <NicheBenchmarkCard companyId={companyId} />
+              </Suspense>
+            </SectionWrapper>
 
-      {/* §7 — Heatmap chegada × resposta */}
-      <Suspense fallback={<HeatmapRespostaCardSkeleton />}>
-        <HeatmapRespostaCard companyId={companyId} />
-      </Suspense>
+            <Suspense fallback={<SectionSkeleton />}>
+              <AnaliseHeatmap companyId={companyId} windowDays={period} />
+            </Suspense>
+          </>
+        ) : null}
 
-      {/* §8 — Próximas Ações Sugeridas */}
+        <Suspense fallback={<HeatmapRespostaCardSkeleton />}>
+          <HeatmapRespostaCard companyId={companyId} />
+        </Suspense>
+
+        <Suspense fallback={<FunilComercialCardSkeleton />}>
+          <FunilComercialCard companyId={companyId} />
+        </Suspense>
+
+        <Suspense fallback={<ObjecoesFrequentesCardSkeleton />}>
+          <ObjecoesFrequentesCard companyId={companyId} />
+        </Suspense>
+      </div>
+
+      {/* Próximas Ações Sugeridas · full-width (lista densa, fora do masonry) */}
       <Suspense fallback={<RecomendacoesAcoesCardSkeleton />}>
         <RecomendacoesAcoesCard companyId={companyId} />
       </Suspense>
@@ -350,13 +351,11 @@ function NotableChangesSkeleton() {
   );
 }
 
-function SectionSkeleton({ number }: { number: number }) {
+function SectionSkeleton() {
   return (
     <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
       <div className="mb-4 flex items-center gap-3 border-b border-[var(--color-border)] pb-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-2)] font-bricolage text-sm font-bold text-[var(--color-text-tertiary)]">
-          {number}
-        </div>
+        <div className="h-7 w-7 rounded-full bg-[var(--color-surface-2)]" />
         <div className="h-5 w-64 animate-pulse rounded bg-[var(--color-surface-2)]" />
       </div>
       <div className="h-32 animate-pulse rounded-lg bg-[var(--color-surface-2)]" />

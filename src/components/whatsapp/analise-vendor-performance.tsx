@@ -10,7 +10,7 @@
  * Data: 2026-05-07
  */
 
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, type LucideIcon } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const DAY_MS = 86_400_000;
@@ -69,7 +69,7 @@ export async function AnaliseVendorPerformance({ companyId }: { companyId: strin
 
   if (!insights || insights.length === 0) {
     return (
-      <SectionWrapper number={1} question="Quem da minha equipe está em queda?">
+      <SectionWrapper icon={TrendingDown} question="Quem da minha equipe está em queda?">
         <p className="py-8 text-center text-sm italic text-[var(--color-text-tertiary)]">
           Análise por vendedor aparece quando houver insights suficientes nos
           últimos 14 dias.
@@ -246,7 +246,7 @@ export async function AnaliseVendorPerformance({ companyId }: { companyId: strin
 
   if (rows.length === 0) {
     return (
-      <SectionWrapper number={1} question="Quem da minha equipe está em queda?">
+      <SectionWrapper icon={TrendingDown} question="Quem da minha equipe está em queda?">
         <p className="py-8 text-center text-sm italic text-[var(--color-text-tertiary)]">
           Vendedor com pelo menos 3 conversas analisadas nos últimos 7 dias
           aparece aqui — ainda não há dado suficiente.
@@ -257,7 +257,7 @@ export async function AnaliseVendorPerformance({ companyId }: { companyId: strin
 
   return (
     <SectionWrapper
-      number={1}
+      icon={TrendingDown}
       question="Quem da minha equipe está em queda?"
       subtitle="Histórico do que Operação mostra ao vivo. Linha vermelha à esquerda destaca o vendedor com a maior variação negativa."
     >
@@ -378,12 +378,12 @@ export async function AnaliseVendorPerformance({ companyId }: { companyId: strin
 // =============================================================================
 
 function SectionWrapper({
-  number,
+  icon: Icon,
   question,
   subtitle,
   children,
 }: {
-  number: number;
+  icon?: LucideIcon;
   question: string;
   subtitle?: string;
   children: React.ReactNode;
@@ -391,9 +391,11 @@ function SectionWrapper({
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5">
       <header className="mb-3 flex items-start gap-2.5 border-b border-[var(--color-border)] pb-3">
-        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[rgba(212,168,83,0.15)] font-bricolage text-xs font-bold text-[#D4A853]">
-          {number}
-        </div>
+        {Icon ? (
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[rgba(212,168,83,0.15)] text-[#D4A853]">
+            <Icon className="h-3.5 w-3.5" aria-hidden />
+          </div>
+        ) : null}
         <div>
           <h2 className="font-bricolage text-[15px] font-bold leading-tight tracking-tight text-[var(--color-text)]">
             {question}

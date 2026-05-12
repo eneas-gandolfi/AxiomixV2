@@ -10,6 +10,7 @@
  * Data: 2026-05-11
  */
 
+import { Clock } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   computeResponseHeatmap,
@@ -69,7 +70,7 @@ export async function HeatmapRespostaCard({
   if (totalInbounds === 0) {
     return (
       <SectionWrapper
-        number={7}
+        icon={Clock}
         question="Que horas o time fica devendo?"
         subtitle="Heatmap aparece quando houver mensagens recebidas nos últimos 30 dias."
       >
@@ -97,7 +98,7 @@ export async function HeatmapRespostaCard({
 
   return (
     <SectionWrapper
-      number={7}
+      icon={Clock}
       question="Que horas o time fica devendo?"
       subtitle={
         gapLabel

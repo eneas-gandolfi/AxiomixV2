@@ -144,7 +144,7 @@ export async function RecomendacoesAcoesCard({
   if (recomendacoes.length === 0) {
     return (
       <SectionWrapper
-        number={8}
+        icon={Lightbulb}
         question="Próximas ações sugeridas"
         subtitle="Tudo sob controle agora — nenhum alerta heurístico foi disparado."
       >
@@ -157,7 +157,7 @@ export async function RecomendacoesAcoesCard({
 
   return (
     <SectionWrapper
-      number={8}
+      icon={Lightbulb}
       question="Próximas ações sugeridas"
       subtitle="Heurísticas v0 — combinam leads frios, gargalo de horário, objeções recorrentes e TFR acima do SLA."
     >

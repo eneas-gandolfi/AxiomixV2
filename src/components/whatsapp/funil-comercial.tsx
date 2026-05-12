@@ -10,7 +10,7 @@
  * Data: 2026-05-11
  */
 
-import { TriangleAlert } from "lucide-react";
+import { Filter, TriangleAlert } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   computeFunilFromInsights,
@@ -45,7 +45,7 @@ export async function FunilComercialCard({
   if (funil.totalAnalyzed === 0) {
     return (
       <SectionWrapper
-        number={5}
+        icon={Filter}
         question="Onde o funil está empoçando?"
         subtitle="Funil aparece quando houver insights gerados nos últimos 30 dias."
       >
@@ -63,7 +63,7 @@ export async function FunilComercialCard({
 
   return (
     <SectionWrapper
-      number={5}
+      icon={Filter}
       question="Onde o funil está empoçando?"
       subtitle={
         bottleneckLabel

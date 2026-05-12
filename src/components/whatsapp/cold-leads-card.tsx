@@ -112,7 +112,7 @@ export async function ColdLeadsCard({ companyId }: { companyId: string }) {
   if (top.length === 0) {
     return (
       <SectionWrapper
-        number={0}
+        icon={Flame}
         question="Tem dinheiro escapando agora?"
         subtitle="Lista as conversas abertas sem resposta há mais de 3 dias, com o motivo provável do esfriamento."
       >
@@ -146,7 +146,7 @@ export async function ColdLeadsCard({ companyId }: { companyId: string }) {
 
   return (
     <SectionWrapper
-      number={0}
+      icon={Flame}
       question="Tem dinheiro escapando agora?"
       subtitle={`Top ${top.length} de ${totalEsfriados} leads abertos sem evolução. Comece pelo topo — é onde a fila mais dói.`}
     >

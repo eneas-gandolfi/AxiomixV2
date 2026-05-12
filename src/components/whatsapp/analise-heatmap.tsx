@@ -11,7 +11,7 @@
  * Data: 2026-05-07
  */
 
-import { TriangleAlert } from "lucide-react";
+import { Flame, TriangleAlert } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { toZonedDate } from "@/lib/whatsapp/business-hours";
 import type { DayOfWeek } from "@/lib/niches";
@@ -19,7 +19,16 @@ import { SectionWrapper } from "@/components/whatsapp/analise-vendor-performance
 
 const DAY_MS = 86_400_000;
 const HOUR_START = 8;
-const HOUR_END = 22; // exclusive — mostra 8h..21h (14 colunas)
+const HOUR_END = 22; // exclusive — cobre das 8h às 21h
+const BUCKET_SIZE = 2; // agrupa horas em buckets (8-9h, 10-11h, ..., 20-21h) — 7 colunas
+
+function bucketStartOf(hour: number): number {
+  return Math.floor((hour - HOUR_START) / BUCKET_SIZE) * BUCKET_SIZE + HOUR_START;
+}
+
+function bucketLabel(start: number): string {
+  return `${start}-${start + BUCKET_SIZE - 1}h`;
+}
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY_LABELS: Record<DayOfWeek, string> = {
@@ -42,7 +51,7 @@ type CellData = {
 
 function buildHourRange(): number[] {
   const hours: number[] = [];
-  for (let h = HOUR_START; h < HOUR_END; h++) hours.push(h);
+  for (let h = HOUR_START; h < HOUR_END; h += BUCKET_SIZE) hours.push(h);
   return hours;
 }
 
@@ -181,7 +190,8 @@ export async function AnaliseHeatmap({
     const date = new Date(insight.generated_at);
     const z = toZonedDate(date, timezone);
     if (z.hour < HOUR_START || z.hour >= HOUR_END) continue;
-    const key: CellKey = `${z.dow}_${z.hour}`;
+    const bucketStart = bucketStartOf(z.hour);
+    const key: CellKey = `${z.dow}_${bucketStart}`;
     const existing = cells.get(key) ?? { count: 0, timestamps: [] };
     existing.count += 1;
     existing.timestamps.push(date.getTime());
@@ -207,7 +217,7 @@ export async function AnaliseHeatmap({
 
   if (total === 0) {
     return (
-      <SectionWrapper number={4} question="Algum padrão de horário preocupante?">
+      <SectionWrapper icon={Flame} question="Algum padrão de horário preocupante?">
         <p className="py-8 text-center text-sm italic text-[var(--color-text-tertiary)]">
           O mapa de calor aparece quando houver insights entre {sinceLabel} e{" "}
           {untilLabel} ({windowDays} dias).
@@ -245,7 +255,7 @@ export async function AnaliseHeatmap({
 
   return (
     <SectionWrapper
-      number={4}
+      icon={Flame}
       question="Algum padrão de horário preocupante?"
       subtitle={`Volume de insights por dia × hora · ${windowDays} dias (${rangeLabel}) · fuso ${timezone}`}
     >
@@ -312,15 +322,21 @@ export async function AnaliseHeatmap({
                   const boundary = isHourBoundary(hour);
                   const level = getIntensityLevel(value, max, total);
 
-                  // Tooltip com datas concretas (formatadas no render)
+                  // Tooltip com datas concretas (formatadas no render). hour
+                  // aqui é o início do bucket (8, 10, 12, ...); bucketLabel
+                  // formata como "8-9h" no tooltip.
+                  const hourLabel = bucketLabel(hour);
                   let titleText: string;
                   let inlineText: string | null = null;
                   if (value === 0) {
-                    titleText = `${DAY_LABELS[dow]} ${hour}h: sem dados`;
+                    titleText = `${DAY_LABELS[dow]} ${hourLabel}: sem dados`;
                   } else if (value === 1 && cell?.timestamps[0] !== undefined) {
                     const dateLabel = formatDayMonth(new Date(cell.timestamps[0]));
-                    titleText = `${DAY_LABELS[dow]} ${hour}h · 1 insight em ${dateLabel}`;
-                    inlineText = dateLabel; // "29 abr" dentro da célula
+                    titleText = `${DAY_LABELS[dow]} ${hourLabel} · 1 insight em ${dateLabel}`;
+                    // "29 abr" dentro da célula — não quebra graças ao
+                    // whitespace-nowrap; em coluna apertada o overflow-hidden
+                    // trunca em vez de inflar a altura.
+                    inlineText = dateLabel;
                   } else if (cell) {
                     // Sort numérico por timestamp + dedupe por dia (yyyy-mm-dd)
                     const uniqueByDay = new Map<string, number>();
@@ -330,21 +346,22 @@ export async function AnaliseHeatmap({
                     }
                     const sortedTs = Array.from(uniqueByDay.values()).sort((a, b) => a - b);
                     const uniqueDates = sortedTs.map((ts) => formatDayMonth(new Date(ts)));
-                    titleText = `${DAY_LABELS[dow]} ${hour}h · ${value} insights · ${uniqueDates.join(", ")}`;
+                    titleText = `${DAY_LABELS[dow]} ${hourLabel} · ${value} insights · ${uniqueDates.join(", ")}`;
                     inlineText = String(value);
                   } else {
-                    titleText = `${DAY_LABELS[dow]} ${hour}h`;
+                    titleText = `${DAY_LABELS[dow]} ${hourLabel}`;
                   }
 
                   return (
-                    <div
-                      key={hour}
-                      className={`relative ${
-                        boundary ? "ml-2 border-l border-[var(--color-border)] pl-1" : ""
-                      }`}
-                    >
+                    <div key={hour} className="relative">
+                      {boundary ? (
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute -left-1 top-0 bottom-0 w-px bg-[var(--color-border)]"
+                        />
+                      ) : null}
                       <div
-                        className={`flex h-7 items-center justify-center rounded-md font-mono text-[9px] font-semibold leading-none transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-[var(--color-text-secondary)]/30 ${INTENSITY_BG[level]} ${INTENSITY_TEXT[level]} ${showHotspotRing ? "ring-2 ring-[var(--color-danger)]" : ""}`}
+                        className={`flex h-7 items-center justify-center overflow-hidden whitespace-nowrap rounded-md font-mono text-[9px] font-semibold leading-none transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-[var(--color-text-secondary)]/30 ${INTENSITY_BG[level]} ${INTENSITY_TEXT[level]} ${showHotspotRing ? "ring-2 ring-[var(--color-danger)]" : ""}`}
                         title={titleText}
                       >
                         {inlineText}
@@ -374,7 +391,6 @@ export async function AnaliseHeatmap({
           </div>
           {hours.map((hour) => {
             const colSum = colTotals.get(hour) ?? 0;
-            const boundary = isHourBoundary(hour);
             return (
               <div
                 key={`col-${hour}`}
@@ -382,7 +398,7 @@ export async function AnaliseHeatmap({
                   colSum > 0
                     ? "font-semibold text-[var(--color-text)]"
                     : "text-[var(--color-text-tertiary)]"
-                } ${boundary ? "ml-2 pl-1" : ""}`}
+                }`}
               >
                 {colSum || "·"}
               </div>
@@ -408,7 +424,7 @@ export async function AnaliseHeatmap({
         <span>Volume maior</span>
         <span className="ml-auto text-[var(--color-text-tertiary)]">
           {total} insights · pico em{" "}
-          {hotspot ? `${DAY_LABELS[hotspot.dow]} ${hotspot.hour}h (${hotspot.count})` : "—"}
+          {hotspot ? `${DAY_LABELS[hotspot.dow]} ${bucketLabel(hotspot.hour)} (${hotspot.count})` : "—"}
         </span>
       </div>
 
@@ -421,7 +437,7 @@ export async function AnaliseHeatmap({
           />
           <p className="flex-1 text-sm text-[var(--color-text)]">
             <strong className="font-semibold text-[var(--color-warning)]">
-              {DAY_LABELS[hotspot.dow]} às {hotspot.hour}h
+              {DAY_LABELS[hotspot.dow]} {bucketLabel(hotspot.hour)}
             </strong>{" "}
             concentra o maior volume da janela ({hotspot.count} de {total}
             {hotspot.timestamps.length > 0 ? (

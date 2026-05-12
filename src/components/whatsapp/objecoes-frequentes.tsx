@@ -10,6 +10,7 @@
  * Data: 2026-05-11
  */
 
+import { ShieldAlert } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   aggregateObjections,
@@ -45,7 +46,7 @@ export async function ObjecoesFrequentesCard({
   if (totalObjections === 0) {
     return (
       <SectionWrapper
-        number={6}
+        icon={ShieldAlert}
         question="Quais são as objeções mais frequentes?"
         subtitle={`Ranking aparece quando houver objeções extraídas nos últimos ${LOOKBACK_DAYS} dias.`}
       >
@@ -60,7 +61,7 @@ export async function ObjecoesFrequentesCard({
 
   return (
     <SectionWrapper
-      number={6}
+      icon={ShieldAlert}
       question="Quais são as objeções mais frequentes?"
       subtitle={`Tema mais barrado: "${topLabel}". Aja primeiro nele — quanto mais frequente, maior o ROI do treinamento.`}
     >
