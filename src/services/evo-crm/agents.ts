@@ -19,7 +19,7 @@
  */
 
 import { getEvoCrmClient } from './client'
-import { clearEvoAuthCache, getEvoAuthJwt } from './auth'
+import { fetchWithJwtRefresh } from './jwt-fetch'
 import type { EvoCrmClient } from './types'
 
 // ---------------------------------------------------------------------------
@@ -295,95 +295,22 @@ export async function removeAgentFromInbox(
 }
 
 // ---------------------------------------------------------------------------
-// HTTP helper (reutiliza credenciais do client)
+// HTTP helper — delega para `jwt-fetch` (mesma semântica de refresh em 401).
 // ---------------------------------------------------------------------------
-
-const TIMEOUT_MS = 15_000
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   body?: Record<string, unknown>
 }
 
-async function agentRequest<T = unknown>(
+function agentRequest<T = unknown>(
   client: EvoCrmClient,
   path: string,
   options?: RequestOptions
 ): Promise<T> {
-  return doAgentRequest<T>(client, path, options, false)
-}
-
-async function doAgentRequest<T>(
-  client: EvoCrmClient,
-  path: string,
-  options: RequestOptions | undefined,
-  isRetry: boolean
-): Promise<T> {
-  const method = options?.method ?? 'GET'
-  const url = `${client.baseUrl}${path}`
-
-  const jwt = await getEvoAuthJwt()
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
-
-  try {
-    const res = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        'content-type': 'application/json',
-        accept: 'application/json',
-      },
-      body: options?.body ? JSON.stringify(options.body) : undefined,
-      signal: controller.signal,
-    })
-
-    if (res.status === 204 || res.status === 202) {
-      return {} as T
-    }
-
-    // 401: JWT expirado ou inválido. Limpa cache e tenta uma vez mais.
-    if (res.status === 401 && !isRetry) {
-      clearEvoAuthCache()
-      clearTimeout(timeout)
-      return doAgentRequest<T>(client, path, options, true)
-    }
-
-    const text = await res.text()
-
-    if (res.status >= 400) {
-      throw new Error(`Evo CRM Agents ${method} ${path}: ${res.status} ${text.slice(0, 200)}`)
-    }
-
-    if (!text.trim()) return {} as T
-
-    const json = JSON.parse(text)
-
-    // Unwrap envelope padrão
-    if (json && typeof json === 'object' && json.success === true && 'data' in json) {
-      return json.data as T
-    }
-
-    return json as T
-  } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error(
-        `Tempo esgotado ao chamar Evo CRM Agents (${method} ${path}, >${TIMEOUT_MS}ms). Tente novamente.`
-      )
-    }
-    if (err instanceof Error && (err.name === 'TypeError' || err.message === 'fetch failed')) {
-      const cause =
-        typeof err.cause === 'object' && err.cause !== null
-          ? (err.cause as Record<string, unknown>)
-          : null
-      const code = cause && typeof cause.code === 'string' ? cause.code : 'unknown'
-      throw new Error(
-        `Falha de rede ao chamar Evo CRM Agents (${method} ${path}, ${code}). Tente novamente.`
-      )
-    }
-    throw err
-  } finally {
-    clearTimeout(timeout)
-  }
+  return fetchWithJwtRefresh<T>(`${client.baseUrl}${path}`, {
+    method: options?.method,
+    body: options?.body,
+    serviceLabel: 'Evo CRM Agents',
+  })
 }

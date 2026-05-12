@@ -5,10 +5,14 @@
  * O Evo CRM tem 4 microsserviços com autenticação distinta:
  *   - CRM Service        → aceita api_access_token UUID (usado em conversations, contacts, etc)
  *   - Core Service       → exige Bearer JWT do evo-auth-service (agentes, tools, MCP)
- *   - Knowledge Service  → idem Core
- *   - Processor Service  → idem Core
+ *   - Knowledge Service  → segundo a doc original exigia JWT, mas a implementação
+ *                          atual em `knowledge-base.ts` usa api_access_token UUID e
+ *                          tem funcionado em chamadas reais. Manter como UUID até
+ *                          alguém validar contra produção; se mover pra JWT, usar
+ *                          `fetchWithJwtRefresh` de `./jwt-fetch.ts`.
+ *   - Processor Service  → exige Bearer JWT (idem Core)
  *
- * Este módulo cuida do auth para os 3 serviços que exigem JWT.
+ * Este módulo cuida do auth para os serviços que exigem JWT.
  *
  * Env vars necessárias:
  *   - EVO_AUTH_BASE_URL   (default: https://api.getlead.capital)
