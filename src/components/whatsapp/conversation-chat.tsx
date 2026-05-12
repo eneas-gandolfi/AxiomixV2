@@ -11,6 +11,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { FileText, Image, Loader2, MapPin, Mic, RefreshCw, Send, Smile, Sparkles, Video, Wifi, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages";
+import { stripMessageHtml } from "@/lib/whatsapp/strip-message-html";
 
 type MessageData = {
   id: string;
@@ -312,7 +313,8 @@ export function ConversationChat({
                       </p>
                     );
                   }
-                  if (message.content && media) {
+                  const cleanContent = stripMessageHtml(message.content);
+                  if (cleanContent && media) {
                     const Icon = media.icon;
                     return (
                       <div>
@@ -320,11 +322,11 @@ export function ConversationChat({
                           <Icon className="h-3 w-3" />
                           {media.label}
                         </p>
-                        <p className="text-text">{message.content}</p>
+                        <p className="text-text">{cleanContent}</p>
                       </div>
                     );
                   }
-                  return <p className="text-text">{message.content || "(mensagem sem texto)"}</p>;
+                  return <p className="text-text">{cleanContent || "(mensagem sem texto)"}</p>;
                 })()}
                 <p className="mt-1 text-xs text-muted-light">
                   {formatDate(message.sent_at)}

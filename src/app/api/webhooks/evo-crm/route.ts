@@ -25,6 +25,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Json } from "@/database/types/database.types";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { stripMessageHtml } from "@/lib/whatsapp/strip-message-html";
 import { handleCrmLabelAlert } from "@/services/bridge/crm-to-group-alerts";
 
 export const runtime = "nodejs";
@@ -166,7 +167,7 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
       ? data.from_me
       : msgType === "outgoing" || directionRaw === "outbound" || directionRaw === "sent";
 
-  const content =
+  const rawContent =
     typeof data.content === "string"
       ? data.content
       : typeof data.body === "string"
@@ -174,6 +175,7 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
         : typeof data.processed_message_content === "string"
           ? data.processed_message_content
           : "";
+  const content = stripMessageHtml(rawContent);
 
   const sentAt = epochToIso(data.created_at);
 

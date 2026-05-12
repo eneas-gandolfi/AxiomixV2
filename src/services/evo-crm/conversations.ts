@@ -6,6 +6,7 @@
  */
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { stripMessageHtml } from "@/lib/whatsapp/strip-message-html";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
 import { getExcludedConversationExternalIds } from "@/services/whatsapp/conversation-exclusions";
 
@@ -477,7 +478,7 @@ export async function syncMessages(
     const normalized = {
       company_id: companyId,
       conversation_id: conversationId,
-      content: remoteMessage.content ?? "",
+      content: stripMessageHtml(remoteMessage.content ?? ""),
       direction,
       sent_at: normalizeSentAt(remoteMessage.created_at),
       message_type: remoteMessage.message_type ?? null,
