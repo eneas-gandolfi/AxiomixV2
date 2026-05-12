@@ -36,6 +36,7 @@ import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { EvoCrmNotConfiguredError } from "./errors";
 import { getCachedEvoCrmClient } from "./factory";
+import { EvoConversationsListSchema, parseEvoResponse } from "./schemas";
 
 import type {
   EvoConversationApi,
@@ -635,6 +636,9 @@ export async function buildEvoCrmClient(companyId: string): Promise<EvoCrmClient
             ...(typeof cursor !== "undefined" ? { cursor } : { page }),
           },
         });
+        // Gate de schema antes do parser manual: detecta drift loud, em vez de
+        // silenciosamente devolver lista vazia que vira "dados não carregam".
+        parseEvoResponse(EvoConversationsListSchema, payload, "listConversations");
         const pageRows = parseConversationsResponse(payload);
         const pagination = parseConversationsPagination(payload);
 
