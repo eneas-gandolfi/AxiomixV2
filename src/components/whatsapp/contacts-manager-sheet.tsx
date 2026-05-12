@@ -84,7 +84,7 @@ export function ContactsManagerSheet({ companyId, defaultOpen = false }: Contact
     <>
       <Button
         type="button"
-        variant="subtle"
+        variant="secondary"
         size="sm"
         onClick={() => setOpen(true)}
         className="gap-1.5"

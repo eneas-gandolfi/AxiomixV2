@@ -1,32 +1,49 @@
 /**
  * Arquivo: src/components/whatsapp/conversation-filters-compact.tsx
- * Propósito: Filtros horizontais compactos com chips para WhatsApp Intelligence.
+ * Propósito: Filtros da lista de Conversas — busca + 4 chips-trigger com
+ *            popover (Sentimento, Intenção, Agente, Período). Chip ativo
+ *            ganha fundo primary-dim + label do valor selecionado.
+ *
+ *            Default do period é "all" (mostra todas as conversas).
  * Autor: AXIOMIX
- * Data: 2026-03-12
+ * Data: 2026-05-12
  */
 
 "use client";
 
-import { useState, type ChangeEvent } from "react";
 import {
-  Search,
-  Smile,
-  Meh,
-  Frown,
-  ShoppingCart,
-  Headphones,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
+import {
   AlertTriangle,
-  HelpCircle,
-  XCircle,
-  MoreHorizontal,
+  ChevronDown,
   Clock,
+  Headphones,
+  HelpCircle,
+  MoreHorizontal,
+  Search,
+  ShoppingCart,
+  Smile,
+  Target,
+  UserCircle2,
   X,
-  User,
+  XCircle,
+  type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 type Sentiment = "all" | "positivo" | "neutro" | "negativo" | "not_analyzed";
-type Intent = "all" | "compra" | "suporte" | "reclamacao" | "duvida" | "cancelamento" | "outro";
+type Intent =
+  | "all"
+  | "compra"
+  | "suporte"
+  | "reclamacao"
+  | "duvida"
+  | "cancelamento"
+  | "outro";
 type Status = "all" | "open" | "closed";
 type Period = "1" | "7" | "30" | "all";
 
@@ -39,236 +56,483 @@ export type ConversationFilters = {
   search: string;
 };
 
-type ConversationFiltersCompactProps = {
+type Props = {
   onFiltersChange: (filters: ConversationFilters) => void;
   agents?: Array<{ id: string; name: string | null }>;
   initialFilters?: Partial<ConversationFilters>;
 };
 
-type ChipProps = {
-  label: string;
-  icon?: React.ComponentType<{ className?: string }>;
-  active: boolean;
-  onClick: () => void;
-  color?: "success" | "warning" | "danger" | "primary";
+const DEFAULT_FILTERS: ConversationFilters = {
+  sentiment: "all",
+  intent: "all",
+  status: "all",
+  agent: "all",
+  period: "all",
+  search: "",
 };
 
-function Chip({ label, icon: Icon, active, onClick, color }: ChipProps) {
-  const colorClasses = {
-    success: active ? "bg-success text-white" : "hover:bg-success-light hover:text-success",
-    warning: active ? "bg-warning text-white" : "hover:bg-warning-light hover:text-warning",
-    danger: active ? "bg-danger text-white" : "hover:bg-danger-light hover:text-danger",
-    primary: active ? "bg-primary text-white" : "hover:bg-primary-light hover:text-primary",
-  };
+const SENTIMENT_LABEL: Record<Sentiment, string> = {
+  all: "",
+  positivo: "Positivo",
+  neutro: "Neutro",
+  negativo: "Negativo",
+  not_analyzed: "Sem análise",
+};
 
-  const baseClasses = "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer";
-  const activeClasses = active
-    ? color
-      ? colorClasses[color]
-      : "bg-primary text-white"
-    : "bg-background text-muted border border-border hover:border-primary hover:text-primary";
+const INTENT_LABEL: Record<Intent, string> = {
+  all: "",
+  compra: "Compra",
+  suporte: "Suporte",
+  reclamacao: "Reclamação",
+  duvida: "Dúvida",
+  cancelamento: "Cancelamento",
+  outro: "Outro",
+};
 
+const PERIOD_LABEL: Record<Period, string> = {
+  "1": "24h",
+  "7": "7 dias",
+  "30": "30 dias",
+  all: "",
+};
+
+// =============================================================================
+// FilterChip — chip-trigger genérico com popover ancorado
+// =============================================================================
+
+type FilterChipProps = {
+  icon: LucideIcon;
+  label: string;
+  activeLabel?: string;
+  isActive: boolean;
+  children: (close: () => void) => ReactNode;
+};
+
+function FilterChip({
+  icon: Icon,
+  label,
+  activeLabel,
+  isActive,
+  children,
+}: FilterChipProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  const chipClasses = isActive
+    ? "border-[color-mix(in_srgb,var(--color-primary)_30%,transparent)] bg-[var(--color-primary-dim)] text-[var(--color-primary)] font-semibold"
+    : "border-[var(--color-border)] bg-white text-[var(--color-text-secondary)] hover:border-[var(--color-text-tertiary)] hover:text-[var(--color-text)]";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`inline-flex items-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-[13px] font-medium transition-all ${chipClasses}`}
+      >
+        <Icon className="h-3.5 w-3.5" />
+        <span>
+          {label}
+          {activeLabel ? ` · ${activeLabel}` : ""}
+        </span>
+        <ChevronDown className="h-3 w-3 opacity-60" />
+      </button>
+
+      {open ? (
+        <div
+          className="absolute left-0 top-full z-20 mt-1 min-w-[220px] rounded-[10px] border border-[var(--color-border)] bg-white py-1.5"
+          style={{ boxShadow: "0 8px 24px rgba(13,17,23,0.08)" }}
+        >
+          {children(() => setOpen(false))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// =============================================================================
+// Subcomponentes do popover
+// =============================================================================
+
+function PopoverHeader({ children }: { children: ReactNode }) {
+  return (
+    <p className="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
+      {children}
+    </p>
+  );
+}
+
+type PopoverItemProps = {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon?: LucideIcon;
+  iconColor?: string;
+  dotColor?: string;
+};
+
+function PopoverItem({
+  active,
+  onClick,
+  label,
+  icon: Icon,
+  iconColor,
+  dotColor,
+}: PopoverItemProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`${baseClasses} ${activeClasses}`}
+      className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] hover:bg-[var(--color-surface-2)] ${
+        active
+          ? "font-semibold text-[var(--color-primary)]"
+          : "text-[var(--color-text)]"
+      }`}
     >
-      {Icon && <Icon className="h-3.5 w-3.5" />}
-      <span>{label}</span>
+      {dotColor ? (
+        <span
+          className="h-2 w-2 flex-shrink-0 rounded-full"
+          style={{ background: dotColor }}
+          aria-hidden
+        />
+      ) : null}
+      {Icon ? (
+        <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${iconColor ?? ""}`} />
+      ) : null}
+      <span className="flex-1 truncate">{label}</span>
+      {active ? (
+        <span className="flex-shrink-0 text-[10px] font-bold text-[var(--color-primary)]">
+          ✓
+        </span>
+      ) : null}
     </button>
   );
 }
 
-export function ConversationFiltersCompact({ onFiltersChange, agents = [], initialFilters }: ConversationFiltersCompactProps) {
+function PopoverFooter({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="mt-1 border-t border-[var(--color-border)] px-2 pt-1">
+      <button
+        type="button"
+        onClick={onClear}
+        className="w-full rounded-md px-2 py-1 text-left text-[12px] text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+      >
+        Limpar
+      </button>
+    </div>
+  );
+}
+
+// =============================================================================
+// Componente principal
+// =============================================================================
+
+export function ConversationFiltersCompact({
+  onFiltersChange,
+  agents = [],
+  initialFilters,
+}: Props) {
   const [filters, setFilters] = useState<ConversationFilters>({
-    sentiment: "all",
-    intent: "all",
-    status: "all",
-    agent: "all",
-    period: "7",
-    search: "",
+    ...DEFAULT_FILTERS,
     ...initialFilters,
   });
 
-  const handleFilterChange = <K extends keyof ConversationFilters>(
+  const updateFilter = <K extends keyof ConversationFilters>(
     key: K,
-    value: ConversationFilters[K]
+    value: ConversationFilters[K],
   ) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    onFiltersChange(newFilters);
+    const next = { ...filters, [key]: value };
+    setFilters(next);
+    onFiltersChange(next);
   };
 
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-    handleFilterChange("search", event.target.value);
+    updateFilter("search", event.target.value);
   };
 
   const handleClearFilters = () => {
-    const defaultFilters: ConversationFilters = {
-      sentiment: "all",
-      intent: "all",
-      status: "all",
-      agent: "all",
-      period: "7",
-      search: "",
-    };
-    setFilters(defaultFilters);
-    onFiltersChange(defaultFilters);
+    setFilters(DEFAULT_FILTERS);
+    onFiltersChange(DEFAULT_FILTERS);
   };
 
   const hasActiveFilters =
     filters.sentiment !== "all" ||
     filters.intent !== "all" ||
-    filters.status !== "all" ||
     filters.agent !== "all" ||
-    filters.period !== "7" ||
+    filters.period !== "all" ||
     filters.search !== "";
+
+  const agentActiveLabel =
+    filters.agent !== "all"
+      ? agents.find((a) => a.id === filters.agent)?.name ?? "Selecionado"
+      : "";
 
   return (
     <div className="mb-4 space-y-3">
-      {/* Busca */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <input
-            type="text"
-            placeholder="Buscar por nome ou telefone..."
-            value={filters.search}
-            onChange={handleSearchChange}
-            className="h-10 w-full rounded-lg border border-border bg-card pl-10 pr-3 text-sm text-text placeholder:text-muted-light focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </div>
-        {hasActiveFilters && (
-          <Button type="button" variant="ghost" size="sm" onClick={handleClearFilters}>
-            <X className="h-4 w-4" />
-            Limpar
-          </Button>
-        )}
+      {/* Busca com × embutido */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
+        <input
+          type="text"
+          placeholder="Buscar por nome ou telefone..."
+          value={filters.search}
+          onChange={handleSearchChange}
+          className="h-10 w-full rounded-[10px] border border-transparent bg-[var(--color-surface-2)] pl-10 pr-10 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-primary)] focus:bg-white"
+        />
+        {filters.search ? (
+          <button
+            type="button"
+            onClick={() => updateFilter("search", "")}
+            className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[var(--color-text-tertiary)] hover:bg-[var(--color-border)] hover:text-[var(--color-text)]"
+            title="Limpar busca"
+            aria-label="Limpar busca"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
       </div>
 
-      {/* Filtros de Sentimento */}
+      {/* Linha de chips-trigger */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted">Sentimento:</span>
-        <Chip
-          label="Positivo"
+        {/* Sentimento */}
+        <FilterChip
           icon={Smile}
-          active={filters.sentiment === "positivo"}
-          onClick={() => handleFilterChange("sentiment", filters.sentiment === "positivo" ? "all" : "positivo")}
-          color="success"
-        />
-        <Chip
-          label="Neutro"
-          icon={Meh}
-          active={filters.sentiment === "neutro"}
-          onClick={() => handleFilterChange("sentiment", filters.sentiment === "neutro" ? "all" : "neutro")}
-          color="warning"
-        />
-        <Chip
-          label="Negativo"
-          icon={Frown}
-          active={filters.sentiment === "negativo"}
-          onClick={() => handleFilterChange("sentiment", filters.sentiment === "negativo" ? "all" : "negativo")}
-          color="danger"
-        />
-        <span className="mx-1 h-4 w-px bg-[var(--color-border)]" />
-        <Chip
-          label="Sem análise"
-          active={filters.sentiment === "not_analyzed"}
-          onClick={() => handleFilterChange("sentiment", filters.sentiment === "not_analyzed" ? "all" : "not_analyzed")}
-        />
-      </div>
+          label="Sentimento"
+          activeLabel={SENTIMENT_LABEL[filters.sentiment]}
+          isActive={filters.sentiment !== "all"}
+        >
+          {(close) => (
+            <>
+              <PopoverHeader>Sentimento</PopoverHeader>
+              <PopoverItem
+                active={filters.sentiment === "negativo"}
+                onClick={() => {
+                  updateFilter("sentiment", "negativo");
+                  close();
+                }}
+                dotColor="var(--color-danger)"
+                label="Negativo"
+              />
+              <PopoverItem
+                active={filters.sentiment === "neutro"}
+                onClick={() => {
+                  updateFilter("sentiment", "neutro");
+                  close();
+                }}
+                dotColor="var(--color-warning)"
+                label="Neutro"
+              />
+              <PopoverItem
+                active={filters.sentiment === "positivo"}
+                onClick={() => {
+                  updateFilter("sentiment", "positivo");
+                  close();
+                }}
+                dotColor="var(--color-success)"
+                label="Positivo"
+              />
+              <PopoverItem
+                active={filters.sentiment === "not_analyzed"}
+                onClick={() => {
+                  updateFilter("sentiment", "not_analyzed");
+                  close();
+                }}
+                dotColor="var(--color-text-tertiary)"
+                label="Sem análise"
+              />
+              {filters.sentiment !== "all" ? (
+                <PopoverFooter
+                  onClear={() => {
+                    updateFilter("sentiment", "all");
+                    close();
+                  }}
+                />
+              ) : null}
+            </>
+          )}
+        </FilterChip>
 
-      {/* Filtros de Intenção */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted">Intenção:</span>
-        <Chip
-          label="Compra"
-          icon={ShoppingCart}
-          active={filters.intent === "compra"}
-          onClick={() => handleFilterChange("intent", filters.intent === "compra" ? "all" : "compra")}
-          color="success"
-        />
-        <Chip
-          label="Suporte"
-          icon={Headphones}
-          active={filters.intent === "suporte"}
-          onClick={() => handleFilterChange("intent", filters.intent === "suporte" ? "all" : "suporte")}
-          color="primary"
-        />
-        <Chip
-          label="Reclamação"
-          icon={AlertTriangle}
-          active={filters.intent === "reclamacao"}
-          onClick={() => handleFilterChange("intent", filters.intent === "reclamacao" ? "all" : "reclamacao")}
-          color="danger"
-        />
-        <Chip
-          label="Dúvida"
-          icon={HelpCircle}
-          active={filters.intent === "duvida"}
-          onClick={() => handleFilterChange("intent", filters.intent === "duvida" ? "all" : "duvida")}
-          color="warning"
-        />
-        <Chip
-          label="Cancelamento"
-          icon={XCircle}
-          active={filters.intent === "cancelamento"}
-          onClick={() => handleFilterChange("intent", filters.intent === "cancelamento" ? "all" : "cancelamento")}
-          color="danger"
-        />
-        <Chip
-          label="Outro"
-          icon={MoreHorizontal}
-          active={filters.intent === "outro"}
-          onClick={() => handleFilterChange("intent", filters.intent === "outro" ? "all" : "outro")}
-        />
-      </div>
+        {/* Intenção */}
+        <FilterChip
+          icon={Target}
+          label="Intenção"
+          activeLabel={INTENT_LABEL[filters.intent]}
+          isActive={filters.intent !== "all"}
+        >
+          {(close) => (
+            <>
+              <PopoverHeader>Intenção</PopoverHeader>
+              <PopoverItem
+                active={filters.intent === "compra"}
+                onClick={() => {
+                  updateFilter("intent", "compra");
+                  close();
+                }}
+                icon={ShoppingCart}
+                iconColor="text-[var(--color-success)]"
+                label="Compra"
+              />
+              <PopoverItem
+                active={filters.intent === "suporte"}
+                onClick={() => {
+                  updateFilter("intent", "suporte");
+                  close();
+                }}
+                icon={Headphones}
+                iconColor="text-[var(--color-primary)]"
+                label="Suporte"
+              />
+              <PopoverItem
+                active={filters.intent === "reclamacao"}
+                onClick={() => {
+                  updateFilter("intent", "reclamacao");
+                  close();
+                }}
+                icon={AlertTriangle}
+                iconColor="text-[var(--color-danger)]"
+                label="Reclamação"
+              />
+              <PopoverItem
+                active={filters.intent === "duvida"}
+                onClick={() => {
+                  updateFilter("intent", "duvida");
+                  close();
+                }}
+                icon={HelpCircle}
+                iconColor="text-[var(--color-warning)]"
+                label="Dúvida"
+              />
+              <PopoverItem
+                active={filters.intent === "cancelamento"}
+                onClick={() => {
+                  updateFilter("intent", "cancelamento");
+                  close();
+                }}
+                icon={XCircle}
+                iconColor="text-[var(--color-danger)]"
+                label="Cancelamento"
+              />
+              <PopoverItem
+                active={filters.intent === "outro"}
+                onClick={() => {
+                  updateFilter("intent", "outro");
+                  close();
+                }}
+                icon={MoreHorizontal}
+                label="Outro"
+              />
+              {filters.intent !== "all" ? (
+                <PopoverFooter
+                  onClear={() => {
+                    updateFilter("intent", "all");
+                    close();
+                  }}
+                />
+              ) : null}
+            </>
+          )}
+        </FilterChip>
 
-      {/* Filtros de Agente */}
-      {agents.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-muted">Agente:</span>
-          {agents.map((agent) => (
-            <Chip
-              key={agent.id}
-              label={agent.name ?? agent.id}
-              icon={User}
-              active={filters.agent === agent.id}
-              onClick={() => handleFilterChange("agent", filters.agent === agent.id ? "all" : agent.id)}
-              color="primary"
-            />
-          ))}
-        </div>
-      )}
+        {/* Agente */}
+        {agents.length > 0 ? (
+          <FilterChip
+            icon={UserCircle2}
+            label="Agente"
+            activeLabel={agentActiveLabel}
+            isActive={filters.agent !== "all"}
+          >
+            {(close) => (
+              <>
+                <PopoverHeader>Agente</PopoverHeader>
+                {agents.map((agent) => (
+                  <PopoverItem
+                    key={agent.id}
+                    active={filters.agent === agent.id}
+                    onClick={() => {
+                      updateFilter("agent", agent.id);
+                      close();
+                    }}
+                    label={agent.name ?? agent.id}
+                  />
+                ))}
+                {filters.agent !== "all" ? (
+                  <PopoverFooter
+                    onClear={() => {
+                      updateFilter("agent", "all");
+                      close();
+                    }}
+                  />
+                ) : null}
+              </>
+            )}
+          </FilterChip>
+        ) : null}
 
-      {/* Filtros de Período */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted">Período:</span>
-        <Chip
-          label="24h"
+        {/* Período */}
+        <FilterChip
           icon={Clock}
-          active={filters.period === "1"}
-          onClick={() => handleFilterChange("period", "1")}
-        />
-        <Chip
-          label="7 dias"
-          icon={Clock}
-          active={filters.period === "7"}
-          onClick={() => handleFilterChange("period", "7")}
-        />
-        <Chip
-          label="30 dias"
-          icon={Clock}
-          active={filters.period === "30"}
-          onClick={() => handleFilterChange("period", "30")}
-        />
-        <Chip
-          label="Todas"
-          icon={Clock}
-          active={filters.period === "all"}
-          onClick={() => handleFilterChange("period", "all")}
-        />
+          label="Período"
+          activeLabel={PERIOD_LABEL[filters.period]}
+          isActive={filters.period !== "all"}
+        >
+          {(close) => (
+            <>
+              <PopoverHeader>Período</PopoverHeader>
+              <PopoverItem
+                active={filters.period === "1"}
+                onClick={() => {
+                  updateFilter("period", "1");
+                  close();
+                }}
+                label="Últimas 24h"
+              />
+              <PopoverItem
+                active={filters.period === "7"}
+                onClick={() => {
+                  updateFilter("period", "7");
+                  close();
+                }}
+                label="Últimos 7 dias"
+              />
+              <PopoverItem
+                active={filters.period === "30"}
+                onClick={() => {
+                  updateFilter("period", "30");
+                  close();
+                }}
+                label="Últimos 30 dias"
+              />
+              <PopoverItem
+                active={filters.period === "all"}
+                onClick={() => {
+                  updateFilter("period", "all");
+                  close();
+                }}
+                label="Todas"
+              />
+            </>
+          )}
+        </FilterChip>
+
+        {hasActiveFilters ? (
+          <button
+            type="button"
+            onClick={handleClearFilters}
+            className="ml-auto text-[12px] font-medium text-[var(--color-text-tertiary)] hover:text-[var(--color-primary)] hover:underline"
+          >
+            Limpar filtros
+          </button>
+        ) : null}
       </div>
     </div>
   );

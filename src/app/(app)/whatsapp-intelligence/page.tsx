@@ -23,7 +23,6 @@ import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { IntentDistributionChart } from "@/components/whatsapp/intent-distribution-chart";
 import { AnaliseVolumeChart } from "@/components/whatsapp/analise-volume-chart";
-import { SyncConversationsButton } from "@/components/whatsapp/sync-conversations-button";
 import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 import { AnaliseNotableChanges } from "@/components/whatsapp/analise-notable-changes";
 import {
@@ -169,13 +168,10 @@ export default async function WhatsAppDashboardPage({
         <PulsoComercial companyId={companyId} />
       </Suspense>
 
-      {/* Toolbar: period + ações primárias */}
+      {/* Toolbar: period + ações · sync é via webhook real-time do Evo CRM */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <AnalisePeriodPicker />
-        <div className="flex flex-wrap gap-2">
-          <BulkAnalyzeButton companyId={companyId} />
-          <SyncConversationsButton companyId={companyId} />
-        </div>
+        <BulkAnalyzeButton companyId={companyId} />
       </div>
 
       {/* Mudanças notáveis · grid full width */}

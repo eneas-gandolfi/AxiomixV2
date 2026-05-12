@@ -11,11 +11,9 @@ import { MessageSquare, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { SyncConversationsButton } from "@/components/whatsapp/sync-conversations-button";
 import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 import { ConversationsList } from "@/components/whatsapp/conversations-list";
 import { StartConversationButton } from "@/components/whatsapp/start-conversation-button";
-import { AutoSyncIndicator } from "@/components/whatsapp/auto-sync-indicator";
 import { ContactsManagerSheet } from "@/components/whatsapp/contacts-manager-sheet";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
 
@@ -116,18 +114,15 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
 
   return (
     <>
-      {/* Ações */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <AutoSyncIndicator companyId={companyId} intervalSeconds={180} />
-        <div className="flex flex-wrap gap-2">
-          <StartConversationButton companyId={companyId} />
-          <ContactsManagerSheet
-            companyId={companyId}
-            defaultOpen={params.contatos === "1"}
-          />
-          <BulkAnalyzeButton companyId={companyId} />
-          <SyncConversationsButton companyId={companyId} />
-        </div>
+      {/* Toolbar de ações · sync é via webhook real-time do Evo CRM,
+          então não há botão "Sincronizar" nem indicador de polling aqui. */}
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+        <ContactsManagerSheet
+          companyId={companyId}
+          defaultOpen={params.contatos === "1"}
+        />
+        <BulkAnalyzeButton companyId={companyId} />
+        <StartConversationButton companyId={companyId} />
       </div>
 
       {/* Nudge de conversas sem análise */}

@@ -47,7 +47,7 @@ export function ConversationsList({ conversations, companyId, agents = [], initi
     intent: "all",
     status: "all",
     agent: "all",
-    period: "7",
+    period: "all",
     search: "",
     ...initialFilters,
   });
@@ -414,6 +414,7 @@ export function ConversationsList({ conversations, companyId, agents = [], initi
               onToggleSelection={handleToggleSelection}
               onSelectAll={handleSelectAll}
               onResolve={handleResolve}
+              agents={agents}
             />
           </div>
         </CardContent>

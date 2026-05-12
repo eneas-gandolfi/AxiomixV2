@@ -1,15 +1,18 @@
 /**
  * Arquivo: src/components/whatsapp/conversations-table.tsx
- * Propósito: Tabela Ant Design para lista de conversas do WhatsApp Intelligence.
+ * Propósito: Lista densa de conversas (estilo MGM/Axiomix Intelligence). Cada
+ *            linha tem 60px, faixa lateral por sentiment, avatar + dot, chip
+ *            de intent, timestamp relativo, avatar do vendedor responsável,
+ *            e ações rápidas no hover. Substitui a antiga Antd Table.
+ *
+ *            Helpers exportados são reaproveitados por `batch-conversation-card`.
  * Autor: AXIOMIX
- * Data: 2026-03-13
+ * Data: 2026-05-12
  */
 
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Table } from "antd";
-import type { ColumnsType } from "antd/es/table";
 import {
   ShoppingCart,
   Headphones,
@@ -17,11 +20,10 @@ import {
   HelpCircle,
   XCircle,
   MoreHorizontal,
-  Clock,
+  MessageSquareDashed,
 } from "lucide-react";
 import { ContactAvatar } from "./contact-avatar";
 import { ConversationQuickActions } from "./conversation-quick-actions";
-import { axiomixPagination, axiomixTableProps } from "@/lib/ant-table-defaults";
 
 type Sentiment = "positivo" | "neutro" | "negativo";
 
@@ -33,6 +35,7 @@ type ConversationData = {
   remote_jid: string;
   status: string | null;
   last_message_at: string | null;
+  assigned_to: string | null;
   sentiment: Sentiment | null;
   intent: string | null;
 };
@@ -44,7 +47,12 @@ type ConversationsTableProps = {
   onToggleSelection: (id: string) => void;
   onSelectAll: () => void;
   onResolve?: (conversationId: string) => void;
+  agents?: Array<{ id: string; name: string | null }>;
 };
+
+// =============================================================================
+// Helpers exportados (consumidos em batch-conversation-card.tsx)
+// =============================================================================
 
 export function sentimentBadgeClass(sentiment?: Sentiment | null) {
   if (sentiment === "positivo") return "bg-success-light text-success";
@@ -103,16 +111,19 @@ export function getTimeSinceLastMessage(lastMessageAt?: string | null): string {
   const now = new Date();
   const lastMessage = new Date(lastMessageAt);
   const diffMs = now.getTime() - lastMessage.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffHours < 1) {
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    return `${diffMinutes}min atrás`;
-  }
-  if (diffHours < 24) return `${diffHours}h atrás`;
-  if (diffDays < 7) return `${diffDays}d atrás`;
-  return "";
+  if (diffMinutes < 1) return "agora";
+  if (diffHours < 1) return `${diffMinutes}min`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays === 1) return "ontem";
+  if (diffDays < 7) return `${diffDays}d`;
+  return new Date(lastMessageAt).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
 }
 
 export function formatContactDisplay(contactName: string | null, remoteJid: string): string {
@@ -136,195 +147,290 @@ export function formatContactDisplay(contactName: string | null, remoteJid: stri
   return phone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3") || phone;
 }
 
-function isNegativeRecent(conversation: ConversationData): boolean {
+// =============================================================================
+// Helpers internos
+// =============================================================================
+
+function getMinutesSince(lastMessageAt: string | null): number {
+  if (!lastMessageAt) return 0;
+  return Math.floor((Date.now() - new Date(lastMessageAt).getTime()) / 60000);
+}
+
+function isAwaitingCritical(c: ConversationData): boolean {
   return (
-    conversation.sentiment === "negativo" &&
-    !!conversation.last_message_at &&
-    new Date().getTime() - new Date(conversation.last_message_at).getTime() <
-      24 * 60 * 60 * 1000
+    c.sentiment === "negativo" &&
+    c.status !== "closed" &&
+    getMinutesSince(c.last_message_at) >= 30
   );
 }
+
+function sentimentDotClass(s: Sentiment | null): string {
+  if (s === "positivo") return "bg-[var(--color-success)]";
+  if (s === "neutro") return "bg-[var(--color-warning)]";
+  if (s === "negativo") return "bg-[var(--color-danger)]";
+  return "bg-[var(--color-text-tertiary)]";
+}
+
+function sentimentBorderColor(s: Sentiment | null): string {
+  if (s === "positivo") return "var(--color-success)";
+  if (s === "neutro") return "var(--color-warning)";
+  if (s === "negativo") return "var(--color-danger)";
+  return "transparent";
+}
+
+function vendorInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "?";
+  return (
+    (parts[0][0]?.toUpperCase() ?? "") +
+    (parts[parts.length - 1][0]?.toUpperCase() ?? "")
+  );
+}
+
+// =============================================================================
+// Empty state
+// =============================================================================
+
+function EmptyConversationsState() {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
+      <MessageSquareDashed
+        className="mb-4 h-16 w-16"
+        style={{ stroke: "var(--color-text-tertiary)", strokeWidth: 1.25 }}
+        aria-hidden
+      />
+      <p className="mb-1 text-[16px] font-semibold text-[var(--color-text-secondary)]">
+        Tudo respondido por aqui.
+      </p>
+      <p className="text-[13px] text-[var(--color-text-tertiary)]">
+        Nenhuma conversa encontrada com os filtros aplicados.
+      </p>
+    </div>
+  );
+}
+
+// =============================================================================
+// Row
+// =============================================================================
+
+type RowProps = {
+  c: ConversationData;
+  selectionMode: boolean;
+  isSelected: boolean;
+  vendorName: string | null;
+  onToggle: () => void;
+  onResolve?: () => void;
+  onOpen: () => void;
+};
+
+function ConversationRow({
+  c,
+  selectionMode,
+  isSelected,
+  vendorName,
+  onToggle,
+  onResolve,
+  onOpen,
+}: RowProps) {
+  const awaitingCritical = isAwaitingCritical(c);
+  const IntentIcon = getIntentIcon(c.intent);
+  const intentColor = getIntentColor(c.intent);
+  const dotClass = sentimentDotClass(c.sentiment);
+  const displayName =
+    c.contact_name?.trim() || formatContactDisplay(null, c.remote_jid);
+  const phoneSecondary = formatContactDisplay(null, c.remote_jid);
+  const timeRelative = getTimeSinceLastMessage(c.last_message_at);
+
+  // Borda lateral: 4px sólida quando crítico, 3px nas demais. Quando selecionado,
+  // a borda laranja SOBRESCREVE a de sentiment (uma fonte de verdade visual).
+  const borderColor = isSelected
+    ? "var(--color-primary)"
+    : sentimentBorderColor(c.sentiment);
+  const borderWidth = awaitingCritical && !isSelected ? "4px" : "3px";
+
+  // Background da linha (default fica como hover via Tailwind).
+  let rowBg: string | undefined;
+  if (isSelected) {
+    rowBg = "var(--color-primary-dim)";
+  } else if (awaitingCritical) {
+    rowBg = "color-mix(in srgb, var(--color-danger) 4%, transparent)";
+  }
+
+  // peek (linha 2) — TODO: substituir por texto real da última mensagem
+  // quando a coluna estiver disponível em conversations. Por enquanto mostra
+  // telefone formatado quando há nome, ou data absoluta no fallback.
+  const peekText = c.contact_name?.trim()
+    ? phoneSecondary
+    : formatDate(c.last_message_at);
+
+  return (
+    <li
+      onClick={() => (selectionMode ? onToggle() : onOpen())}
+      className="group relative flex h-[60px] cursor-pointer items-center gap-3 px-4 transition-colors hover:bg-[color-mix(in_srgb,var(--color-surface-2)_50%,transparent)]"
+      style={{
+        boxShadow: `inset ${borderWidth} 0 0 0 ${borderColor}`,
+        background: rowBg,
+      }}
+    >
+      {/* checkbox */}
+      <div
+        className={`flex w-4 justify-center ${
+          selectionMode || isSelected
+            ? ""
+            : "opacity-0 transition-opacity group-hover:opacity-100"
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggle()}
+          onClick={(e) => e.stopPropagation()}
+          className="h-4 w-4 cursor-pointer rounded accent-[var(--color-primary)]"
+          aria-label={`Selecionar conversa com ${displayName}`}
+        />
+      </div>
+
+      {/* avatar + dot de sentiment */}
+      <div className="relative shrink-0">
+        <ContactAvatar
+          name={c.contact_name}
+          avatarUrl={c.contact_avatar_url}
+          size="md"
+        />
+        {c.sentiment ? (
+          <span
+            className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ${dotClass} ${
+              awaitingCritical ? "animate-pulse" : ""
+            }`}
+            style={{ border: "2px solid var(--color-surface)" }}
+            aria-label={`Sentimento: ${c.sentiment}`}
+          />
+        ) : (
+          <span
+            className="absolute bottom-0 right-0 h-1.5 w-1.5 rounded-full bg-[var(--color-text-tertiary)]"
+            aria-label="Sem análise"
+          />
+        )}
+      </div>
+
+      {/* bloco central */}
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex items-center gap-2">
+          <span
+            className="truncate text-[14px] font-semibold leading-tight tracking-[-0.01em] text-[var(--color-text)]"
+            title={phoneSecondary}
+          >
+            {displayName}
+          </span>
+          {c.intent && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">
+              <IntentIcon className={`h-3 w-3 ${intentColor}`} />
+              {c.intent}
+            </span>
+          )}
+          {c.status === "closed" && (
+            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-success)]">
+              · resolvida
+            </span>
+          )}
+        </div>
+        <p className="truncate text-[13px] text-[var(--color-text-secondary)]">
+          {peekText}
+        </p>
+      </div>
+
+      {/* coluna direita: badge "aguardando" + vendedor + timestamp */}
+      <div className="flex shrink-0 flex-col items-end gap-0.5">
+        {awaitingCritical && timeRelative && (
+          <span
+            className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-danger)]"
+            style={{
+              padding: "1px 6px",
+              borderRadius: "4px",
+              background: "color-mix(in srgb, var(--color-danger) 10%, transparent)",
+            }}
+          >
+            aguardando {timeRelative}
+          </span>
+        )}
+        <div className="flex items-center gap-1.5">
+          {vendorName ? (
+            <div
+              className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-primary)] font-semibold text-white"
+              style={{ fontSize: "9px" }}
+              title={vendorName}
+            >
+              {vendorInitials(vendorName)}
+            </div>
+          ) : null}
+          <span className="text-[12px] font-medium tabular-nums text-[var(--color-text-tertiary)]">
+            {timeRelative || "·"}
+          </span>
+        </div>
+      </div>
+
+      {/* quick actions on hover (não aparece em selectionMode) */}
+      {!selectionMode && onResolve && (
+        <div
+          className="ml-1 opacity-0 transition-opacity group-hover:opacity-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ConversationQuickActions
+            conversationId={c.id}
+            conversationUrl={`/whatsapp-intelligence/conversas/${c.id}`}
+            onResolve={onResolve}
+          />
+        </div>
+      )}
+    </li>
+  );
+}
+
+// =============================================================================
+// Componente principal
+// =============================================================================
 
 export function ConversationsTable({
   conversations,
   selectionMode,
   selectedIds,
   onToggleSelection,
-  onSelectAll,
   onResolve,
+  agents = [],
 }: ConversationsTableProps) {
   const router = useRouter();
 
-  const columns: ColumnsType<ConversationData> = [
-    {
-      title: "Contato",
-      dataIndex: "contact_name",
-      width: 280,
-      render: (_, record) => {
-        const IntentIcon = getIntentIcon(record.intent);
-        const intentColor = getIntentColor(record.intent);
-        const timeSince = getTimeSinceLastMessage(record.last_message_at);
-        const negRecent = isNegativeRecent(record);
+  if (conversations.length === 0) {
+    return <EmptyConversationsState />;
+  }
 
-        return (
-          <div className="flex items-center gap-3">
-            <ContactAvatar name={record.contact_name} avatarUrl={record.contact_avatar_url} size="md" />
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center gap-2">
-                {record.intent && (
-                  <IntentIcon className={`h-4 w-4 flex-shrink-0 ${intentColor}`} />
-                )}
-                <p className="text-sm font-medium text-text truncate">
-                  {formatContactDisplay(record.contact_name, record.remote_jid)}
-                </p>
-                {timeSince && negRecent && (
-                  <span className="flex items-center gap-1 rounded-full bg-danger-light px-2 py-0.5 text-xs font-medium text-danger flex-shrink-0">
-                    <Clock className="h-3 w-3" />
-                    {timeSince}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-light">
-                <span>{formatDate(record.last_message_at)}</span>
-                {record.external_id && (
-                  <>
-                    <span>•</span>
-                    <span>ID: {record.external_id}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      title: "Última Msg",
-      dataIndex: "last_message_at",
-      width: 160,
-      responsive: ["md"],
-      render: (value: string | null) => {
-        const timeSince = getTimeSinceLastMessage(value);
-        return (
-          <span className="text-xs text-muted">
-            {timeSince || formatDate(value)}
-          </span>
-        );
-      },
-    },
-    {
-      title: "Intenção",
-      dataIndex: "intent",
-      width: 140,
-      responsive: ["md"],
-      render: (intent: string | null) => {
-        if (!intent) return <span className="text-xs text-muted-light">—</span>;
-        const IntentIcon = getIntentIcon(intent);
-        const intentColor = getIntentColor(intent);
-        return (
-          <span
-            className={`flex items-center gap-1 rounded-full bg-background px-2.5 py-1 text-xs font-medium w-fit ${intentColor}`}
-          >
-            <IntentIcon className="h-3 w-3" />
-            {intent}
-          </span>
-        );
-      },
-    },
-    {
-      title: "Sentimento",
-      dataIndex: "sentiment",
-      width: 130,
-      render: (sentiment: Sentiment | null, record: ConversationData) => (
-        <div className="flex flex-col gap-1">
-          <span
-            className={`rounded-full px-2.5 py-1 text-xs font-medium w-fit ${sentimentBadgeClass(sentiment)}`}
-          >
-            {sentimentLabel(sentiment)}
-          </span>
-          {record.status === "closed" && (
-            <span className="rounded-full px-2.5 py-0.5 text-[10px] font-medium bg-success-light text-success w-fit">
-              Resolvida
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: "Ações",
-      key: "actions",
-      width: 120,
-      fixed: "right",
-      render: (_, record) => {
-        if (selectionMode) return null;
-        const conversationUrl = `/whatsapp-intelligence/conversas/${record.id}`;
-        return (
-          <div className="quick-actions opacity-0 transition-opacity">
-            <ConversationQuickActions
-              conversationId={record.id}
-              conversationUrl={conversationUrl}
-              onResolve={onResolve && record.status !== "closed" ? () => onResolve(record.id) : undefined}
-            />
-          </div>
-        );
-      },
-    },
-  ];
+  const vendorById = new Map(agents.map((a) => [a.id, a.name]));
 
   return (
-    <Table<ConversationData>
-      {...axiomixTableProps}
-      columns={columns}
-      dataSource={conversations}
-      rowKey="id"
-      pagination={axiomixPagination()}
-      rowSelection={
-        selectionMode
-          ? {
-              selectedRowKeys: Array.from(selectedIds),
-              onChange: (selectedRowKeys) => {
-                const newSet = new Set(selectedRowKeys as string[]);
-                // Sync by toggling differences
-                const currentIds = new Set(selectedIds);
-                for (const id of newSet) {
-                  if (!currentIds.has(id)) onToggleSelection(id);
-                }
-                for (const id of currentIds) {
-                  if (!newSet.has(id)) onToggleSelection(id);
-                }
-              },
-              onSelectAll: () => onSelectAll(),
+    <ul className="divide-y divide-[var(--color-surface-2)]">
+      {conversations.map((c) => {
+        const isSelected = selectedIds.has(c.id);
+        const vendorName = c.assigned_to
+          ? vendorById.get(c.assigned_to) ?? null
+          : null;
+        return (
+          <ConversationRow
+            key={c.id}
+            c={c}
+            selectionMode={selectionMode}
+            isSelected={isSelected}
+            vendorName={vendorName}
+            onToggle={() => onToggleSelection(c.id)}
+            onResolve={
+              onResolve && c.status !== "closed"
+                ? () => onResolve(c.id)
+                : undefined
             }
-          : undefined
-      }
-      onRow={(record) => ({
-        onClick: (e) => {
-          if (selectionMode) {
-            e.preventDefault();
-            onToggleSelection(record.id);
-          } else {
-            router.push(`/whatsapp-intelligence/conversas/${record.id}`);
-          }
-        },
-        style: { cursor: "pointer" },
+            onOpen={() => router.push(`/whatsapp-intelligence/conversas/${c.id}`)}
+          />
+        );
       })}
-      rowClassName={(record) => {
-        const classes: string[] = [];
-        if (isNegativeRecent(record)) {
-          classes.push("ant-table-row-negative-recent");
-        }
-        if (selectedIds.has(record.id)) {
-          classes.push("ant-table-row-selected-axiomix");
-        }
-        return classes.join(" ");
-      }}
-      locale={{
-        emptyText: (
-          <p className="py-8 text-sm text-muted">
-            Nenhuma conversa encontrada com os filtros aplicados.
-          </p>
-        ),
-      }}
-    />
+    </ul>
   );
 }
