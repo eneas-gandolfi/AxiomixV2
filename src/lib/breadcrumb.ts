@@ -21,9 +21,15 @@ export const SEGMENT_LABELS: Record<string, string> = {
   onboarding: "Onboarding",
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function getBreadcrumb(pathname: string): string[] {
   return pathname
     .split("/")
     .filter(Boolean)
-    .map((segment) => SEGMENT_LABELS[segment] ?? segment);
+    .map((segment) => {
+      if (SEGMENT_LABELS[segment]) return SEGMENT_LABELS[segment];
+      if (UUID_RE.test(segment)) return segment.slice(0, 8);
+      return segment;
+    });
 }
