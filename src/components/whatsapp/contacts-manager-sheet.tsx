@@ -100,7 +100,7 @@ export function ContactsManagerSheet({ companyId, defaultOpen = false }: Contact
           </div>
         }
         placement="right"
-        width={760}
+        size="large"
         open={open}
         onClose={() => setOpen(false)}
         destroyOnClose

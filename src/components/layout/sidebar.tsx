@@ -9,6 +9,7 @@
 
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -187,11 +188,41 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         }}
         className="sticky top-0 flex h-screen flex-shrink-0 flex-col overflow-hidden border-r border-[rgba(255,255,255,0.05)] bg-[var(--color-sidebar-nav)]"
       >
+        {/* Brand · Axiomix favicon */}
+        <div
+          className={cn(
+            "flex flex-shrink-0 items-center border-b border-[rgba(255,255,255,0.05)]",
+            isExpanded ? "gap-2.5 px-4 py-3" : "justify-center px-2 py-3"
+          )}
+        >
+          <Image
+            src="/axiomix-favicon.png"
+            alt="Axiomix"
+            width={22}
+            height={22}
+            priority
+            className="flex-shrink-0 rounded-[6px]"
+          />
+          <span
+            className="text-[11px] font-bold tracking-[0.22em] text-[var(--color-primary-hover)]"
+            style={{
+              opacity: isExpanded ? 1 : 0,
+              width: isExpanded ? "auto" : 0,
+              transition: "opacity 180ms ease, width 180ms ease",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+            }}
+            aria-hidden={!isExpanded}
+          >
+            AXIOMIX
+          </span>
+        </div>
+
         {/* Workspace header */}
         <div
           className={cn(
             "flex flex-shrink-0 items-center border-b border-[rgba(255,255,255,0.05)]",
-            isExpanded ? "gap-3 px-4 py-4" : "justify-center px-2 py-4"
+            isExpanded ? "gap-3 px-4 py-3" : "justify-center px-2 py-3"
           )}
         >
           <div
@@ -215,9 +246,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           >
             <div className="truncate text-[14px] font-semibold leading-tight tracking-tight text-[#F0F4FA]">
               {companyName ?? "Carregando…"}
-            </div>
-            <div className="mt-[3px] truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[#3A4252]">
-              axiomix · workspace
             </div>
           </div>
           {isExpanded ? (
