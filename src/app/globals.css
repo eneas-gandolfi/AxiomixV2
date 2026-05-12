@@ -680,3 +680,65 @@
     filter: none !important;
   }
 }
+
+/* ────────────────────────────────────────────────────────────────────
+   Sidebar · Marker design
+   Carry weight via geometry (corner brackets) instead of glow.
+   ──────────────────────────────────────────────────────────────────── */
+.sidebar-item {
+  color: #8892A4;
+}
+.sidebar-item:hover {
+  color: #F0F4FA;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+.sidebar-item__icon {
+  color: inherit;
+}
+.sidebar-item[data-coming-soon="true"] {
+  color: #5F6B7C;
+  opacity: 0.55;
+  cursor: default;
+}
+.sidebar-item[data-coming-soon="true"]:hover {
+  background-color: transparent;
+  color: #5F6B7C;
+}
+.sidebar-item[data-active="true"] {
+  color: #F0F4FA;
+  background-color: rgba(255, 255, 255, 0.028);
+}
+.sidebar-item[data-active="true"] .sidebar-item__icon {
+  color: var(--color-primary-hover);
+}
+.sidebar-item[data-active="true"] .sidebar-item__count {
+  color: var(--color-primary-hover);
+}
+.sidebar-item__count {
+  color: var(--color-primary);
+}
+/* corner brackets — the signature accent */
+.sidebar-item[data-active="true"]::before,
+.sidebar-item[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-color: var(--color-primary-hover);
+  border-style: solid;
+  border-width: 0;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.sidebar-item[data-active="true"]::before {
+  top: 5px;
+  left: 5px;
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+.sidebar-item[data-active="true"]::after {
+  bottom: 5px;
+  right: 5px;
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+}

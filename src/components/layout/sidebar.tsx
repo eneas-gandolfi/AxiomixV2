@@ -1,22 +1,23 @@
 /**
  * Arquivo: src/components/layout/sidebar.tsx
- * Propósito: Sidebar de navegação com cores por módulo (Design System v2.0).
+ * Propósito: Sidebar de navegação — design Marker.
+ *            Workspace switcher no topo, brackets de canto no item ativo,
+ *            footer com user + collapse toggle.
  * Autor: AXIOMIX
- * Data: 2026-03-13
+ * Data: 2026-05-12
  */
 
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   BookOpen,
+  ChevronsUpDown,
   LayoutDashboard,
   MessageSquare,
-  PanelLeftClose,
-  PanelLeftOpen,
+  PanelLeft,
   Settings,
   Share2,
   TrendingUp,
@@ -28,19 +29,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { MODULES, sidebarColors } from "@/lib/module-colors";
-import type { ModuleId } from "@/lib/module-colors";
 import { useCriticalCount } from "@/lib/whatsapp/use-critical-count";
-
-/** Mapeamento href → ModuleId para derivar cores da sidebar */
-const HREF_TO_MODULE: Record<string, ModuleId> = {
-  "/dashboard": "dashboard",
-  "/whatsapp-intelligence": "whatsapp-intelligence",
-  "/intelligence": "intelligence",
-  "/social-publisher": "social-publisher",
-  "/base-conhecimento": "base-conhecimento",
-  "/settings": "settings",
-};
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type NavItem = {
   label: string;
@@ -49,35 +39,83 @@ type NavItem = {
   comingSoon?: boolean;
 };
 
+type NavGroup = {
+  id: string;
+  label: string;
+  items: NavItem[];
+};
+
 const FEATURE_INTELLIGENCE = process.env.NEXT_PUBLIC_FEATURE_INTELLIGENCE === "true";
 const FEATURE_SOCIAL_PUBLISHER = process.env.NEXT_PUBLIC_FEATURE_SOCIAL_PUBLISHER === "true";
+const FEATURE_KB = process.env.NEXT_PUBLIC_FEATURE_KB === "true";
 
-export const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+export const NAV_GROUPS: NavGroup[] = [
   {
-    label: "WhatsApp Intelligence",
-    href: "/whatsapp-intelligence",
-    icon: MessageSquare,
+    id: "operacao",
+    label: "Operação",
+    items: [
+      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      {
+        label: "WhatsApp Intelligence",
+        href: "/whatsapp-intelligence",
+        icon: MessageSquare,
+      },
+    ],
   },
   {
-    label: "Intelligence",
-    href: "/intelligence",
-    icon: TrendingUp,
-    comingSoon: !FEATURE_INTELLIGENCE,
+    id: "crescimento",
+    label: "Crescimento",
+    items: [
+      {
+        label: "Intelligence",
+        href: "/intelligence",
+        icon: TrendingUp,
+        comingSoon: !FEATURE_INTELLIGENCE,
+      },
+      {
+        label: "Social Publisher",
+        href: "/social-publisher",
+        icon: Share2,
+        comingSoon: !FEATURE_SOCIAL_PUBLISHER,
+      },
+      ...(FEATURE_KB
+        ? [
+            {
+              label: "Base de Conhecimento",
+              href: "/base-conhecimento",
+              icon: BookOpen,
+            },
+          ]
+        : []),
+    ],
   },
   {
-    label: "Social Publisher",
-    href: "/social-publisher",
-    icon: Share2,
-    comingSoon: !FEATURE_SOCIAL_PUBLISHER,
+    id: "sistema",
+    label: "Sistema",
+    items: [{ label: "Configurações", href: "/settings", icon: Settings }],
   },
-  { label: "Base de Conhecimento", href: "/base-conhecimento", icon: BookOpen },
-  { label: "Configurações", href: "/settings", icon: Settings },
 ];
+
+export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+}
+
+function initialsFrom(name: string | null | undefined, fallback: string): string {
+  if (!name) return fallback;
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return fallback;
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function firstNameFrom(name: string | null | undefined, fallback: string): string {
+  if (!name) return fallback;
+  const first = name.split(/[\s@]/).filter(Boolean)[0];
+  if (!first) return fallback;
+  return first.charAt(0).toUpperCase() + first.slice(1);
 }
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
@@ -85,6 +123,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [hovered, setHovered] = useState(false);
   const { count: criticalCount } = useCriticalCount();
   const [companyName, setCompanyName] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const isExpanded = !collapsed || hovered;
   const showTooltip = collapsed && !hovered;
 
@@ -107,35 +146,66 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const { data } = await supabase.auth.getUser();
+        if (cancelled || !data.user) return;
+        const meta = data.user.user_metadata as { full_name?: unknown } | null;
+        const fullName =
+          typeof meta?.full_name === "string" && meta.full_name.trim()
+            ? meta.full_name.trim()
+            : (data.user.email ?? null);
+        if (fullName) setUserName(fullName);
+      } catch (error) {
+        console.error("[sidebar] erro ao buscar usuário:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const companyInitials = initialsFrom(companyName, "AX");
+  const userInitials = initialsFrom(userName, "U");
+  const userFirstName = firstNameFrom(userName, "Conta");
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside
         role="navigation"
         aria-label="Menu principal"
         onMouseEnter={() => {
-          if (collapsed) {
-            setHovered(true);
-          }
+          if (collapsed) setHovered(true);
         }}
         onMouseLeave={() => setHovered(false)}
         style={{
-          width: isExpanded ? "240px" : "64px",
-          transition:
-            "width 220ms cubic-bezier(0.4, 0, 0.2, 1), border-color 150ms ease",
-          borderRightColor:
-            hovered && collapsed
-              ? "rgb(var(--color-primary-rgb) / 0.2)"
-              : "rgba(255,255,255,0.06)",
+          width: isExpanded ? "260px" : "64px",
+          transition: "width 220ms cubic-bezier(0.4, 0, 0.2, 1)",
         }}
-        className="sticky top-0 flex h-screen flex-shrink-0 flex-col overflow-hidden border-r bg-[var(--color-sidebar-nav)]"
+        className="sticky top-0 flex h-screen flex-shrink-0 flex-col overflow-hidden border-r border-[rgba(255,255,255,0.05)] bg-[var(--color-sidebar-nav)]"
       >
-        {/* Header */}
+        {/* Workspace header */}
         <div
-          className="relative flex h-16 flex-shrink-0 items-center border-b border-[rgba(255,255,255,0.06)] px-3"
-          style={{ justifyContent: isExpanded ? "space-between" : "center" }}
+          className={cn(
+            "flex flex-shrink-0 items-center border-b border-[rgba(255,255,255,0.05)]",
+            isExpanded ? "gap-3 px-4 py-4" : "justify-center px-2 py-4"
+          )}
         >
           <div
-            className="flex items-center gap-2 overflow-hidden"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[9px] font-mono text-xs font-bold tracking-wide text-white"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--color-primary-hover) 0%, var(--color-primary-muted) 100%)",
+            }}
+            aria-hidden="true"
+          >
+            {companyInitials}
+          </div>
+          <div
+            className="min-w-0 flex-1 overflow-hidden"
             style={{
               opacity: isExpanded ? 1 : 0,
               width: isExpanded ? "auto" : 0,
@@ -143,175 +213,169 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             }}
             aria-hidden={!isExpanded}
           >
-            <Image
-              src="/logo.png"
-              alt="AXIOMIX logo"
-              width={24}
-              height={24}
-              className="flex-shrink-0 rounded-sm"
-            />
-            <span className="whitespace-nowrap font-display text-sm font-bold tracking-wide text-[var(--color-primary-hover)]">
-              AXIOMIX
-            </span>
+            <div className="truncate text-[14px] font-semibold leading-tight tracking-tight text-[#F0F4FA]">
+              {companyName ?? "Carregando…"}
+            </div>
+            <div className="mt-[3px] truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[#3A4252]">
+              axiomix · workspace
+            </div>
           </div>
-
-          <button
-            onClick={onToggle}
-            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-            aria-expanded={!collapsed}
-            className="z-10 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[#8892A4] transition-colors hover:bg-[rgba(255,255,255,0.06)] hover:text-[#F0F4FA]"
-          >
-            {collapsed ? (
-              <PanelLeftOpen size={16} aria-hidden="true" />
-            ) : (
-              <PanelLeftClose size={16} aria-hidden="true" />
-            )}
-          </button>
+          {isExpanded ? (
+            <ChevronsUpDown
+              size={14}
+              aria-hidden="true"
+              className="flex-shrink-0 text-[#5F6B7C]"
+            />
+          ) : null}
         </div>
-
-        {!isExpanded ? (
-          <div className="flex justify-center py-2">
-            <Image
-              src="/logo.png"
-              alt="AXIOMIX"
-              width={24}
-              height={24}
-              className="flex-shrink-0 rounded-sm"
-            />
-          </div>
-        ) : null}
 
         {/* Navigation */}
         <nav
           id="sidebar-nav"
-          className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden p-2"
+          className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-5"
         >
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              !item.comingSoon &&
-              (pathname === item.href || pathname.startsWith(`${item.href}/`));
-            const Icon = item.icon;
-            const moduleId = HREF_TO_MODULE[item.href];
-            const moduleDef = moduleId ? MODULES[moduleId] : undefined;
-            const sidebarCol = moduleDef ? sidebarColors(moduleDef) : undefined;
-            const showBadge = item.href === "/whatsapp-intelligence" && criticalCount > 0;
-            const isComingSoon = Boolean(item.comingSoon);
-
-            const activeBg = sidebarCol?.bg;
-            const activeColor = sidebarCol?.color;
-
-            const tooltipLabel = isComingSoon ? `${item.label} (Em breve)` : item.label;
-
-            const itemContent = (
-              <Link
-                href={item.href}
-                aria-current={isActive ? "page" : undefined}
-                aria-disabled={isComingSoon ? true : undefined}
-                tabIndex={isComingSoon ? -1 : undefined}
-                onClick={isComingSoon ? (e) => e.preventDefault() : undefined}
-                title={showTooltip ? tooltipLabel : undefined}
-                className={cn(
-                  "relative flex w-full items-center rounded-lg transition-colors duration-150",
-                  !isExpanded ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
-                  !isActive &&
-                    !isComingSoon &&
-                    "text-[#8892A4] hover:text-[#F0F4FA] hover:bg-[rgba(255,255,255,0.06)]",
-                  isComingSoon && "cursor-default text-[#8892A4]"
-                )}
-                style={
-                  isActive && activeColor
-                    ? {
-                        color: activeColor,
-                        backgroundColor: activeBg,
-                      }
-                    : isComingSoon
-                      ? { opacity: 0.55, color: "#8892A4" }
-                      : undefined
-                }
+          {NAV_GROUPS.map((group, groupIdx) => {
+            if (group.items.length === 0) return null;
+            return (
+              <div
+                key={group.id}
+                className={cn("flex flex-col gap-[1px]", groupIdx > 0 && "mt-5")}
               >
-                {/* Left accent bar for active item */}
-                {isActive && (
-                  <span
-                    className="absolute left-0 inset-y-1.5 w-[3px] rounded-r"
-                    style={{ backgroundColor: activeColor }}
-                    aria-hidden="true"
-                  />
-                )}
-                <Icon size={18} aria-hidden="true" className="flex-shrink-0" />
-                <span
-                  className="min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-sm font-medium"
-                  style={{
-                    opacity: isExpanded ? 1 : 0,
-                    width: isExpanded ? "auto" : 0,
-                    transition: "opacity 180ms ease, width 180ms ease",
-                  }}
-                >
-                  {item.label}
-                </span>
-                {isComingSoon && isExpanded && (
-                  <span
-                    aria-hidden="true"
-                    className="ml-auto flex-shrink-0 whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                {isExpanded ? (
+                  <div
+                    className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#3A4252]"
                     style={{
-                      backgroundColor: "rgba(255, 100, 0, 0.12)",
-                      color: "#FF6400",
-                      borderColor: "rgba(255, 100, 0, 0.25)",
-                      letterSpacing: "0.08em",
+                      opacity: isExpanded ? 1 : 0,
+                      transition: "opacity 180ms ease",
                     }}
                   >
-                    Em breve
-                  </span>
-                )}
-                {showBadge && isExpanded && (
-                  <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--color-danger)] px-1.5 font-mono text-xs font-semibold text-white">
-                    {criticalCount > 99 ? "99+" : criticalCount}
-                  </span>
-                )}
-                {showBadge && !isExpanded && (
-                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[var(--color-danger)]" />
-                )}
-              </Link>
-            );
+                    {group.label}
+                  </div>
+                ) : null}
+                {group.items.map((item) => {
+                  const isActive =
+                    !item.comingSoon &&
+                    (pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`));
+                  const Icon = item.icon;
+                  const isComingSoon = Boolean(item.comingSoon);
+                  const showBadge =
+                    item.href === "/whatsapp-intelligence" && criticalCount > 0;
+                  const tooltipLabel = isComingSoon
+                    ? `${item.label} (Em breve)`
+                    : item.label;
 
-            return showTooltip ? (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>{itemContent}</TooltipTrigger>
-                <TooltipContent side="right" className="text-xs">
-                  {tooltipLabel}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <div key={item.href}>{itemContent}</div>
+                  const itemContent = (
+                    <Link
+                      href={item.href}
+                      aria-current={isActive ? "page" : undefined}
+                      aria-disabled={isComingSoon ? true : undefined}
+                      tabIndex={isComingSoon ? -1 : undefined}
+                      onClick={
+                        isComingSoon ? (e) => e.preventDefault() : undefined
+                      }
+                      title={showTooltip ? tooltipLabel : undefined}
+                      data-active={isActive ? "true" : undefined}
+                      data-coming-soon={isComingSoon ? "true" : undefined}
+                      className={cn(
+                        "sidebar-item group relative flex w-full items-center rounded-[10px] transition-colors duration-150",
+                        !isExpanded ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"
+                      )}
+                    >
+                      <Icon
+                        size={18}
+                        aria-hidden="true"
+                        className="sidebar-item__icon flex-shrink-0"
+                      />
+                      <span
+                        className="sidebar-item__label min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-[13.5px] font-medium"
+                        style={{
+                          opacity: isExpanded ? 1 : 0,
+                          width: isExpanded ? "auto" : 0,
+                          transition: "opacity 180ms ease, width 180ms ease",
+                        }}
+                      >
+                        {item.label}
+                      </span>
+                      {isComingSoon && isExpanded ? (
+                        <span
+                          aria-hidden="true"
+                          className="ml-auto flex-shrink-0 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.18em] text-[#3A4252]"
+                        >
+                          breve
+                        </span>
+                      ) : null}
+                      {showBadge && isExpanded ? (
+                        <span className="sidebar-item__count ml-auto flex-shrink-0 font-mono text-[11px] font-semibold tracking-[0.04em]">
+                          {criticalCount > 99 ? "99+" : criticalCount}
+                        </span>
+                      ) : null}
+                      {showBadge && !isExpanded ? (
+                        <span
+                          aria-hidden="true"
+                          className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]"
+                        />
+                      ) : null}
+                    </Link>
+                  );
+
+                  return showTooltip ? (
+                    <Tooltip key={item.href}>
+                      <TooltipTrigger asChild>{itemContent}</TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">
+                        {tooltipLabel}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <div key={item.href}>{itemContent}</div>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="mt-auto border-t border-[rgba(255,255,255,0.06)] p-3">
-          <div
-            className={cn(
-              "cursor-pointer rounded-lg px-2 py-2 transition-colors hover:bg-[rgba(255,255,255,0.06)]",
-              isExpanded ? "flex items-center gap-3" : "flex items-center justify-center"
-            )}
-          >
-            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[rgb(var(--color-primary-rgb)/0.15)] text-xs font-bold text-[var(--color-primary-hover)]">
-              {companyName
-                ? companyName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")
-                : "AX"}
-            </div>
+        {/* Footer: user + collapse toggle */}
+        <div
+          className={cn(
+            "mt-auto flex flex-shrink-0 items-center border-t border-[rgba(255,255,255,0.05)]",
+            isExpanded ? "justify-between px-4 py-3" : "justify-center px-2 py-3"
+          )}
+        >
+          <div className="flex min-w-0 items-center gap-2.5">
             <div
-              className="overflow-hidden"
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10.5px] font-bold"
+              style={{
+                backgroundColor: "rgb(var(--color-primary-rgb) / 0.16)",
+                color: "var(--color-primary-hover)",
+              }}
+              aria-hidden="true"
+            >
+              {userInitials}
+            </div>
+            <span
+              className="min-w-0 truncate text-[12px] font-medium text-[#8892A4]"
               style={{
                 opacity: isExpanded ? 1 : 0,
                 width: isExpanded ? "auto" : 0,
                 transition: "opacity 180ms ease, width 180ms ease",
               }}
             >
-              <p className="truncate text-xs font-medium leading-none text-[#F0F4FA]">
-                {companyName ?? "Minha Conta"}
-              </p>
-            </div>
+              {userFirstName}
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            aria-expanded={!collapsed}
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[#3A4252] transition-colors hover:text-[#8892A4]"
+            style={{
+              display: isExpanded ? "flex" : "none",
+            }}
+          >
+            <PanelLeft size={15} aria-hidden="true" />
+          </button>
         </div>
       </aside>
     </TooltipProvider>
