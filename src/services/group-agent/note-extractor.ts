@@ -38,7 +38,7 @@ const MAX_NOTES_PER_GROUP = 50;
 const TABLE = "group_agent_notes";
 
 // Helper: query tipada para tabela ainda não gerada nos types do Supabase
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function notesTable(supabase: ReturnType<typeof createSupabaseAdminClient>) {
   return supabase.from(TABLE) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 }

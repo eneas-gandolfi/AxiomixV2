@@ -20,7 +20,7 @@ export async function analyzeBestTimes(
 ): Promise<BestTimesData> {
   const supabase = createSupabaseAdminClient();
 
-  let query = supabase
+  const query = supabase
     .from("scheduled_posts")
     .select("published_at, platforms")
     .eq("company_id", companyId)

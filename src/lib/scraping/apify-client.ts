@@ -5,9 +5,12 @@
  * Data: 2026-03-12
  */
 
-// Importação condicional - funciona sem apify-client instalado
+// Importação condicional - funciona sem apify-client instalado.
+// `require` é necessário para tolerar o pacote ausente (ESM import seria erro de build).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let ApifyClient: any = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   ApifyClient = require("apify-client").ApifyClient;
 } catch {
   console.warn("apify-client não instalado. Scraping desabilitado. Instale com: npm install apify-client");

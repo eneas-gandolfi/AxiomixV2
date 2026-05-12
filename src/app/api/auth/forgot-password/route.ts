@@ -60,10 +60,11 @@ export async function POST(request: NextRequest) {
     await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
     return response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[api/auth/forgot-password] Unexpected error:", err);
+    const message = err instanceof Error ? err.message : "Erro interno. Tente novamente.";
     return NextResponse.json(
-      { error: err?.message || "Erro interno. Tente novamente." },
+      { error: message },
       { status: 500 }
     );
   }

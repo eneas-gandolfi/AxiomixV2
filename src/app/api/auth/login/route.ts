@@ -75,10 +75,11 @@ export async function POST(request: NextRequest) {
     response.cookies.set(REMEMBER_ME_COOKIE, "1", cookieOptions);
 
     return response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[api/auth/login] Unexpected error:", err);
+    const message = err instanceof Error ? err.message : "Erro interno ao autenticar.";
     return NextResponse.json(
-      { error: err?.message || "Erro interno ao autenticar." },
+      { error: message },
       { status: 500 }
     );
   }

@@ -5,6 +5,7 @@
  * Data: 2026-03-11
  */
 
+import * as https from "node:https";
 import { z } from "zod";
 import type { Json, Database } from "@/database/types/database.types";
 import { decryptSecret, encryptSecret } from "@/lib/integrations/crypto";
@@ -466,8 +467,6 @@ function isTlsError(error: unknown): boolean {
  * self-signed or incompatible certificates.
  */
 function fetchWithHttps(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
-  const https = require("node:https") as typeof import("node:https");
-
   const parsed = new URL(url);
   const headers = init.headers as Record<string, string> | undefined;
 

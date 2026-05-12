@@ -175,7 +175,7 @@ export async function listDemands(input: ListDemandsInput): Promise<ListDemandsR
 
   // Get comment counts
   const demandIds = demands.map((d) => d.id);
-  let commentMap = new Map<string, number>();
+  const commentMap = new Map<string, number>();
   if (demandIds.length > 0) {
     const { data: commentRows } = await supabase
       .from("demand_comments")

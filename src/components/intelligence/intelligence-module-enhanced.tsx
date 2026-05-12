@@ -310,7 +310,7 @@ export function IntelligenceModuleEnhanced({
 
   // Filtrar e ordenar posts
   const filteredPosts = useMemo(() => {
-    let filtered = radarPosts.filter((post) => {
+    const filtered = radarPosts.filter((post) => {
       const matchesPlatform = platformFilter === "all" || post.platform === platformFilter;
       const matchesSearch = !searchTerm ||
         post.content?.toLowerCase().includes(searchTerm.toLowerCase());
