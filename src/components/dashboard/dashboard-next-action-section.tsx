@@ -13,6 +13,7 @@ import "server-only";
 
 import Link from "next/link";
 import { getStalledConversations } from "@/lib/dashboard/shared-queries";
+import { NextActionAiSuggestion } from "@/components/dashboard/next-action-ai-suggestion";
 
 /** Formata segundos de espera como "Xh" ou "Xm" pra eyebrow do herói. */
 function formatWait(seconds: number): string {
@@ -118,29 +119,35 @@ export async function DashboardNextActionSection({
             {subline}
           </p>
           {hasUrgent && topItem ? (
-            <Link
-              href={`/whatsapp-intelligence/conversas/${topItem.conversationId}`}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[13px] font-semibold shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"
-              style={{ color: "var(--color-primary-muted)" }}
-            >
-              {stalled.count > 1
-                ? `Abrir ${topItem.customerName}`
-                : "Abrir conversa"}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+            <>
+              <Link
+                href={`/whatsapp-intelligence/conversas/${topItem.conversationId}`}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-[13px] font-semibold shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"
+                style={{ color: "var(--color-primary-muted)" }}
               >
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </Link>
+                {stalled.count > 1
+                  ? `Abrir ${topItem.customerName}`
+                  : "Abrir conversa"}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </Link>
+              <NextActionAiSuggestion
+                companyId={companyId}
+                conversationId={topItem.conversationId}
+              />
+            </>
           ) : null}
         </div>
       </div>
