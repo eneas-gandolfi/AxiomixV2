@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Maximize2, X } from "lucide-react";
@@ -19,9 +20,11 @@ export function ConversationDrawerShell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const closeTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    setMounted(true);
     const raf = requestAnimationFrame(() => setOpen(true));
     return () => cancelAnimationFrame(raf);
   }, []);
@@ -73,7 +76,12 @@ export function ConversationDrawerShell({
 
   const fullPath = `/whatsapp-intelligence/conversas/${conversationId}`;
 
-  return (
+  // Portal to document.body so we escape any ancestor with overflow/transform/
+  // contain that could trap the fixed positioning and make the drawer appear
+  // anchored to the clicked row instead of the viewport.
+  if (!mounted) return null;
+
+  const content = (
     <div
       className="fixed inset-0 z-40"
       role="dialog"
@@ -129,4 +137,6 @@ export function ConversationDrawerShell({
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 }

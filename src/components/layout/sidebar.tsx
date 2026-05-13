@@ -221,7 +221,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {/* Workspace header */}
         <div
           className={cn(
-            "flex flex-shrink-0 items-center border-b border-[rgba(255,255,255,0.05)]",
+            "flex flex-shrink-0 items-center",
             isExpanded ? "gap-3 px-4 py-3" : "justify-center px-2 py-3"
           )}
         >

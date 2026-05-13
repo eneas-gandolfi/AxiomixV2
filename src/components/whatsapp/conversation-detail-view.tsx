@@ -10,7 +10,6 @@ import { notFound, redirect } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
-  ExternalLink,
   Headphones,
   HelpCircle,
   MessageSquare,
@@ -18,7 +17,6 @@ import {
   ShoppingCart,
   XCircle,
 } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
 import { AnalyzeConversationButton } from "@/components/whatsapp/analyze-conversation-button";
 import { AssignEvoAgentSelect } from "@/components/whatsapp/assign-evo-agent-select";
 import { ConversationChat } from "@/components/whatsapp/conversation-chat";
@@ -33,7 +31,6 @@ import {
   canonicalStage,
   fixAccents,
 } from "@/lib/whatsapp/normalize-ia-text";
-import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export type ConversationDetailMode = "full" | "drawer";
 
@@ -213,16 +210,6 @@ export async function ConversationDetailView({
     .eq("conversation_id", id)
     .maybeSingle();
 
-  let evoConversationUrl: string | null = null;
-  if (conversation.external_id) {
-    try {
-      const evoClient = await getEvoCrmClient(companyId);
-      evoConversationUrl = evoClient.buildConversationUrl(conversation.external_id);
-    } catch {
-      evoConversationUrl = null;
-    }
-  }
-
   const insightData = parseInsightData(insight?.action_items);
   const objections = parseStringArray(insight?.objections);
 
@@ -330,17 +317,6 @@ export async function ConversationDetailView({
             companyId={companyId}
             conversationExternalId={conversation.external_id}
           />
-        ) : null}
-        {evoConversationUrl ? (
-          <Link
-            href={evoConversationUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({ variant: "secondary" })}
-          >
-            <ExternalLink className="h-4 w-4" />
-            Abrir no CRM
-          </Link>
         ) : null}
       </div>
     </header>
