@@ -15,7 +15,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BookOpen,
-  ChevronsUpDown,
   LayoutDashboard,
   MessageSquare,
   PanelLeft,
@@ -123,29 +122,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [hovered, setHovered] = useState(false);
   const { count: criticalCount } = useCriticalCount();
-  const [companyName, setCompanyName] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const isExpanded = !collapsed || hovered;
   const showTooltip = collapsed && !hovered;
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetch("/api/company");
-        if (!response.ok || cancelled) return;
-        const companyData = (await response.json()) as { company?: { name?: string } };
-        if (companyData.company?.name) {
-          setCompanyName(companyData.company.name);
-        }
-      } catch (error) {
-        console.error("[sidebar] erro ao buscar empresa:", error);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +148,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     };
   }, []);
 
-  const companyInitials = initialsFrom(companyName, "AX");
   const userInitials = initialsFrom(userName, "U");
   const userFirstName = firstNameFrom(userName, "Conta");
 
@@ -216,45 +194,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           >
             AXIOMIX
           </span>
-        </div>
-
-        {/* Workspace header */}
-        <div
-          className={cn(
-            "flex flex-shrink-0 items-center",
-            isExpanded ? "gap-3 px-4 py-3" : "justify-center px-2 py-3"
-          )}
-        >
-          <div
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[9px] font-mono text-xs font-bold tracking-wide text-white"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--color-primary-hover) 0%, var(--color-primary-muted) 100%)",
-            }}
-            aria-hidden="true"
-          >
-            {companyInitials}
-          </div>
-          <div
-            className="min-w-0 flex-1 overflow-hidden"
-            style={{
-              opacity: isExpanded ? 1 : 0,
-              width: isExpanded ? "auto" : 0,
-              transition: "opacity 180ms ease, width 180ms ease",
-            }}
-            aria-hidden={!isExpanded}
-          >
-            <div className="truncate text-[14px] font-semibold leading-tight tracking-tight text-[#F0F4FA]">
-              {companyName ?? "Carregando…"}
-            </div>
-          </div>
-          {isExpanded ? (
-            <ChevronsUpDown
-              size={14}
-              aria-hidden="true"
-              className="flex-shrink-0 text-[#5F6B7C]"
-            />
-          ) : null}
         </div>
 
         {/* Navigation */}
