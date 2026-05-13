@@ -19,17 +19,21 @@ import { getNicheBySlug, type NicheSlug } from "@/lib/niches";
 export function DashboardHeroSkeleton() {
   return (
     <>
-      <div className="dashboard-panel min-h-[200px] rounded-[24px] p-6">
-        <div className="skeleton-shimmer animate-shimmer mb-3 h-4 w-32 rounded" />
-        <div className="skeleton-shimmer animate-shimmer mb-4 h-16 w-40 rounded" />
-        <div className="skeleton-shimmer animate-shimmer h-20 w-full rounded-lg" />
+      <div className="rounded-xl border border-border bg-card p-4 shadow-card-modern sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="skeleton-shimmer animate-shimmer h-4 w-40 rounded" />
+          <div className="skeleton-shimmer animate-shimmer h-6 w-16 rounded-full" />
+        </div>
+        <div className="skeleton-shimmer animate-shimmer mt-4 h-10 w-28 rounded" />
+        <div className="skeleton-shimmer animate-shimmer mt-3 h-3 w-3/5 rounded" />
+        <div className="skeleton-shimmer animate-shimmer mt-4 h-8 w-32 rounded-lg" />
       </div>
-      <div className="dashboard-panel min-h-[200px] rounded-[24px] p-6">
-        <div className="skeleton-shimmer animate-shimmer mb-3 h-4 w-32 rounded" />
-        <div className="space-y-3">
-          <div className="skeleton-shimmer animate-shimmer h-4 w-full rounded" />
-          <div className="skeleton-shimmer animate-shimmer h-4 w-5/6 rounded" />
-          <div className="skeleton-shimmer animate-shimmer h-4 w-4/6 rounded" />
+      <div className="rounded-xl border border-border bg-card p-4 shadow-card-modern sm:p-5">
+        <div className="skeleton-shimmer animate-shimmer mb-3 h-3 w-28 rounded" />
+        <div className="space-y-2">
+          <div className="skeleton-shimmer animate-shimmer h-3.5 w-full rounded" />
+          <div className="skeleton-shimmer animate-shimmer h-3.5 w-5/6 rounded" />
+          <div className="skeleton-shimmer animate-shimmer h-3.5 w-4/6 rounded" />
         </div>
       </div>
     </>

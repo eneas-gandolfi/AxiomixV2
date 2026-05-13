@@ -31,6 +31,7 @@ import {
   DashboardConversationKpis,
   DashboardConversationKpisSkeleton,
   KpiHeroCards,
+  KpiHeroCardsSkeleton,
 } from "@/components/dashboard/dashboard-conversation-kpis";
 import { getDashboardBootstrap } from "@/lib/dashboard/bootstrap";
 import { isValidNicheSlug } from "@/lib/niches";
@@ -71,10 +72,28 @@ function ChartsSkeleton() {
 
 function DashboardCardSkeleton() {
   return (
-    <div className="dashboard-panel min-h-[140px] rounded-[24px] p-5">
+    <div className="rounded-xl border border-border bg-card p-4 shadow-card-modern sm:p-5">
       <div className="skeleton-shimmer animate-shimmer mb-3 h-4 w-32 rounded" />
       <div className="skeleton-shimmer animate-shimmer mb-4 h-6 w-48 rounded" />
-      <div className="skeleton-shimmer animate-shimmer h-24 w-full rounded-lg" />
+      <div className="skeleton-shimmer animate-shimmer h-20 w-full rounded-lg" />
+    </div>
+  );
+}
+
+/**
+ * Skeleton compacto pro `RiskControlCard`. Empty state real é uma linha só
+ * (~64px: check verde + "Tudo em dia"); cair em um placeholder de 140px
+ * causaria layout shift visível. Mantém o shape do empty state já que é o
+ * caso mais comum.
+ */
+function RiskControlCardSkeleton() {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-card-modern">
+      <div className="skeleton-shimmer animate-shimmer h-9 w-9 shrink-0 rounded-lg" />
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="skeleton-shimmer animate-shimmer h-3.5 w-32 rounded" />
+        <div className="skeleton-shimmer animate-shimmer h-3 w-40 rounded" />
+      </div>
     </div>
   );
 }
@@ -144,7 +163,7 @@ export default async function DashboardPage() {
         <DashboardNextActionSection companyId={companyId} />
       </Suspense>
 
-      {/* Strip de 3 KPIs compactos — 3-col em ambos viewports */}
+      {/* Strip de 4 KPIs compactos — 2-col no mobile, 4-col no desktop */}
       <section className="space-y-4">
         <section className="relative">
           <div className="dot-pattern-bg pointer-events-none absolute inset-0 rounded-[24px] opacity-30" />
@@ -162,10 +181,10 @@ export default async function DashboardPage() {
 
         {/* RiskControl + MetricCards hero (conversas 7d + oportunidades) */}
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Suspense fallback={<DashboardCardSkeleton />}>
+          <Suspense fallback={<RiskControlCardSkeleton />}>
             <RiskControlCard companyId={companyId} />
           </Suspense>
-          <Suspense fallback={<DashboardConversationKpisSkeleton />}>
+          <Suspense fallback={<KpiHeroCardsSkeleton />}>
             <KpiHeroCards companyId={companyId} />
           </Suspense>
         </section>
