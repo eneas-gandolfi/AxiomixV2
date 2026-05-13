@@ -96,6 +96,7 @@ export function ConversationDrawerShell({
           transitionTimingFunction: "cubic-bezier(0.32, 0.72, 0, 1)",
           opacity: open ? 1 : 0,
         }}
+        onClick={close}
         aria-hidden="true"
       />
       <div
