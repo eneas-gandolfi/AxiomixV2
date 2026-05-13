@@ -148,7 +148,7 @@ export default async function DashboardPage() {
       <section className="space-y-4">
         <section className="relative">
           <div className="dot-pattern-bg pointer-events-none absolute inset-0 rounded-[24px] opacity-30" />
-          <div className="relative grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="relative grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Suspense fallback={<DashboardConversationKpisSkeleton />}>
               <DashboardConversationKpis companyId={companyId} />
             </Suspense>

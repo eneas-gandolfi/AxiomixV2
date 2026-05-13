@@ -38,6 +38,19 @@ function formatDelta(delta: number | null): string {
   return "igual a ontem";
 }
 
+/** Formata segundos como "Xm Ys" / "Xh Ym" / "Xs" pro KPI de tempo médio. */
+function formatResponseTime(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 /** Constrói histograma de 7 dias a partir de uma lista de timestamps. */
 function buildDailyCountsFromDates(dates: string[], daysBack = 7): number[] {
   const counts: number[] = new Array(daysBack).fill(0);
@@ -59,7 +72,7 @@ function buildDailyCountsFromDates(dates: string[], daysBack = 7): number[] {
 export function DashboardConversationKpisSkeleton() {
   return (
     <>
-      {[0, 1, 2].map((i) => (
+      {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
           className="dashboard-panel min-h-[96px] rounded-2xl p-4"
@@ -117,10 +130,21 @@ export async function DashboardConversationKpis({
         state="live"
       />
 
-      {/* Fase 2.5 — KPI "Tempo médio de resposta" volta aqui quando houver
-          index `(conversation_id, sent_at, direction)` em `messages` + cálculo
-          de delta inbound→outbound. Removido por enquanto pra não poluir o
-          strip com card "Em breve". */}
+      {/* KPI 4 — tempo médio de resposta inbound→outbound (janela 7d) */}
+      <KpiTile
+        label="Tempo médio resp."
+        value={
+          data.avgResponseSeconds != null
+            ? formatResponseTime(data.avgResponseSeconds)
+            : "—"
+        }
+        sublabel={
+          data.avgResponseSampleSize > 0
+            ? `${data.avgResponseSampleSize} ${data.avgResponseSampleSize === 1 ? "resposta" : "respostas"} · 7d`
+            : "sem dados ainda"
+        }
+        state="live"
+      />
     </>
   );
 }

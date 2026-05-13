@@ -196,6 +196,11 @@ function startOfDayBrt(offsetDays = 0): string {
 export type ConversationKpiData = {
   /** Conversas sem resposta há mais de 24h (status != 'resolved'). */
   stalledCount: number;
+  /** Tempo médio de resposta (segundos) inbound→outbound nos últimos 7 dias.
+   *  null quando não há pares suficientes. */
+  avgResponseSeconds: number | null;
+  /** Quantidade de pares inbound→outbound considerados no cálculo. */
+  avgResponseSampleSize: number;
   /** Conversas com atividade hoje (BRT). */
   activeToday: number;
   /** Conversas com atividade ontem (BRT). Pra cálculo de delta. */
@@ -242,6 +247,7 @@ export const getConversationKpiData = cache(
       opportunities7dPrevResult,
       conversationDatesResult,
       opportunityDatesResult,
+      avgResponseResult,
     ] = await Promise.all([
       supabase
         .from("conversations")
@@ -301,6 +307,22 @@ export const getConversationKpiData = cache(
         .eq("intent", "compra")
         .gte("generated_at", sevenDaysAgoIso)
         .lte("generated_at", nowIso),
+      // RPC: tempo médio de resposta (janela 7d). Index reusado:
+      // idx_messages_conversation_sent. Falha silenciosa → null.
+      // Type assertion: a RPC foi adicionada na migration 20260515120000
+      // mas `database.types.ts` ainda não foi regenerado (`supabase gen types`).
+      (
+        supabase.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<{
+          data: Array<{ avg_seconds: number | null; sample_size: number }> | null;
+          error: { message: string } | null;
+        }>
+      )("dashboard_avg_response_time", {
+        p_company_id: companyId,
+        p_window_days: 7,
+      }),
     ]);
 
     const errors = [
@@ -313,13 +335,24 @@ export const getConversationKpiData = cache(
       opportunities7dPrevResult.error,
       conversationDatesResult.error,
       opportunityDatesResult.error,
+      // avgResponseResult.error é tratado abaixo (degradação graciosa).
     ];
     if (errors.some(Boolean)) {
       throw new Error("Erro ao carregar KPIs de conversação.");
     }
 
+    // RPC retorna table(avg_seconds numeric, sample_size bigint). Em erro
+    // ou ausência de pares, cai pra null/0 sem quebrar o resto do dashboard.
+    const avgRow = avgResponseResult.error
+      ? null
+      : avgResponseResult.data?.[0] ?? null;
+
     return {
       stalledCount: stalledResult.count ?? 0,
+      avgResponseSeconds:
+        avgRow?.avg_seconds != null ? Number(avgRow.avg_seconds) : null,
+      avgResponseSampleSize:
+        avgRow?.sample_size != null ? Number(avgRow.sample_size) : 0,
       activeToday: activeTodayResult.count ?? 0,
       activeYesterday: activeYesterdayResult.count ?? 0,
       conversations7d: conversations7dResult.count ?? 0,
