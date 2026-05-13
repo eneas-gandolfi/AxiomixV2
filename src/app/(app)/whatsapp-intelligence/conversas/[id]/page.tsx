@@ -5,15 +5,17 @@
  *            e renderiza o mesmo conteúdo como drawer overlay.
  */
 
-import { unstable_noStore as noStore } from "next/cache";
 import { ConversationDetailView } from "@/components/whatsapp/conversation-detail-view";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
+// Cacheable per conversation id. Invalidated via revalidatePath when
+// conversations are synced, analyzed, assigned, etc.
+export const revalidate = 30;
+
 export default async function ConversationDetailsPage({ params }: Props) {
-  noStore();
   const { id } = await params;
   return <ConversationDetailView id={id} mode="full" />;
 }

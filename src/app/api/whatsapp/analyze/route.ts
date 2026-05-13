@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { analyzeConversation } from "@/services/whatsapp/analyzer";
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
     const insight = await analyzeConversation(access.companyId, parsed.data.conversationId);
+
+    revalidatePath(`/whatsapp-intelligence/conversas/${parsed.data.conversationId}`);
 
     return NextResponse.json({
       insight,

@@ -25,14 +25,16 @@ export function ThemeToggle() {
         ${isDark ? "bg-[var(--color-primary)]" : "bg-[var(--color-border-strong)]"}`}
     >
       <span
-        className={`absolute h-4 w-4 rounded-full bg-white shadow-sm
-          transition-transform duration-200 flex items-center justify-center
-          ${isDark ? "translate-x-6" : "translate-x-1"}`}
+        className={`absolute h-4 w-4 rounded-full shadow-sm
+          transition-transform transition-colors duration-200 flex items-center justify-center
+          ${isDark
+            ? "bg-[var(--color-surface)] translate-x-6"
+            : "bg-white translate-x-1"}`}
       >
         {isDark ? (
-          <Moon size={9} className="text-[var(--color-primary)]" />
+          <Moon size={11} strokeWidth={2.5} className="text-white" />
         ) : (
-          <Sun size={9} className="text-[var(--color-warning)]" />
+          <Sun size={11} strokeWidth={2.5} className="text-[var(--color-warning)]" />
         )}
       </span>
     </button>

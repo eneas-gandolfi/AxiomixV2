@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { autoAssignConversations } from "@/services/whatsapp/auto-assign";
@@ -48,6 +49,8 @@ export async function POST(request: NextRequest) {
       parsed.data.rules ?? [],
       parsed.data.limit ?? 10
     );
+
+    revalidatePath("/whatsapp-intelligence/conversas");
 
     return NextResponse.json({ ok: true, result });
   } catch (error) {

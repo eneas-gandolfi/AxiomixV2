@@ -94,6 +94,7 @@
     --color-surface:        #FFFFFF;
     --color-surface-2:      #ECEEF2;
     --color-surface-3:      #E4E7EC;
+    --color-canvas:         #FFFFFF;
     --color-border:         #D8DCE3;
     --color-border-strong:  #C0C6D0;
 
@@ -144,13 +145,14 @@
     --color-surface:        #0D1117;
     --color-surface-2:      #161B22;
     --color-surface-3:      #1C2230;
+    --color-canvas:         #0D1117;
     --color-border:         #1E2530;
     --color-border-strong:  #2D3648;
 
-    /* ── Texto — Snow/Mist hierarchy ── */
+    /* ── Texto — Snow/Mist hierarchy (bumped p/ legibilidade) ── */
     --color-text:           #F0F4FA;
-    --color-text-secondary: #8892A4;
-    --color-text-tertiary:  #737F8F;
+    --color-text-secondary: #B0B8C7;
+    --color-text-tertiary:  #909AAC;
 
     /* ── Semânticas (dark) ── */
     --color-success:        #22C55E;

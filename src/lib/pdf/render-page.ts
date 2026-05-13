@@ -5,7 +5,10 @@
  * Data: 2026-03-31
  */
 
+import { createRequire } from "node:module";
 import "./polyfill";
+
+const nodeRequire = createRequire(import.meta.url);
 
 const RENDER_SCALE = 2; // 2x para boa legibilidade no Vision
 const MAX_DIMENSION = 2048; // limite para não estourar memória
@@ -19,7 +22,7 @@ export async function renderFirstPageAsPng(buffer: Buffer): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
   try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = require.resolve(
+    pdfjsLib.GlobalWorkerOptions.workerSrc = nodeRequire.resolve(
       "pdfjs-dist/legacy/build/pdf.worker.mjs"
     );
   } catch {

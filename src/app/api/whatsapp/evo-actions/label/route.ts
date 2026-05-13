@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
@@ -67,6 +68,8 @@ export async function POST(request: NextRequest) {
       contactId: parsed.data.contactId,
       label: parsed.data.label,
     });
+
+    revalidatePath(`/whatsapp-intelligence/conversas/${parsed.data.conversationId}`);
 
     return NextResponse.json({
       message: "Label adicionada com sucesso ao contato.",

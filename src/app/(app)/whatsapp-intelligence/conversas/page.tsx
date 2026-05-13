@@ -5,8 +5,8 @@
  * Data: 2026-03-13
  */
 
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { unstable_noStore as noStore } from "next/cache";
 import { MessageSquare, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
@@ -15,7 +15,12 @@ import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 import { ConversationsList } from "@/components/whatsapp/conversations-list";
 import { StartConversationButton } from "@/components/whatsapp/start-conversation-button";
 import { ContactsManagerSheet } from "@/components/whatsapp/contacts-manager-sheet";
+import { ConversationDetailView } from "@/components/whatsapp/conversation-detail-view";
+import { ConversationDrawerShell } from "@/components/whatsapp/conversation-drawer-shell";
+import { ConversationDrawerSkeleton } from "@/components/whatsapp/conversation-drawer-skeleton";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Sentiment = "positivo" | "neutro" | "negativo";
 
@@ -23,9 +28,11 @@ type ConversasPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function ConversasPage({ searchParams }: ConversasPageProps) {
-  noStore();
+// Real-time inbox feel — 10s cache + revalidatePath on Evo CRM sync and
+// every conversation mutation (analyze, assign, resolve, delete, etc.).
+export const revalidate = 10;
 
+export default async function ConversasPage({ searchParams }: ConversasPageProps) {
   const params = await searchParams;
   const companyId = await getUserCompanyId();
   if (!companyId) {
@@ -112,6 +119,9 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
     };
   });
 
+  const drawerIdRaw = typeof params.c === "string" ? params.c : null;
+  const drawerId = drawerIdRaw && UUID_RE.test(drawerIdRaw) ? drawerIdRaw : null;
+
   return (
     <>
       {/* Header da seção · contador KPI à esquerda + ações à direita.
@@ -178,6 +188,14 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
           initialFilters={Object.keys(initialFilters).length > 0 ? initialFilters : undefined}
         />
       )}
+
+      {drawerId ? (
+        <ConversationDrawerShell conversationId={drawerId}>
+          <Suspense fallback={<ConversationDrawerSkeleton />}>
+            <ConversationDetailView id={drawerId} mode="drawer" />
+          </Suspense>
+        </ConversationDrawerShell>
+      ) : null}
     </>
   );
 }

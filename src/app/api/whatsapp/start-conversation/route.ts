@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
@@ -35,6 +36,8 @@ export async function POST(request: NextRequest) {
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
     const evoClient = await getEvoCrmClient(access.companyId);
     const result = await evoClient.startConversation(parsed.data.phone);
+
+    revalidatePath("/whatsapp-intelligence/conversas");
 
     return NextResponse.json(result);
   } catch (error) {

@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { processJobs } from "@/lib/jobs/processor";
@@ -53,6 +54,10 @@ export async function POST(request: NextRequest) {
     const failedNow = processingSummary.jobs.filter(
       (job) => job.jobType === "whatsapp_analyze" && job.status === "failed"
     ).length;
+
+    if (processedNow > 0) {
+      revalidatePath("/whatsapp-intelligence/conversas");
+    }
 
     const message =
       queued.enqueuedAnalyses === 0

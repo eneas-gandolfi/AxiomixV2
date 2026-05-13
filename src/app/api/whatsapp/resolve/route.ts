@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
@@ -56,6 +57,9 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       throw new Error(`Falha ao atualizar status: ${updateError.message}`);
     }
+
+    revalidatePath(`/whatsapp-intelligence/conversas/${parsed.data.conversationId}`);
+    revalidatePath("/whatsapp-intelligence/conversas");
 
     return NextResponse.json({
       message: `Status alterado para "${parsed.data.status}" com sucesso.`,

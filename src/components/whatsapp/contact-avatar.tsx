@@ -137,7 +137,7 @@ export function ContactAvatar({ name, avatarUrl, size = "md", className = "" }: 
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${colors.bg} ${colors.text} ${sizeClasses} ${className}`}
+      className={`flex shrink-0 items-center justify-center rounded-full font-semibold ring-1 ring-black/5 dark:ring-white/10 dark:saturate-[0.85] ${colors.bg} ${colors.text} ${sizeClasses} ${className}`}
       aria-label={name ?? "Contato sem nome"}
     >
       {initials}

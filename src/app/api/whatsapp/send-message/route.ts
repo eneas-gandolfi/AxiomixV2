@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
@@ -57,7 +58,9 @@ export async function POST(request: NextRequest) {
         sent_at: new Date().toISOString(),
         message_type: "outgoing",
       });
+      revalidatePath(`/whatsapp-intelligence/conversas/${conversation.id}`);
     }
+    revalidatePath("/whatsapp-intelligence/conversas");
 
     return NextResponse.json({ success: true });
   } catch (error) {

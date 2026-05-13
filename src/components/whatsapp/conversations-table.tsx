@@ -105,6 +105,23 @@ export function getIntentColor(intent?: string | null) {
   }
 }
 
+function getIntentCssColor(intent?: string | null): string {
+  switch (intent) {
+    case "compra":
+      return "var(--color-success)";
+    case "suporte":
+      return "var(--color-primary)";
+    case "reclamacao":
+      return "var(--color-danger)";
+    case "duvida":
+      return "var(--color-warning)";
+    case "cancelamento":
+      return "var(--color-danger)";
+    default:
+      return "var(--color-text-secondary)";
+  }
+}
+
 export function getTimeSinceLastMessage(lastMessageAt?: string | null): string {
   if (!lastMessageAt) return "";
 
@@ -235,7 +252,6 @@ function ConversationRow({
 }: RowProps) {
   const awaitingCritical = isAwaitingCritical(c);
   const IntentIcon = getIntentIcon(c.intent);
-  const intentColor = getIntentColor(c.intent);
   const dotClass = sentimentDotClass(c.sentiment);
   const displayName =
     c.contact_name?.trim() || formatContactDisplay(null, c.remote_jid);
@@ -324,8 +340,14 @@ function ConversationRow({
             {displayName}
           </span>
           {c.intent && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">
-              <IntentIcon className={`h-3 w-3 ${intentColor}`} />
+            <span
+              className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em]"
+              style={{
+                background: `color-mix(in srgb, ${getIntentCssColor(c.intent)} 14%, transparent)`,
+                color: getIntentCssColor(c.intent),
+              }}
+            >
+              <IntentIcon className="h-3 w-3" />
               {c.intent}
             </span>
           )}
@@ -346,9 +368,10 @@ function ConversationRow({
           <span
             className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-danger)]"
             style={{
-              padding: "1px 6px",
+              padding: "2px 6px",
               borderRadius: "4px",
-              background: "color-mix(in srgb, var(--color-danger) 10%, transparent)",
+              background: "color-mix(in srgb, var(--color-danger) 18%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)",
             }}
           >
             aguardando {timeRelative}
@@ -427,7 +450,11 @@ export function ConversationsTable({
                 ? () => onResolve(c.id)
                 : undefined
             }
-            onOpen={() => router.push(`/whatsapp-intelligence/conversas/${c.id}`)}
+            onOpen={() =>
+              router.push(`/whatsapp-intelligence/conversas?c=${c.id}`, {
+                scroll: false,
+              })
+            }
           />
         );
       })}

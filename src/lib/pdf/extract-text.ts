@@ -5,7 +5,10 @@
  * Data: 2026-03-24
  */
 
+import { createRequire } from "node:module";
 import "./polyfill";
+
+const nodeRequire = createRequire(import.meta.url);
 
 export async function extractTextFromPdf(buffer: Buffer, maxLength?: number): Promise<string> {
   // Suprimir warning de @napi-rs/canvas durante o import —
@@ -23,7 +26,7 @@ export async function extractTextFromPdf(buffer: Buffer, maxLength?: number): Pr
   // mas precisa do workerSrc apontando para o arquivo real. Usar require.resolve
   // para obter o caminho absoluto correto no runtime da Vercel.
   try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = require.resolve(
+    pdfjsLib.GlobalWorkerOptions.workerSrc = nodeRequire.resolve(
       "pdfjs-dist/legacy/build/pdf.worker.mjs"
     );
   } catch {
