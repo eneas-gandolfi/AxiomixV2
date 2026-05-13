@@ -346,9 +346,10 @@ function ConversationRow({
                 background: `color-mix(in srgb, ${getIntentCssColor(c.intent)} 14%, transparent)`,
                 color: getIntentCssColor(c.intent),
               }}
+              title={c.intent}
             >
               <IntentIcon className="h-3 w-3" />
-              {c.intent}
+              <span className="hidden sm:inline">{c.intent}</span>
             </span>
           )}
           {c.status === "closed" && (
@@ -366,7 +367,7 @@ function ConversationRow({
       <div className="flex shrink-0 flex-col items-end gap-0.5">
         {awaitingCritical && timeRelative && (
           <span
-            className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-danger)]"
+            className="hidden text-[10px] font-semibold uppercase tracking-wide text-[var(--color-danger)] sm:inline-block"
             style={{
               padding: "2px 6px",
               borderRadius: "4px",

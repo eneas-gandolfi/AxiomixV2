@@ -49,13 +49,20 @@ const TICK_INTERVAL_MS = 1_000; // pra cronômetro contar localmente entre polls
 
 /** Formato "longo" pra waits >= 24h — substitui o cronometro h:mm:ss
  *  por uma narrativa "Há N dias" porque o numero absurdo nao agrega
- *  decisao (cliente abandonado != cliente em espera ativa). */
-function formatLongWait(totalSeconds: number): string {
-  const days = Math.floor(totalSeconds / 86400);
+ *  decisao (cliente abandonado != cliente em espera ativa).
+ *
+ *  Conta dias de CALENDÁRIO desde lastInboundAt — o severity continua
+ *  vindo de business_hours, mas a label visível tem que bater com a data
+ *  exibida abaixo ("desde 04/05"). Antes contávamos business seconds e
+ *  isso fazia "9 dias corridos" virar "Há 4 dias" (só dias úteis), o que
+ *  contradiz a data exibida no subtítulo. */
+function formatLongWait(lastInboundAt: string, now: Date = new Date()): string {
+  const elapsedMs = now.getTime() - new Date(lastInboundAt).getTime();
+  const days = Math.floor(elapsedMs / 86_400_000);
   if (days >= 1) {
     return `Há ${days} ${days === 1 ? "dia" : "dias"}`;
   }
-  const hours = Math.floor(totalSeconds / 3600);
+  const hours = Math.floor(elapsedMs / 3_600_000);
   return `Há ${hours} h`;
 }
 
@@ -776,7 +783,7 @@ function HeroCard({
           <span
             className={`font-bricolage text-4xl font-bold leading-tight tracking-tight md:text-5xl ${timerColor}`}
           >
-            {formatLongWait(currentWaitSeconds)}
+            {formatLongWait(conversation.lastInboundAt)}
           </span>
           <span className="text-xs text-muted">
             <span className="uppercase tracking-[0.18em]">sem resposta</span>

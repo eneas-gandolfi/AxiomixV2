@@ -57,21 +57,25 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="flex h-16 items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-4">
+      <div className="flex h-16 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <button
             onClick={onMobileMenuOpen}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)] lg:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)] lg:hidden"
             aria-label="Abrir menu"
           >
             <Menu size={18} aria-hidden="true" />
           </button>
-          <TopbarBreadcrumb />
-          <TopbarClock />
+          {/* Breadcrumb + relógio comem espaço no mobile e brigam com o h1
+              da página. Ficam só em md+ (>=768px). */}
+          <div className="hidden min-w-0 items-center gap-4 md:flex">
+            <TopbarBreadcrumb />
+            <TopbarClock />
+          </div>
           <TopbarSessionTimer />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <ThemeToggle />
           <OperatorNudgesBell />
           <TopbarNotifications />
