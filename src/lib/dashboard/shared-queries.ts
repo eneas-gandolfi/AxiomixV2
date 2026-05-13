@@ -181,3 +181,157 @@ export const getStalledConversations = cache(
     return selectStalledConversations(supabase, companyId);
   },
 );
+
+const BRT_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** Início do dia em BRT (UTC-3) como ISO string. `offsetDays` desloca dias. */
+function startOfDayBrt(offsetDays = 0): string {
+  const now = new Date();
+  const brt = new Date(now.getTime() - BRT_OFFSET_MS);
+  brt.setUTCHours(0, 0, 0, 0);
+  brt.setUTCDate(brt.getUTCDate() + offsetDays);
+  return new Date(brt.getTime() + BRT_OFFSET_MS).toISOString();
+}
+
+export type ConversationKpiData = {
+  /** Conversas sem resposta há mais de 24h (status != 'resolved'). */
+  stalledCount: number;
+  /** Conversas com atividade hoje (BRT). */
+  activeToday: number;
+  /** Conversas com atividade ontem (BRT). Pra cálculo de delta. */
+  activeYesterday: number;
+  /** Conversas com last_message_at nos últimos 7 dias. */
+  conversations7d: number;
+  /** Conversas com last_message_at entre 7-14 dias atrás. */
+  conversations7dPrevious: number;
+  /** Insights com intent='compra' nos últimos 7 dias. */
+  opportunities7d: number;
+  /** Insights com intent='compra' entre 7-14 dias atrás. */
+  opportunities7dPrevious: number;
+  /** Timestamps de last_message_at nos últimos 7 dias (sparkline). */
+  conversationDates: string[];
+  /** Timestamps de generated_at de insights de compra nos últimos 7 dias (sparkline). */
+  opportunityDates: string[];
+};
+
+/**
+ * Bundle único de KPIs de conversação do dashboard, memoizado por companyId
+ * no request. Consolida as queries antes duplicadas entre `DashboardConversationKpis`
+ * (strip de 4 tiles) e `KpiHeroCards` (2 hero cards com sparkline).
+ *
+ * Reduz de 10 queries duplicadas pra 8 únicas por render do dashboard.
+ */
+export const getConversationKpiData = cache(
+  async (companyId: string): Promise<ConversationKpiData> => {
+    const supabase = await createSupabaseServerClient();
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const twentyFourHoursAgoIso = new Date(now.getTime() - DAY_MS).toISOString();
+    const sevenDaysAgoIso = new Date(now.getTime() - 7 * DAY_MS).toISOString();
+    const fourteenDaysAgoIso = new Date(now.getTime() - 14 * DAY_MS).toISOString();
+    const todayStartIso = startOfDayBrt(0);
+    const yesterdayStartIso = startOfDayBrt(-1);
+
+    const [
+      stalledResult,
+      activeTodayResult,
+      activeYesterdayResult,
+      conversations7dResult,
+      conversations7dPrevResult,
+      opportunities7dResult,
+      opportunities7dPrevResult,
+      conversationDatesResult,
+      opportunityDatesResult,
+    ] = await Promise.all([
+      supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId)
+        .not("last_message_at", "is", null)
+        .lt("last_message_at", twentyFourHoursAgoIso)
+        .neq("status", "resolved"),
+      supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId)
+        .gte("last_message_at", todayStartIso)
+        .lte("last_message_at", nowIso),
+      supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId)
+        .gte("last_message_at", yesterdayStartIso)
+        .lt("last_message_at", todayStartIso),
+      supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId)
+        .gte("last_message_at", sevenDaysAgoIso)
+        .lte("last_message_at", nowIso),
+      supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId)
+        .gte("last_message_at", fourteenDaysAgoIso)
+        .lt("last_message_at", sevenDaysAgoIso),
+      supabase
+        .from("conversation_insights")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId)
+        .eq("intent", "compra")
+        .gte("generated_at", sevenDaysAgoIso)
+        .lte("generated_at", nowIso),
+      supabase
+        .from("conversation_insights")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId)
+        .eq("intent", "compra")
+        .gte("generated_at", fourteenDaysAgoIso)
+        .lt("generated_at", sevenDaysAgoIso),
+      supabase
+        .from("conversations")
+        .select("last_message_at")
+        .eq("company_id", companyId)
+        .gte("last_message_at", sevenDaysAgoIso)
+        .lte("last_message_at", nowIso),
+      supabase
+        .from("conversation_insights")
+        .select("generated_at")
+        .eq("company_id", companyId)
+        .eq("intent", "compra")
+        .gte("generated_at", sevenDaysAgoIso)
+        .lte("generated_at", nowIso),
+    ]);
+
+    const errors = [
+      stalledResult.error,
+      activeTodayResult.error,
+      activeYesterdayResult.error,
+      conversations7dResult.error,
+      conversations7dPrevResult.error,
+      opportunities7dResult.error,
+      opportunities7dPrevResult.error,
+      conversationDatesResult.error,
+      opportunityDatesResult.error,
+    ];
+    if (errors.some(Boolean)) {
+      throw new Error("Erro ao carregar KPIs de conversação.");
+    }
+
+    return {
+      stalledCount: stalledResult.count ?? 0,
+      activeToday: activeTodayResult.count ?? 0,
+      activeYesterday: activeYesterdayResult.count ?? 0,
+      conversations7d: conversations7dResult.count ?? 0,
+      conversations7dPrevious: conversations7dPrevResult.count ?? 0,
+      opportunities7d: opportunities7dResult.count ?? 0,
+      opportunities7dPrevious: opportunities7dPrevResult.count ?? 0,
+      conversationDates: (conversationDatesResult.data ?? [])
+        .map((d) => d.last_message_at)
+        .filter(Boolean) as string[],
+      opportunityDates: (opportunityDatesResult.data ?? [])
+        .map((d) => d.generated_at)
+        .filter(Boolean) as string[],
+    };
+  },
+);

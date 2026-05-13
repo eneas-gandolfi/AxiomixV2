@@ -1,17 +1,19 @@
 /**
  * Arquivo: src/app/(app)/dashboard/page.tsx
- * Propósito: Página principal do dashboard - hub de inteligência de negócio.
+ * Propósito: Página principal do dashboard — hub de inteligência de negócio.
  *
- *            Estratégia de carregamento (Fase 1 + 2 + 3 — 2026-05-11):
+ *            Estratégia de carregamento (Fase 1 reorg — 2026-05-13):
  *            - Bootstrap (auth + membership + company) via RPC unica
  *              `dashboard_bootstrap` — 1 round-trip em vez de 3 sequenciais.
- *            - Shell (cabeçalho + saudação) renderiza imediatamente.
+ *            - Header funcional (~56px) renderiza imediatamente.
+ *            - NextAction é o novo herói — topo absoluto após o header,
+ *              responde a pergunta #1 do gestor ("tem alguém sem resposta?").
  *            - Cada bloco abaixo carrega num Suspense próprio. Stalled é
  *              compartilhado entre hero/insights e "Próxima ação" via
  *              React.cache. Sidebar e RiskControl compartilham os fetches
  *              de alertas via `getDashboardAlertsData`.
  * Autor: AXIOMIX
- * Data: 2026-03-19
+ * Data: 2026-05-13 (Fase 1 — reorg mobile-first)
  */
 
 import { Suspense, type CSSProperties } from "react";
@@ -24,13 +26,11 @@ import {
   DashboardHeroSection,
   DashboardHeroSkeleton,
 } from "@/components/dashboard/dashboard-hero-section";
-import {
-  DashboardNextActionSection,
-  DashboardNextActionSkeleton,
-} from "@/components/dashboard/dashboard-next-action-section";
+import { DashboardNextActionSection } from "@/components/dashboard/dashboard-next-action-section";
 import {
   DashboardConversationKpis,
   DashboardConversationKpisSkeleton,
+  KpiHeroCards,
 } from "@/components/dashboard/dashboard-conversation-kpis";
 import { getDashboardBootstrap } from "@/lib/dashboard/bootstrap";
 import { isValidNicheSlug } from "@/lib/niches";
@@ -71,10 +71,30 @@ function ChartsSkeleton() {
 
 function DashboardCardSkeleton() {
   return (
-    <div className="dashboard-panel rounded-[24px] p-5">
+    <div className="dashboard-panel min-h-[140px] rounded-[24px] p-5">
       <div className="skeleton-shimmer animate-shimmer mb-3 h-4 w-32 rounded" />
       <div className="skeleton-shimmer animate-shimmer mb-4 h-6 w-48 rounded" />
       <div className="skeleton-shimmer animate-shimmer h-24 w-full rounded-lg" />
+    </div>
+  );
+}
+
+function NextActionSkeleton() {
+  return (
+    <div
+      className="min-h-[140px] relative overflow-hidden rounded-[16px] p-5 sm:p-6"
+      style={{ background: "var(--color-primary)" }}
+      aria-hidden="true"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+        <div className="h-11 w-11 shrink-0 rounded-full bg-white/20" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="h-2.5 w-24 rounded bg-white/25" />
+          <div className="h-5 w-3/5 rounded bg-white/30" />
+          <div className="h-3 w-2/3 rounded bg-white/20" />
+          <div className="mt-2 h-8 w-32 rounded-lg bg-white/25" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -104,48 +124,58 @@ export default async function DashboardPage() {
         } as CSSProperties
       }
     >
-      <section className="dashboard-mesh overflow-hidden rounded-[28px] border border-border/70 p-5 sm:p-6 lg:p-7">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="section-label rounded-full border border-border/70 bg-card/70 px-3 py-1.5">
-            Painel executivo
-            {companyName ? ` · ${companyName.toUpperCase()}` : ""}
-          </span>
-        </div>
-        <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--color-text)] sm:text-2xl">
+      {/* Header funcional (~56px) — substituiu o mesh hero gigante */}
+      <header className="flex items-center justify-between gap-3 px-1">
+        <h1 className="min-w-0 truncate text-base font-semibold tracking-tight text-[var(--color-text)] sm:text-lg">
           {greeting}
           {companyName ? `, ${companyName}` : ""}.
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-          Em menos de 90 segundos: o que está sangrando, o que está crescendo, onde colocar a próxima hora.
-        </p>
+        <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-[var(--color-text-tertiary)]">
+          <span
+            className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]"
+            aria-hidden="true"
+          />
+          <span>Operacional</span>
+        </div>
+      </header>
 
-        <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,340px)] xl:items-stretch">
+      {/* Herói: Próxima ação recomendada — topo absoluto */}
+      <Suspense fallback={<NextActionSkeleton />}>
+        <DashboardNextActionSection companyId={companyId} />
+      </Suspense>
+
+      {/* Strip de 3 KPIs compactos — 3-col em ambos viewports */}
+      <section className="space-y-4">
+        <section className="relative">
+          <div className="dot-pattern-bg pointer-events-none absolute inset-0 rounded-[24px] opacity-30" />
+          <div className="relative grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Suspense fallback={<DashboardConversationKpisSkeleton />}>
+              <DashboardConversationKpis companyId={companyId} />
+            </Suspense>
+          </div>
+        </section>
+
+        {/* Alertas / Sidebar — depois do strip pra jornada Hero→KPIs→Alertas */}
+        <Suspense fallback={null}>
+          <DashboardSidebarSection companyId={companyId} isOwnerOrAdmin={isOwnerOrAdmin} />
+        </Suspense>
+
+        {/* RiskControl + MetricCards hero (conversas 7d + oportunidades) */}
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Suspense fallback={<DashboardCardSkeleton />}>
+            <RiskControlCard companyId={companyId} />
+          </Suspense>
+          <Suspense fallback={<DashboardConversationKpisSkeleton />}>
+            <KpiHeroCards companyId={companyId} />
+          </Suspense>
+        </section>
+
+        {/* HeroMetric + InsightsPanel (detalhe operacional) */}
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,340px)] xl:items-stretch">
           <Suspense fallback={<DashboardHeroSkeleton />}>
             <DashboardHeroSection companyId={companyId} nicheSlug={nicheSlug} />
           </Suspense>
         </div>
-      </section>
-
-      <Suspense fallback={<DashboardNextActionSkeleton />}>
-        <DashboardNextActionSection companyId={companyId} />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <DashboardSidebarSection companyId={companyId} isOwnerOrAdmin={isOwnerOrAdmin} />
-      </Suspense>
-
-      <section className="space-y-4">
-        <section className="relative">
-          <div className="dot-pattern-bg pointer-events-none absolute inset-0 rounded-[24px] opacity-30" />
-          <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Suspense fallback={<DashboardConversationKpisSkeleton />}>
-              <DashboardConversationKpis companyId={companyId} />
-            </Suspense>
-            <Suspense fallback={<DashboardCardSkeleton />}>
-              <RiskControlCard companyId={companyId} />
-            </Suspense>
-          </div>
-        </section>
 
         <section>
           <Suspense fallback={<DashboardCardSkeleton />}>
@@ -160,11 +190,6 @@ export default async function DashboardPage() {
 
       <footer className="mt-2 flex flex-wrap items-center gap-2 px-1 text-[11px] text-[var(--color-text-tertiary)]">
         <span>Dados sincronizados de Evo CRM</span>
-        <span aria-hidden="true">·</span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" aria-hidden="true" />
-          Operacional
-        </span>
         <span aria-hidden="true">·</span>
         <a
           href="/settings?tab=integrations"

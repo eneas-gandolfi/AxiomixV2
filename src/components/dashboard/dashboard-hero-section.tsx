@@ -19,12 +19,12 @@ import { getNicheBySlug, type NicheSlug } from "@/lib/niches";
 export function DashboardHeroSkeleton() {
   return (
     <>
-      <div className="dashboard-panel rounded-[24px] p-6">
+      <div className="dashboard-panel min-h-[200px] rounded-[24px] p-6">
         <div className="skeleton-shimmer animate-shimmer mb-3 h-4 w-32 rounded" />
         <div className="skeleton-shimmer animate-shimmer mb-4 h-16 w-40 rounded" />
         <div className="skeleton-shimmer animate-shimmer h-20 w-full rounded-lg" />
       </div>
-      <div className="dashboard-panel rounded-[24px] p-6">
+      <div className="dashboard-panel min-h-[200px] rounded-[24px] p-6">
         <div className="skeleton-shimmer animate-shimmer mb-3 h-4 w-32 rounded" />
         <div className="space-y-3">
           <div className="skeleton-shimmer animate-shimmer h-4 w-full rounded" />
