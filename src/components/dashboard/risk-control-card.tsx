@@ -23,13 +23,36 @@ export async function RiskControlCard({ companyId }: { companyId: string }) {
     data.unresolvedNegativeCount + data.integrationsWithErrorCount + data.failedPostsCount;
 
   const isOk = totalAlerts === 0;
-  const narrative = isOk
-    ? "Tudo em dia. Nenhum alerta crítico ativo."
-    : buildNarrative(
-        data.unresolvedNegativeCount,
-        data.integrationsWithErrorCount,
-        data.failedPostsCount,
-      );
+
+  // Empty state: versão compacta. Check verde + 1 linha de status. Sem
+  // número gigante "0" verde que dominava a tela quando nada ia mal.
+  if (isOk) {
+    return (
+      <article
+        className={cn(
+          "group flex items-center gap-3 rounded-xl border border-border bg-card p-4",
+          "opacity-0 animate-ax-cascade delay-300 shadow-card-modern",
+        )}
+      >
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-success-light">
+          <ShieldCheck className="h-4 w-4 text-success" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="section-label">Controle de risco</p>
+          <p className="mt-0.5 text-sm font-medium text-[var(--color-text)]">
+            Tudo em dia · 0 alertas críticos
+          </p>
+        </div>
+      </article>
+    );
+  }
+
+  // Alert state: mantém visual de destaque com número + narrative + CTA.
+  const narrative = buildNarrative(
+    data.unresolvedNegativeCount,
+    data.integrationsWithErrorCount,
+    data.failedPostsCount,
+  );
 
   return (
     <article
@@ -42,47 +65,30 @@ export async function RiskControlCard({ companyId }: { companyId: string }) {
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <p className="section-label">Controle de risco</p>
-        <span
-          className={cn(
-            "inline-flex h-8 w-8 items-center justify-center rounded-lg",
-            isOk ? "bg-success-light" : "bg-danger-light",
-          )}
-        >
-          <ShieldCheck
-            className={cn("h-4 w-4", isOk ? "text-success" : "text-danger")}
-            aria-hidden="true"
-          />
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-danger-light">
+          <ShieldCheck className="h-4 w-4 text-danger" aria-hidden="true" />
         </span>
       </div>
 
-      <p
-        className={cn(
-          "ax-metric-lg",
-          isOk ? "text-[var(--color-success)]" : "text-[var(--color-danger)]",
-        )}
-      >
-        {totalAlerts}
-      </p>
+      <p className="ax-metric-lg text-[var(--color-danger)]">{totalAlerts}</p>
 
       <div className="mt-2">
         <span className="text-xs text-muted">
-          {isOk ? "0 alertas críticos" : `${totalAlerts} ${totalAlerts === 1 ? "alerta" : "alertas"} ativos`}
+          {totalAlerts} {totalAlerts === 1 ? "alerta" : "alertas"} ativos
         </span>
       </div>
 
       <p className="mt-3 text-xs leading-5 text-muted">{narrative}</p>
 
-      {!isOk ? (
-        <div className="mt-auto border-t border-border pt-3">
-          <Link
-            href="/whatsapp-intelligence"
-            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          >
-            Ver alertas
-            <ArrowRight className="h-[11px] w-[11px]" aria-hidden="true" />
-          </Link>
-        </div>
-      ) : null}
+      <div className="mt-auto border-t border-border pt-3">
+        <Link
+          href="/whatsapp-intelligence"
+          className="flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        >
+          Ver alertas
+          <ArrowRight className="h-[11px] w-[11px]" aria-hidden="true" />
+        </Link>
+      </div>
     </article>
   );
 }

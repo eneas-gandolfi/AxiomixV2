@@ -122,6 +122,38 @@ export function HeroMetric({
   const state = deriveHeroState(count, isCalibrating);
   const copy = getHeroCopy(state, count, customerNoun, thresholdSeconds, label);
   const showBadge = state === "amber" || state === "red";
+
+  // Empty state compacto: tudo respondido. Card discreto pra não competir
+  // com o herói laranja do NextActionSection acima.
+  if (state === "idle") {
+    return (
+      <div
+        data-testid="hero-metric"
+        data-state="idle"
+        className={cn(
+          "dashboard-panel relative flex flex-col gap-2 rounded-[24px] p-4 sm:p-5",
+          className,
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <span className="section-label">{label}</span>
+        </div>
+        <h2 className="font-display text-base font-semibold leading-snug text-[var(--color-text)] sm:text-lg">
+          {copy.title}
+        </h2>
+        <p className="text-sm text-[var(--color-text-secondary)]">{copy.body}</p>
+        <div className="mt-2">
+          <Link
+            href={ctaHref}
+            className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"
+          >
+            {copy.ctaLabel}
+            <ArrowRight className="h-3 w-3" aria-hidden="true" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
   const previewItems =
     showBadge && topItems && topItems.length > 0
       ? topItems.slice(0, MAX_PREVIEW_ITEMS)

@@ -117,25 +117,28 @@ function EmptyInsight({
   isCalibrating: boolean;
   className?: string;
 }) {
+  // Empty state foca no propósito do PAINEL DE INSIGHTS (sugestões da IA),
+  // não na saúde geral do sistema — pra não duplicar o RiskControlCard que já
+  // diz "Tudo em dia · 0 alertas críticos" acima.
   return (
     <div
       data-testid="insights-panel-empty"
       data-state={isCalibrating ? "calibrating" : "idle"}
       className={cn(
-        "dashboard-panel flex h-full flex-col gap-2 rounded-[20px] border-l-[3px] border-l-[var(--color-success)] p-5",
+        "dashboard-panel flex h-full flex-col gap-2 rounded-[20px] border-l-[3px] border-l-[var(--color-primary)] p-5",
         className,
       )}
     >
-      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-success)]">
-        Controle de risco
+      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+        Insights da IA
       </span>
       <h3 className="ax-t2">
-        {isCalibrating ? "Ainda aprendendo o ritmo da sua loja" : "Tudo em dia"}
+        {isCalibrating ? "Coletando baseline" : "Aguardando padrões"}
       </h3>
       <p className="ax-body text-[var(--color-text-secondary)]">
         {isCalibrating
-          ? "Nos próximos 7 dias coletamos baseline. Volte amanhã pra ver os primeiros sinais."
-          : "Nenhum alerta crítico ativo. Sistema saudável, nada exigindo sua intervenção."}
+          ? "Nos próximos 7 dias mapeamos o ritmo do seu nicho. Em breve, sugestões personalizadas aparecem aqui."
+          : "A IA gera recomendações conforme analisa conversas. Ainda sem volume suficiente pra sugestões específicas."}
       </p>
     </div>
   );

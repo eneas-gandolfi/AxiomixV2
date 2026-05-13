@@ -165,6 +165,66 @@ export function MetricCard({
   const isHero = variant === "hero";
   const isStatus = variant === "status";
 
+  // Empty state compacto: zero valor + sem variação + sparkline sem dados úteis.
+  // Em vez do card cheio (delta vazio + sparkline morta + narrative + CTA grande),
+  // renderiza versão minimalista com chamada pra conectar fonte de dados.
+  const isEmpty =
+    value === 0 &&
+    (change === null || change === undefined) &&
+    (!sparkData || sparkData.every((v) => v === 0));
+
+  if (isEmpty) {
+    return (
+      <article
+        className={cn(
+          "group flex flex-col rounded-xl border border-border bg-card p-4",
+          "opacity-0 animate-ax-cascade shadow-card-modern",
+          animationDelay,
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <p className="section-label">{label}</p>
+          <span
+            className={cn(
+              "inline-flex h-8 w-8 items-center justify-center rounded-lg",
+              isStatus ? "bg-warning-light" : "bg-primary-light",
+            )}
+          >
+            <Icon
+              className={cn(isStatus ? "text-warning" : "text-primary", "h-4 w-4")}
+              aria-label={label}
+            />
+          </span>
+        </div>
+        <p className="mt-3 text-3xl font-bold tabular-nums text-[var(--color-text-tertiary)]">
+          0
+        </p>
+        {emptyHint ? (
+          <p className="mt-2 text-xs leading-5 text-muted">{emptyHint}</p>
+        ) : emptyMessage ? (
+          <p className="mt-2 text-xs italic text-muted-light">{emptyMessage}</p>
+        ) : null}
+        {emptyAction ? (
+          <Link
+            href={emptyAction.href}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            {emptyAction.label}
+            <ArrowRight className="h-[11px] w-[11px]" aria-hidden="true" />
+          </Link>
+        ) : ctaHref && ctaLabel ? (
+          <Link
+            href={ctaHref}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            {ctaLabel}
+            <ArrowRight className="h-[11px] w-[11px]" aria-hidden="true" />
+          </Link>
+        ) : null}
+      </article>
+    );
+  }
+
   return (
     <article
       className={cn(
