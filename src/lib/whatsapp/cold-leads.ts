@@ -16,7 +16,7 @@
  * Data: 2026-05-11
  */
 
-const TIMEZONE = "America/Sao_Paulo";
+import { diffCalendarDaysInTz } from "./calendar-days";
 
 export type ConversationRow = {
   id: string;
@@ -69,32 +69,6 @@ function classifyDirection(direction: string | null): LastSender {
   if (INBOUND_VALUES.has(normalized)) return "lead";
   if (OUTBOUND_VALUES.has(normalized)) return "vendedor";
   return "desconhecido";
-}
-
-function localDateKey(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
-function diffCalendarDaysInTz(from: Date, to: Date): number {
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
-  const fromKey = localDateKey(from);
-  const toKey = localDateKey(to);
-  const fromUtcMidnight = Date.UTC(
-    Number(fromKey.slice(0, 4)),
-    Number(fromKey.slice(5, 7)) - 1,
-    Number(fromKey.slice(8, 10)),
-  );
-  const toUtcMidnight = Date.UTC(
-    Number(toKey.slice(0, 4)),
-    Number(toKey.slice(5, 7)) - 1,
-    Number(toKey.slice(8, 10)),
-  );
-  return Math.max(0, Math.floor((toUtcMidnight - fromUtcMidnight) / 86_400_000));
 }
 
 function inferMotivo(

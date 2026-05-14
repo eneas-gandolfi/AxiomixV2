@@ -34,6 +34,7 @@ import type {
   OperatorWorkload,
   WaitingConversation,
 } from "@/lib/whatsapp/live-operation";
+import { diffCalendarDaysInTz } from "@/lib/whatsapp/calendar-days";
 
 type LiveOperationContext = {
   currentUserId: string;
@@ -51,18 +52,18 @@ const TICK_INTERVAL_MS = 1_000; // pra cronômetro contar localmente entre polls
  *  por uma narrativa "Há N dias" porque o numero absurdo nao agrega
  *  decisao (cliente abandonado != cliente em espera ativa).
  *
- *  Conta dias de CALENDÁRIO desde lastInboundAt — o severity continua
- *  vindo de business_hours, mas a label visível tem que bater com a data
- *  exibida abaixo ("desde 04/05"). Antes contávamos business seconds e
- *  isso fazia "9 dias corridos" virar "Há 4 dias" (só dias úteis), o que
- *  contradiz a data exibida no subtítulo. */
+ *  Usa dias de CALENDÁRIO em America/Sao_Paulo (não períodos de 24h) —
+ *  a label tem que bater com a data exibida abaixo ("desde 04/05"). Dividir
+ *  o delta por 86_400_000 fazia mensagens de 04/05 16:16 aparecerem como
+ *  "Há 9 dias" no dia 14/05 às 12:00 (antes do horário de corte), em vez
+ *  de "Há 10 dias" como a data dá a entender. */
 function formatLongWait(lastInboundAt: string, now: Date = new Date()): string {
-  const elapsedMs = now.getTime() - new Date(lastInboundAt).getTime();
-  const days = Math.floor(elapsedMs / 86_400_000);
+  const inbound = new Date(lastInboundAt);
+  const days = diffCalendarDaysInTz(inbound, now);
   if (days >= 1) {
     return `Há ${days} ${days === 1 ? "dia" : "dias"}`;
   }
-  const hours = Math.floor(elapsedMs / 3_600_000);
+  const hours = Math.floor((now.getTime() - inbound.getTime()) / 3_600_000);
   return `Há ${hours} h`;
 }
 
