@@ -16,6 +16,7 @@ export type EvoConversationApi = {
   phone_e164?: string | null
   remote_jid?: string | null
   status?: string | null
+  inbox_id?: string | null
   last_message_at?: string | null
   last_customer_message_at?: string | null
   updated_at?: string | null

@@ -774,6 +774,7 @@ export type Database = {
           created_at: string | null
           external_id: string | null
           id: string
+          inbox_id: string | null
           labels: string[] | null
           last_message_at: string | null
           last_synced_at: string | null
@@ -793,6 +794,7 @@ export type Database = {
           created_at?: string | null
           external_id?: string | null
           id?: string
+          inbox_id?: string | null
           labels?: string[] | null
           last_message_at?: string | null
           last_synced_at?: string | null
@@ -812,6 +814,7 @@ export type Database = {
           created_at?: string | null
           external_id?: string | null
           id?: string
+          inbox_id?: string | null
           labels?: string[] | null
           last_message_at?: string | null
           last_synced_at?: string | null

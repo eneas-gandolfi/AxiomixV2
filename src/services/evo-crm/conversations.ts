@@ -121,7 +121,10 @@ export async function syncConversations(
   const supabase = createSupabaseAdminClient();
   const evoClient = await getEvoCrmClient(companyId);
 
-  const syncFilters: { status: string; inbox_id?: string } = { status: "open" };
+  // Sem filtro de status por default — traz tudo (open, pending, snoozed, resolved)
+  // e deixa a UI filtrar localmente. Antes, o sync travado em status="open" perdia
+  // conversas "pending" que o Evo CRM mostra na aba "Ativas".
+  const syncFilters: { status?: string; inbox_id?: string } = {};
   if (evoClient.syncInboxIds?.[0]) {
     syncFilters.inbox_id = evoClient.syncInboxIds[0];
   }
@@ -182,6 +185,7 @@ export async function syncConversations(
       contact_external_id: item.contact?.id ?? null,
       assigned_to: isValidUuid(item.assignee_id) ? item.assignee_id : null,
       status: item.status ?? "open",
+      inbox_id: item.inbox_id ?? null,
       last_message_at: conversationLastMessageDate(item),
       last_synced_at: new Date().toISOString(),
     };
@@ -270,6 +274,7 @@ export async function syncConversations(
           contact_external_id: row.contact_external_id,
           assigned_to: row.assigned_to,
           status: row.status,
+          inbox_id: row.inbox_id,
           last_message_at: row.last_message_at,
           last_synced_at: row.last_synced_at,
         })

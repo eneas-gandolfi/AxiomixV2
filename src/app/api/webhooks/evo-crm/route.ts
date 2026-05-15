@@ -234,6 +234,17 @@ async function handleConversationEvent(companyId: string, data: Record<string, u
     })
     .filter((l): l is string => l !== null);
 
+  const inboxRaw =
+    typeof data.inbox === "object" && data.inbox !== null
+      ? (data.inbox as Record<string, unknown>)
+      : null;
+  const inboxId =
+    typeof data.inbox_id === "string" || typeof data.inbox_id === "number"
+      ? String(data.inbox_id)
+      : inboxRaw && (typeof inboxRaw.id === "string" || typeof inboxRaw.id === "number")
+        ? String(inboxRaw.id)
+        : null;
+
   const payload = {
     company_id: companyId,
     external_id: externalId,
@@ -249,6 +260,7 @@ async function handleConversationEvent(companyId: string, data: Record<string, u
         ? String(contactRaw.id)
         : null,
     status: typeof data.status === "string" ? data.status : "open",
+    inbox_id: inboxId,
     last_message_at: epochToIso(data.last_message_at ?? data.last_activity_at),
     last_synced_at: new Date().toISOString(),
     labels: labels.length > 0 ? labels : null,

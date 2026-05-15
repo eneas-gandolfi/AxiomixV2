@@ -249,7 +249,9 @@ describe("ConversationsTable — interações click/seleção", () => {
     );
 
     await user.click(screen.getByText("Roberta Mendes"));
-    expect(pushMock).toHaveBeenCalledWith("/whatsapp-intelligence/conversas/c-1");
+    expect(pushMock).toHaveBeenCalledWith("/whatsapp-intelligence/conversas?c=c-1", {
+      scroll: false,
+    });
   });
 
   it("click numa row em selectionMode chama onToggleSelection (não navega)", async () => {

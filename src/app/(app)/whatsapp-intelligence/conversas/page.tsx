@@ -41,7 +41,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
 
   const supabase = await createSupabaseServerClient();
 
-  // Buscar conversas e agentes Evo CRM em paralelo
+  // Buscar conversas, agentes e inboxes do Evo CRM em paralelo
   const fetchAgents = async (): Promise<Array<{ id: string; name: string | null }>> => {
     try {
       const evoClient = await getEvoCrmClient(companyId);
@@ -57,15 +57,39 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
     }
   };
 
-  const [{ data: conversations }, agents] = await Promise.all([
+  const fetchInboxes = async (): Promise<
+    Array<{ id: string; name: string | null; channel_type: string | null }>
+  > => {
+    try {
+      const evoClient = await getEvoCrmClient(companyId);
+      const items = await evoClient.listInboxes();
+      return items.map((i) => ({
+        id: i.id,
+        name: i.name ?? null,
+        channel_type: i.channel_type ?? null,
+      }));
+    } catch (error) {
+      console.error("[conversas page] fetchInboxes failed; degrading to empty list", {
+        companyId,
+        message: error instanceof Error ? error.message : String(error),
+        cause: error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause?.code : undefined,
+      });
+      return [];
+    }
+  };
+
+  const [{ data: conversations }, agents, inboxes] = await Promise.all([
     supabase
       .from("conversations")
-      .select("id, external_id, contact_name, contact_avatar_url, remote_jid, status, last_message_at, assigned_to")
+      .select(
+        "id, external_id, contact_name, contact_avatar_url, remote_jid, status, inbox_id, last_message_at, assigned_to"
+      )
       .eq("company_id", companyId)
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(100),
     fetchAgents(),
+    fetchInboxes(),
   ]);
 
   const conversationIds = (conversations ?? []).map((conversation) => conversation.id);
@@ -114,6 +138,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
     return {
       ...conv,
       assigned_to: conv.assigned_to ?? null,
+      inbox_id: conv.inbox_id ?? null,
       sentiment: insight?.sentiment ?? null,
       intent: insight?.intent ?? null,
     };
@@ -185,6 +210,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
           conversations={conversationsWithInsights}
           companyId={companyId}
           agents={agents}
+          inboxes={inboxes}
           initialFilters={Object.keys(initialFilters).length > 0 ? initialFilters : undefined}
         />
       )}

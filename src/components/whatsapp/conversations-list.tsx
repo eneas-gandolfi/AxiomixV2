@@ -13,7 +13,11 @@ import { Eye, Sparkles, Trash2 } from "lucide-react";
 import { App, Progress } from "antd";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ConversationFiltersCompact, type ConversationFilters } from "./conversation-filters-compact";
+import {
+  ConversationFiltersCompact,
+  type ConversationFilters,
+  type InboxOption,
+} from "./conversation-filters-compact";
 import { ConversationsTable } from "./conversations-table";
 import { ExportButton } from "./export-button";
 
@@ -26,6 +30,7 @@ type ConversationData = {
   contact_avatar_url: string | null;
   remote_jid: string;
   status: string | null;
+  inbox_id: string | null;
   last_message_at: string | null;
   assigned_to: string | null;
   sentiment: Sentiment | null;
@@ -36,17 +41,26 @@ type ConversationsListProps = {
   conversations: ConversationData[];
   companyId: string;
   agents?: Array<{ id: string; name: string | null }>;
+  inboxes?: InboxOption[];
   initialFilters?: Partial<ConversationFilters>;
 };
 
-export function ConversationsList({ conversations, companyId, agents = [], initialFilters }: ConversationsListProps) {
+export function ConversationsList({
+  conversations,
+  companyId,
+  agents = [],
+  inboxes = [],
+  initialFilters,
+}: ConversationsListProps) {
   const router = useRouter();
   const { message } = App.useApp();
   const [filters, setFilters] = useState<ConversationFilters>({
     sentiment: "all",
     intent: "all",
-    status: "all",
+    // Espelha o default do Evo CRM: abre direto em "Ativas".
+    status: "active",
     agent: "all",
+    inbox: "all",
     period: "all",
     search: "",
     ...initialFilters,
@@ -250,14 +264,28 @@ export function ConversationsList({ conversations, companyId, agents = [], initi
       filtered = filtered.filter((conv) => conv.intent === filters.intent);
     }
 
-    // Filtro de status
-    if (filters.status !== "all") {
+    // Filtro de status — agrupados ("active"/"archived") seguem a UX do Evo CRM,
+    // individuais (open/pending/snoozed/resolved) mantêm precisão.
+    if (filters.status === "active") {
+      filtered = filtered.filter((conv) =>
+        ["open", "pending", "snoozed"].includes(conv.status ?? "")
+      );
+    } else if (filters.status === "archived") {
+      filtered = filtered.filter((conv) =>
+        ["resolved", "closed"].includes(conv.status ?? "")
+      );
+    } else if (filters.status !== "all") {
       filtered = filtered.filter((conv) => conv.status === filters.status);
     }
 
     // Filtro de agente
     if (filters.agent !== "all") {
       filtered = filtered.filter((conv) => conv.assigned_to === filters.agent);
+    }
+
+    // Filtro de canal/inbox
+    if (filters.inbox !== "all") {
+      filtered = filtered.filter((conv) => conv.inbox_id === filters.inbox);
     }
 
     // Filtro de período
@@ -297,7 +325,12 @@ export function ConversationsList({ conversations, companyId, agents = [], initi
 
   return (
     <>
-      <ConversationFiltersCompact onFiltersChange={setFilters} agents={agents} initialFilters={initialFilters} />
+      <ConversationFiltersCompact
+        onFiltersChange={setFilters}
+        agents={agents}
+        inboxes={inboxes}
+        initialFilters={initialFilters}
+      />
 
       {feedback && <p className="mb-2 text-sm text-success">{feedback}</p>}
       {error && <p className="mb-2 text-sm text-danger">{error}</p>}

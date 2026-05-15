@@ -252,11 +252,22 @@ function parseConversationsResponse(payload: unknown): EvoConversationApi[] {
       return null;
     };
 
+    const inboxRaw =
+      typeof row.inbox === "object" && row.inbox !== null
+        ? (row.inbox as Record<string, unknown>)
+        : null;
+    const inboxId =
+      toExternalId(row.inbox_id) ??
+      toExternalId(row.inboxId) ??
+      (inboxRaw ? toExternalId(inboxRaw.id) : null) ??
+      null;
+
     parsed.push({
       id,
       phone_e164: typeof row.phone_e164 === "string" ? row.phone_e164 : contactPhone,
       remote_jid: typeof row.remote_jid === "string" ? row.remote_jid : null,
       status: typeof row.status === "string" ? row.status : null,
+      inbox_id: inboxId,
       last_message_at:
         epochToIso(row.last_message_at) ?? epochToIso(row.lastMessageAt) ?? epochToIso(row.last_activity_at) ?? null,
       last_customer_message_at:

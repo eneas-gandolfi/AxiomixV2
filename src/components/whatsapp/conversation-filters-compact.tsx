@@ -20,10 +20,13 @@ import {
 } from "react";
 import {
   AlertTriangle,
+  Archive,
   ChevronDown,
+  CircleDot,
   Clock,
   Headphones,
   HelpCircle,
+  Inbox,
   MoreHorizontal,
   Search,
   ShoppingCart,
@@ -44,7 +47,16 @@ type Intent =
   | "duvida"
   | "cancelamento"
   | "outro";
-type Status = "all" | "open" | "closed";
+// "active"   = open + pending + snoozed  (aba "Ativas" do Evo CRM)
+// "archived" = resolved + closed         (aba "Arquivadas")
+type Status =
+  | "all"
+  | "active"
+  | "archived"
+  | "open"
+  | "pending"
+  | "snoozed"
+  | "resolved";
 type Period = "1" | "7" | "30" | "all";
 
 export type ConversationFilters = {
@@ -52,21 +64,31 @@ export type ConversationFilters = {
   intent: Intent;
   status: Status;
   agent: string;
+  inbox: string;
   period: Period;
   search: string;
+};
+
+export type InboxOption = {
+  id: string;
+  name: string | null;
+  channel_type?: string | null;
 };
 
 type Props = {
   onFiltersChange: (filters: ConversationFilters) => void;
   agents?: Array<{ id: string; name: string | null }>;
+  inboxes?: InboxOption[];
   initialFilters?: Partial<ConversationFilters>;
 };
 
 const DEFAULT_FILTERS: ConversationFilters = {
   sentiment: "all",
   intent: "all",
-  status: "all",
+  // Default "active" espelha o comportamento do Evo CRM (abre direto em "Ativas").
+  status: "active",
   agent: "all",
+  inbox: "all",
   period: "all",
   search: "",
 };
@@ -95,6 +117,27 @@ const PERIOD_LABEL: Record<Period, string> = {
   "30": "30 dias",
   all: "",
 };
+
+const STATUS_LABEL: Record<Status, string> = {
+  all: "",
+  active: "Ativas",
+  archived: "Arquivadas",
+  open: "Aberta",
+  pending: "Pendente",
+  snoozed: "Adiada",
+  resolved: "Resolvida",
+};
+
+function formatChannelType(channelType: string | null | undefined): string | null {
+  if (!channelType) return null;
+  const normalized = channelType.toLowerCase();
+  if (normalized.includes("whatsapp")) return "WhatsApp";
+  if (normalized.includes("instagram")) return "Instagram";
+  if (normalized.includes("messenger") || normalized.includes("facebook")) return "Messenger";
+  if (normalized.includes("telegram")) return "Telegram";
+  if (normalized.includes("email")) return "E-mail";
+  return channelType;
+}
 
 // =============================================================================
 // FilterChip — chip-trigger genérico com popover ancorado
@@ -240,6 +283,7 @@ function PopoverFooter({ onClear }: { onClear: () => void }) {
 export function ConversationFiltersCompact({
   onFiltersChange,
   agents = [],
+  inboxes = [],
   initialFilters,
 }: Props) {
   const [filters, setFilters] = useState<ConversationFilters>({
@@ -265,16 +309,25 @@ export function ConversationFiltersCompact({
     onFiltersChange(DEFAULT_FILTERS);
   };
 
+  // Compara com DEFAULT_FILTERS (não com "all") porque o default de status é
+  // "active" — senão "Limpar filtros" apareceria sempre.
   const hasActiveFilters =
-    filters.sentiment !== "all" ||
-    filters.intent !== "all" ||
-    filters.agent !== "all" ||
-    filters.period !== "all" ||
-    filters.search !== "";
+    filters.sentiment !== DEFAULT_FILTERS.sentiment ||
+    filters.intent !== DEFAULT_FILTERS.intent ||
+    filters.status !== DEFAULT_FILTERS.status ||
+    filters.agent !== DEFAULT_FILTERS.agent ||
+    filters.inbox !== DEFAULT_FILTERS.inbox ||
+    filters.period !== DEFAULT_FILTERS.period ||
+    filters.search !== DEFAULT_FILTERS.search;
 
   const agentActiveLabel =
     filters.agent !== "all"
       ? agents.find((a) => a.id === filters.agent)?.name ?? "Selecionado"
+      : "";
+
+  const inboxActiveLabel =
+    filters.inbox !== "all"
+      ? inboxes.find((i) => i.id === filters.inbox)?.name ?? "Selecionado"
       : "";
 
   return (
@@ -304,6 +357,86 @@ export function ConversationFiltersCompact({
 
       {/* Linha de chips-trigger */}
       <div className="flex flex-wrap items-center gap-2">
+        {/* Status — espelha as abas "Ativas" / "Arquivadas" do Evo CRM */}
+        <FilterChip
+          icon={CircleDot}
+          label="Status"
+          activeLabel={STATUS_LABEL[filters.status]}
+          isActive={filters.status !== "all"}
+        >
+          {(close) => (
+            <>
+              <PopoverHeader>Status</PopoverHeader>
+              <PopoverItem
+                active={filters.status === "active"}
+                onClick={() => {
+                  updateFilter("status", "active");
+                  close();
+                }}
+                icon={CircleDot}
+                iconColor="text-[var(--color-success)]"
+                label="Ativas"
+              />
+              <PopoverItem
+                active={filters.status === "archived"}
+                onClick={() => {
+                  updateFilter("status", "archived");
+                  close();
+                }}
+                icon={Archive}
+                iconColor="text-[var(--color-text-tertiary)]"
+                label="Arquivadas"
+              />
+              <PopoverItem
+                active={filters.status === "all"}
+                onClick={() => {
+                  updateFilter("status", "all");
+                  close();
+                }}
+                label="Todas"
+              />
+              <div className="my-1 border-t border-[var(--color-border)]" aria-hidden />
+              <PopoverHeader>Status individual</PopoverHeader>
+              <PopoverItem
+                active={filters.status === "open"}
+                onClick={() => {
+                  updateFilter("status", "open");
+                  close();
+                }}
+                dotColor="var(--color-success)"
+                label="Aberta"
+              />
+              <PopoverItem
+                active={filters.status === "pending"}
+                onClick={() => {
+                  updateFilter("status", "pending");
+                  close();
+                }}
+                dotColor="var(--color-warning)"
+                label="Pendente"
+              />
+              <PopoverItem
+                active={filters.status === "snoozed"}
+                onClick={() => {
+                  updateFilter("status", "snoozed");
+                  close();
+                }}
+                dotColor="var(--color-text-tertiary)"
+                label="Adiada"
+              />
+              <PopoverItem
+                active={filters.status === "resolved"}
+                onClick={() => {
+                  updateFilter("status", "resolved");
+                  close();
+                }}
+                dotColor="var(--color-primary)"
+                label="Resolvida"
+              />
+            </>
+          )}
+        </FilterChip>
+
         {/* Sentimento */}
         <FilterChip
           icon={Smile}
@@ -469,6 +602,48 @@ export function ConversationFiltersCompact({
                   <PopoverFooter
                     onClear={() => {
                       updateFilter("agent", "all");
+                      close();
+                    }}
+                  />
+                ) : null}
+              </>
+            )}
+          </FilterChip>
+        ) : null}
+
+        {/* Canal / Inbox */}
+        {inboxes.length > 0 ? (
+          <FilterChip
+            icon={Inbox}
+            label="Canal"
+            activeLabel={inboxActiveLabel}
+            isActive={filters.inbox !== "all"}
+          >
+            {(close) => (
+              <>
+                <PopoverHeader>Canal</PopoverHeader>
+                {inboxes.map((inbox) => {
+                  const channel = formatChannelType(inbox.channel_type);
+                  const label =
+                    inbox.name && channel
+                      ? `${inbox.name} · ${channel}`
+                      : inbox.name ?? channel ?? inbox.id;
+                  return (
+                    <PopoverItem
+                      key={inbox.id}
+                      active={filters.inbox === inbox.id}
+                      onClick={() => {
+                        updateFilter("inbox", inbox.id);
+                        close();
+                      }}
+                      label={label}
+                    />
+                  );
+                })}
+                {filters.inbox !== "all" ? (
+                  <PopoverFooter
+                    onClear={() => {
+                      updateFilter("inbox", "all");
                       close();
                     }}
                   />
