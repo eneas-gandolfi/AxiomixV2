@@ -66,6 +66,37 @@ export async function GET(request: NextRequest) {
     const allRemoteIds = fanOutResults.flatMap((r) => r.ids);
     const uniqueRemoteIds = new Set(allRemoteIds);
 
+    // Identidade do token: lista de inboxes e usuários que ele consegue ver.
+    // Se a UI do Evo CRM mostra mais inboxes/usuários do que aqui, o token
+    // está autenticando em outra conta/workspace.
+    const tokenScope: {
+      inboxes: Array<{ id: string; name: string | null; channel_type: string | null }>;
+      users: Array<{ id: string; name: string | null; email?: string | null }>;
+      inboxesError: string | null;
+      usersError: string | null;
+    } = { inboxes: [], users: [], inboxesError: null, usersError: null };
+
+    try {
+      const inboxes = await evoClient.listInboxes();
+      tokenScope.inboxes = inboxes.map((i) => ({
+        id: i.id,
+        name: i.name ?? null,
+        channel_type: i.channel_type ?? null,
+      }));
+    } catch (err) {
+      tokenScope.inboxesError = err instanceof Error ? err.message : String(err);
+    }
+    try {
+      const users = await evoClient.listUsers();
+      tokenScope.users = users.map((u) => ({
+        id: u.id,
+        name: u.name ?? null,
+        email: (u as { email?: string | null }).email ?? null,
+      }));
+    } catch (err) {
+      tokenScope.usersError = err instanceof Error ? err.message : String(err);
+    }
+
     const admin = createSupabaseAdminClient();
     const { data: dbRows, error: dbError } = await admin
       .from("conversations")
@@ -106,6 +137,14 @@ export async function GET(request: NextRequest) {
         baseUrl: evoClient.baseUrl,
         inboxId: evoClient.inboxId ?? null,
         syncInboxIds: evoClient.syncInboxIds ?? null,
+      },
+      tokenScope: {
+        inboxes_count: tokenScope.inboxes.length,
+        inboxes: tokenScope.inboxes,
+        inboxesError: tokenScope.inboxesError,
+        users_count: tokenScope.users.length,
+        users: tokenScope.users.slice(0, 20),
+        usersError: tokenScope.usersError,
       },
       remote: {
         inboxesQueried: inboxIds.length,
