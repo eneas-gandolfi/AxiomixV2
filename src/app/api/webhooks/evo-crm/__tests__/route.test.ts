@@ -166,4 +166,168 @@ describe("Webhook — Message Direction", () => {
     const fromMe = typeof data.from_me === "boolean" ? data.from_me : false
     expect(fromMe).toBe(true)
   })
+
+  // Chatwoot/Evo CRM usa message_type numérico (0=incoming, 1=outgoing).
+  it("message_type 1 (numérico) → outbound", () => {
+    const data: Record<string, unknown> = { message_type: 1, content: "hello" }
+    const msgTypeStr = typeof data.message_type === "string" ? data.message_type.toLowerCase() : null
+    const fromMe =
+      data.message_type === 1 ||
+      data.message_type === "1" ||
+      msgTypeStr === "outgoing"
+    expect(fromMe).toBe(true)
+  })
+
+  it("message_type 0 (numérico) → inbound", () => {
+    const data: Record<string, unknown> = { message_type: 0, content: "hello" }
+    const msgTypeStr = typeof data.message_type === "string" ? data.message_type.toLowerCase() : null
+    const fromMe =
+      data.message_type === 1 ||
+      data.message_type === "1" ||
+      msgTypeStr === "outgoing"
+    expect(fromMe).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Payload aninhado do Evo CRM (data.conversation.id, data.meta.sender)
+// ---------------------------------------------------------------------------
+
+// Replicas das helpers do route.ts (para teste isolado sem importar o module).
+function extractConversationId(data: Record<string, unknown>): string | null {
+  const conv =
+    typeof data.conversation === "object" && data.conversation !== null
+      ? (data.conversation as Record<string, unknown>)
+      : null
+  if (conv && (typeof conv.id === "string" || typeof conv.id === "number")) {
+    return String(conv.id)
+  }
+  if (typeof data.conversation_id === "string" || typeof data.conversation_id === "number") {
+    return String(data.conversation_id)
+  }
+  return null
+}
+
+function extractContactRaw(data: Record<string, unknown>): Record<string, unknown> | null {
+  const meta =
+    typeof data.meta === "object" && data.meta !== null
+      ? (data.meta as Record<string, unknown>)
+      : null
+  const metaSender =
+    meta && typeof meta.sender === "object" && meta.sender !== null
+      ? (meta.sender as Record<string, unknown>)
+      : null
+  if (metaSender) return metaSender
+  const directSender =
+    typeof data.sender === "object" && data.sender !== null
+      ? (data.sender as Record<string, unknown>)
+      : null
+  if (directSender) return directSender
+  const conv =
+    typeof data.conversation === "object" && data.conversation !== null
+      ? (data.conversation as Record<string, unknown>)
+      : null
+  const convMeta =
+    conv && typeof conv.meta === "object" && conv.meta !== null
+      ? (conv.meta as Record<string, unknown>)
+      : null
+  const convSender =
+    convMeta && typeof convMeta.sender === "object" && convMeta.sender !== null
+      ? (convMeta.sender as Record<string, unknown>)
+      : null
+  if (convSender) return convSender
+  return typeof data.contact === "object" && data.contact !== null
+    ? (data.contact as Record<string, unknown>)
+    : null
+}
+
+describe("Webhook — Payload aninhado (extractConversationId)", () => {
+  it("extrai UUID de data.conversation.id (formato real do Evo CRM)", () => {
+    const data = {
+      conversation: { id: "01781ae0-ea84-4aba-9c89-6c385a433c43", display_id: 3 },
+    }
+    expect(extractConversationId(data)).toBe("01781ae0-ea84-4aba-9c89-6c385a433c43")
+  })
+
+  it("aceita data.conversation_id top-level como fallback legado", () => {
+    const data = { conversation_id: "legacy-uuid-here" }
+    expect(extractConversationId(data)).toBe("legacy-uuid-here")
+  })
+
+  it("prefere data.conversation.id sobre data.conversation_id quando ambos vêm", () => {
+    const data = {
+      conversation: { id: "nested-uuid" },
+      conversation_id: "top-level-uuid",
+    }
+    expect(extractConversationId(data)).toBe("nested-uuid")
+  })
+
+  it("retorna null quando nenhum dos formatos vem", () => {
+    expect(extractConversationId({})).toBeNull()
+    expect(extractConversationId({ conversation: null })).toBeNull()
+  })
+})
+
+describe("Webhook — Payload aninhado (extractContactRaw)", () => {
+  it("extrai sender de data.meta.sender (conversation events do Evo CRM)", () => {
+    const data = {
+      meta: { sender: { id: "c-1", name: "Eneas", phone_number: "+5515996400419" } },
+    }
+    const result = extractContactRaw(data)
+    expect(result?.name).toBe("Eneas")
+    expect(result?.phone_number).toBe("+5515996400419")
+  })
+
+  it("extrai sender de data.sender (message events do Evo CRM)", () => {
+    const data = {
+      sender: { id: "c-2", name: "Maria" },
+    }
+    const result = extractContactRaw(data)
+    expect(result?.name).toBe("Maria")
+  })
+
+  it("extrai sender de data.conversation.meta.sender (fallback aninhado)", () => {
+    const data = {
+      conversation: { id: "conv-1", meta: { sender: { id: "c-3", name: "Hitalo" } } },
+    }
+    const result = extractContactRaw(data)
+    expect(result?.name).toBe("Hitalo")
+  })
+
+  it("usa data.contact como último fallback legado", () => {
+    const data = { contact: { id: "c-4", name: "Legacy" } }
+    const result = extractContactRaw(data)
+    expect(result?.name).toBe("Legacy")
+  })
+
+  it("retorna null quando nenhum sender vem no payload", () => {
+    expect(extractContactRaw({})).toBeNull()
+  })
+})
+
+describe("Webhook — Merge guard (não sobrescrever contact com null)", () => {
+  // Simula a lógica de merge do handleConversationEvent.
+  function mergePayload(
+    incomingContactName: string | null,
+    existing: { contact_name: string | null } | null
+  ) {
+    return {
+      contact_name: incomingContactName ?? existing?.contact_name ?? null,
+    }
+  }
+
+  it("preserva contact_name existente quando payload novo vem com null", () => {
+    const merged = mergePayload(null, { contact_name: "Eneas Gandolfi" })
+    expect(merged.contact_name).toBe("Eneas Gandolfi")
+  })
+
+  it("atualiza contact_name quando payload novo traz valor", () => {
+    const merged = mergePayload("Novo Nome", { contact_name: "Antigo" })
+    expect(merged.contact_name).toBe("Novo Nome")
+  })
+
+  it("retorna null quando ambos são null (caso de criação)", () => {
+    const merged = mergePayload(null, null)
+    expect(merged.contact_name).toBeNull()
+  })
 })

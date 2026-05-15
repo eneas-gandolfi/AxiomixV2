@@ -96,16 +96,71 @@ function epochToIso(value: unknown): string {
   return new Date().toISOString();
 }
 
+// O Evo CRM (evo-ai-crm-community, herdado do Chatwoot) serializa o webhook como:
+//   message_created: { id, content, message_type, conversation: { id, display_id, meta:{sender} }, sender, inbox, ... }
+//   conversation_*:  { id, display_id, inbox_id, labels, meta:{sender}, status, ... }
+// O handler antigo lia campos top-level (`data.conversation_id`, `data.contact`) que NÃO existem
+// nesses payloads. Extrair via helpers blindados a ambos formatos (aninhado e legado).
+function extractConversationId(data: Record<string, unknown>): string | null {
+  const conv =
+    typeof data.conversation === "object" && data.conversation !== null
+      ? (data.conversation as Record<string, unknown>)
+      : null;
+  if (conv && (typeof conv.id === "string" || typeof conv.id === "number")) {
+    return String(conv.id);
+  }
+  if (typeof data.conversation_id === "string" || typeof data.conversation_id === "number") {
+    return String(data.conversation_id);
+  }
+  return null;
+}
+
+function extractContactRaw(data: Record<string, unknown>): Record<string, unknown> | null {
+  // conversation events: data.meta.sender
+  const meta =
+    typeof data.meta === "object" && data.meta !== null
+      ? (data.meta as Record<string, unknown>)
+      : null;
+  const metaSender =
+    meta && typeof meta.sender === "object" && meta.sender !== null
+      ? (meta.sender as Record<string, unknown>)
+      : null;
+  if (metaSender) return metaSender;
+  // message events: data.sender direto
+  const directSender =
+    typeof data.sender === "object" && data.sender !== null
+      ? (data.sender as Record<string, unknown>)
+      : null;
+  if (directSender) return directSender;
+  // message events: data.conversation.meta.sender (mensagem com conversa aninhada)
+  const conv =
+    typeof data.conversation === "object" && data.conversation !== null
+      ? (data.conversation as Record<string, unknown>)
+      : null;
+  const convMeta =
+    conv && typeof conv.meta === "object" && conv.meta !== null
+      ? (conv.meta as Record<string, unknown>)
+      : null;
+  const convSender =
+    convMeta && typeof convMeta.sender === "object" && convMeta.sender !== null
+      ? (convMeta.sender as Record<string, unknown>)
+      : null;
+  if (convSender) return convSender;
+  // fallback legado
+  return typeof data.contact === "object" && data.contact !== null
+    ? (data.contact as Record<string, unknown>)
+    : null;
+}
+
 async function handleMessageEvent(
   companyId: string,
   data: Record<string, unknown>,
   eventName: "created" | "updated" = "created"
 ) {
   const supabase = createSupabaseAdminClient();
-  const conversationExternalId =
-    typeof data.conversation_id === "string" || typeof data.conversation_id === "number"
-      ? String(data.conversation_id)
-      : null;
+  // Evo CRM envia conversation_id aninhado em data.conversation.id (UUID).
+  // Não confundir com data.conversation_id (campo legado/Chatwoot antigo que aqui é undefined).
+  const conversationExternalId = extractConversationId(data);
 
   if (!conversationExternalId) return;
 
@@ -129,10 +184,16 @@ async function handleMessageEvent(
   // diferentes entre os 2 caminhos e o índice unique parcial não desduplica.
   const directionRaw =
     typeof data.direction === "string" ? data.direction.toLowerCase() : null;
+  // Chatwoot/Evo CRM usa message_type numérico (0=incoming, 1=outgoing). Cobrir
+  // ambos formatos (numérico e string) para resistir a variações da serialização.
   const fromMe =
     typeof data.from_me === "boolean"
       ? data.from_me
-      : msgType === "outgoing" || directionRaw === "outbound" || directionRaw === "sent";
+      : data.message_type === 1 ||
+        data.message_type === "1" ||
+        msgType === "outgoing" ||
+        directionRaw === "outbound" ||
+        directionRaw === "sent";
   const direction: "inbound" | "outbound" = fromMe ? "outbound" : "inbound";
 
   const rawContent =
@@ -217,10 +278,7 @@ async function handleMessageEvent(
       `[evo-crm webhook] stub conversation criada — convExt=${conversationExternalId} ` +
         `payload_keys=${Object.keys(data).join(",")}`
     );
-    const contactRaw =
-      typeof data.contact === "object" && data.contact !== null
-        ? (data.contact as Record<string, unknown>)
-        : null;
+    const contactRaw = extractContactRaw(data);
     const stubContactPhone =
       contactRaw && typeof contactRaw.phone_number === "string"
         ? contactRaw.phone_number
@@ -233,10 +291,18 @@ async function handleMessageEvent(
       contactRaw && typeof contactRaw.name === "string" && contactRaw.name.trim().length > 0
         ? contactRaw.name
         : null;
-    const stubInboxId =
-      typeof data.inbox_id === "string" || typeof data.inbox_id === "number"
-        ? String(data.inbox_id)
+    // inbox_id pode vir top-level (legado) ou aninhado em data.conversation.inbox_id
+    const conv =
+      typeof data.conversation === "object" && data.conversation !== null
+        ? (data.conversation as Record<string, unknown>)
         : null;
+    const stubInboxId =
+      (typeof data.inbox_id === "string" || typeof data.inbox_id === "number"
+        ? String(data.inbox_id)
+        : null) ??
+      (conv && (typeof conv.inbox_id === "string" || typeof conv.inbox_id === "number")
+        ? String(conv.inbox_id)
+        : null);
     const stub = {
       company_id: companyId,
       external_id: conversationExternalId,
@@ -301,10 +367,8 @@ async function handleConversationEvent(companyId: string, data: Record<string, u
     typeof data.id === "string" || typeof data.id === "number" ? String(data.id) : null;
   if (!externalId) return;
 
-  const contactRaw =
-    typeof data.contact === "object" && data.contact !== null
-      ? (data.contact as Record<string, unknown>)
-      : null;
+  // Evo CRM envia contact em data.meta.sender (não em data.contact).
+  const contactRaw = extractContactRaw(data);
 
   const contactPhone =
     contactRaw && typeof contactRaw.phone_number === "string"
@@ -333,39 +397,58 @@ async function handleConversationEvent(companyId: string, data: Record<string, u
       ? (data.inbox as Record<string, unknown>)
       : null;
   const inboxId =
-    typeof data.inbox_id === "string" || typeof data.inbox_id === "number"
+    (typeof data.inbox_id === "string" || typeof data.inbox_id === "number"
       ? String(data.inbox_id)
-      : inboxRaw && (typeof inboxRaw.id === "string" || typeof inboxRaw.id === "number")
-        ? String(inboxRaw.id)
-        : null;
+      : null) ??
+    (inboxRaw && (typeof inboxRaw.id === "string" || typeof inboxRaw.id === "number")
+      ? String(inboxRaw.id)
+      : null);
+
+  const contactName =
+    contactRaw && typeof contactRaw.name === "string" && contactRaw.name.trim().length > 0
+      ? contactRaw.name
+      : null;
+  const contactExternalId =
+    contactRaw && (typeof contactRaw.id === "string" || typeof contactRaw.id === "number")
+      ? String(contactRaw.id)
+      : null;
+
+  // SELECT prévio para merge defensivo: nunca sobrescrever contact_name/phone com
+  // null quando o existing já tinha valor — webhooks podem chegar com payload
+  // incompleto e zerar dados corretos sem isso.
+  const { data: existing } = await supabase
+    .from("conversations")
+    .select("id, contact_name, contact_phone, contact_external_id, remote_jid")
+    .eq("company_id", companyId)
+    .eq("external_id", externalId)
+    .maybeSingle();
+
+  if (existing && contactName === null && existing.contact_name) {
+    console.info(
+      `[evo-crm webhook] conversation_event preservou contact_name existente (payload sem sender) — externalId=${externalId}`
+    );
+  }
+
+  const resolvedRemoteJid =
+    contactPhone ??
+    (typeof data.phone_e164 === "string" ? data.phone_e164 : null) ??
+    (typeof data.remote_jid === "string" ? data.remote_jid : null) ??
+    existing?.remote_jid ??
+    "unknown";
 
   const payload = {
     company_id: companyId,
     external_id: externalId,
-    remote_jid:
-      contactPhone ??
-      (typeof data.phone_e164 === "string" ? data.phone_e164 : null) ??
-      (typeof data.remote_jid === "string" ? data.remote_jid : null) ??
-      "unknown",
-    contact_name: contactRaw && typeof contactRaw.name === "string" ? contactRaw.name : null,
-    contact_phone: contactPhone,
-    contact_external_id:
-      contactRaw && (typeof contactRaw.id === "string" || typeof contactRaw.id === "number")
-        ? String(contactRaw.id)
-        : null,
+    remote_jid: resolvedRemoteJid,
+    contact_name: contactName ?? existing?.contact_name ?? null,
+    contact_phone: contactPhone ?? existing?.contact_phone ?? null,
+    contact_external_id: contactExternalId ?? existing?.contact_external_id ?? null,
     status: typeof data.status === "string" ? data.status : "open",
     inbox_id: inboxId,
     last_message_at: epochToIso(data.last_message_at ?? data.last_activity_at),
     last_synced_at: new Date().toISOString(),
     labels: labels.length > 0 ? labels : null,
   };
-
-  const { data: existing } = await supabase
-    .from("conversations")
-    .select("id")
-    .eq("company_id", companyId)
-    .eq("external_id", externalId)
-    .maybeSingle();
 
   if (existing) {
     await supabase.from("conversations").update(payload).eq("id", existing.id);
