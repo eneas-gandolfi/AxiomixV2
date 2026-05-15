@@ -95,7 +95,11 @@ function epochToIso(value: unknown): string {
   return new Date().toISOString();
 }
 
-async function handleMessageEvent(companyId: string, data: Record<string, unknown>) {
+async function handleMessageEvent(
+  companyId: string,
+  data: Record<string, unknown>,
+  eventName: "created" | "updated" = "created"
+) {
   const supabase = createSupabaseAdminClient();
   const conversationExternalId =
     typeof data.conversation_id === "string" || typeof data.conversation_id === "number"
@@ -115,6 +119,42 @@ async function handleMessageEvent(companyId: string, data: Record<string, unknow
       : typeof data.message_id === "string"
         ? data.message_id
         : null;
+
+  console.info(
+    `[evo-crm webhook] message_${eventName} companyId=${companyId} ` +
+      `convExt=${conversationExternalId} msgExt=${messageExternalId ?? "<null>"}`
+  );
+
+  // message_updated: NUNCA insere. Atualiza status/conteudo se a mensagem ja
+  // existir; caso contrario ignora (evita duplicar quando created+updated
+  // chegam em sequencia para a mesma mensagem). Sem essa separacao, dois
+  // INSERTs entram no banco apesar do indice unico parcial em external_id
+  // (race: ambos passam pelo SELECT antes do primeiro fazer COMMIT).
+  if (eventName === "updated") {
+    if (!messageExternalId) return;
+    const { data: existingMsg } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("external_id", messageExternalId)
+      .maybeSingle();
+    if (!existingMsg) return;
+    const contentUpdate =
+      typeof data.content === "string"
+        ? stripMessageHtml(data.content)
+        : typeof data.body === "string"
+          ? stripMessageHtml(data.body)
+          : null;
+    const updatePayload: Record<string, unknown> = {};
+    if (contentUpdate !== null) updatePayload.content = contentUpdate;
+    if (typeof data.message_type === "string") updatePayload.message_type = data.message_type;
+    if (typeof data.media_url === "string") updatePayload.media_url = data.media_url;
+    if (Object.keys(updatePayload).length > 0) {
+      updatePayload.raw_payload = data as Json;
+      await supabase.from("messages").update(updatePayload).eq("id", existingMsg.id);
+    }
+    return;
+  }
 
   if (messageExternalId) {
     const { data: existing, error: existErr } = await supabase
@@ -323,8 +363,15 @@ export async function POST(request: NextRequest) {
     switch (event) {
       case "message_created":
       case "message.created":
+        await handleMessageEvent(companyId, data, "created");
+        break;
+
       case "message_updated":
-        await handleMessageEvent(companyId, data);
+      case "message.updated":
+        // Update-only: NUNCA insere, apenas atualiza se já existir.
+        // Crítico para evitar duplicação quando created+updated chegam em
+        // rajada (~1s de diferença observado em prod 2026-05-15).
+        await handleMessageEvent(companyId, data, "updated");
         break;
 
       case "conversation_created":
