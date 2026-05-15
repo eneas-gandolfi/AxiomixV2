@@ -97,6 +97,70 @@ export async function GET(request: NextRequest) {
       tokenScope.usersError = err instanceof Error ? err.message : String(err);
     }
 
+    // Sonda: o endpoint /api/v1/conversations no Chatwoot/Evo CRM tipicamente
+    // filtra por assignee_type=me por padrão. As 7 conversas que o usuário vê
+    // no painel só aparecem quando assignee_type é "assigned" ou "unassigned".
+    // Esta sonda testa cada variação direto via fetch (bypass do client) para
+    // descobrir qual combinação devolve o conjunto completo.
+    type ProbeResult = { params: string; status: number; count: number; error: string | null };
+    async function probeConversationsRaw(searchParams: Record<string, string>): Promise<ProbeResult> {
+      const url = new URL(`${evoClient.baseUrl}/api/v1/conversations`);
+      for (const [k, v] of Object.entries(searchParams)) url.searchParams.set(k, v);
+      try {
+        const res = await fetch(url.toString(), {
+          headers: {
+            api_access_token: evoClient.apiToken,
+            accept: "application/json",
+          },
+        });
+        const text = await res.text();
+        let count = 0;
+        try {
+          const json = JSON.parse(text);
+          // Tenta os principais formatos: meta.all_count, meta.total_count, data.length, data.payload.length
+          const meta = (json?.meta ?? json?.data?.meta) as Record<string, unknown> | undefined;
+          const dataArr = Array.isArray(json?.data)
+            ? json.data
+            : Array.isArray(json?.data?.payload)
+              ? json.data.payload
+              : Array.isArray(json?.payload)
+                ? json.payload
+                : Array.isArray(json?.conversations)
+                  ? json.conversations
+                  : [];
+          count =
+            (typeof meta?.all_count === "number" ? meta.all_count : 0) ||
+            (typeof meta?.total_count === "number" ? meta.total_count : 0) ||
+            dataArr.length;
+        } catch {
+          // ignore
+        }
+        return {
+          params: url.search,
+          status: res.status,
+          count,
+          error: res.status >= 400 ? text.slice(0, 160) : null,
+        };
+      } catch (err) {
+        return {
+          params: url.search,
+          status: 0,
+          count: 0,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }
+
+    const probes = await Promise.all([
+      probeConversationsRaw({ limit: "50" }),
+      probeConversationsRaw({ limit: "50", assignee_type: "me" }),
+      probeConversationsRaw({ limit: "50", assignee_type: "assigned" }),
+      probeConversationsRaw({ limit: "50", assignee_type: "unassigned" }),
+      probeConversationsRaw({ limit: "50", status: "open" }),
+      probeConversationsRaw({ limit: "50", status: "open", assignee_type: "assigned" }),
+      probeConversationsRaw({ limit: "50", q: "" }),
+    ]);
+
     const admin = createSupabaseAdminClient();
     const { data: dbRows, error: dbError } = await admin
       .from("conversations")
@@ -146,6 +210,7 @@ export async function GET(request: NextRequest) {
         users: tokenScope.users.slice(0, 20),
         usersError: tokenScope.usersError,
       },
+      probes,
       remote: {
         inboxesQueried: inboxIds.length,
         perInbox: fanOutResults,
