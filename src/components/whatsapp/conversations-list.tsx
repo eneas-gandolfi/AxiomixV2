@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Sparkles, Trash2 } from "lucide-react";
 import { App, Progress } from "antd";
@@ -20,6 +20,7 @@ import {
 } from "./conversation-filters-compact";
 import { ConversationsTable } from "./conversations-table";
 import { ExportButton } from "./export-button";
+import { useRealtimeConversations } from "@/hooks/use-realtime-conversations";
 
 type Sentiment = "positivo" | "neutro" | "negativo";
 
@@ -74,6 +75,70 @@ export function ConversationsList({
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [analyzeProgress, setAnalyzeProgress] = useState<{ current: number; total: number } | null>(null);
   const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
+
+  // Tempo real: re-fetcha o RSC quando o banco muda (webhook do Evo CRM grava
+  // no Supabase → Realtime push → router.refresh()). Throttle de 1.5s evita
+  // tempestade de refreshes em rajada de eventos.
+  const refreshThrottleRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; lastRun: number }>({
+    timer: null,
+    lastRun: 0,
+  });
+  const scheduleRefresh = () => {
+    const THROTTLE_MS = 1500;
+    const now = Date.now();
+    const sinceLast = now - refreshThrottleRef.current.lastRun;
+    if (sinceLast >= THROTTLE_MS) {
+      refreshThrottleRef.current.lastRun = now;
+      router.refresh();
+      return;
+    }
+    if (refreshThrottleRef.current.timer) return;
+    refreshThrottleRef.current.timer = setTimeout(() => {
+      refreshThrottleRef.current.timer = null;
+      refreshThrottleRef.current.lastRun = Date.now();
+      router.refresh();
+    }, THROTTLE_MS - sinceLast);
+  };
+
+  useRealtimeConversations({
+    companyId,
+    enabled: true,
+    onConversationChange: scheduleRefresh,
+  });
+
+  // Polling de fallback: caso a tabela `conversations` não esteja na publication
+  // `supabase_realtime`, garante refresh a cada 10s. Pausa quando a aba está
+  // oculta para não desperdiçar requests.
+  useEffect(() => {
+    const POLL_MS = 10_000;
+    let id: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (id) return;
+      id = setInterval(() => {
+        if (document.visibilityState === "visible") router.refresh();
+      }, POLL_MS);
+    };
+    const stop = () => {
+      if (id) {
+        clearInterval(id);
+        id = null;
+      }
+    };
+    start();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        router.refresh();
+        start();
+      } else {
+        stop();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [router]);
 
   const handleResolve = async (conversationId: string) => {
     try {
