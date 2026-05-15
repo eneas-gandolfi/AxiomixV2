@@ -170,9 +170,22 @@ export async function updateAgent(
   payload: UpdateAgentPayload
 ): Promise<void> {
   const client = await getEvoCrmClient(companyId)
+  // Core Service usa PUT com semantica de REPLACE — exige payload completo
+  // (name, agent_type, etc.). Buscamos o estado atual e mergeamos a partial
+  // update por cima antes de enviar.
+  const current = await agentRequest<Record<string, unknown>>(
+    client,
+    `/api/v1/agents/${encodeURIComponent(agentId)}`
+  )
+  const currentAgent = (typeof current.agent === 'object' && current.agent !== null
+    ? current.agent
+    : current) as Record<string, unknown>
+
+  const merged: Record<string, unknown> = { ...currentAgent, ...payload }
+
   await agentRequest(client, `/api/v1/agents/${encodeURIComponent(agentId)}`, {
     method: 'PUT',
-    body: payload as Record<string, unknown>,
+    body: merged,
   })
 }
 
