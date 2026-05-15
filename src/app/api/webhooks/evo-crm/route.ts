@@ -20,7 +20,7 @@
  *   - message_type: "incoming" | "outgoing" (não from_me boolean)
  */
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Json } from "@/database/types/database.types";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
@@ -113,16 +113,42 @@ async function handleMessageEvent(
   // Activity events ("Conversation was reopened by …") não são mensagens reais — ignora.
   if (msgType === "activity") return;
 
-  const messageExternalId =
+  const rawMessageExternalId =
     typeof data.id === "string" || typeof data.id === "number"
       ? String(data.id)
       : typeof data.message_id === "string"
         ? data.message_id
-        : null;
+        : typeof data.uuid === "string"
+          ? data.uuid
+          : null;
+
+  // Fingerprint determinístico para quando o Evo CRM mandar payload sem ID
+  // explícito — garante idempotência mesmo sem external_id real. Inputs idênticos
+  // (mesma conversa + mesmo timestamp + mesmo conteudo) geram o mesmo fingerprint
+  // e o indice unique parcial em (company_id, external_id) rejeita duplicatas.
+  function computeFingerprint(): string {
+    const contentForFp =
+      typeof data.content === "string"
+        ? data.content
+        : typeof data.body === "string"
+          ? data.body
+          : "";
+    const sentAtForFp = String(data.created_at ?? data.sent_at ?? data.timestamp ?? "");
+    const dirForFp = String(data.message_type ?? data.direction ?? "");
+    const hash = createHash("sha1")
+      .update(`${conversationExternalId}|${dirForFp}|${sentAtForFp}|${contentForFp}`)
+      .digest("hex")
+      .slice(0, 32);
+    return `fp:${hash}`;
+  }
+
+  const messageExternalId = rawMessageExternalId ?? computeFingerprint();
+  const usedFingerprint = !rawMessageExternalId;
 
   console.info(
     `[evo-crm webhook] message_${eventName} companyId=${companyId} ` +
-      `convExt=${conversationExternalId} msgExt=${messageExternalId ?? "<null>"}`
+      `convExt=${conversationExternalId} msgExt=${messageExternalId}` +
+      (usedFingerprint ? " [fingerprint]" : "")
   );
 
   // message_updated: NUNCA insere. Atualiza status/conteudo se a mensagem ja
@@ -156,19 +182,10 @@ async function handleMessageEvent(
     return;
   }
 
-  if (messageExternalId) {
-    const { data: existing, error: existErr } = await supabase
-      .from("messages")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("external_id", messageExternalId)
-      .maybeSingle();
-    if (existErr) {
-      console.error(`[evo-crm webhook] erro checando idempotência ${messageExternalId}:`, existErr.message);
-      throw new Error(`Idempotency check failed: ${existErr.message}`);
-    }
-    if (existing) return;
-  }
+  // NOTA: removido SELECT prévio. Antes era SELECT + INSERT, mas em race de
+  // webhooks concorrentes ambos viam "não existe" antes de qualquer COMMIT e
+  // inseriam. Agora confiamos só no INSERT — se for duplicate, o índice unique
+  // parcial rejeita com código 23505 e o catch abaixo trata como ignore.
 
   let { data: conversation } = await supabase
     .from("conversations")
@@ -266,6 +283,15 @@ async function handleMessageEvent(
     raw_payload: data as Json,
   });
   if (insertErr) {
+    // 23505 = unique_violation. Significa que outra requisição (webhook em race
+    // ou insert otimista de /send-message) chegou primeiro e já gravou esta
+    // mensagem. Idempotência garantida pelo indice unique parcial.
+    if (insertErr.code === "23505") {
+      console.info(
+        `[evo-crm webhook] message duplicate ignorada (23505) msgExt=${messageExternalId}`
+      );
+      return;
+    }
     console.error(`[evo-crm webhook] falha inserindo mensagem ${messageExternalId}:`, insertErr.message);
     throw new Error(`Message insert failed: ${insertErr.message}`);
   }
