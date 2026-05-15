@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
     const { companyId: _, ...payload } = parsed.data;
-    await updateAgent(access.companyId, agentId, payload);
+    await updateAgent(access.companyId, agentId, payload, access.userId);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -97,7 +97,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const response = NextResponse.json({ ok: true });
     const supabase = createSupabaseRouteHandlerClient(request, response);
     const access = await resolveCompanyAccess(supabase, companyId);
-    await deleteAgent(access.companyId, agentId);
+    await deleteAgent(access.companyId, agentId, access.userId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

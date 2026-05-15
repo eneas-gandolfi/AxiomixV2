@@ -64,6 +64,44 @@ export type Database = {
           },
         ]
       }
+      agent_activity_log: {
+        Row: {
+          actor_user_id: string | null
+          agent_id: string
+          company_id: string
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          agent_id: string
+          company_id: string
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          agent_id?: string
+          company_id?: string
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_activity_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_usage_log: {
         Row: {
           company_id: string

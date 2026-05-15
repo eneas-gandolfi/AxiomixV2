@@ -51,26 +51,7 @@ export function AgentCard({ agent, companyId, inboxes, integrations, onRefresh }
     ? inboxes.find((i) => i.id === linkedInboxId)
     : null;
 
-  const handleToggleActive = async () => {
-    setActing(true);
-    setActionError(null);
-    try {
-      const res = await fetch(`/api/whatsapp/agents/${agent.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, is_active: !agent.is_active }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Erro.");
-      }
-      onRefresh();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Erro.");
-    } finally {
-      setActing(false);
-    }
-  };
+  const detailHref = `/whatsapp-intelligence/agentes/${agent.id}?companyId=${companyId}`;
 
   const handleLinkInbox = async (inboxId: string) => {
     setActing(true);
@@ -136,17 +117,13 @@ export function AgentCard({ agent, companyId, inboxes, integrations, onRefresh }
             </div>
           </div>
 
-          {/* Toggle ativo/inativo */}
-          <button
-            type="button"
-            onClick={handleToggleActive}
-            disabled={acting}
+          {/* Status — clique navega para a tela de detalhe (toggle mora lá) */}
+          <Link
+            href={detailHref}
             className="shrink-0 flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted/10"
-            title={agent.is_active ? "Desativar agente" : "Ativar agente"}
+            title="Ver detalhes do agente"
           >
-            {acting ? (
-              <Loader2 className="h-3 w-3 animate-spin text-muted" />
-            ) : agent.is_active ? (
+            {agent.is_active ? (
               <>
                 <span className="h-2 w-2 rounded-full bg-success" />
                 <span className="text-success">Ativo</span>
@@ -157,7 +134,7 @@ export function AgentCard({ agent, companyId, inboxes, integrations, onRefresh }
                 <span className="text-muted">Inativo</span>
               </>
             )}
-          </button>
+          </Link>
         </div>
 
         {/* Tipo + Modelo */}
@@ -236,7 +213,7 @@ export function AgentCard({ agent, companyId, inboxes, integrations, onRefresh }
       {/* Footer */}
       <div className="border-t border-border px-5 py-3">
         <Link
-          href={`/whatsapp-intelligence/agentes/${agent.id}?companyId=${companyId}`}
+          href={detailHref}
           className="flex items-center gap-2 text-sm text-muted hover:text-[var(--module-accent)] transition-colors"
         >
           <Settings className="h-3.5 w-3.5" />

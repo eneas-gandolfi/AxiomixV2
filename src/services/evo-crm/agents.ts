@@ -21,6 +21,17 @@
 import { getEvoCrmClient } from './client'
 import { fetchWithJwtRefresh } from './jwt-fetch'
 import type { EvoCrmClient } from './types'
+import { diffAgentFields, logAgentActivity } from '@/lib/whatsapp/agent-activity'
+
+const UPDATABLE_FIELDS = [
+  'name',
+  'description',
+  'role',
+  'goal',
+  'instructions',
+  'model',
+  'is_active',
+] as const
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,24 +152,42 @@ export async function getAgent(companyId: string, agentId: string): Promise<EvoA
 /**
  * Cria um novo agente.
  */
-export async function createAgent(companyId: string, payload: CreateAgentPayload): Promise<EvoAgent> {
+export async function createAgent(
+  companyId: string,
+  payload: CreateAgentPayload,
+  actorUserId?: string | null
+): Promise<EvoAgent> {
   const client = await getEvoCrmClient(companyId)
-  const result = await agentRequest<Record<string, unknown>>(client, '/api/v1/agents', {
-    method: 'POST',
-    body: {
-      name: payload.name,
-      agent_type: payload.agent_type,
-      ...(payload.description ? { description: payload.description } : {}),
-      ...(payload.role ? { role: payload.role } : {}),
-      ...(payload.goal ? { goal: payload.goal } : {}),
-      ...(payload.instructions ? { instructions: payload.instructions } : {}),
-      ...(payload.model ? { model: payload.model } : {}),
-    },
-  })
+  let result: Record<string, unknown>
+  try {
+    result = await agentRequest<Record<string, unknown>>(client, '/api/v1/agents', {
+      method: 'POST',
+      body: {
+        name: payload.name,
+        agent_type: payload.agent_type,
+        ...(payload.description ? { description: payload.description } : {}),
+        ...(payload.role ? { role: payload.role } : {}),
+        ...(payload.goal ? { goal: payload.goal } : {}),
+        ...(payload.instructions ? { instructions: payload.instructions } : {}),
+        ...(payload.model ? { model: payload.model } : {}),
+      },
+    })
+  } catch (err) {
+    await logAgentActivity(companyId, 'unknown', {
+      type: 'error',
+      details: {
+        operation: 'createAgent',
+        message: err instanceof Error ? err.message : String(err),
+      },
+    }, actorUserId)
+    throw err
+  }
   const item = typeof result.agent === 'object' && result.agent !== null
     ? result.agent as Record<string, unknown>
     : result
-  return parseAgent(item)
+  const agent = parseAgent(item)
+  await logAgentActivity(companyId, agent.id, { type: 'created' }, actorUserId)
+  return agent
 }
 
 /**
@@ -167,7 +196,8 @@ export async function createAgent(companyId: string, payload: CreateAgentPayload
 export async function updateAgent(
   companyId: string,
   agentId: string,
-  payload: UpdateAgentPayload
+  payload: UpdateAgentPayload,
+  actorUserId?: string | null
 ): Promise<void> {
   const client = await getEvoCrmClient(companyId)
   // Core Service usa PUT com semantica de REPLACE — exige payload completo
@@ -183,20 +213,64 @@ export async function updateAgent(
 
   const merged: Record<string, unknown> = { ...currentAgent, ...payload }
 
-  await agentRequest(client, `/api/v1/agents/${encodeURIComponent(agentId)}`, {
-    method: 'PUT',
-    body: merged,
-  })
+  try {
+    await agentRequest(client, `/api/v1/agents/${encodeURIComponent(agentId)}`, {
+      method: 'PUT',
+      body: merged,
+    })
+  } catch (err) {
+    await logAgentActivity(companyId, agentId, {
+      type: 'error',
+      details: {
+        operation: 'updateAgent',
+        message: err instanceof Error ? err.message : String(err),
+      },
+    }, actorUserId)
+    throw err
+  }
+
+  const changed = diffAgentFields(currentAgent, merged, UPDATABLE_FIELDS)
+  if (changed.length === 1 && changed[0] === 'is_active') {
+    await logAgentActivity(
+      companyId,
+      agentId,
+      { type: merged.is_active ? 'activated' : 'deactivated' },
+      actorUserId
+    )
+  } else if (changed.length > 0) {
+    await logAgentActivity(
+      companyId,
+      agentId,
+      { type: 'config_updated', details: { changed } },
+      actorUserId
+    )
+  }
 }
 
 /**
  * Deleta um agente.
  */
-export async function deleteAgent(companyId: string, agentId: string): Promise<void> {
+export async function deleteAgent(
+  companyId: string,
+  agentId: string,
+  actorUserId?: string | null
+): Promise<void> {
   const client = await getEvoCrmClient(companyId)
-  await agentRequest(client, `/api/v1/agents/${encodeURIComponent(agentId)}`, {
-    method: 'DELETE',
-  })
+  try {
+    await agentRequest(client, `/api/v1/agents/${encodeURIComponent(agentId)}`, {
+      method: 'DELETE',
+    })
+  } catch (err) {
+    await logAgentActivity(companyId, agentId, {
+      type: 'error',
+      details: {
+        operation: 'deleteAgent',
+        message: err instanceof Error ? err.message : String(err),
+      },
+    }, actorUserId)
+    throw err
+  }
+  await logAgentActivity(companyId, agentId, { type: 'deleted' }, actorUserId)
 }
 
 /**
@@ -206,9 +280,10 @@ export async function deleteAgent(companyId: string, agentId: string): Promise<v
 export async function adjustAgentParams(
   companyId: string,
   agentId: string,
-  params: ClientAdjustableParams
+  params: ClientAdjustableParams,
+  actorUserId?: string | null
 ): Promise<void> {
-  await updateAgent(companyId, agentId, params)
+  await updateAgent(companyId, agentId, params, actorUserId)
 }
 
 // ---------------------------------------------------------------------------
@@ -259,20 +334,33 @@ export async function listAgentIntegrations(companyId: string, agentId: string):
 export async function assignAgentToInbox(
   companyId: string,
   agentId: string,
-  inboxId: string
+  inboxId: string,
+  actorUserId?: string | null
 ): Promise<AgentIntegration> {
   const client = await getEvoCrmClient(companyId)
-  const result = await agentRequest<unknown>(
-    client,
-    `/api/v1/agents/${encodeURIComponent(agentId)}/integrations`,
-    {
-      method: 'POST',
-      body: {
-        provider: 'crm_inbox',
-        config: { inbox_id: inboxId },
+  let result: unknown
+  try {
+    result = await agentRequest<unknown>(
+      client,
+      `/api/v1/agents/${encodeURIComponent(agentId)}/integrations`,
+      {
+        method: 'POST',
+        body: {
+          provider: 'crm_inbox',
+          config: { inbox_id: inboxId },
+        },
+      }
+    )
+  } catch (err) {
+    await logAgentActivity(companyId, agentId, {
+      type: 'error',
+      details: {
+        operation: 'assignAgentToInbox',
+        message: err instanceof Error ? err.message : String(err),
       },
-    }
-  )
+    }, actorUserId)
+    throw err
+  }
 
   // agentRequest unwraps envelope → result é o objeto direto ou pode ter .data
   const raw = result as Record<string, unknown>
@@ -280,7 +368,7 @@ export async function assignAgentToInbox(
     ? raw.data as Record<string, unknown>
     : raw
 
-  return {
+  const integration: AgentIntegration = {
     id: String(item.id ?? ''),
     agent_id: String(item.agent_id ?? agentId),
     provider: typeof item.provider === 'string' ? item.provider : 'crm_inbox',
@@ -289,6 +377,18 @@ export async function assignAgentToInbox(
       : { inbox_id: inboxId },
     created_at: typeof item.created_at === 'string' ? item.created_at : null,
   }
+
+  await logAgentActivity(
+    companyId,
+    agentId,
+    {
+      type: 'inbox_linked',
+      details: { inbox_id: inboxId, integration_id: integration.id || undefined },
+    },
+    actorUserId
+  )
+
+  return integration
 }
 
 /**
@@ -297,13 +397,31 @@ export async function assignAgentToInbox(
 export async function removeAgentFromInbox(
   companyId: string,
   agentId: string,
-  integrationId: string
+  integrationId: string,
+  actorUserId?: string | null
 ): Promise<void> {
   const client = await getEvoCrmClient(companyId)
-  await agentRequest(
-    client,
-    `/api/v1/agents/${encodeURIComponent(agentId)}/integrations/${encodeURIComponent(integrationId)}`,
-    { method: 'DELETE' }
+  try {
+    await agentRequest(
+      client,
+      `/api/v1/agents/${encodeURIComponent(agentId)}/integrations/${encodeURIComponent(integrationId)}`,
+      { method: 'DELETE' }
+    )
+  } catch (err) {
+    await logAgentActivity(companyId, agentId, {
+      type: 'error',
+      details: {
+        operation: 'removeAgentFromInbox',
+        message: err instanceof Error ? err.message : String(err),
+      },
+    }, actorUserId)
+    throw err
+  }
+  await logAgentActivity(
+    companyId,
+    agentId,
+    { type: 'inbox_unlinked', details: { integration_id: integrationId } },
+    actorUserId
   )
 }
 

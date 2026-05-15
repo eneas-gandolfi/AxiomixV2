@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
     const { companyId: _, ...payload } = parsed.data;
-    const agent = await createAgent(access.companyId, payload);
+    const agent = await createAgent(access.companyId, payload, access.userId);
 
     return NextResponse.json({ agent }, { status: 201 });
   } catch (error) {

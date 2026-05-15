@@ -25,9 +25,55 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Json } from "@/database/types/database.types";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logAgentActivity } from "@/lib/whatsapp/agent-activity";
 import { computeMessageFingerprint } from "@/lib/whatsapp/message-fingerprint";
 import { stripMessageHtml } from "@/lib/whatsapp/strip-message-html";
 import { handleCrmLabelAlert } from "@/services/bridge/crm-to-group-alerts";
+
+/**
+ * Tenta extrair o agent_id (UUID do Evo CRM) que emitiu uma mensagem outbound.
+ * Cobre formatos prováveis do payload (Chatwoot/Evo CRM costumam expor sender com
+ * type 'agent_bot' ou similares, ou agent_id direto em content_attributes).
+ * Retorna null se não houver indício seguro de origem agent — assim nunca
+ * registramos message_handled para mensagens humanas.
+ */
+function extractMessageAgentId(data: Record<string, unknown>): string | null {
+  const sender = typeof data.sender === "object" && data.sender !== null
+    ? (data.sender as Record<string, unknown>)
+    : null;
+  const senderType = typeof data.sender_type === "string"
+    ? data.sender_type.toLowerCase()
+    : sender && typeof sender.type === "string"
+      ? (sender.type as string).toLowerCase()
+      : null;
+
+  const looksLikeAgent =
+    senderType !== null &&
+    (senderType.includes("agent") || senderType === "bot" || senderType.includes("ai"));
+
+  if (looksLikeAgent && sender) {
+    const id = sender.id ?? sender.agent_id ?? sender.uuid;
+    if (typeof id === "string" || typeof id === "number") return String(id);
+  }
+
+  const contentAttrs = typeof data.content_attributes === "object" && data.content_attributes !== null
+    ? (data.content_attributes as Record<string, unknown>)
+    : null;
+  if (contentAttrs) {
+    const id = contentAttrs.agent_id ?? contentAttrs.agentId;
+    if (typeof id === "string") return id;
+  }
+
+  const additionalAttrs = typeof data.additional_attributes === "object" && data.additional_attributes !== null
+    ? (data.additional_attributes as Record<string, unknown>)
+    : null;
+  if (additionalAttrs) {
+    const id = additionalAttrs.agent_id ?? additionalAttrs.agentId;
+    if (typeof id === "string") return id;
+  }
+
+  return null;
+}
 
 export const runtime = "nodejs";
 
@@ -359,6 +405,20 @@ async function handleMessageEvent(
     .from("conversations")
     .update({ last_message_at: sentAt, last_synced_at: new Date().toISOString() })
     .eq("id", conversation.id);
+
+  // Auditoria: se a mensagem foi emitida por agente IA, registra na timeline do agente.
+  if (direction === "outbound" && messageExternalId) {
+    const agentId = extractMessageAgentId(data);
+    if (agentId) {
+      await logAgentActivity(companyId, agentId, {
+        type: "message_handled",
+        details: {
+          conversation_id: conversationExternalId,
+          message_id: messageExternalId,
+        },
+      });
+    }
+  }
 }
 
 async function handleConversationEvent(companyId: string, data: Record<string, unknown>) {

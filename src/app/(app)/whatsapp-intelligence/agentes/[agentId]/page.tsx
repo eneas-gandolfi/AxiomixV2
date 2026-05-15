@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { AgentForm } from "@/components/whatsapp/agents/agent-form";
 import { AgentTypeBadge } from "@/components/whatsapp/agents/agent-type-badge";
 import { AgentInboxLink } from "@/components/whatsapp/agents/agent-inbox-link";
+import { AgentActiveSwitch } from "@/components/whatsapp/agents/agent-active-switch";
+import { AgentStatusSection } from "@/components/whatsapp/agents/agent-status-section";
+import { AgentActivityTimeline } from "@/components/whatsapp/agents/agent-activity-timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +50,10 @@ export default function AgentDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [linkedChannel, setLinkedChannel] = useState<{
+    name: string | null;
+    provider: string;
+  } | null>(null);
 
   // TODO: determinar role do usuário para mostrar form completo ou ajuste
   const isAdmin = true; // placeholder — integrar com auth real
@@ -89,6 +96,48 @@ export default function AgentDetailPage({ params }: PageProps) {
       }
     }
     fetchAgent();
+  }, [companyId, agentId]);
+
+  // Busca status do canal vinculado em paralelo (best-effort para o Status atual).
+  useEffect(() => {
+    if (!companyId) return;
+    let cancelled = false;
+    async function fetchChannel() {
+      try {
+        const [intRes, inboxRes] = await Promise.all([
+          fetch(`/api/whatsapp/agents/${agentId}/inbox?companyId=${companyId}`),
+          fetch("/api/whatsapp/team", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ companyId, action: "listInboxes" }),
+          }),
+        ]);
+        if (cancelled || !intRes.ok || !inboxRes.ok) return;
+        const intData = await intRes.json();
+        const inboxData = await inboxRes.json();
+        const integrations: { provider: string; config: Record<string, unknown> }[] =
+          intData.integrations ?? [];
+        const inboxes: { id: string; name: string | null; provider: string | null }[] =
+          inboxData.inboxes ?? [];
+        const crmIntegration = integrations.find((i) => i.provider === "crm_inbox");
+        if (!crmIntegration) {
+          setLinkedChannel(null);
+          return;
+        }
+        const inboxId = String(crmIntegration.config.inbox_id ?? "");
+        const inbox = inboxes.find((i) => i.id === inboxId);
+        setLinkedChannel({
+          name: inbox?.name ?? inboxId,
+          provider: inbox?.provider ?? "whatsapp",
+        });
+      } catch {
+        // best-effort: status section aceita null
+      }
+    }
+    fetchChannel();
+    return () => {
+      cancelled = true;
+    };
   }, [companyId, agentId]);
 
   const handleDelete = async () => {
@@ -157,22 +206,46 @@ export default function AgentDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {isAdmin && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="gap-1.5"
-          >
-            {deleting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" />
-            )}
-            Excluir
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <AgentActiveSwitch
+            agentId={agentId}
+            companyId={companyId}
+            initialActive={agent.is_active}
+            onToggled={(next) => setAgent((prev) => (prev ? { ...prev, is_active: next } : prev))}
+          />
+          {isAdmin && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="gap-1.5"
+            >
+              {deleting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Excluir
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Status atual */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-text">Status atual</h3>
+        <AgentStatusSection
+          isActive={agent.is_active}
+          agentType={agent.agent_type}
+          model={agent.model}
+          linkedChannel={linkedChannel}
+        />
+      </div>
+
+      {/* Timeline de eventos */}
+      <div className="rounded-xl border border-border bg-card p-6">
+        <AgentActivityTimeline agentId={agentId} companyId={companyId} />
       </div>
 
       {/* Vinculação ao canal WhatsApp */}

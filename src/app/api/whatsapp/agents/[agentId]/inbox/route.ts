@@ -81,12 +81,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
 
     if (parsed.data.action === "link") {
-      const integration = await assignAgentToInbox(access.companyId, agentId, parsed.data.inboxId);
+      const integration = await assignAgentToInbox(
+        access.companyId,
+        agentId,
+        parsed.data.inboxId,
+        access.userId
+      );
       return NextResponse.json({ integration }, { status: 201 });
     }
 
     // action === "unlink"
-    await removeAgentFromInbox(access.companyId, agentId, parsed.data.integrationId);
+    await removeAgentFromInbox(
+      access.companyId,
+      agentId,
+      parsed.data.integrationId,
+      access.userId
+    );
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof CompanyAccessError) {
