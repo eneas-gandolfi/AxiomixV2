@@ -38,7 +38,10 @@ export async function POST(request: NextRequest) {
 
     // 1. Enviar para Evo CRM (fonte de verdade operacional)
     const evoClient = await getEvoCrmClient(access.companyId);
-    await evoClient.sendMessage(parsed.data.conversationExternalId, parsed.data.content);
+    const { messageId: evoMessageId } = await evoClient.sendMessage(
+      parsed.data.conversationExternalId,
+      parsed.data.content
+    );
 
     // 2. Salvar localmente para Realtime push imediato ao browser
     //    Buscar conversation_id (uuid) a partir do external_id
@@ -50,14 +53,22 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (conversation) {
-      await supabase.from("messages").insert({
+      // Insere com external_id para evitar duplicação: se o webhook
+      // message_created chegar primeiro, o índice unique parcial
+      // (company_id, external_id) where external_id is not null vai
+      // rejeitar este insert com código 23505 — ignoramos silenciosamente.
+      const { error: insertErr } = await supabase.from("messages").insert({
         company_id: access.companyId,
         conversation_id: conversation.id,
+        external_id: evoMessageId ?? null,
         content: parsed.data.content,
         direction: "outbound",
         sent_at: new Date().toISOString(),
         message_type: "outgoing",
       });
+      if (insertErr && insertErr.code !== "23505") {
+        console.error(`[send-message] insert local falhou: ${insertErr.message}`);
+      }
       revalidatePath(`/whatsapp-intelligence/conversas/${conversation.id}`);
     }
     revalidatePath("/whatsapp-intelligence/conversas");

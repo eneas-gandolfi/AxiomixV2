@@ -751,10 +751,19 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
           );
         }
       }
-      await requestJson<unknown>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`, {
-        method: "POST",
-        body: { content },
-      });
+      const result = await requestJson<unknown>(
+        `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+        { method: "POST", body: { content } }
+      );
+      // Evo CRM retorna o objeto da mensagem criada (após unwrap, é o próprio data).
+      // O ID é necessário para evitar duplicação: insert otimista no banco com
+      // external_id, e o webhook posterior (message_created) detecta e ignora.
+      const messageId = toExternalId(
+        (result as Record<string, unknown>)?.id ??
+          (result as Record<string, unknown>)?.message_id ??
+          (result as Record<string, unknown>)?.uuid
+      );
+      return { messageId: messageId ?? undefined };
     },
 
     // BROKEN 2026-05-04 — endpoint /api/v1/inboxes/{inboxId}/send-template confirmado 404 no

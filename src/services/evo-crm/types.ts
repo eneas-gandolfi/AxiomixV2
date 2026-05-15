@@ -187,7 +187,7 @@ export type EvoCrmClient = {
   // Conversas
   listConversations: (limit?: number, filters?: { status?: string; filter?: string; inbox_id?: string }) => Promise<EvoConversationApi[]>
   listMessages: (externalConversationId: string, limit?: number) => Promise<EvoMessageApi[]>
-  sendMessage: (conversationId: string, content: string, options?: { checkSession?: boolean }) => Promise<void>
+  sendMessage: (conversationId: string, content: string, options?: { checkSession?: boolean }) => Promise<{ messageId?: string }>
   sendTemplate: (payload: { to: string; templateName: string; language?: string; components?: Json }) => Promise<{ messageId?: string }>
   getSessionStatus: (conversationId: string) => Promise<EvoSessionStatus>
   assignConversation: (conversationId: string, payload: { assigneeId?: string; teamId?: string }) => Promise<void>
