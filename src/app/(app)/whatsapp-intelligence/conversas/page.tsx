@@ -14,6 +14,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 import { ConversationsList } from "@/components/whatsapp/conversations-list";
 import { StartConversationButton } from "@/components/whatsapp/start-conversation-button";
+import { SyncEvoCrmButton } from "@/components/whatsapp/sync-evo-crm-button";
 import { ContactsManagerSheet } from "@/components/whatsapp/contacts-manager-sheet";
 import { ConversationDetailView } from "@/components/whatsapp/conversation-detail-view";
 import { ConversationDrawerShell } from "@/components/whatsapp/conversation-drawer-shell";
@@ -189,7 +190,8 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
         </div>
 
         {/* Direita: ações */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <SyncEvoCrmButton />
           <ContactsManagerSheet
             companyId={companyId}
             defaultOpen={params.contatos === "1"}
