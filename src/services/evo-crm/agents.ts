@@ -171,7 +171,7 @@ export async function updateAgent(
 ): Promise<void> {
   const client = await getEvoCrmClient(companyId)
   await agentRequest(client, `/api/v1/agents/${encodeURIComponent(agentId)}`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: payload as Record<string, unknown>,
   })
 }
