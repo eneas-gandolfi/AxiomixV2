@@ -178,14 +178,49 @@ async function handleMessageEvent(
     .maybeSingle();
 
   // Se a conversa ainda não foi criada localmente (race: message_created antes de
-  // conversation_created), cria stub mínimo aqui e deixa o próximo conversation_updated
-  // enriquecer com contato/labels. Evita perda silenciosa de mensagem (H1).
+  // conversation_created), cria stub aqui e deixa o próximo conversation_updated
+  // enriquecer com labels/status. Evita perda silenciosa de mensagem (H1).
+  //
+  // Extrai contato/inbox do próprio payload de mensagem quando disponível (o Evo CRM
+  // envia esses campos junto com message_created), para que o stub NÃO apareça como
+  // "unknown" na UI durante a janela entre os 2 webhooks.
   if (!conversation) {
+    console.warn(
+      `[evo-crm webhook] stub conversation criada — convExt=${conversationExternalId} ` +
+        `payload_keys=${Object.keys(data).join(",")}`
+    );
+    const contactRaw =
+      typeof data.contact === "object" && data.contact !== null
+        ? (data.contact as Record<string, unknown>)
+        : null;
+    const stubContactPhone =
+      contactRaw && typeof contactRaw.phone_number === "string"
+        ? contactRaw.phone_number
+        : contactRaw && typeof contactRaw.phone_e164 === "string"
+          ? contactRaw.phone_e164
+          : contactRaw && typeof contactRaw.phone === "string"
+            ? contactRaw.phone
+            : null;
+    const stubContactName =
+      contactRaw && typeof contactRaw.name === "string" && contactRaw.name.trim().length > 0
+        ? contactRaw.name
+        : null;
+    const stubInboxId =
+      typeof data.inbox_id === "string" || typeof data.inbox_id === "number"
+        ? String(data.inbox_id)
+        : null;
     const stub = {
       company_id: companyId,
       external_id: conversationExternalId,
-      remote_jid: "unknown",
+      remote_jid: stubContactPhone ?? "unknown",
+      contact_name: stubContactName,
+      contact_phone: stubContactPhone,
+      contact_external_id:
+        contactRaw && (typeof contactRaw.id === "string" || typeof contactRaw.id === "number")
+          ? String(contactRaw.id)
+          : null,
       status: "open",
+      inbox_id: stubInboxId,
       last_synced_at: new Date().toISOString(),
     };
     const { data: created, error: createErr } = await supabase
