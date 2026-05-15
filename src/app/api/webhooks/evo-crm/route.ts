@@ -20,11 +20,12 @@
  *   - message_type: "incoming" | "outgoing" (não from_me boolean)
  */
 
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Json } from "@/database/types/database.types";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { computeMessageFingerprint } from "@/lib/whatsapp/message-fingerprint";
 import { stripMessageHtml } from "@/lib/whatsapp/strip-message-html";
 import { handleCrmLabelAlert } from "@/services/bridge/crm-to-group-alerts";
 
@@ -122,27 +123,37 @@ async function handleMessageEvent(
           ? data.uuid
           : null;
 
-  // Fingerprint determinístico para quando o Evo CRM mandar payload sem ID
-  // explícito — garante idempotência mesmo sem external_id real. Inputs idênticos
-  // (mesma conversa + mesmo timestamp + mesmo conteudo) geram o mesmo fingerprint
-  // e o indice unique parcial em (company_id, external_id) rejeita duplicatas.
-  function computeFingerprint(): string {
-    const contentForFp =
-      typeof data.content === "string"
-        ? data.content
-        : typeof data.body === "string"
-          ? data.body
-          : "";
-    const sentAtForFp = String(data.created_at ?? data.sent_at ?? data.timestamp ?? "");
-    const dirForFp = String(data.message_type ?? data.direction ?? "");
-    const hash = createHash("sha1")
-      .update(`${conversationExternalId}|${dirForFp}|${sentAtForFp}|${contentForFp}`)
-      .digest("hex")
-      .slice(0, 32);
-    return `fp:${hash}`;
-  }
+  // Pre-cálculo: direção, sent_at (ISO) e content (HTML-stripped) precisam estar
+  // disponíveis ANTES do fingerprint para que o webhook e o sync produzam
+  // exatamente os mesmos inputs. Sem isso, mesmo evento gera fingerprints
+  // diferentes entre os 2 caminhos e o índice unique parcial não desduplica.
+  const directionRaw =
+    typeof data.direction === "string" ? data.direction.toLowerCase() : null;
+  const fromMe =
+    typeof data.from_me === "boolean"
+      ? data.from_me
+      : msgType === "outgoing" || directionRaw === "outbound" || directionRaw === "sent";
+  const direction: "inbound" | "outbound" = fromMe ? "outbound" : "inbound";
 
-  const messageExternalId = rawMessageExternalId ?? computeFingerprint();
+  const rawContent =
+    typeof data.content === "string"
+      ? data.content
+      : typeof data.body === "string"
+        ? data.body
+        : typeof data.processed_message_content === "string"
+          ? data.processed_message_content
+          : "";
+  const content = stripMessageHtml(rawContent);
+  const sentAt = epochToIso(data.created_at ?? data.sent_at ?? data.timestamp);
+
+  const messageExternalId =
+    rawMessageExternalId ??
+    computeMessageFingerprint({
+      conversationExternalId,
+      direction,
+      sentAtIso: sentAt,
+      content,
+    });
   const usedFingerprint = !rawMessageExternalId;
 
   console.info(
@@ -252,31 +263,13 @@ async function handleMessageEvent(
     conversation = created;
   }
 
-  const directionRaw =
-    typeof data.direction === "string" ? data.direction.toLowerCase() : null;
-  const fromMe =
-    typeof data.from_me === "boolean"
-      ? data.from_me
-      : msgType === "outgoing" || directionRaw === "outbound" || directionRaw === "sent";
-
-  const rawContent =
-    typeof data.content === "string"
-      ? data.content
-      : typeof data.body === "string"
-        ? data.body
-        : typeof data.processed_message_content === "string"
-          ? data.processed_message_content
-          : "";
-  const content = stripMessageHtml(rawContent);
-
-  const sentAt = epochToIso(data.created_at);
-
+  // direction, content e sentAt já calculados acima (antes do fingerprint).
   const { error: insertErr } = await supabase.from("messages").insert({
     company_id: companyId,
     conversation_id: conversation.id,
     external_id: messageExternalId,
     content,
-    direction: fromMe ? "outbound" : "inbound",
+    direction,
     sent_at: sentAt,
     message_type: typeof data.message_type === "string" ? data.message_type : null,
     media_url: typeof data.media_url === "string" ? data.media_url : null,

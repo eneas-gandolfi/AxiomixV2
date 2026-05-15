@@ -6,6 +6,7 @@
  */
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { computeMessageFingerprint } from "@/lib/whatsapp/message-fingerprint";
 import { stripMessageHtml } from "@/lib/whatsapp/strip-message-html";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
 import { getExcludedConversationExternalIds } from "@/services/whatsapp/conversation-exclusions";
@@ -499,6 +500,7 @@ export async function syncMessages(
   const insertRows: Array<{
     company_id: string;
     conversation_id: string;
+    external_id: string;
     content: string | null;
     direction: "inbound" | "outbound";
     sent_at: string;
@@ -508,12 +510,29 @@ export async function syncMessages(
 
   for (const remoteMessage of remoteMessages) {
     const direction: "inbound" | "outbound" = remoteMessage.from_me ? "outbound" : "inbound";
+    const sentAtIso = normalizeSentAt(remoteMessage.created_at);
+    const contentStripped = stripMessageHtml(remoteMessage.content ?? "");
+
+    // external_id persistente — usa o ID real do Evo CRM quando disponível,
+    // senão computa fingerprint determinístico igual ao do webhook. Garante
+    // que sync e webhook nunca produzam linhas duplicadas: o índice unique
+    // parcial em (company_id, external_id) rejeita o segundo INSERT.
+    const externalId =
+      remoteMessage.id ||
+      computeMessageFingerprint({
+        conversationExternalId: conversation.external_id,
+        direction,
+        sentAtIso,
+        content: contentStripped,
+      });
+
     const normalized = {
       company_id: companyId,
       conversation_id: conversationId,
-      content: stripMessageHtml(remoteMessage.content ?? ""),
+      external_id: externalId,
+      content: contentStripped,
       direction,
-      sent_at: normalizeSentAt(remoteMessage.created_at),
+      sent_at: sentAtIso,
       message_type: remoteMessage.message_type ?? null,
       media_url: remoteMessage.media_url ?? null,
     };
@@ -526,9 +545,25 @@ export async function syncMessages(
   }
 
   if (insertRows.length > 0) {
-    const { error: insertError } = await supabase.from("messages").insert(insertRows);
+    // upsert com onConflict no índice (company_id, external_id) — se o webhook
+    // já gravou esta mensagem, ignora silenciosamente em vez de duplicar.
+    const { error: insertError } = await supabase
+      .from("messages")
+      .upsert(insertRows, {
+        onConflict: "company_id,external_id",
+        ignoreDuplicates: true,
+      });
     if (insertError) {
-      throw new Error("Falha ao salvar mensagens sincronizadas.");
+      // 23505 = unique_violation. Se chegou aqui apesar do ignoreDuplicates,
+      // pode ser que o índice parcial não esteja sendo reconhecido pelo planner.
+      // Tratamos como sucesso silencioso — o objetivo (não duplicar) foi atingido.
+      if (insertError.code === "23505") {
+        console.info(
+          `[evo-sync syncMessages] upsert duplicate ignorada (23505) conversationId=${conversationId}`
+        );
+      } else {
+        throw new Error("Falha ao salvar mensagens sincronizadas.");
+      }
     }
   }
 
