@@ -121,9 +121,9 @@ export async function syncConversations(
   const supabase = createSupabaseAdminClient();
   const evoClient = await getEvoCrmClient(companyId);
 
-  // Sem filtro de status por default — traz tudo (open, pending, snoozed, resolved)
-  // e deixa a UI filtrar localmente. Antes, o sync travado em status="open" perdia
-  // conversas "pending" que o Evo CRM mostra na aba "Ativas".
+  // Status: o client.listConversations já passa status="all" por padrão. Sem isso,
+  // o Evo CRM aplica DEFAULT_STATUS='open' (Ruby ConversationFinder) e drop silencioso
+  // de pending/resolved/snoozed — exatamente o sintoma "7 no painel, 1 na API".
   //
   // Inbox filter: `syncInboxIds` é uma whitelist de inboxes a sincronizar. O bug
   // anterior usava `syncInboxIds[0]` e descartava silenciosamente conversas dos

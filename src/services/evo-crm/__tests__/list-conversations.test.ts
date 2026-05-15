@@ -72,6 +72,39 @@ describe("listConversations — inbox_id filter forwarding", () => {
   });
 });
 
+describe("listConversations — default status=all", () => {
+  it("envia status=all por padrão (sem isso, Evo CRM filtra por status=open)", async () => {
+    const seenUrls: string[] = [];
+    server.use(
+      http.get(`${EVO_TEST_BASE_URL}/api/v1/conversations`, ({ request }) => {
+        seenUrls.push(request.url);
+        return HttpResponse.json({ success: true, data: [] });
+      })
+    );
+
+    const client = makeClient();
+    await client.listConversations(10);
+
+    expect(seenUrls[0]).toMatch(/status=all/);
+  });
+
+  it("permite override do status quando o caller especifica", async () => {
+    const seenUrls: string[] = [];
+    server.use(
+      http.get(`${EVO_TEST_BASE_URL}/api/v1/conversations`, ({ request }) => {
+        seenUrls.push(request.url);
+        return HttpResponse.json({ success: true, data: [] });
+      })
+    );
+
+    const client = makeClient();
+    await client.listConversations(10, { status: "resolved" });
+
+    expect(seenUrls[0]).toMatch(/status=resolved/);
+    expect(seenUrls[0]).not.toMatch(/status=all/);
+  });
+});
+
 describe("listConversations — pagination via meta.pagination", () => {
   it("não tenta nova página quando meta.pagination indica fim", async () => {
     let calls = 0;

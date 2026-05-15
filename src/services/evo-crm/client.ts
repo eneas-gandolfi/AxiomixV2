@@ -669,6 +669,10 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
       return `${baseUrl}/conversations/${encodeURIComponent(externalConversationId)}`;
     },
 
+    // status="all" por padrão: sem esse param, o ConversationFinder do Evo CRM
+    // (Ruby) aplica DEFAULT_STATUS='open' e filtra silenciosamente status=open,
+    // escondendo conversas resolved/pending/snoozed. O painel sempre passa
+    // ?status=all — espelhamos o mesmo comportamento aqui.
     async listConversations(limit = 50, filters?: { status?: string; filter?: string; inbox_id?: string }) {
       const targetTotal = Math.max(limit, 1);
       const pageSize = Math.min(50, targetTotal);
@@ -688,7 +692,9 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
           raw: true,
           searchParams: {
             limit: requestLimit,
-            ...(filters?.status ? { status: filters.status } : {}),
+            // Default "all" quando o caller não especifica — sem isso o Evo CRM
+            // aplica DEFAULT_STATUS='open' e drop silencioso de pending/resolved/snoozed.
+            status: filters?.status ?? "all",
             ...(filters?.filter ? { filter: filters.filter } : {}),
             ...(filters?.inbox_id ? { inbox_id: filters.inbox_id } : {}),
             ...(typeof cursor !== "undefined" ? { cursor } : { page }),
