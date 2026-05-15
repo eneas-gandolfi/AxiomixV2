@@ -167,6 +167,11 @@ export type EvoRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   body?: Json
   searchParams?: Record<string, string | number | boolean | undefined>
+  /**
+   * Quando true, retorna o payload bruto sem chamar unwrap() — preserva o envelope
+   * `{success, data, meta}` para chamadores que precisam ler `meta.pagination` etc.
+   */
+  raw?: boolean
 }
 
 /**

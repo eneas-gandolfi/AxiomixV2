@@ -124,13 +124,24 @@ export async function syncConversations(
   // Sem filtro de status por default — traz tudo (open, pending, snoozed, resolved)
   // e deixa a UI filtrar localmente. Antes, o sync travado em status="open" perdia
   // conversas "pending" que o Evo CRM mostra na aba "Ativas".
-  const syncFilters: { status?: string; inbox_id?: string } = {};
-  if (evoClient.syncInboxIds?.[0]) {
-    syncFilters.inbox_id = evoClient.syncInboxIds[0];
-  }
-  const remoteConversations = await evoClient.listConversations(
-    EVO_SYNC_CONVERSATION_LIMIT,
-    syncFilters
+  //
+  // Inbox filter: `syncInboxIds` é uma whitelist de inboxes a sincronizar. O bug
+  // anterior usava `syncInboxIds[0]` e descartava silenciosamente conversas dos
+  // demais inboxes. Agora fazemos fan-out: uma chamada por inbox da whitelist;
+  // sem whitelist, uma única chamada sem filtro (traz todos os inboxes).
+  const inboxIds = evoClient.syncInboxIds?.length ? evoClient.syncInboxIds : [undefined];
+  const fanOutResults = await Promise.all(
+    inboxIds.map((inboxId) =>
+      evoClient.listConversations(EVO_SYNC_CONVERSATION_LIMIT, {
+        ...(inboxId ? { inbox_id: inboxId } : {}),
+      })
+    )
+  );
+  const remoteConversations = fanOutResults.flat();
+  console.info(
+    `[evo-sync] companyId=${companyId} inboxes=${inboxIds.length} ` +
+      `fetched_from_crm=${remoteConversations.length} ` +
+      `per_inbox=[${fanOutResults.map((r) => r.length).join(",")}]`
   );
   const excludedExternalIds = await getExcludedConversationExternalIds(
     companyId,
@@ -373,6 +384,23 @@ export async function syncConversations(
       // Labels são complementares
     }
     await sleep(200);
+  }
+
+  // Reconciliação: alerta loud se o sync devolveu menos linhas do que o CRM enviou.
+  // Silent failures de sync foram historicamente o pior modo de falha desta integração.
+  const fetchedFromCrm = uniqueConversations.size;
+  const upsertedTotal = syncedList.length;
+  if (upsertedTotal < fetchedFromCrm) {
+    console.warn(
+      `[evo-sync] DRIFT companyId=${companyId} fetched=${fetchedFromCrm} ` +
+        `upserted=${upsertedTotal} delta=${fetchedFromCrm - upsertedTotal} ` +
+        `inserts=${insertRows.length} updates=${updateRows.length}`
+    );
+  } else {
+    console.info(
+      `[evo-sync] OK companyId=${companyId} fetched=${fetchedFromCrm} ` +
+        `upserted=${upsertedTotal} messages=${syncedMessages}`
+    );
   }
 
   return {

@@ -293,19 +293,35 @@ function parseConversationsResponse(payload: unknown): EvoConversationApi[] {
 
 function parseConversationsPagination(payload: unknown) {
   const record = typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {};
-  const rawPagination =
-    typeof record.pagination === "object" && record.pagination !== null
-      ? (record.pagination as Record<string, unknown>)
+  // Evo CRM v4.2.0 retorna paginação em `meta.pagination`. Mantemos fallback
+  // em `record.pagination` para resiliência a variações de envelope.
+  const meta =
+    typeof record.meta === "object" && record.meta !== null
+      ? (record.meta as Record<string, unknown>)
       : null;
+  const rawPagination =
+    (meta && typeof meta.pagination === "object" && meta.pagination !== null
+      ? (meta.pagination as Record<string, unknown>)
+      : null) ??
+    (typeof record.pagination === "object" && record.pagination !== null
+      ? (record.pagination as Record<string, unknown>)
+      : null);
 
-  const nextCursor =
+  const nextCursorRaw =
     rawPagination && (typeof rawPagination.nextCursor === "string" || typeof rawPagination.nextCursor === "number")
       ? rawPagination.nextCursor
-      : undefined;
+      : rawPagination && (typeof rawPagination.next_cursor === "string" || typeof rawPagination.next_cursor === "number")
+        ? rawPagination.next_cursor
+        : undefined;
 
-  const hasMore = rawPagination?.hasMore === true;
+  const hasMore =
+    rawPagination?.hasMore === true ||
+    rawPagination?.has_more === true ||
+    (typeof rawPagination?.current_page === "number" &&
+      typeof rawPagination?.total_pages === "number" &&
+      rawPagination.current_page < rawPagination.total_pages);
 
-  return { nextCursor, hasMore };
+  return { nextCursor: nextCursorRaw, hasMore };
 }
 
 function parseMessagesResponse(payload: unknown): EvoMessageApi[] {
@@ -633,7 +649,7 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
 
       try {
         const rawJson = JSON.parse(responseBody);
-        return unwrap<T>(rawJson);
+        return options?.raw ? (rawJson as T) : unwrap<T>(rawJson);
       } catch (e) {
         if (e instanceof Error && e.message.startsWith("Evo CRM [")) throw e;
         throw new Error(`Resposta inválida do Evo CRM (${url.origin}). JSON malformado.`);
@@ -665,7 +681,11 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
       while (collected.length < targetTotal) {
         const remaining = targetTotal - collected.length;
         const requestLimit = Math.min(pageSize, remaining);
-        const payload = await requestJson<unknown>("/api/v1/conversations", {
+        // raw:true preserva o envelope `{success, data, meta:{pagination}}` para que
+        // parseConversationsPagination consiga ler `meta.pagination`. Sem isso, o
+        // unwrap() retornaria só `data` e a paginação por cursor seria silenciosa.
+        const envelope = await requestJson<unknown>("/api/v1/conversations", {
+          raw: true,
           searchParams: {
             limit: requestLimit,
             ...(filters?.status ? { status: filters.status } : {}),
@@ -674,11 +694,14 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
             ...(typeof cursor !== "undefined" ? { cursor } : { page }),
           },
         });
+        // Desembrulha `data` para o parser de linhas, mas mantém o envelope para
+        // a leitura de paginação (meta.pagination vive no envelope, não em data).
+        const dataPayload = unwrap<unknown>(envelope);
         // Gate de schema antes do parser manual: detecta drift loud, em vez de
         // silenciosamente devolver lista vazia que vira "dados não carregam".
-        parseEvoResponse(EvoConversationsListSchema, payload, "listConversations");
-        const pageRows = parseConversationsResponse(payload);
-        const pagination = parseConversationsPagination(payload);
+        parseEvoResponse(EvoConversationsListSchema, envelope, "listConversations");
+        const pageRows = parseConversationsResponse(dataPayload);
+        const pagination = parseConversationsPagination(envelope);
 
         if (pageRows.length === 0) break;
 
