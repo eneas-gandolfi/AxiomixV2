@@ -69,8 +69,21 @@ export async function enqueueAutoAnalyses(companyId: string): Promise<AutoAnalyz
     return new Date(c.last_message_at) > new Date(generatedAt); // Insight desatualizado
   });
 
-  // Limitar a 10 análises por execução para não sobrecarregar
-  const toAnalyze = needsAnalysis.slice(0, 10);
+  // Limitar a 10 análises por execução para não sobrecarregar.
+  // Ignora conversas sem mensagens sincronizadas — a análise falharia sempre
+  // ("Conversa sem mensagens para analise") e seria re-enfileirada em loop a cada heartbeat.
+  const toAnalyze: typeof needsAnalysis = [];
+  for (const conversation of needsAnalysis) {
+    if (toAnalyze.length >= 10) break;
+    const { data: firstMessage } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("conversation_id", conversation.id)
+      .limit(1);
+    if (!firstMessage || firstMessage.length === 0) continue;
+    toAnalyze.push(conversation);
+  }
   const jobIds: string[] = [];
 
   for (const conversation of toAnalyze) {
@@ -80,7 +93,8 @@ export async function enqueueAutoAnalyses(companyId: string): Promise<AutoAnalyz
       .select("id")
       .eq("company_id", companyId)
       .eq("job_type", "whatsapp_analyze")
-      .eq("payload->conversationId", conversation.id)
+      // "->>" (texto) — com "->" (jsonb) o filtro nunca casa e o dedup não funciona
+      .eq("payload->>conversationId", conversation.id)
       .in("status", ["pending", "running"])
       .limit(1);
 
