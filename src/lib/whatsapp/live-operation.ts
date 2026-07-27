@@ -4,13 +4,13 @@
  *            cliente mais esquecido, fila de conversas em risco e workload
  *            por operador. Usa thresholds do nicho do tenant.
  *
- *            Limites conhecidos da v1:
- *            - Não exclui janela fora-do-horário-comercial (Mary's red line —
- *              dia 1 obrigatório). Próxima iteração consome `business_hours`
- *              da tabela `companies`.
- *            - "Última mensagem do cliente" derivada da messages com
- *              direction='in' (mais recente). Conversas multi-atendente onde
- *              outro vendedor pegou o celular ainda não são distinguidas.
+ *            Limites conhecidos:
+ *            - Conversas multi-atendente onde outro vendedor pegou o celular
+ *              ainda não são distinguidas.
+ *            - "Última mensagem" vem das colunas denormalizadas de
+ *              `conversations` (last_message_*), mantidas pelos escritores de
+ *              `messages` — sem varredura da tabela de mensagens (o cap de 500
+ *              da v1 escondia conversas antigas da fila em tenants com volume).
  * Autor: AXIOMIX
  * Data: 2026-05-06
  */
@@ -93,9 +93,8 @@ function classifySeverity(
 /**
  * Busca dados ao vivo da Operação. Lê:
  *   1) niche_slug do tenant (pra calcular thresholds)
- *   2) conversas abertas com seus assignees
- *   3) última mensagem inbound (direction='in') por conversa
- *   4) nomes dos operadores (memberships + users)
+ *   2) conversas abertas com assignees + última mensagem denormalizada
+ *   3) nomes dos operadores (memberships + users)
  */
 export async function getLiveOperationData(
   supabase: SupabaseClient<Database>,
@@ -123,11 +122,12 @@ export async function getLiveOperationData(
     ? isCurrentlyWithinBusinessHours(now, businessHours, timezone)
     : true; // sem horário cadastrado = sempre aberto (não pausa)
 
-  // 2) Conversas abertas (status not in resolved/closed)
+  // 2) Conversas abertas (status not in resolved/closed) com a última mensagem
+  //    denormalizada (last_message_*) — dispensa varrer `messages`.
   const { data: conversations } = await supabase
     .from("conversations")
     .select(
-      "id, contact_name, contact_phone, contact_avatar_url, assigned_to, status, pipeline_stage, labels",
+      "id, contact_name, contact_phone, contact_avatar_url, assigned_to, status, pipeline_stage, labels, last_message_at, last_message_preview, last_message_direction, last_message_type",
     )
     .eq("company_id", companyId)
     .or("status.is.null,status.not.in.(resolved,closed)");
@@ -145,41 +145,7 @@ export async function getLiveOperationData(
     };
   }
 
-  const conversationIds = conversations.map((c) => c.id);
-
-  // 3) Última mensagem por conversa (DISTINCT ON via ordenação + Map)
-  // Cap de 500 mensagens recentes pra evitar varredura massiva. Tenants com
-  // muito volume devem migrar pra função SQL dedicada (TODO próximo).
-  const { data: messages } = await supabase
-    .from("messages")
-    .select("conversation_id, direction, sent_at, content, message_type")
-    .eq("company_id", companyId)
-    .in("conversation_id", conversationIds)
-    .order("sent_at", { ascending: false })
-    .limit(500);
-
-  const lastMsgByConv = new Map<
-    string,
-    {
-      direction: string | null;
-      sent_at: string | null;
-      content: string | null;
-      messageType: string | null;
-    }
-  >();
-  for (const msg of messages ?? []) {
-    if (!msg.conversation_id) continue;
-    if (!lastMsgByConv.has(msg.conversation_id)) {
-      lastMsgByConv.set(msg.conversation_id, {
-        direction: msg.direction,
-        sent_at: msg.sent_at,
-        content: msg.content,
-        messageType: msg.message_type,
-      });
-    }
-  }
-
-  // 4) Nomes dos operadores (assignees presentes)
+  // 3) Nomes dos operadores (assignees presentes)
   const assigneeIds = Array.from(
     new Set(
       conversations
@@ -199,22 +165,21 @@ export async function getLiveOperationData(
     }
   }
 
-  // 5) Compute wait times pra conversas onde a última mensagem é do cliente.
+  // 4) Compute wait times pra conversas onde a última mensagem é do cliente.
   //    Quando business_hours está cadastrado, conta APENAS segundos dentro
   //    da janela (Mary's red line — atendentes não cobrados por hora-fechada).
   const waiting: WaitingConversation[] = [];
 
   for (const conv of conversations) {
-    const lastMsg = lastMsgByConv.get(conv.id);
-    if (!lastMsg) continue;
     // Direção pode vir como "inbound" (webhook normaliza) ou "in" (legacy/sync).
     // Aceita os 2 formatos pra não perder cliente esperando por convenção
     // de string.
-    const isInbound = lastMsg.direction === "inbound" || lastMsg.direction === "in";
+    const isInbound =
+      conv.last_message_direction === "inbound" || conv.last_message_direction === "in";
     if (!isInbound) continue;
-    if (!lastMsg.sent_at) continue;
+    if (!conv.last_message_at) continue;
 
-    const lastInboundDate = new Date(lastMsg.sent_at);
+    const lastInboundDate = new Date(conv.last_message_at);
     const waitSeconds = businessHours
       ? computeBusinessSecondsElapsed(lastInboundDate, now, businessHours, timezone)
       : Math.floor((now.getTime() - lastInboundDate.getTime()) / 1000);
@@ -228,9 +193,9 @@ export async function getLiveOperationData(
       customerAvatar: conv.contact_avatar_url,
       assigneeId: conv.assigned_to,
       assigneeName: conv.assigned_to ? operatorNameById.get(conv.assigned_to) ?? null : null,
-      lastMessage: lastMsg.content,
-      lastMessageType: lastMsg.messageType,
-      lastInboundAt: lastMsg.sent_at,
+      lastMessage: conv.last_message_preview,
+      lastMessageType: conv.last_message_type,
+      lastInboundAt: conv.last_message_at,
       waitSeconds,
       severity: classifySeverity(waitSeconds, amberSeconds, redSeconds),
       pipelineStage: conv.pipeline_stage,
@@ -240,14 +205,14 @@ export async function getLiveOperationData(
 
   waiting.sort((a, b) => b.waitSeconds - a.waitSeconds);
 
-  // 6) Hero = mais esquecido. Fila = top 5 dos restantes em âmbar+.
+  // 5) Hero = mais esquecido. Fila = top 5 dos restantes em âmbar+.
   const mostForgotten = waiting[0] ?? null;
   const inRiskQueue = waiting
     .slice(1)
     .filter((w) => w.severity !== "ok")
     .slice(0, 5);
 
-  // 7) Operators workload — agrega de TODAS as conversas abertas (não só
+  // 6) Operators workload — agrega de TODAS as conversas abertas (não só
   // as em espera), pra mostrar "atendentes ativos" mesmo quando ninguém
   // está esperando.
   type Acc = {

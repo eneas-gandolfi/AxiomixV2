@@ -17,13 +17,23 @@ import {
   ShoppingCart,
   XCircle,
 } from "lucide-react";
+import { AddNoteDialog } from "@/components/whatsapp/add-note-dialog";
 import { AnalyzeConversationButton } from "@/components/whatsapp/analyze-conversation-button";
 import { AssignEvoAgentSelect } from "@/components/whatsapp/assign-evo-agent-select";
+import { ChangeStatusDialog } from "@/components/whatsapp/change-status-dialog";
+import { CreateKanbanCardDialog } from "@/components/whatsapp/create-kanban-card-dialog";
+import { ConversationAsideTabs } from "@/components/whatsapp/conversation-aside-tabs";
 import { ConversationChat } from "@/components/whatsapp/conversation-chat";
+import {
+  ConversationContactPanel,
+  type ConversationColdLeadAlert,
+} from "@/components/whatsapp/conversation-contact-panel";
 import { InsightFeedbackPanel } from "@/components/whatsapp/insight-feedback-panel";
 import { SessionStatusBadge } from "@/components/whatsapp/session-status-badge";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { cn } from "@/lib/utils";
+import { detectColdLeads } from "@/lib/whatsapp/cold-leads";
+import { avatarInitial, formatPhone } from "@/lib/whatsapp/format-contact";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   canonicalIntent,
@@ -139,27 +149,6 @@ function splitName(name: string): { first: string; rest: string } {
   return { first: parts[0], rest: parts.slice(1).join(" ") };
 }
 
-function formatPhone(remoteJid: string) {
-  const phone = remoteJid.replace(/@s\.whatsapp\.net|@c\.us/g, "");
-  if (phone.startsWith("55") && phone.length >= 12) {
-    const ddd = phone.substring(2, 4);
-    const numero = phone.substring(4);
-    if (numero.length === 9) {
-      return `+55 ${ddd} 9 ${numero.substring(1, 5)}-${numero.substring(5)}`;
-    }
-    if (numero.length === 8) {
-      return `+55 ${ddd} ${numero.substring(0, 4)}-${numero.substring(4)}`;
-    }
-  }
-  return phone;
-}
-
-function avatarInitial(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  return parts[0][0].toUpperCase();
-}
-
 interface ConversationDetailViewProps {
   id: string;
   mode?: ConversationDetailMode;
@@ -182,7 +171,9 @@ export async function ConversationDetailView({
   const [{ data: conversation }, { data: rawMessages }, { data: insight }] = await Promise.all([
     supabase
       .from("conversations")
-      .select("id, external_id, remote_jid, contact_name, status, last_message_at")
+      .select(
+        "id, external_id, remote_jid, contact_name, contact_phone, assigned_to, status, last_message_at",
+      )
       .eq("id", id)
       .eq("company_id", companyId)
       .maybeSingle(),
@@ -221,6 +212,37 @@ export async function ConversationDetailView({
   const nameParts = splitName(displayName);
   const initial = avatarInitial(displayName);
   const phoneLabel = formatPhone(conversation.remote_jid);
+
+  // Cold-lead da conversa atual (aba Contato): reusa a mesma heurística do
+  // card "Leads esfriando" do painel, aplicada a esta única conversa.
+  const lastMessage = messages[messages.length - 1];
+  const [coldLeadHit] = detectColdLeads({
+    conversations: [
+      {
+        id: conversation.id,
+        contactName: conversation.contact_name,
+        contactPhone: conversation.contact_phone,
+        assignedTo: conversation.assigned_to,
+        lastMessageAt: conversation.last_message_at,
+      },
+    ],
+    lastMessages: lastMessage
+      ? new Map([
+          [
+            conversation.id,
+            {
+              conversationId: conversation.id,
+              direction: lastMessage.direction,
+              sentAt: lastMessage.sent_at,
+            },
+          ],
+        ])
+      : new Map(),
+    now: new Date(),
+  });
+  const coldLeadAlert: ConversationColdLeadAlert | null = coldLeadHit
+    ? { motivo: coldLeadHit.motivo, diasSemResposta: coldLeadHit.diasSemResposta }
+    : null;
 
   // ===== HERO =====
   const hero = (
@@ -321,6 +343,17 @@ export async function ConversationDetailView({
             conversationExternalId={conversation.external_id}
           />
         ) : null}
+        <AddNoteDialog companyId={companyId} conversationId={conversation.id} />
+        <CreateKanbanCardDialog
+          companyId={companyId}
+          conversationId={conversation.id}
+          defaultTitle={displayName}
+        />
+        <ChangeStatusDialog
+          companyId={companyId}
+          conversationId={conversation.id}
+          currentStatus={conversation.status}
+        />
       </div>
     </header>
   );
@@ -350,8 +383,20 @@ export async function ConversationDetailView({
         />
       </div>
 
-      {/* Briefing column */}
+      {/* Coluna lateral: Briefing | Contato (Onda 3) */}
       <aside className="flex flex-col overflow-y-auto bg-[var(--color-canvas)]">
+        <ConversationAsideTabs
+          contact={
+            <ConversationContactPanel
+              companyId={companyId}
+              remoteJid={conversation.remote_jid}
+              contactPhone={conversation.contact_phone}
+              contactName={conversation.contact_name}
+              coldLead={coldLeadAlert}
+            />
+          }
+          briefing={
+            <>
         <div className="border-b border-[var(--color-border)] px-5 py-4">
           <div className="flex items-baseline justify-between gap-2">
             <h2
@@ -629,6 +674,9 @@ export async function ConversationDetailView({
             intenção, resumo e próximas ações.
           </div>
         )}
+            </>
+          }
+        />
       </aside>
     </div>
   );

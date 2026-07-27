@@ -51,17 +51,16 @@ export function startCronScheduler(): void {
     await safeRun("group-rag-batch", runGroupRagBatchCron);
   });
 
-  // WhatsApp sync: a cada 10 minutos
-  cron.schedule("*/10 * * * *", async () => {
+  // WhatsApp sync: horário — safety-net do webhook (F1). O webhook é a fonte
+  // primária; este cron só reconcilia empresas com drift (webhook mudo).
+  cron.schedule("30 * * * *", async () => {
     const { runWhatsappSyncCron } = await import("@/lib/cron/whatsapp-sync");
     await safeRun("whatsapp-sync", runWhatsappSyncCron);
   });
 
-  // WhatsApp batch analyze: a cada 30 minutos
-  cron.schedule("*/30 * * * *", async () => {
-    const { runWhatsappBatchCron } = await import("@/lib/cron/whatsapp-batch");
-    await safeRun("whatsapp-batch", runWhatsappBatchCron);
-  });
+  // F3 (jul/2026): cron whatsapp-batch removido — análise de IA em lote
+  // automática eliminada (custo de LLM recorrente). Análise agora é só sob
+  // demanda (botão Analisar / bulk-analyze explícito).
 
   // Social publisher: a cada minuto (dispara posts agendados vencidos)
   cron.schedule("* * * * *", async () => {
@@ -69,5 +68,12 @@ export function startCronScheduler(): void {
     await safeRun("social-publisher", processDueScheduledPosts);
   });
 
-  console.log("[cron] 7 crons agendados com sucesso.");
+  // Anomaly scan (Intelligence Layer): diário às 12:00 UTC (09:00 BRT) —
+  // compara janela 7d vs baseline 21d por tenant e despacha alertas proativos.
+  cron.schedule("0 12 * * *", async () => {
+    const { runAnomalyScanCron } = await import("@/lib/cron/anomaly-scan");
+    await safeRun("anomaly-scan", runAnomalyScanCron);
+  });
+
+  console.log("[cron] Scheduler de crons iniciado.");
 }

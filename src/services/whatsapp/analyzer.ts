@@ -534,6 +534,8 @@ export async function analyzeConversation(
       confidence_score: insight.confidence_score,
       action_items: enrichedActionItems,
       generated_at: generatedAt,
+      // F3: rastreia a origem do insight (análise local sob demanda).
+      insight_source: "local_llm",
     },
     {
       onConflict: "conversation_id",

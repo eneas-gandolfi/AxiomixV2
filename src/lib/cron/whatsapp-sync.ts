@@ -6,14 +6,17 @@
  *
  * NOTA: A partir da F1 (webhook-driven sync), este cron NÃO é mais a fonte
  * primária de dados. Os webhooks do Evo CRM alimentam o Supabase em tempo real.
- * Este cron roda a cada 10-15 minutos como safety net para capturar eventos
- * que o webhook eventualmente perdeu (falha de rede, downtime).
+ * Este cron roda de hora em hora como safety net e só enfileira sync quando
+ * detecta drift: nenhum evento de webhook recente (conversations.last_synced_at
+ * é atualizado a cada evento — webhook saudável dispensa reconciliação).
  */
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { enqueueJob } from "@/lib/jobs/queue";
 
-const MIN_SYNC_INTERVAL_MINUTES = 10;
+const MIN_SYNC_INTERVAL_MINUTES = 55;
+/** Sem evento de webhook há mais que isso = possível drift → reconciliar. */
+const WEBHOOK_DRIFT_MINUTES = 30;
 
 export async function runWhatsappSyncCron() {
   const supabase = createSupabaseAdminClient();
@@ -40,13 +43,31 @@ export async function runWhatsappSyncCron() {
   );
 
   if (companyIds.length === 0) {
-    return { enqueued: 0, skippedRecent: 0 };
+    return { enqueued: 0, skippedRecent: 0, skippedHealthy: 0 };
   }
 
   let enqueued = 0;
   let skippedRecent = 0;
+  let skippedHealthy = 0;
+  const driftCutoff = new Date(Date.now() - WEBHOOK_DRIFT_MINUTES * 60_000).toISOString();
 
   for (const companyId of companyIds) {
+    // Webhook saudável? Se algum evento chegou recentemente, não há drift e a
+    // reconciliação completa (cara: lista conversas + mensagens no Evo) é
+    // dispensada. Empresas sem NENHUMA conversa ainda sincronizam normalmente
+    // (primeira carga).
+    const { data: recentWebhookActivity } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("company_id", companyId)
+      .gte("last_synced_at", driftCutoff)
+      .limit(1);
+
+    if (recentWebhookActivity && recentWebhookActivity.length > 0) {
+      skippedHealthy += 1;
+      continue;
+    }
+
     const { data: existingJobs } = await supabase
       .from("async_jobs")
       .select("id")
@@ -78,5 +99,5 @@ export async function runWhatsappSyncCron() {
     enqueued += 1;
   }
 
-  return { enqueued, skippedRecent };
+  return { enqueued, skippedRecent, skippedHealthy };
 }

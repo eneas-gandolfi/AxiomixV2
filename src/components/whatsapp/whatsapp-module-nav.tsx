@@ -18,6 +18,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bot,
+  KanbanSquare,
   LayoutDashboard,
   MessageSquare,
 } from "lucide-react";
@@ -39,6 +40,8 @@ type NavEntry = TabItem | Separator;
  * Onda 2 do redesign 7→3: Operacao virou modo do Painel (?modo=agora).
  * Apenas 3 abas no chrome — separators sumiram (so ha 1 grupo + Agentes IA).
  */
+const PIPELINE_ENABLED = process.env.NEXT_PUBLIC_FEATURE_PIPELINE === "true";
+
 const NAV: NavEntry[] = [
   {
     kind: "tab",
@@ -55,6 +58,18 @@ const NAV: NavEntry[] = [
     href: "/whatsapp-intelligence/conversas",
     icon: MessageSquare,
   },
+  // F6: Pipeline kanban real — só entra no chrome com a flag ligada.
+  ...(PIPELINE_ENABLED
+    ? [
+        {
+          kind: "tab",
+          key: "pipeline",
+          label: "Pipeline",
+          href: "/whatsapp-intelligence/pipeline",
+          icon: KanbanSquare,
+        } satisfies TabItem,
+      ]
+    : []),
   { kind: "separator" },
   {
     kind: "tab",

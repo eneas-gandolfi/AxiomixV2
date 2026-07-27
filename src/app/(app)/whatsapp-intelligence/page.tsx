@@ -46,10 +46,6 @@ import {
   ObjecoesFrequentesCardSkeleton,
 } from "@/components/whatsapp/objecoes-frequentes";
 import {
-  HeatmapRespostaCard,
-  HeatmapRespostaCardSkeleton,
-} from "@/components/whatsapp/heatmap-resposta";
-import {
   RecomendacoesAcoesCard,
   RecomendacoesAcoesCardSkeleton,
 } from "@/components/whatsapp/recomendacoes-acoes";
@@ -255,10 +251,6 @@ export default async function WhatsAppDashboardPage({
             </Suspense>
           </>
         ) : null}
-
-        <Suspense fallback={<HeatmapRespostaCardSkeleton />}>
-          <HeatmapRespostaCard companyId={companyId} />
-        </Suspense>
 
         <Suspense fallback={<FunilComercialCardSkeleton />}>
           <FunilComercialCard companyId={companyId} />

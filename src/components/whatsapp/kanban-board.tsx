@@ -24,8 +24,10 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { App } from "antd";
 import { Plus, ChevronDown, ChevronUp, Search, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { moveCardBetweenStages } from "./kanban-board.helpers";
 import { KanbanCardItem } from "./kanban-card-item";
 import { KanbanCardDrawer } from "./kanban-card-drawer";
 import type { RichKanbanCard, KanbanStage, TeamMember } from "./kanban-types";
@@ -160,6 +162,7 @@ export function KanbanBoard({
 
   // Local board state for optimistic updates
   const [localStages, setLocalStages] = useState<KanbanStage[]>(stages);
+  const { message } = App.useApp();
 
   // Card creation
   const [creatingInStage, setCreatingInStage] = useState<string | null>(null);
@@ -174,11 +177,15 @@ export function KanbanBoard({
   // Drawer
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
-  // Sync external stages with local state
+  // Sync external stages with local state — padrão "derived state from props"
+  // (setState durante render quando a prop muda), em vez de useMemo com
+  // side-effect.
   const stagesKey = stages.map((s) => `${s.id}:${(s.cards ?? []).map((c) => c.id).join(",")}`).join("|");
-  useMemo(() => {
+  const [prevStagesKey, setPrevStagesKey] = useState(stagesKey);
+  if (stagesKey !== prevStagesKey) {
+    setPrevStagesKey(stagesKey);
     setLocalStages(stages);
-  }, [stagesKey]);
+  }
 
   const sortedStages = useMemo(
     () => [...localStages].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
@@ -254,31 +261,14 @@ export function KanbanBoard({
     const sourceStageId = findStageForCard(cardId);
     if (!sourceStageId || sourceStageId === targetStageId) return;
 
-    // Optimistic update: move card between stages locally
-    setLocalStages((prev) => {
-      const next = prev.map((stage) => {
-        if (stage.id === sourceStageId) {
-          return { ...stage, cards: (stage.cards ?? []).filter((c) => c.id !== cardId) };
-        }
-        if (stage.id === targetStageId) {
-          const movingCard = prev
-            .find((s) => s.id === sourceStageId)
-            ?.cards?.find((c) => c.id === cardId);
-          if (movingCard) {
-            return {
-              ...stage,
-              cards: [...(stage.cards ?? []), { ...movingCard, stage_id: targetStageId }],
-            };
-          }
-        }
-        return stage;
-      });
-      return next;
-    });
+    // Optimistic update: move card between stages locally. Guarda o snapshot
+    // pré-movimento pra reverter exatamente ao estado anterior em caso de
+    // falha (F6: "falha → card volta com toast").
+    const snapshot = localStages;
+    setLocalStages((prev) => moveCardBetweenStages(prev, cardId, targetStageId));
 
-    // API call
     try {
-      await fetch("/api/whatsapp/kanban/cards", {
+      const response = await fetch("/api/whatsapp/kanban/cards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -289,10 +279,12 @@ export function KanbanBoard({
           stageId: targetStageId,
         }),
       });
+      if (!response.ok) throw new Error("move failed");
       onRefresh();
-    } catch {
-      // Revert on failure
-      setLocalStages(stages);
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      setLocalStages(snapshot);
+      message.error("Não foi possível mover o card. Ele voltou pra coluna original.");
     }
   };
 
@@ -303,7 +295,7 @@ export function KanbanBoard({
         ? parseFloat(newCardValue.replace(",", "."))
         : undefined;
 
-      await fetch("/api/whatsapp/kanban/cards", {
+      const response = await fetch("/api/whatsapp/kanban/cards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -319,10 +311,12 @@ export function KanbanBoard({
           phone: newCardPhone.trim() || undefined,
         }),
       });
+      if (!response.ok) throw new Error("create failed");
       resetCreateForm();
       onRefresh();
-    } catch {
-      // Silently fail
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      message.error("Não foi possível criar o card. Tente novamente.");
     }
   };
 

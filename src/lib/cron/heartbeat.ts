@@ -1,22 +1,23 @@
 /**
  * Arquivo: src/lib/cron/heartbeat.ts
- * Propósito: Orquestração unificada de cron jobs — consolida recover, process e sync.
+ * Propósito: Housekeeping da fila de jobs — recover de jobs travados, marcação
+ *            de stale e agregação de uso de IA.
+ *
+ *            F3 (jul/2026): o heartbeat NÃO enfileira mais análises de IA
+ *            automáticas (custo recorrente de LLM eliminado — análise agora é
+ *            só sob demanda via botão/bulk). O enfileiramento de syncs também
+ *            saiu daqui: vivia duplicado com o cron dedicado whatsapp-sync,
+ *            que virou o único responsável (safety-net horário do webhook).
  * Autor: AXIOMIX
  * Data: 2026-03-19
  */
 
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { recoverAllStaleJobs, markAllStaleJobsFailed, enqueueJob } from "@/lib/jobs/queue";
-import { enqueueAutoAnalyses } from "@/services/whatsapp/auto-analyze";
+import { recoverAllStaleJobs, markAllStaleJobsFailed } from "@/lib/jobs/queue";
 import { aggregateUsageForDate } from "@/services/usage/aggregate";
-
-const MIN_SYNC_INTERVAL_MINUTES = 15;
 
 type HeartbeatResult = {
   recovered: number;
   staleMarkedFailed: number;
-  autoAnalyses: { companies: number; totalEnqueued: number; errors: number };
-  synced: { enqueued: number; skippedRecent: number };
   usageAggregated: number;
 };
 
@@ -27,13 +28,7 @@ export async function runHeartbeat(): Promise<HeartbeatResult> {
   // 2. Marcar como failed jobs que passaram do limite (pending >10min, running >30min)
   const staleMarkedFailed = await markAllStaleJobsFailed();
 
-  // 3. Enfileirar análises automáticas para todas as empresas ativas
-  const autoAnalyses = await enqueueAutoAnalysesForAllCompanies();
-
-  // 4. Enfileirar syncs pendentes para empresas ativas com Evo CRM
-  const synced = await enqueuePendingSyncs();
-
-  // 5. Agregar uso de IA do dia anterior (roda apenas no primeiro heartbeat de cada hora)
+  // 3. Agregar uso de IA do dia anterior (roda apenas no primeiro heartbeat de cada hora)
   let usageAggregated = 0;
   if (new Date().getMinutes() === 0) {
     try {
@@ -46,138 +41,6 @@ export async function runHeartbeat(): Promise<HeartbeatResult> {
   return {
     recovered,
     staleMarkedFailed,
-    autoAnalyses,
-    synced,
     usageAggregated,
   };
-}
-
-async function enqueueAutoAnalysesForAllCompanies(): Promise<{
-  companies: number;
-  totalEnqueued: number;
-  errors: number;
-}> {
-  const supabase = createSupabaseAdminClient();
-
-  const { data: integrations, error: integrationsError } = await supabase
-    .from("integrations")
-    .select("company_id")
-    .eq("type", "evo_crm")
-    .eq("is_active", true)
-    .eq("test_status", "ok")
-    .not("company_id", "is", null);
-
-  if (integrationsError) {
-    throw new Error(`Falha ao buscar integrações para auto-análise: ${integrationsError.message}`);
-  }
-
-  const companyIds = Array.from(
-    new Set(
-      (integrations ?? [])
-        .map((i) => i.company_id)
-        .filter((id): id is string => typeof id === "string")
-    )
-  );
-
-  if (companyIds.length === 0) {
-    return { companies: 0, totalEnqueued: 0, errors: 0 };
-  }
-
-  let totalEnqueued = 0;
-  let errors = 0;
-
-  for (const companyId of companyIds) {
-    try {
-      const result = await enqueueAutoAnalyses(companyId);
-      totalEnqueued += result.enqueuedAnalyses;
-    } catch (error) {
-      errors += 1;
-      console.error(`Falha ao enfileirar auto-análises para company ${companyId}:`, error);
-    }
-  }
-
-  return { companies: companyIds.length, totalEnqueued, errors };
-}
-
-async function enqueuePendingSyncs(): Promise<{ enqueued: number; skippedRecent: number }> {
-  const supabase = createSupabaseAdminClient();
-  const recentSyncCutoff = new Date(Date.now() - MIN_SYNC_INTERVAL_MINUTES * 60_000).toISOString();
-
-  const { data: integrations, error: integrationsError } = await supabase
-    .from("integrations")
-    .select("company_id")
-    .eq("type", "evo_crm")
-    .eq("is_active", true)
-    .eq("test_status", "ok")
-    .not("company_id", "is", null);
-
-  if (integrationsError) {
-    throw new Error(`Falha ao buscar integrações do Evo CRM: ${integrationsError.message}`);
-  }
-
-  const companyIds = Array.from(
-    new Set(
-      (integrations ?? [])
-        .map((integration) => integration.company_id)
-        .filter((companyId): companyId is string => typeof companyId === "string")
-    )
-  );
-
-  if (companyIds.length === 0) {
-    return { enqueued: 0, skippedRecent: 0 };
-  }
-
-  let enqueued = 0;
-  let skippedRecent = 0;
-
-  for (const companyId of companyIds) {
-    const { data: existingJobs } = await supabase
-      .from("async_jobs")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("job_type", "evo_crm_sync")
-      .in("status", ["pending", "running"])
-      .limit(1);
-
-    if (existingJobs && existingJobs.length > 0) {
-      continue;
-    }
-
-    const { data: recentCompletedJobs } = await supabase
-      .from("async_jobs")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("job_type", "evo_crm_sync")
-      .eq("status", "done")
-      .gte("created_at", recentSyncCutoff)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (recentCompletedJobs && recentCompletedJobs.length > 0) {
-      skippedRecent += 1;
-      continue;
-    }
-
-    // Cooldown de 30min após falha — evita loop infinito de jobs falhando
-    const failedCooloff = new Date(Date.now() - 30 * 60_000).toISOString();
-    const { data: recentFailedJobs } = await supabase
-      .from("async_jobs")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("job_type", "evo_crm_sync")
-      .eq("status", "failed")
-      .gte("completed_at", failedCooloff)
-      .order("completed_at", { ascending: false })
-      .limit(1);
-
-    if (recentFailedJobs && recentFailedJobs.length > 0) {
-      skippedRecent += 1;
-      continue;
-    }
-
-    await enqueueJob("evo_crm_sync", {}, companyId, undefined, 1);
-    enqueued += 1;
-  }
-
-  return { enqueued, skippedRecent };
 }

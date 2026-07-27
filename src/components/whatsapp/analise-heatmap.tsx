@@ -1,37 +1,38 @@
 /**
  * Arquivo: src/components/whatsapp/analise-heatmap.tsx
  * Propósito: §4 da aba Análise — "Algum padrão de horário preocupante?".
- *            Heatmap dia-da-semana × hora mostrando volume de insights nos
- *            últimos 30 dias. Cor proporcional ao count. Insight automático
- *            embaixo apontando o pico (se houver concentração relevante).
- *
- *            v1: usa volume como proxy. Próxima iteração pode trocar pra
- *            TFR médio (requer queries em messages, mais pesado).
+ *            Heatmap dia-da-semana × faixa de 2h: intensidade = volume de
+ *            leads que chegaram (inbound), hachura vermelha = TFR mediano da
+ *            célula estourou o SLA do nicho. Substitui o proxy de volume de
+ *            insights da v1 e absorve o antigo HeatmapRespostaCard (fundidos).
  * Autor: AXIOMIX
- * Data: 2026-05-07
+ * Data: 2026-05-07 (v2 TFR: 2026-07-27)
  */
 
 import { Flame, TriangleAlert } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { toZonedDate } from "@/lib/whatsapp/business-hours";
-import type { DayOfWeek } from "@/lib/niches";
+import {
+  computeResponseHeatmap,
+  DAY_ORDER,
+  type DayKey,
+  type HeatmapCell,
+} from "@/lib/whatsapp/heatmap-resposta";
+import { DEFAULT_SLA_SECONDS, type MessageLight } from "@/lib/whatsapp/pulso-comercial";
+import { getNicheBySlug, type NicheSlug } from "@/lib/niches";
 import { SectionWrapper } from "@/components/whatsapp/analise-vendor-performance";
 
 const DAY_MS = 86_400_000;
 const HOUR_START = 8;
 const HOUR_END = 22; // exclusive — cobre das 8h às 21h
-const BUCKET_SIZE = 2; // agrupa horas em buckets (8-9h, 10-11h, ..., 20-21h) — 7 colunas
-
-function bucketStartOf(hour: number): number {
-  return Math.floor((hour - HOUR_START) / BUCKET_SIZE) * BUCKET_SIZE + HOUR_START;
-}
+const BUCKET_SIZE = 2; // 7 colunas: 8-9h, 10-11h, ..., 20-21h
+const MESSAGE_SCAN_LIMIT = 8000;
 
 function bucketLabel(start: number): string {
   return `${start}-${start + BUCKET_SIZE - 1}h`;
 }
 
-const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const DAY_LABELS: Record<DayOfWeek, string> = {
+const DAY_LABELS: Record<DayKey, string> = {
   mon: "Seg",
   tue: "Ter",
   wed: "Qua",
@@ -41,22 +42,24 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   sun: "Dom",
 };
 
-type CellKey = `${DayOfWeek}_${number}`;
-
-type CellData = {
-  count: number;
-  /** Timestamps (ms epoch) das ocorrências — sort confiável + formato no render */
-  timestamps: number[];
-};
-
 function buildHourRange(): number[] {
   const hours: number[] = [];
   for (let h = HOUR_START; h < HOUR_END; h += BUCKET_SIZE) hours.push(h);
   return hours;
 }
 
+/** Formata TFR em segundos como "45s", "12min" ou "1h30". */
+function formatTfr(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest > 0 ? `${hours}h${String(rest).padStart(2, "0")}` : `${hours}h`;
+}
+
 /** Threshold: abaixo disso usamos escala absoluta (cada célula com 1-2 não vira
- *  vermelho só porque é o max). Acima disso usamos relativa (% do max). */
+ *  escura só porque é o max). Acima disso usamos relativa (% do max). */
 const SPARSE_DATA_THRESHOLD = 10;
 
 /**
@@ -83,10 +86,11 @@ function ContainerRow({
   );
 }
 
-type IntensityLevel = "empty" | "subtle" | "low" | "mid" | "high" | "alarm";
+type IntensityLevel = "empty" | "subtle" | "low" | "mid" | "high";
 
-/** Determina o nível de intensidade da célula. Centraliza a lógica pra
- *  derivar bg e cor de texto em sincronia. */
+/** Intensidade pela quantidade de leads que chegaram na célula. Gap (SLA
+ *  estourado) é sinalizado por ring vermelho, não pela escala de cor —
+ *  volume e qualidade de resposta são dimensões independentes. */
 function getIntensityLevel(
   value: number,
   max: number,
@@ -94,15 +98,13 @@ function getIntensityLevel(
 ): IntensityLevel {
   if (max === 0 || value === 0) return "empty";
   if (total < SPARSE_DATA_THRESHOLD) {
-    if (value >= 5) return "alarm";
-    if (value >= 3) return "high";
+    if (value >= 4) return "high";
     if (value >= 2) return "mid";
     return "subtle";
   }
   const ratio = value / max;
-  if (ratio >= 0.85) return "alarm";
-  if (ratio >= 0.65) return "high";
-  if (ratio >= 0.4) return "mid";
+  if (ratio >= 0.75) return "high";
+  if (ratio >= 0.45) return "mid";
   if (ratio >= 0.2) return "low";
   return "subtle";
 }
@@ -111,25 +113,19 @@ const INTENSITY_BG: Record<IntensityLevel, string> = {
   empty: "bg-[var(--color-surface-2)]",
   subtle: "bg-[#A6E3DC]",
   low: "bg-[#5CC9BD]",
-  mid: "bg-[#FFB370]",
-  high: "bg-[var(--color-warning)]",
-  alarm: "bg-[var(--color-danger)]",
+  mid: "bg-[#2FA79A]",
+  high: "bg-[#0F4F49]",
 };
 
-/** Cor do texto que aparece DENTRO da célula. Branco em fundos escuros
- *  (high/alarm), preto em fundos claros. */
+/** Cor do texto que aparece DENTRO da célula. Branco em fundos escuros,
+ *  preto em fundos claros. */
 const INTENSITY_TEXT: Record<IntensityLevel, string> = {
   empty: "text-[var(--color-text-tertiary)]",
   subtle: "text-[#0F4F49]",
   low: "text-[#0F4F49]",
-  mid: "text-[#5C2D00]",
+  mid: "text-white",
   high: "text-white",
-  alarm: "text-white",
 };
-
-function intensityClass(value: number, max: number, total: number): string {
-  return INTENSITY_BG[getIntensityLevel(value, max, total)];
-}
 
 export async function AnaliseHeatmap({
   companyId,
@@ -140,26 +136,53 @@ export async function AnaliseHeatmap({
 }) {
   const supabase = await createSupabaseServerClient();
 
-  // Lê niche_slug pra timezone (companies.timezone fica como fallback)
   const { data: company } = await supabase
     .from("companies")
-    .select("timezone")
+    .select("timezone, niche_slug")
     .eq("id", companyId)
     .maybeSingle();
   const timezone = company?.timezone ?? "America/Sao_Paulo";
+  const niche = company?.niche_slug
+    ? getNicheBySlug(company.niche_slug as NicheSlug)
+    : null;
+  const slaSeconds = niche?.thresholdAmberSeconds ?? DEFAULT_SLA_SECONDS;
 
   const sinceDate = new Date(Date.now() - windowDays * DAY_MS);
   const since = sinceDate.toISOString();
 
-  const { data: insights } = await supabase
-    .from("conversation_insights")
-    .select("generated_at")
+  const { data } = await supabase
+    .from("messages")
+    .select("conversation_id, direction, sent_at")
     .eq("company_id", companyId)
-    .gte("generated_at", since);
+    .gte("sent_at", since)
+    .order("sent_at", { ascending: false })
+    .limit(MESSAGE_SCAN_LIMIT);
+
+  const messages: MessageLight[] = (data ?? [])
+    .filter(
+      (m): m is { conversation_id: string; direction: string | null; sent_at: string } =>
+        Boolean(m.conversation_id) && Boolean(m.sent_at),
+    )
+    .map((m) => ({
+      conversationId: m.conversation_id,
+      direction: m.direction,
+      sentAt: m.sent_at,
+    }));
+
+  const heatmap = computeResponseHeatmap(messages, slaSeconds, {
+    timezone,
+    bucketSizeHours: BUCKET_SIZE,
+    hourStart: HOUR_START,
+    hourEnd: HOUR_END,
+  });
+
+  const cellByKey = new Map<string, HeatmapCell>();
+  for (const cell of heatmap.cells) {
+    cellByKey.set(`${cell.day}_${cell.hour}`, cell);
+  }
 
   // Formatadores no fuso do tenant. Usa "month: short" pra exibir nome
-  // abreviado em PT-BR ("abr", "mai", "jun") em vez de numero ("04", "05")
-  // que exige traducao mental.
+  // abreviado em PT-BR ("abr", "mai", "jun") em vez de numero.
   const dayParts = new Intl.DateTimeFormat("pt-BR", {
     timeZone: timezone,
     day: "2-digit",
@@ -168,10 +191,8 @@ export async function AnaliseHeatmap({
     timeZone: timezone,
     month: "short",
   });
-
   const formatDayMonth = (date: Date): string => {
     const day = dayParts.format(date);
-    // Intl PT-BR retorna "abr." com ponto — remove pra ficar mais compacto
     const month = monthParts.format(date).replace(/\.$/, "");
     return `${day} ${month}`;
   };
@@ -183,66 +204,31 @@ export async function AnaliseHeatmap({
   // Dia da semana de hoje (no fuso do tenant) — usado pra destacar a linha
   const todayDow = toZonedDate(new Date(), timezone).dow;
 
-  const cells = new Map<CellKey, CellData>();
-
-  for (const insight of insights ?? []) {
-    if (!insight.generated_at) continue;
-    const date = new Date(insight.generated_at);
-    const z = toZonedDate(date, timezone);
-    if (z.hour < HOUR_START || z.hour >= HOUR_END) continue;
-    const bucketStart = bucketStartOf(z.hour);
-    const key: CellKey = `${z.dow}_${bucketStart}`;
-    const existing = cells.get(key) ?? { count: 0, timestamps: [] };
-    existing.count += 1;
-    existing.timestamps.push(date.getTime());
-    cells.set(key, existing);
-  }
-
-  // Encontra hotspot (cell com mais volume) pra insight automático
-  let hotspot: { dow: DayOfWeek; hour: number; count: number; timestamps: number[] } | null = null;
-  for (const [key, data] of cells.entries()) {
-    if (!hotspot || data.count > hotspot.count) {
-      const [dow, hour] = key.split("_") as [DayOfWeek, string];
-      hotspot = {
-        dow,
-        hour: parseInt(hour, 10),
-        count: data.count,
-        timestamps: data.timestamps,
-      };
-    }
-  }
-
-  const max = hotspot?.count ?? 0;
-  const total = Array.from(cells.values()).reduce((s, v) => s + v.count, 0);
+  const total = heatmap.cells.reduce((s, c) => s + c.inboundCount, 0);
+  const max = heatmap.peakCell?.inboundCount ?? 0;
 
   if (total === 0) {
     return (
       <SectionWrapper icon={Flame} question="Algum padrão de horário preocupante?">
         <p className="py-8 text-center text-sm italic text-[var(--color-text-tertiary)]">
-          O mapa de calor aparece quando houver insights entre {sinceLabel} e{" "}
-          {untilLabel} ({windowDays} dias).
+          O mapa de calor aparece quando houver mensagens recebidas entre{" "}
+          {sinceLabel} e {untilLabel} ({windowDays} dias).
         </p>
       </SectionWrapper>
     );
   }
 
   const hours = buildHourRange();
-
-  // Gera o insight: hotspot só vira "preocupante" quando há volume suficiente
-  // pra dar significância estatística — caso contrário não há padrão a apontar.
-  const showInsight =
-    hotspot !== null &&
-    hotspot.count >= 3 &&
-    total >= SPARSE_DATA_THRESHOLD &&
-    hotspot.count / total >= 0.1;
+  const gapCount = heatmap.cells.filter((c) => c.isGap).length;
+  const worstGap = heatmap.worstGap;
 
   // Totais por linha (dia) e coluna (hora) — micro-summaries marginais
-  const rowTotals = new Map<DayOfWeek, number>();
+  const rowTotals = new Map<DayKey, number>();
   const colTotals = new Map<number, number>();
-  for (const dow of DAYS) {
+  for (const dow of DAY_ORDER) {
     let rowSum = 0;
     for (const hour of hours) {
-      const v = cells.get(`${dow}_${hour}`)?.count ?? 0;
+      const v = cellByKey.get(`${dow}_${hour}`)?.inboundCount ?? 0;
       rowSum += v;
       colTotals.set(hour, (colTotals.get(hour) ?? 0) + v);
     }
@@ -251,13 +237,13 @@ export async function AnaliseHeatmap({
 
   // Boundaries semanticos: 12h = almoço, 18h = fim do expediente
   const isHourBoundary = (h: number) => h === 12 || h === 18;
-  const isWeekend = (d: DayOfWeek) => d === "sat" || d === "sun";
+  const isWeekend = (d: DayKey) => d === "sat" || d === "sun";
 
   return (
     <SectionWrapper
       icon={Flame}
       question="Algum padrão de horário preocupante?"
-      subtitle={`Volume de insights por dia × hora · ${windowDays} dias (${rangeLabel}) · fuso ${timezone}`}
+      subtitle={`Leads que chegaram por dia × faixa de horário · borda vermelha = resposta mediana acima do SLA (${formatTfr(slaSeconds)}) · ${windowDays} dias (${rangeLabel}) · fuso ${timezone}`}
     >
       <div className="overflow-x-auto">
         <div
@@ -287,8 +273,8 @@ export async function AnaliseHeatmap({
             Total
           </div>
 
-          {/* Linhas: dia + 14 cells + total */}
-          {DAYS.map((dow) => {
+          {/* Linhas: dia + cells + total */}
+          {DAY_ORDER.map((dow) => {
             const rowSum = rowTotals.get(dow) ?? 0;
             const weekend = isWeekend(dow);
             const isToday = dow === todayDow;
@@ -313,43 +299,25 @@ export async function AnaliseHeatmap({
                   ) : null}
                 </div>
                 {hours.map((hour) => {
-                  const cell = cells.get(`${dow}_${hour}`);
-                  const value = cell?.count ?? 0;
-                  const isHotspotCell =
-                    hotspot && hotspot.dow === dow && hotspot.hour === hour && value > 0;
-                  const showHotspotRing =
-                    isHotspotCell && total >= SPARSE_DATA_THRESHOLD;
+                  const cell = cellByKey.get(`${dow}_${hour}`);
+                  const value = cell?.inboundCount ?? 0;
+                  const isGap = cell?.isGap ?? false;
                   const boundary = isHourBoundary(hour);
                   const level = getIntensityLevel(value, max, total);
-
-                  // Tooltip com datas concretas (formatadas no render). hour
-                  // aqui é o início do bucket (8, 10, 12, ...); bucketLabel
-                  // formata como "8-9h" no tooltip.
                   const hourLabel = bucketLabel(hour);
+
                   let titleText: string;
-                  let inlineText: string | null = null;
                   if (value === 0) {
-                    titleText = `${DAY_LABELS[dow]} ${hourLabel}: sem dados`;
-                  } else if (value === 1 && cell?.timestamps[0] !== undefined) {
-                    const dateLabel = formatDayMonth(new Date(cell.timestamps[0]));
-                    titleText = `${DAY_LABELS[dow]} ${hourLabel} · 1 insight em ${dateLabel}`;
-                    // "29 abr" dentro da célula — não quebra graças ao
-                    // whitespace-nowrap; em coluna apertada o overflow-hidden
-                    // trunca em vez de inflar a altura.
-                    inlineText = dateLabel;
-                  } else if (cell) {
-                    // Sort numérico por timestamp + dedupe por dia (yyyy-mm-dd)
-                    const uniqueByDay = new Map<string, number>();
-                    for (const ts of cell.timestamps) {
-                      const dayKey = new Date(ts).toISOString().split("T")[0];
-                      if (!uniqueByDay.has(dayKey)) uniqueByDay.set(dayKey, ts);
-                    }
-                    const sortedTs = Array.from(uniqueByDay.values()).sort((a, b) => a - b);
-                    const uniqueDates = sortedTs.map((ts) => formatDayMonth(new Date(ts)));
-                    titleText = `${DAY_LABELS[dow]} ${hourLabel} · ${value} insights · ${uniqueDates.join(", ")}`;
-                    inlineText = String(value);
+                    titleText = `${DAY_LABELS[dow]} ${hourLabel}: sem leads`;
                   } else {
-                    titleText = `${DAY_LABELS[dow]} ${hourLabel}`;
+                    const leadLabel = value === 1 ? "1 lead" : `${value} leads`;
+                    const tfrLabel =
+                      cell?.medianTfrSec != null
+                        ? `TFR mediano ${formatTfr(cell.medianTfrSec)}`
+                        : "sem resposta no período";
+                    titleText = `${DAY_LABELS[dow]} ${hourLabel} · ${leadLabel} · ${tfrLabel}${
+                      isGap ? ` · acima do SLA (${formatTfr(slaSeconds)})` : ""
+                    }`;
                   }
 
                   return (
@@ -361,10 +329,10 @@ export async function AnaliseHeatmap({
                         />
                       ) : null}
                       <div
-                        className={`flex h-7 items-center justify-center overflow-hidden whitespace-nowrap rounded-md font-mono text-[9px] font-semibold leading-none transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-[var(--color-text-secondary)]/30 ${INTENSITY_BG[level]} ${INTENSITY_TEXT[level]} ${showHotspotRing ? "ring-2 ring-[var(--color-danger)]" : ""}`}
+                        className={`flex h-7 items-center justify-center overflow-hidden whitespace-nowrap rounded-md font-mono text-[9px] font-semibold leading-none transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-[var(--color-text-secondary)]/30 ${INTENSITY_BG[level]} ${INTENSITY_TEXT[level]} ${isGap ? "ring-2 ring-inset ring-[var(--color-danger)]" : ""}`}
                         title={titleText}
                       >
-                        {inlineText}
+                        {value > 0 ? value : null}
                       </div>
                     </div>
                   );
@@ -385,7 +353,7 @@ export async function AnaliseHeatmap({
           {/* Footer — totais por hora */}
           <div
             className="pt-1 pr-2 text-right text-[9px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]"
-            title="Total da hora — soma vertical de todos os dias da semana"
+            title="Total da faixa — soma vertical de todos os dias da semana"
           >
             Total
           </div>
@@ -412,60 +380,49 @@ export async function AnaliseHeatmap({
 
       {/* Legenda */}
       <div className="mt-4 flex flex-wrap items-center gap-3 text-[10px] text-[var(--color-text-secondary)]">
-        <span>Volume menor</span>
+        <span>Menos leads</span>
         <div className="flex gap-1">
           <span className="block h-3.5 w-3.5 rounded bg-[var(--color-surface-2)]" />
           <span className="block h-3.5 w-3.5 rounded bg-[#A6E3DC]" />
           <span className="block h-3.5 w-3.5 rounded bg-[#5CC9BD]" />
-          <span className="block h-3.5 w-3.5 rounded bg-[#FFB370]" />
-          <span className="block h-3.5 w-3.5 rounded bg-[var(--color-warning)]" />
-          <span className="block h-3.5 w-3.5 rounded bg-[var(--color-danger)]" />
+          <span className="block h-3.5 w-3.5 rounded bg-[#2FA79A]" />
+          <span className="block h-3.5 w-3.5 rounded bg-[#0F4F49]" />
         </div>
-        <span>Volume maior</span>
+        <span>Mais leads</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="block h-3.5 w-3.5 rounded bg-[var(--color-surface-2)] ring-2 ring-inset ring-[var(--color-danger)]" />
+          resposta acima do SLA
+        </span>
         <span className="ml-auto text-[var(--color-text-tertiary)]">
-          {total} insights · pico em{" "}
-          {hotspot ? `${DAY_LABELS[hotspot.dow]} ${bucketLabel(hotspot.hour)} (${hotspot.count})` : "—"}
+          {total} leads · pico em{" "}
+          {heatmap.peakCell
+            ? `${DAY_LABELS[heatmap.peakCell.day]} ${bucketLabel(heatmap.peakCell.hour)} (${heatmap.peakCell.inboundCount})`
+            : "—"}
         </span>
       </div>
 
-      {/* Insight automático ou aviso de cobertura insuficiente */}
-      {showInsight && hotspot ? (
-        <div className="mt-4 flex items-start gap-3 rounded-lg border border-[var(--color-warning)]/30 bg-[var(--color-warning-bg)] p-3">
+      {/* Insight automático: pior gap de SLA, aviso de cobertura, ou tudo em dia */}
+      {worstGap && total >= SPARSE_DATA_THRESHOLD ? (
+        <div className="mt-4 flex items-start gap-3 rounded-lg border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/5 p-3">
           <TriangleAlert
-            className="h-5 w-5 flex-shrink-0 text-[var(--color-warning)]"
+            className="h-5 w-5 flex-shrink-0 text-[var(--color-danger)]"
             aria-hidden="true"
           />
           <p className="flex-1 text-sm text-[var(--color-text)]">
-            <strong className="font-semibold text-[var(--color-warning)]">
-              {DAY_LABELS[hotspot.dow]} {bucketLabel(hotspot.hour)}
+            <strong className="font-semibold text-[var(--color-danger)]">
+              {DAY_LABELS[worstGap.day]} {bucketLabel(worstGap.hour)}
             </strong>{" "}
-            concentra o maior volume da janela ({hotspot.count} de {total}
-            {hotspot.timestamps.length > 0 ? (
-              <>
-                {" "}· datas:{" "}
-                <span className="font-mono text-xs">
-                  {(() => {
-                    const uniqueByDay = new Map<string, number>();
-                    for (const ts of hotspot.timestamps) {
-                      const key = new Date(ts).toISOString().split("T")[0];
-                      if (!uniqueByDay.has(key)) uniqueByDay.set(key, ts);
-                    }
-                    const sortedTs = Array.from(uniqueByDay.values()).sort(
-                      (a, b) => a - b,
-                    );
-                    const labels = sortedTs.map((ts) =>
-                      formatDayMonth(new Date(ts)),
-                    );
-                    const shown = labels.slice(0, 4);
-                    return labels.length > 4
-                      ? `${shown.join(", ")}…`
-                      : shown.join(", ");
-                  })()}
-                </span>
-              </>
-            ) : null}
-            ). Considere reforçar equipe ou ativar auto-resposta de boas-vindas
-            nesse horário.
+            é onde mais escapa dinheiro:{" "}
+            {worstGap.inboundCount === 1
+              ? "1 lead chegou"
+              : `${worstGap.inboundCount} leads chegaram`}{" "}
+            e a resposta mediana foi{" "}
+            {worstGap.medianTfrSec != null
+              ? formatTfr(worstGap.medianTfrSec)
+              : "nenhuma"}{" "}
+            (SLA: {formatTfr(slaSeconds)})
+            {gapCount > 1 ? ` — e mais ${gapCount - 1} faixa${gapCount > 2 ? "s" : ""} no vermelho` : ""}
+            . Considere reforçar equipe ou ativar auto-resposta nesse horário.
           </p>
         </div>
       ) : total < SPARSE_DATA_THRESHOLD ? (
@@ -474,12 +431,20 @@ export async function AnaliseHeatmap({
             <strong className="text-[var(--color-text)]">
               Cobertura ainda insuficiente
             </strong>{" "}
-            — apenas {total} insight{total === 1 ? "" : "s"} em{" "}
-            {windowDays} dias. Padrões de horário ficam confiáveis a partir de{" "}
-            {SPARSE_DATA_THRESHOLD}+ insights na janela.
+            — apenas {total} lead{total === 1 ? "" : "s"} em {windowDays} dias.
+            Padrões de horário ficam confiáveis a partir de{" "}
+            {SPARSE_DATA_THRESHOLD}+ leads na janela.
           </p>
         </div>
-      ) : null}
+      ) : (
+        <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]/50 p-3">
+          <p className="text-xs text-[var(--color-text-secondary)]">
+            <strong className="text-[var(--color-text)]">SLA em dia</strong> —
+            nenhuma faixa de horário com resposta mediana acima de{" "}
+            {formatTfr(slaSeconds)} na janela.
+          </p>
+        </div>
+      )}
     </SectionWrapper>
   );
 }

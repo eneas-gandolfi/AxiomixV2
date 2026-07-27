@@ -84,12 +84,10 @@ async function dispatchJob(job: AsyncJobRow): Promise<unknown> {
           syncedMessages: progress.syncedMessages,
         });
       });
-      const { enqueueAutoAnalyses } = await import("@/services/whatsapp/auto-analyze");
-      const analyzeResult = await enqueueAutoAnalyses(job.company_id);
-      return {
-        ...syncResult,
-        autoAnalyze: analyzeResult,
-      };
+      // F3 (jul/2026): sync NÃO dispara mais análise de IA automática — o
+      // custo de LLM recorrente foi eliminado; análise é só sob demanda
+      // (botão Analisar / POST /api/whatsapp/bulk-analyze).
+      return syncResult;
     }
     case "competitor_scrape": {
       const { parseCompetitorJobPayload, runCompetitorWorker } = await import("@/services/intelligence/competitor");

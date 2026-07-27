@@ -680,6 +680,7 @@ export type Database = {
           generated_at: string | null
           id: string
           implicit_need: string | null
+          insight_source: string | null
           intent: string | null
           next_commitment: string | null
           objections: Json | null
@@ -701,6 +702,7 @@ export type Database = {
           generated_at?: string | null
           id?: string
           implicit_need?: string | null
+          insight_source?: string | null
           intent?: string | null
           next_commitment?: string | null
           objections?: Json | null
@@ -722,6 +724,7 @@ export type Database = {
           generated_at?: string | null
           id?: string
           implicit_need?: string | null
+          insight_source?: string | null
           intent?: string | null
           next_commitment?: string | null
           objections?: Json | null
@@ -815,6 +818,9 @@ export type Database = {
           inbox_id: string | null
           labels: string[] | null
           last_message_at: string | null
+          last_message_direction: string | null
+          last_message_preview: string | null
+          last_message_type: string | null
           last_synced_at: string | null
           pipeline_stage: string | null
           remote_jid: string
@@ -835,6 +841,9 @@ export type Database = {
           inbox_id?: string | null
           labels?: string[] | null
           last_message_at?: string | null
+          last_message_direction?: string | null
+          last_message_preview?: string | null
+          last_message_type?: string | null
           last_synced_at?: string | null
           pipeline_stage?: string | null
           remote_jid: string
@@ -855,6 +864,9 @@ export type Database = {
           inbox_id?: string | null
           labels?: string[] | null
           last_message_at?: string | null
+          last_message_direction?: string | null
+          last_message_preview?: string | null
+          last_message_type?: string | null
           last_synced_at?: string | null
           pipeline_stage?: string | null
           remote_jid?: string
@@ -1568,27 +1580,54 @@ export type Database = {
           avg_weekly_volume: number | null
           computed_at: string
           niche_slug: string
+          opportunity_p25: number | null
+          opportunity_p50: number | null
+          opportunity_p75: number | null
           opportunity_pct: number | null
           peer_count: number
+          sentiment_positive_p25: number | null
+          sentiment_positive_p50: number | null
+          sentiment_positive_p75: number | null
           sentiment_positive_pct: number | null
+          weekly_volume_p25: number | null
+          weekly_volume_p50: number | null
+          weekly_volume_p75: number | null
           window_days: number
         }
         Insert: {
           avg_weekly_volume?: number | null
           computed_at?: string
           niche_slug: string
+          opportunity_p25?: number | null
+          opportunity_p50?: number | null
+          opportunity_p75?: number | null
           opportunity_pct?: number | null
           peer_count?: number
+          sentiment_positive_p25?: number | null
+          sentiment_positive_p50?: number | null
+          sentiment_positive_p75?: number | null
           sentiment_positive_pct?: number | null
+          weekly_volume_p25?: number | null
+          weekly_volume_p50?: number | null
+          weekly_volume_p75?: number | null
           window_days?: number
         }
         Update: {
           avg_weekly_volume?: number | null
           computed_at?: string
           niche_slug?: string
+          opportunity_p25?: number | null
+          opportunity_p50?: number | null
+          opportunity_p75?: number | null
           opportunity_pct?: number | null
           peer_count?: number
+          sentiment_positive_p25?: number | null
+          sentiment_positive_p50?: number | null
+          sentiment_positive_p75?: number | null
           sentiment_positive_pct?: number | null
+          weekly_volume_p25?: number | null
+          weekly_volume_p50?: number | null
+          weekly_volume_p75?: number | null
           window_days?: number
         }
         Relationships: []

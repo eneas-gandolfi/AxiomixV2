@@ -6,14 +6,17 @@
  *            sem resposta dentro do SLA viram "gap" — onde dinheiro escapa
  *            por horario.
  *
- *            Tudo agregado em America/Sao_Paulo, mesmo padrao do business-hours.
+ *            Timezone configuravel via options (default America/Sao_Paulo,
+ *            mesmo padrao do business-hours). Suporta bucketing de horas
+ *            (ex.: 2h) e janela de horario (ex.: 8-22h) — o bucketing agrega
+ *            os TFRs ANTES da mediana (mediana de medianas seria errada).
  * Autor: AXIOMIX
  * Data: 2026-05-11
  */
 
 import { classifyMessageDirection, type MessageLight } from "@/lib/whatsapp/pulso-comercial";
 
-const TIMEZONE = "America/Sao_Paulo";
+const DEFAULT_TIMEZONE = "America/Sao_Paulo";
 
 export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
@@ -31,12 +34,24 @@ export const DAY_LABEL: Record<DayKey, string> = {
 
 export type HeatmapCell = {
   day: DayKey;
+  /** Hora de inicio do bucket (com bucketSizeHours=2 e hourStart=8: 8, 10, ...) */
   hour: number;
   inboundCount: number;
   /** TFR mediano em segundos para os inbounds que cairam nessa celula */
   medianTfrSec: number | null;
   /** True se houve >=1 inbound mas o TFR mediano excedeu o SLA */
   isGap: boolean;
+};
+
+export type ResponseHeatmapOptions = {
+  /** IANA timezone do tenant. Default: America/Sao_Paulo. */
+  timezone?: string;
+  /** Tamanho do bucket de horas (1 = celulas por hora). Default: 1. */
+  bucketSizeHours?: number;
+  /** Primeira hora incluida (inclusive). Default: 0. */
+  hourStart?: number;
+  /** Ultima hora (exclusive). Inbounds fora de [hourStart, hourEnd) sao descartados. Default: 24. */
+  hourEnd?: number;
 };
 
 export type ResponseHeatmap = {
@@ -55,10 +70,13 @@ const JS_DAY_TO_KEY: Record<number, DayKey> = {
   6: "sat",
 };
 
-function getDayHourInSP(date: Date): { day: DayKey; hour: number } | null {
+function getDayHourInTimezone(
+  date: Date,
+  timezone: string,
+): { day: DayKey; hour: number } | null {
   if (Number.isNaN(date.getTime())) return null;
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TIMEZONE,
+    timeZone: timezone,
     weekday: "short",
     hour: "2-digit",
     hour12: false,
@@ -92,7 +110,12 @@ function median(values: number[]): number | null {
 export function computeResponseHeatmap(
   messages: MessageLight[],
   slaSeconds: number,
+  options?: ResponseHeatmapOptions,
 ): ResponseHeatmap {
+  const timezone = options?.timezone ?? DEFAULT_TIMEZONE;
+  const bucketSize = Math.max(1, options?.bucketSizeHours ?? 1);
+  const hourStart = Math.max(0, options?.hourStart ?? 0);
+  const hourEnd = Math.min(24, options?.hourEnd ?? 24);
   type Pair = { firstInboundMs: number | null; firstOutboundMs: number | null };
   const pairs = new Map<string, Pair>();
   const sorted = messages
@@ -120,20 +143,31 @@ export function computeResponseHeatmap(
     }
   }
 
-  // Inicializa grid 7×24
+  // Inicializa grid 7 dias × buckets da janela [hourStart, hourEnd)
+  const bucketStarts: number[] = [];
+  for (let hour = hourStart; hour < hourEnd; hour += bucketSize) {
+    bucketStarts.push(hour);
+  }
+  const bucketStartOf = (hour: number): number =>
+    Math.floor((hour - hourStart) / bucketSize) * bucketSize + hourStart;
+
   const grid = new Map<string, { tfrs: number[]; inboundCount: number }>();
   for (const day of DAY_ORDER) {
-    for (let hour = 0; hour < 24; hour++) {
+    for (const hour of bucketStarts) {
       grid.set(`${day}_${hour}`, { tfrs: [], inboundCount: 0 });
     }
   }
 
+  // Os TFRs individuais entram no bucket e a mediana é calculada por bucket
+  // no final — agregação ANTES da mediana.
   for (const pair of pairs.values()) {
     if (pair.firstInboundMs === null) continue;
-    const cell = getDayHourInSP(new Date(pair.firstInboundMs));
+    const cell = getDayHourInTimezone(new Date(pair.firstInboundMs), timezone);
     if (!cell) continue;
-    const key = `${cell.day}_${cell.hour}`;
-    const slot = grid.get(key)!;
+    if (cell.hour < hourStart || cell.hour >= hourEnd) continue;
+    const key = `${cell.day}_${bucketStartOf(cell.hour)}`;
+    const slot = grid.get(key);
+    if (!slot) continue;
     slot.inboundCount += 1;
     if (pair.firstOutboundMs !== null) {
       const tfr = (pair.firstOutboundMs - pair.firstInboundMs) / 1000;
@@ -143,7 +177,7 @@ export function computeResponseHeatmap(
 
   const cells: HeatmapCell[] = [];
   for (const day of DAY_ORDER) {
-    for (let hour = 0; hour < 24; hour++) {
+    for (const hour of bucketStarts) {
       const slot = grid.get(`${day}_${hour}`)!;
       const medianTfr = median(slot.tfrs);
       cells.push({

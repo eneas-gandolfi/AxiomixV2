@@ -28,20 +28,20 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    return NextResponse.json({ error: "Não autenticado.", code: "UNAUTHENTICATED" }, { status: 401 });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+    return NextResponse.json({ error: "JSON inválido.", code: "VALIDATION_ERROR" }, { status: 400 });
   }
 
   const parsed = addLabelSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Dados inválidos.", details: parsed.error.format() },
+      { error: "Dados inválidos.", code: "VALIDATION_ERROR", details: parsed.error.format() },
       { status: 400 }
     );
   }
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (conversationError || !conversation) {
-      return NextResponse.json({ error: "Conversa não encontrada." }, { status: 404 });
+      return NextResponse.json({ error: "Conversa não encontrada.", code: "NOT_FOUND" }, { status: 404 });
     }
 
     // Adicionar label no Evo CRM
@@ -76,6 +76,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao adicionar label.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message, code: "EVO_LABEL_ERROR" }, { status: 500 });
   }
 }

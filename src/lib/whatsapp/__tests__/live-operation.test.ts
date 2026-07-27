@@ -4,6 +4,8 @@
  *   - Filtra corretamente "cliente esperando" (última msg é inbound)
  *   - Calcula severidade pelo threshold do nicho
  *   - Agrega operadores por urgência
+ *   A última mensagem vem denormalizada em conversations (last_message_*),
+ *   sem varredura da tabela messages.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -21,24 +23,34 @@ function makeQueryResult<T>(data: T): MockResult<T> {
   return { data, error: null };
 }
 
+type MockConversation = {
+  id: string;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_avatar_url: string | null;
+  assigned_to: string | null;
+  status: string | null;
+  last_message_at?: string | null;
+  last_message_preview?: string | null;
+  last_message_direction?: string | null;
+  last_message_type?: string | null;
+};
+
 function makeMockSupabase(handlers: {
   company?: { niche_slug: string | null } | null;
-  conversations?: Array<{
-    id: string;
-    contact_name: string | null;
-    contact_phone: string | null;
-    contact_avatar_url: string | null;
-    assigned_to: string | null;
-    status: string | null;
-  }>;
-  messages?: Array<{
-    conversation_id: string;
-    direction: string;
-    sent_at: string;
-    content: string | null;
-  }>;
+  conversations?: MockConversation[];
   users?: Array<{ id: string; full_name: string | null; email: string | null }>;
 }) {
+  const conversations = (handlers.conversations ?? []).map((c) => ({
+    last_message_at: null,
+    last_message_preview: null,
+    last_message_direction: null,
+    last_message_type: null,
+    pipeline_stage: null,
+    labels: null,
+    ...c,
+  }));
+
   const fromMock = vi.fn((table: string) => {
     if (table === "companies") {
       return {
@@ -55,24 +67,7 @@ function makeMockSupabase(handlers: {
       return {
         select: () => ({
           eq: () => ({
-            or: vi
-              .fn()
-              .mockResolvedValue(makeQueryResult(handlers.conversations ?? [])),
-          }),
-        }),
-      };
-    }
-    if (table === "messages") {
-      return {
-        select: () => ({
-          eq: () => ({
-            in: () => ({
-              order: () => ({
-                limit: vi
-                  .fn()
-                  .mockResolvedValue(makeQueryResult(handlers.messages ?? [])),
-              }),
-            }),
+            or: vi.fn().mockResolvedValue(makeQueryResult(conversations)),
           }),
         }),
       };
@@ -112,14 +107,8 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: null,
           status: "open",
-        },
-      ],
-      messages: [
-        {
-          conversation_id: "conv-1",
-          direction: "inbound", // ← formato do webhook real
-          sent_at: "2026-05-06T14:30:00Z",
-          content: null,
+          last_message_direction: "inbound", // ← formato do webhook real
+          last_message_at: "2026-05-06T14:30:00Z",
         },
       ],
     });
@@ -175,15 +164,10 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: "user-1",
           status: "open",
-        },
-      ],
-      messages: [
-        // Última msg foi NOSSA — cliente NÃO está esperando
-        {
-          conversation_id: "conv-1",
-          direction: "out",
-          sent_at: "2026-05-06T14:55:00Z",
-          content: "Já respondi",
+          // Última msg foi NOSSA — cliente NÃO está esperando
+          last_message_direction: "out",
+          last_message_at: "2026-05-06T14:55:00Z",
+          last_message_preview: "Já respondi",
         },
       ],
       users: [{ id: "user-1", full_name: "João Vendedor", email: "j@ex.com" }],
@@ -210,14 +194,9 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: "user-1",
           status: "open",
-        },
-      ],
-      messages: [
-        {
-          conversation_id: "conv-1",
-          direction: "in",
-          sent_at: "2026-05-06T14:51:30Z", // 8m30s atrás
-          content: "Tem essa blusa no M?",
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:51:30Z", // 8m30s atrás
+          last_message_preview: "Tem essa blusa no M?",
         },
       ],
       users: [{ id: "user-1", full_name: "João", email: null }],
@@ -228,6 +207,7 @@ describe("getLiveOperationData", () => {
     expect(result.mostForgotten).not.toBeNull();
     expect(result.mostForgotten!.customerName).toBe("Maria Silva");
     expect(result.mostForgotten!.assigneeName).toBe("João");
+    expect(result.mostForgotten!.lastMessage).toBe("Tem essa blusa no M?");
     expect(result.mostForgotten!.waitSeconds).toBe(510); // 8:30
     expect(result.mostForgotten!.severity).toBe("ok"); // <600s
   });
@@ -243,6 +223,8 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: null,
           status: "open",
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:48:00Z", // 12min atrás → âmbar
         },
         {
           id: "conv-red",
@@ -251,20 +233,8 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: null,
           status: "open",
-        },
-      ],
-      messages: [
-        {
-          conversation_id: "conv-amber",
-          direction: "in",
-          sent_at: "2026-05-06T14:48:00Z", // 12min atrás → âmbar
-          content: null,
-        },
-        {
-          conversation_id: "conv-red",
-          direction: "in",
-          sent_at: "2026-05-06T14:35:00Z", // 25min atrás → vermelho
-          content: null,
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:35:00Z", // 25min atrás → vermelho
         },
       ],
     });
@@ -292,14 +262,8 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: null,
           status: "open",
-        },
-      ],
-      messages: [
-        {
-          conversation_id: "conv-1",
-          direction: "in",
-          sent_at: "2026-05-06T14:48:00Z", // 12min atrás
-          content: null,
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:48:00Z", // 12min atrás
         },
       ],
     });
@@ -311,17 +275,27 @@ describe("getLiveOperationData", () => {
     expect(result.thresholds.amberSeconds).toBe(1800);
   });
 
-  it("ignora conversas resolvidas/fechadas", async () => {
-    // O .or() do Supabase no caminho do código filtra status. Como o mock
-    // não simula essa lógica, neste teste presumimos que o caller já filtrou
-    // (que é como funciona em produção). O teste cobre o caminho normal.
+  it("ignora conversas sem última mensagem conhecida", async () => {
     const supabase = makeMockSupabase({
       company: { niche_slug: "varejo" },
-      conversations: [], // mock retorna vazio (filtro foi aplicado upstream)
+      conversations: [
+        {
+          id: "conv-1",
+          contact_name: "Sem Mensagem",
+          contact_phone: null,
+          contact_avatar_url: null,
+          assigned_to: null,
+          status: "open",
+          // sem last_message_* — conversa recém-criada / pré-backfill
+        },
+      ],
     });
 
     const result = await getLiveOperationData(supabase, "company-1");
     expect(result.totalWaiting).toBe(0);
+    // mas ainda conta como conversa ativa no workload
+    expect(result.operators).toHaveLength(1);
+    expect(result.operators[0].activeCount).toBe(1);
   });
 
   it("agrega operadores e ordena por urgência (vermelho > âmbar > ok)", async () => {
@@ -335,6 +309,8 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: "op-tranquilo",
           status: "open",
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:58:00Z", // 2min — ok
         },
         {
           id: "c2",
@@ -343,20 +319,8 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: "op-urgente",
           status: "open",
-        },
-      ],
-      messages: [
-        {
-          conversation_id: "c1",
-          direction: "in",
-          sent_at: "2026-05-06T14:58:00Z", // 2min — ok
-          content: null,
-        },
-        {
-          conversation_id: "c2",
-          direction: "in",
-          sent_at: "2026-05-06T14:35:00Z", // 25min — vermelho
-          content: null,
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:35:00Z", // 25min — vermelho
         },
       ],
       users: [
@@ -387,14 +351,8 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: null,
           status: "open",
-        },
-      ],
-      messages: [
-        {
-          conversation_id: "c1",
-          direction: "in",
-          sent_at: "2026-05-06T14:30:00Z",
-          content: null,
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:30:00Z",
         },
       ],
     });
@@ -417,6 +375,8 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: null,
           status: "open",
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:35:00Z", // 25min
         },
         {
           id: "c2",
@@ -425,6 +385,8 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: null,
           status: "open",
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:45:00Z", // 15min
         },
         {
           id: "c3",
@@ -433,27 +395,9 @@ describe("getLiveOperationData", () => {
           contact_avatar_url: null,
           assigned_to: null,
           status: "open",
+          last_message_direction: "in",
+          last_message_at: "2026-05-06T14:50:00Z", // 10min
         },
-      ],
-      messages: [
-        {
-          conversation_id: "c1",
-          direction: "in",
-          sent_at: "2026-05-06T14:35:00Z",
-          content: null,
-        }, // 25min
-        {
-          conversation_id: "c2",
-          direction: "in",
-          sent_at: "2026-05-06T14:45:00Z",
-          content: null,
-        }, // 15min
-        {
-          conversation_id: "c3",
-          direction: "in",
-          sent_at: "2026-05-06T14:50:00Z",
-          content: null,
-        }, // 10min
       ],
     });
 

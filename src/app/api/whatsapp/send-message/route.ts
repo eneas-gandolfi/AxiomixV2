@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
+import { buildMessagePreview } from "@/lib/whatsapp/message-preview";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
 
 export const dynamic = "force-dynamic";
@@ -57,18 +58,28 @@ export async function POST(request: NextRequest) {
       // message_created chegar primeiro, o índice unique parcial
       // (company_id, external_id) where external_id is not null vai
       // rejeitar este insert com código 23505 — ignoramos silenciosamente.
+      const sentAt = new Date().toISOString();
       const { error: insertErr } = await supabase.from("messages").insert({
         company_id: access.companyId,
         conversation_id: conversation.id,
         external_id: evoMessageId ?? null,
         content: parsed.data.content,
         direction: "outbound",
-        sent_at: new Date().toISOString(),
+        sent_at: sentAt,
         message_type: "outgoing",
       });
       if (insertErr && insertErr.code !== "23505") {
         console.error(`[send-message] insert local falhou: ${insertErr.message}`);
       }
+      await supabase
+        .from("conversations")
+        .update({
+          last_message_at: sentAt,
+          last_message_preview: buildMessagePreview({ content: parsed.data.content }),
+          last_message_direction: "outbound",
+          last_message_type: "outgoing",
+        })
+        .eq("id", conversation.id);
       revalidatePath(`/whatsapp-intelligence/conversas/${conversation.id}`);
     }
     revalidatePath("/whatsapp-intelligence/conversas");

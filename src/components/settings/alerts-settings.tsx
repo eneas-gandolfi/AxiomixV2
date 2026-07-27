@@ -17,6 +17,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  Timer,
+  TrendingDown,
 } from "lucide-react";
 import {
   formatAlertErrorDetail,
@@ -61,6 +63,24 @@ const ALERT_CONFIG = [
     color: "text-danger",
     bgColor: "bg-danger/10",
   },
+  {
+    type: "tfr_anomaly",
+    title: "Anomalia no Tempo de Resposta",
+    description:
+      "Quando o tempo médio de primeira resposta da semana sobe 40%+ vs o seu baseline (scan diário).",
+    icon: Timer,
+    color: "text-warning",
+    bgColor: "bg-warning/10",
+  },
+  {
+    type: "sentiment_drop",
+    title: "Piora de Sentimento",
+    description:
+      "Quando a taxa de conversas negativas da semana sobe 40%+ vs o seu baseline (scan diário).",
+    icon: TrendingDown,
+    color: "text-danger",
+    bgColor: "bg-danger/10",
+  },
 ] as const;
 
 const COOLDOWN_OPTIONS = [
@@ -73,6 +93,8 @@ const COOLDOWN_OPTIONS = [
 const ALERT_TYPE_LABELS: Record<string, string> = {
   purchase_intent: "Intenção de Compra",
   negative_sentiment: "Sentimento Negativo",
+  tfr_anomaly: "Anomalia no Tempo de Resposta",
+  sentiment_drop: "Piora de Sentimento",
 };
 
 function escapeCsvField(value: string | null | undefined): string {

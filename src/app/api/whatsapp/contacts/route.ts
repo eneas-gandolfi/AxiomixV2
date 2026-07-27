@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 const contactsSchema = z.object({
   companyId: z.string().uuid("companyId inválido."),
-  action: z.enum(["list", "create"]).optional(),
+  action: z.enum(["list", "create", "findByPhone"]).optional(),
   name: z.string().optional(),
   phone: z.string().optional(),
   search: z.string().optional(),
@@ -46,6 +46,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "name e phone são obrigatórios.", code: "VALIDATION_ERROR" }, { status: 400 });
       }
       const contact = await evoClient.createContact({ name, phone });
+      return NextResponse.json({ contact });
+    }
+
+    if (parsed.data.action === "findByPhone") {
+      const { phone } = parsed.data;
+      if (!phone) {
+        return NextResponse.json(
+          { error: "phone é obrigatório.", code: "VALIDATION_ERROR" },
+          { status: 400 }
+        );
+      }
+      // Mapeia remote_jid da conversa → contato do Evo (habilita tags no
+      // painel de contato do drawer). null = contato não cadastrado no Evo.
+      const contact = await evoClient.findContactByPhone(phone);
       return NextResponse.json({ contact });
     }
 

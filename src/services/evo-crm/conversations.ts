@@ -7,6 +7,7 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { computeMessageFingerprint } from "@/lib/whatsapp/message-fingerprint";
+import { buildMessagePreview } from "@/lib/whatsapp/message-preview";
 import { stripMessageHtml } from "@/lib/whatsapp/strip-message-html";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
 import { getExcludedConversationExternalIds } from "@/services/whatsapp/conversation-exclusions";
@@ -508,10 +509,28 @@ export async function syncMessages(
     media_url: string | null;
   }> = [];
 
+  let newestRemote: {
+    sentAtIso: string;
+    content: string;
+    direction: "inbound" | "outbound";
+    messageType: string | null;
+    mediaUrl: string | null;
+  } | null = null;
+
   for (const remoteMessage of remoteMessages) {
     const direction: "inbound" | "outbound" = remoteMessage.from_me ? "outbound" : "inbound";
     const sentAtIso = normalizeSentAt(remoteMessage.created_at);
     const contentStripped = stripMessageHtml(remoteMessage.content ?? "");
+
+    if (!newestRemote || sentAtIso > newestRemote.sentAtIso) {
+      newestRemote = {
+        sentAtIso,
+        content: contentStripped,
+        direction,
+        messageType: remoteMessage.message_type ?? null,
+        mediaUrl: remoteMessage.media_url ?? null,
+      };
+    }
 
     // external_id persistente — usa o ID real do Evo CRM quando disponível,
     // senão computa fingerprint determinístico igual ao do webhook. Garante
@@ -565,6 +584,24 @@ export async function syncMessages(
         throw new Error("Falha ao salvar mensagens sincronizadas.");
       }
     }
+  }
+
+  // Reconciliação do preview denormalizado: o webhook é a fonte primária, mas
+  // se o sync trouxe mensagens que o webhook perdeu, o preview reflete a mais
+  // recente conhecida no Evo CRM.
+  if (newestRemote) {
+    await supabase
+      .from("conversations")
+      .update({
+        last_message_preview: buildMessagePreview({
+          content: newestRemote.content,
+          messageType: newestRemote.messageType,
+          mediaUrl: newestRemote.mediaUrl,
+        }),
+        last_message_direction: newestRemote.direction,
+        last_message_type: newestRemote.messageType,
+      })
+      .eq("id", conversationId);
   }
 
   return {

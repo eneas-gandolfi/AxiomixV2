@@ -35,6 +35,8 @@ type ConversationData = {
   remote_jid: string;
   status: string | null;
   last_message_at: string | null;
+  last_message_preview?: string | null;
+  last_message_direction?: string | null;
   assigned_to: string | null;
   sentiment: Sentiment | null;
   intent: string | null;
@@ -47,6 +49,7 @@ type ConversationsTableProps = {
   onToggleSelection: (id: string) => void;
   onSelectAll: () => void;
   onResolve?: (conversationId: string) => void;
+  onAddNote?: (conversationId: string) => void;
   agents?: Array<{ id: string; name: string | null }>;
 };
 
@@ -238,6 +241,7 @@ type RowProps = {
   vendorName: string | null;
   onToggle: () => void;
   onResolve?: () => void;
+  onAddNote?: () => void;
   onOpen: () => void;
 };
 
@@ -248,6 +252,7 @@ function ConversationRow({
   vendorName,
   onToggle,
   onResolve,
+  onAddNote,
   onOpen,
 }: RowProps) {
   const awaitingCritical = isAwaitingCritical(c);
@@ -273,12 +278,16 @@ function ConversationRow({
     rowBg = "color-mix(in srgb, var(--color-danger) 4%, transparent)";
   }
 
-  // peek (linha 2) — TODO: substituir por texto real da última mensagem
-  // quando a coluna estiver disponível em conversations. Por enquanto mostra
-  // telefone formatado quando há nome, ou data absoluta no fallback.
-  const peekText = c.contact_name?.trim()
-    ? phoneSecondary
-    : formatDate(c.last_message_at);
+  // peek (linha 2) — última mensagem real (coluna denormalizada); prefixo
+  // "Você:" quando outbound. Fallback derivado para conversas sem preview
+  // (anteriores ao backfill ou sem mensagem).
+  const peekText = c.last_message_preview
+    ? c.last_message_direction === "outbound"
+      ? `Você: ${c.last_message_preview}`
+      : c.last_message_preview
+    : c.contact_name?.trim()
+      ? phoneSecondary
+      : formatDate(c.last_message_at);
 
   return (
     <li
@@ -395,7 +404,7 @@ function ConversationRow({
       </div>
 
       {/* quick actions on hover (não aparece em selectionMode) */}
-      {!selectionMode && onResolve && (
+      {!selectionMode && (onResolve || onAddNote) && (
         <div
           className="ml-1 opacity-0 transition-opacity group-hover:opacity-100"
           onClick={(e) => e.stopPropagation()}
@@ -404,6 +413,7 @@ function ConversationRow({
             conversationId={c.id}
             conversationUrl={`/whatsapp-intelligence/conversas/${c.id}`}
             onResolve={onResolve}
+            onAddNote={onAddNote}
           />
         </div>
       )}
@@ -421,6 +431,7 @@ export function ConversationsTable({
   selectedIds,
   onToggleSelection,
   onResolve,
+  onAddNote,
   agents = [],
 }: ConversationsTableProps) {
   const router = useRouter();
@@ -451,6 +462,7 @@ export function ConversationsTable({
                 ? () => onResolve(c.id)
                 : undefined
             }
+            onAddNote={onAddNote ? () => onAddNote(c.id) : undefined}
             onOpen={() =>
               router.push(`/whatsapp-intelligence/conversas?c=${c.id}`, {
                 scroll: false,

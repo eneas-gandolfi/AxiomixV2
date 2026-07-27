@@ -61,6 +61,32 @@ function computeBars(your: number, peer: number) {
   };
 }
 
+type PercentileTier = {
+  label: string;
+  tone: "top" | "above" | "below" | "bottom";
+};
+
+/** Classifica o tenant vs os percentis do nicho (métrica: sentimento positivo). */
+function classifyPercentileTier(
+  own: number,
+  p25: number | null,
+  p50: number | null,
+  p75: number | null,
+): PercentileTier | null {
+  if (p25 === null || p50 === null || p75 === null) return null;
+  if (own >= Number(p75)) return { label: "Top 25% do nicho", tone: "top" };
+  if (own >= Number(p50)) return { label: "Acima da mediana do nicho", tone: "above" };
+  if (own >= Number(p25)) return { label: "Abaixo da mediana do nicho", tone: "below" };
+  return { label: "Entre os 25% mais baixos", tone: "bottom" };
+}
+
+const TIER_BADGE_CLASS: Record<PercentileTier["tone"], string> = {
+  top: "text-success bg-success-light",
+  above: "text-success bg-success-light",
+  below: "text-warning bg-warning-light",
+  bottom: "text-danger bg-danger-light",
+};
+
 export async function NicheBenchmarkCard({ companyId }: { companyId: string }) {
   noStore();
 
@@ -173,14 +199,31 @@ export async function NicheBenchmarkCard({ companyId }: { companyId: string }) {
 
   const niche = getNicheBySlug(nicheSlug);
 
+  // Badge de percentil (base: sentimento positivo — a métrica de saúde do
+  // atendimento). Só aparece quando o cron já computou os percentis.
+  const tier = classifyPercentileTier(
+    ownSentimentPct,
+    aggregates.sentiment_positive_p25,
+    aggregates.sentiment_positive_p50,
+    aggregates.sentiment_positive_p75,
+  );
+
   return (
     <section className="dashboard-panel rounded-[24px] p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="section-label">Você vs nicho</p>
-          <h2 className="mt-1 text-lg font-semibold text-text">
-            {niche.label}
-          </h2>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-text">{niche.label}</h2>
+            {tier ? (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${TIER_BADGE_CLASS[tier.tone]}`}
+                title="Sua posição entre os tenants do nicho, pela taxa de sentimento positivo"
+              >
+                {tier.label}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="flex items-center gap-1.5 rounded-full bg-card/50 border border-border/70 px-3 py-1 text-xs text-muted">
           <Users2 className="h-3.5 w-3.5" aria-hidden="true" />

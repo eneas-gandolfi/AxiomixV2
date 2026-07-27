@@ -82,4 +82,68 @@ describe("computeResponseHeatmap", () => {
     expect(result.peakCell?.inboundCount).toBe(2);
     expect(SEG_11H_SP_OUTBOUND_1H).toBeTruthy();
   });
+
+  describe("options: bucketing, janela de horario e timezone", () => {
+    it("agrupa 10h e 11h no mesmo bucket 2h (10-11h) com hourStart=8", () => {
+      const messages: MessageLight[] = [
+        { conversationId: "c1", direction: "inbound", sentAt: SEG_10H_SP_INBOUND },
+        { conversationId: "c2", direction: "inbound", sentAt: SEG_11H_SP_INBOUND },
+      ];
+      const result = computeResponseHeatmap(messages, 1800, {
+        bucketSizeHours: 2,
+        hourStart: 8,
+        hourEnd: 22,
+      });
+      const cell = result.cells.find((c) => c.day === "mon" && c.hour === 10)!;
+      expect(cell.inboundCount).toBe(2);
+      // grid só tem buckets pares a partir de 8 (8, 10, ..., 20)
+      const hours = Array.from(new Set(result.cells.map((c) => c.hour)));
+      expect(hours).toEqual([8, 10, 12, 14, 16, 18, 20]);
+    });
+
+    it("mediana agregada por bucket (nunca mediana de medianas)", () => {
+      // 3 conversas no mesmo bucket 10-11h: TFRs 60s (10h), 300s (10h), 3600s (11h)
+      const messages: MessageLight[] = [
+        { conversationId: "a", direction: "inbound", sentAt: "2026-05-11T13:00:00.000Z" },
+        { conversationId: "a", direction: "outbound", sentAt: "2026-05-11T13:01:00.000Z" },
+        { conversationId: "b", direction: "inbound", sentAt: "2026-05-11T13:10:00.000Z" },
+        { conversationId: "b", direction: "outbound", sentAt: "2026-05-11T13:15:00.000Z" },
+        { conversationId: "c", direction: "inbound", sentAt: "2026-05-11T14:00:00.000Z" },
+        { conversationId: "c", direction: "outbound", sentAt: "2026-05-11T15:00:00.000Z" },
+      ];
+      const result = computeResponseHeatmap(messages, 1800, {
+        bucketSizeHours: 2,
+        hourStart: 8,
+        hourEnd: 22,
+      });
+      const cell = result.cells.find((c) => c.day === "mon" && c.hour === 10)!;
+      // mediana de [60, 300, 3600] = 300. (Mediana de medianas por hora seria
+      // mediana de [180, 3600] = 1890 — errado.)
+      expect(cell.medianTfrSec).toBe(300);
+      expect(cell.isGap).toBe(false);
+    });
+
+    it("descarta inbounds fora da janela [hourStart, hourEnd)", () => {
+      // 02:00 SP (05:00 UTC) — fora da janela 8-22h
+      const messages: MessageLight[] = [
+        { conversationId: "c1", direction: "inbound", sentAt: "2026-05-11T05:00:00.000Z" },
+      ];
+      const result = computeResponseHeatmap(messages, 1800, {
+        hourStart: 8,
+        hourEnd: 22,
+      });
+      expect(result.cells.every((c) => c.inboundCount === 0)).toBe(true);
+      expect(result.peakCell).toBeNull();
+    });
+
+    it("respeita timezone customizado", () => {
+      // 13:00 UTC = 10:00 SP, mas 13:00 em UTC puro
+      const messages: MessageLight[] = [
+        { conversationId: "c1", direction: "inbound", sentAt: SEG_10H_SP_INBOUND },
+      ];
+      const result = computeResponseHeatmap(messages, 1800, { timezone: "UTC" });
+      const cell = result.cells.find((c) => c.day === "mon" && c.hour === 13)!;
+      expect(cell.inboundCount).toBe(1);
+    });
+  });
 });

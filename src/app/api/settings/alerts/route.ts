@@ -13,7 +13,7 @@ import { normalizeOptionalWhatsAppPhone } from "@/lib/whatsapp/phone";
 
 export const dynamic = "force-dynamic";
 
-const ALERT_TYPES = ["purchase_intent", "negative_sentiment", "failed_post", "viral_content"] as const;
+const ALERT_TYPES = ["purchase_intent", "negative_sentiment", "failed_post", "viral_content", "tfr_anomaly", "sentiment_drop"] as const;
 
 export async function GET(request: NextRequest) {
   try {

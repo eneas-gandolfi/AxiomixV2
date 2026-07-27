@@ -21,6 +21,12 @@ export type EvoCrmConfig = {
   syncInboxIds?: string[];
   /** Secret usado para validar webhooks entrantes (HMAC-SHA256 sobre o body). */
   webhookSecret?: string;
+  /**
+   * Modo da IA analítica (F3): "local" = analyzer via OpenRouter sob demanda
+   * (default); "evo_delegated" = tenta delegar o que a stack Evo suportar
+   * (ex.: sugestão de resposta) com fallback local.
+   */
+  aiMode?: "local" | "evo_delegated";
 };
 
 export type EvolutionVendorStatus = "pending" | "connected" | "error";

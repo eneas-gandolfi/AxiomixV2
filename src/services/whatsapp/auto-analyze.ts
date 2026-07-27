@@ -4,10 +4,11 @@
  * Autor: AXIOMIX
  * Data: 2026-03-12
  *
- * @deprecated (F3 — 2026-04-29)
- * Candidato a remoção quando Evo CRM agents estiverem configurados com
- * análise automática nativa. Mantido por enquanto como funcionalidade ativa.
- * Avaliar remoção após 2 semanas de operação com agentes Evo CRM.
+ * F3 (jul/2026): esta função NÃO é mais chamada automaticamente (heartbeat e
+ * pós-sync removidos). Hoje ela atende SOMENTE o fluxo explícito do usuário
+ * (POST /api/whatsapp/bulk-analyze — botão "Analisar pendentes"). O nome
+ * "auto" é herança; se sobreviver à janela de validação, renomear para
+ * enqueuePendingAnalyses.
  */
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";

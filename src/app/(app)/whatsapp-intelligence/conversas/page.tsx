@@ -83,7 +83,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
     supabase
       .from("conversations")
       .select(
-        "id, external_id, contact_name, contact_avatar_url, remote_jid, status, inbox_id, last_message_at, assigned_to"
+        "id, external_id, contact_name, contact_avatar_url, remote_jid, status, inbox_id, last_message_at, last_message_preview, last_message_direction, assigned_to"
       )
       .eq("company_id", companyId)
       .order("last_message_at", { ascending: false, nullsFirst: false })

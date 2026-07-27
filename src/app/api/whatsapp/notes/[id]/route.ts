@@ -24,7 +24,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    return NextResponse.json({ error: "Não autenticado.", code: "UNAUTHENTICATED" }, { status: 401 });
   }
 
   try {
@@ -42,6 +42,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ message: "Nota deletada com sucesso." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao deletar nota.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message, code: "NOTES_ERROR" }, { status: 500 });
   }
 }

@@ -136,6 +136,20 @@ PERFORMANCE
 
 ## 5. Roadmap de Implementação (6 Fases)
 
+### Status de Execução (jul/2026)
+
+| Fase | Status | Notas |
+|------|--------|-------|
+| F0 — Factory Pattern | ✅ Concluída | `factory.ts` com cache TTL 5min por company |
+| F1 — Webhooks + Realtime | ✅ Concluída | Webhook em `api/webhooks/evo-crm`; crons de sync rebaixados a safety-net em jul/2026 |
+| F2 — Chat Bidirecional | ✅ Concluída | Divergência de caminho: implementado em `api/whatsapp/send-message` (não `messages/send`); `messaging.ts` não existe |
+| F3 — Delegação IA | ⚠️ Revisada | Critério original ("zero LLM externo") inviável: o Evo CRM não expõe endpoint verificado de insights analíticos estruturados, e `conversation_insights` alimenta a Intelligence Layer cross-tenant (moat). Novo critério: zero análise automática/recorrente de LLM (crons desligados jul/2026); análise local só sob demanda com `insight_source` rastreável; resposta automática ao cliente = agentes Evo |
+| F4 — Agentes IA (UI) | ✅ Concluída | CRUD + detalhe com switch/status/timeline |
+| F5 — Knowledge Base | ✅ Concluída | CRUD + documentos + query |
+| F6 — Kanban Real | ✅ Concluída (jul/2026) | Move já existia em `api/whatsapp/kanban/cards` (action `move`) — **não** em `pipeline/move` como previsto abaixo; rollback com toast + entry na nav sob `NEXT_PUBLIC_FEATURE_PIPELINE` |
+
+> As seções de fases abaixo refletem o plano original de abr/2026; onde houver conflito com esta tabela, a tabela vale.
+
 ### Diagrama de Dependências
 
 ```

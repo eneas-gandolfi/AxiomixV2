@@ -385,6 +385,7 @@ export async function runBatchAnalysis(companyId: string): Promise<BatchAnalysis
           key_topics: item.key_topics,
         },
         generated_at: generatedAt,
+        insight_source: "batch",
       },
       { onConflict: "conversation_id" }
     );

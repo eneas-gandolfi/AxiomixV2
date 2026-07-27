@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       .order("sent_at", { ascending: false })
       .limit(limit);
 
-    const validAlertTypes = ["purchase_intent", "negative_sentiment", "failed_post", "viral_content"] as const;
+    const validAlertTypes = ["purchase_intent", "negative_sentiment", "failed_post", "viral_content", "tfr_anomaly", "sentiment_drop"] as const;
     if (alertType && validAlertTypes.includes(alertType as typeof validAlertTypes[number])) {
       query = query.eq("alert_type", alertType as typeof validAlertTypes[number]);
     }

@@ -27,6 +27,7 @@ import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logAgentActivity } from "@/lib/whatsapp/agent-activity";
 import { computeMessageFingerprint } from "@/lib/whatsapp/message-fingerprint";
+import { buildMessagePreview } from "@/lib/whatsapp/message-preview";
 import { stripMessageHtml } from "@/lib/whatsapp/strip-message-html";
 import { handleCrmLabelAlert } from "@/services/bridge/crm-to-group-alerts";
 
@@ -403,7 +404,17 @@ async function handleMessageEvent(
 
   await supabase
     .from("conversations")
-    .update({ last_message_at: sentAt, last_synced_at: new Date().toISOString() })
+    .update({
+      last_message_at: sentAt,
+      last_message_preview: buildMessagePreview({
+        content,
+        messageType: typeof data.message_type === "string" ? data.message_type : null,
+        mediaUrl: typeof data.media_url === "string" ? data.media_url : null,
+      }),
+      last_message_direction: direction,
+      last_message_type: typeof data.message_type === "string" ? data.message_type : null,
+      last_synced_at: new Date().toISOString(),
+    })
     .eq("id", conversation.id);
 
   // Auditoria: se a mensagem foi emitida por agente IA, registra na timeline do agente.

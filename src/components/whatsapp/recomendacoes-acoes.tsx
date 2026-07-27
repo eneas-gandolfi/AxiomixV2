@@ -21,6 +21,7 @@ import {
   aggregateObjections,
   parseObjectionsField,
 } from "@/lib/whatsapp/objecoes";
+import { detectAnomalias } from "@/lib/whatsapp/anomalias";
 import { computeResponseHeatmap } from "@/lib/whatsapp/heatmap-resposta";
 import {
   generateRecomendacoes,
@@ -74,7 +75,7 @@ export async function RecomendacoesAcoesCard({
       .limit(MESSAGE_SCAN_LIMIT),
     supabase
       .from("conversation_insights")
-      .select("conversation_id, objections")
+      .select("conversation_id, objections, sentiment, generated_at")
       .eq("company_id", companyId)
       .gte("generated_at", insightsSince),
   ]);
@@ -131,6 +132,16 @@ export async function RecomendacoesAcoesCard({
 
   const tfrSemana = computeTfrStats(messages, sevenDaysAgo, now);
 
+  // Anomalias vs baseline próprio (7d vs 21d) — dados já buscados acima.
+  const anomalias = detectAnomalias({
+    messages,
+    insights: (insightRows ?? []).map((r) => ({
+      sentiment: r.sentiment,
+      generatedAt: r.generated_at,
+    })),
+    now,
+  });
+
   const recomendacoes = generateRecomendacoes({
     coldLeads,
     vendorNameById,
@@ -139,6 +150,7 @@ export async function RecomendacoesAcoesCard({
     totalInsights,
     tfrAvgSec: tfrSemana.avgSeconds,
     slaSec: DEFAULT_SLA_SECONDS,
+    anomalias,
   });
 
   if (recomendacoes.length === 0) {

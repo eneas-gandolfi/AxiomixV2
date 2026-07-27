@@ -35,6 +35,7 @@ const evoCrmSchema: z.ZodType<EvoCrmConfig> = z.object({
   inboxId: z.string().trim().min(1).optional(),
   syncInboxIds: z.array(z.string().trim().min(1)).optional(),
   webhookSecret: z.string().trim().min(1).optional(),
+  aiMode: z.enum(["local", "evo_delegated"]).optional(),
 });
 
 const evolutionVendorSchema: z.ZodType<EvolutionVendor> = z.object({
@@ -214,6 +215,9 @@ export function encodeIntegrationConfig<T extends IntegrationType>(
       if (data.webhookSecret) {
         encoded.webhook_secret_encrypted = encryptSecret(data.webhookSecret);
       }
+      if (data.aiMode) {
+        encoded.ai_mode = data.aiMode;
+      }
       return encoded;
     }
     case "evolution_api": {
@@ -298,6 +302,10 @@ export function decodeIntegrationConfig<T extends IntegrationType>(
         inboxId: inboxId || undefined,
         syncInboxIds,
         webhookSecret,
+        aiMode:
+          config.ai_mode === "evo_delegated" || config.ai_mode === "local"
+            ? config.ai_mode
+            : undefined,
       } as IntegrationConfigByType[T];
     }
     case "evolution_api": {

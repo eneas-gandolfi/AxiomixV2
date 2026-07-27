@@ -16,7 +16,13 @@ import {
   sendEvolutionTextMessage,
 } from "@/services/integrations/evolution";
 
-type AlertType = "purchase_intent" | "negative_sentiment" | "failed_post" | "viral_content";
+type AlertType =
+  | "purchase_intent"
+  | "negative_sentiment"
+  | "failed_post"
+  | "viral_content"
+  | "tfr_anomaly"
+  | "sentiment_drop";
 
 type AlertPayload = {
   companyId: string;

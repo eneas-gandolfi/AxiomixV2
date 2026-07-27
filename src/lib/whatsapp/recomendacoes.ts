@@ -14,6 +14,7 @@
  * Data: 2026-05-11
  */
 
+import type { Anomalia } from "@/lib/whatsapp/anomalias";
 import type { ColdLead } from "@/lib/whatsapp/cold-leads";
 import type { ObjecaoBucket } from "@/lib/whatsapp/objecoes";
 import type { HeatmapCell } from "@/lib/whatsapp/heatmap-resposta";
@@ -24,7 +25,8 @@ export type RecomendacaoCategoria =
   | "redistribuicao"
   | "escalonamento"
   | "treinamento"
-  | "otimizacao";
+  | "otimizacao"
+  | "anomalia";
 
 export type Recomendacao = {
   id: string;
@@ -42,6 +44,26 @@ export type RecomendacoesInput = {
   totalInsights: number;
   tfrAvgSec: number | null;
   slaSec: number;
+  /** (e) Anomalias vs baseline próprio — só as "piora" viram recomendação. */
+  anomalias?: Anomalia[];
+};
+
+const ANOMALIA_TEXTS: Record<
+  Anomalia["metrica"],
+  (a: Anomalia) => { titulo: string; descricao: string }
+> = {
+  tfr: (a) => ({
+    titulo: `Tempo de resposta ${a.deltaPct}% acima do seu normal`,
+    descricao: `Na última semana o TFR médio foi ${Math.round(a.atual / 60)}min vs ${Math.round(a.baseline / 60)}min do seu histórico recente. Algo mudou — escala, volume ou notificações?`,
+  }),
+  sentimento_negativo: (a) => ({
+    titulo: `Sentimento negativo subiu pra ${Math.round(a.atual)}% das conversas`,
+    descricao: `Seu baseline era ${Math.round(a.baseline)}%. Vale ler as conversas negativas da semana pra achar a causa (produto, prazo, atendimento).`,
+  }),
+  volume_inbound: (a) => ({
+    titulo: `Volume de leads caiu ${Math.abs(a.deltaPct)}% vs seu normal`,
+    descricao: `Chegaram ${Math.round(a.atual)} mensagens de clientes na última semana vs ${Math.round(a.baseline)}/semana no baseline. Confira campanhas, anúncios e a conexão do WhatsApp.`,
+  }),
 };
 
 const NIVEL_RANK: Record<RecomendacaoNivel, number> = {
@@ -121,6 +143,18 @@ export function generateRecomendacoes(input: RecomendacoesInput): Recomendacao[]
       categoria: "otimizacao",
       titulo: `Tempo medio de 1a resposta esta acima do SLA`,
       descricao: `Equipe responde em media em ${tfrMin}min — meta e <=${slaMin}min. Verifique notificacoes, escala e priorizacao de fila.`,
+    });
+  }
+
+  // (e) Anomalias vs baseline próprio (Intelligence Layer)
+  for (const anomalia of input.anomalias ?? []) {
+    if (anomalia.direcao !== "piora") continue;
+    const texts = ANOMALIA_TEXTS[anomalia.metrica](anomalia);
+    out.push({
+      id: `anomalia-${anomalia.metrica}`,
+      nivel: anomalia.severidade === "critica" ? "urgente" : "importante",
+      categoria: "anomalia",
+      ...texts,
     });
   }
 

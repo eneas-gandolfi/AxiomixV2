@@ -18,6 +18,7 @@ import {
   type ConversationFilters,
   type InboxOption,
 } from "./conversation-filters-compact";
+import { AddNoteDialog } from "./add-note-dialog";
 import { ConversationsTable } from "./conversations-table";
 import { ExportButton } from "./export-button";
 import { useRealtimeConversations } from "@/hooks/use-realtime-conversations";
@@ -33,6 +34,8 @@ type ConversationData = {
   status: string | null;
   inbox_id: string | null;
   last_message_at: string | null;
+  last_message_preview?: string | null;
+  last_message_direction?: string | null;
   assigned_to: string | null;
   sentiment: Sentiment | null;
   intent: string | null;
@@ -74,6 +77,7 @@ export function ConversationsList({
   const [error, setError] = useState<string | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [analyzeProgress, setAnalyzeProgress] = useState<{ current: number; total: number } | null>(null);
+  const [noteConversationId, setNoteConversationId] = useState<string | null>(null);
   const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
 
   // Tempo real: re-fetcha o RSC quando o banco muda (webhook do Evo CRM grava
@@ -512,11 +516,21 @@ export function ConversationsList({
               onToggleSelection={handleToggleSelection}
               onSelectAll={handleSelectAll}
               onResolve={handleResolve}
+              onAddNote={(conversationId) => setNoteConversationId(conversationId)}
               agents={agents}
             />
           </div>
         </CardContent>
       </Card>
+
+      {noteConversationId ? (
+        <AddNoteDialog
+          companyId={companyId}
+          conversationId={noteConversationId}
+          open
+          onClose={() => setNoteConversationId(null)}
+        />
+      ) : null}
     </>
   );
 }

@@ -18,6 +18,15 @@ export type NicheAggregatesRow = {
   sentiment_positive_pct: number | null;
   opportunity_pct: number | null;
   avg_weekly_volume: number | null;
+  sentiment_positive_p25: number | null;
+  sentiment_positive_p50: number | null;
+  sentiment_positive_p75: number | null;
+  opportunity_p25: number | null;
+  opportunity_p50: number | null;
+  opportunity_p75: number | null;
+  weekly_volume_p25: number | null;
+  weekly_volume_p50: number | null;
+  weekly_volume_p75: number | null;
   computed_at: string | null;
 };
 
@@ -36,7 +45,7 @@ export const getNicheAggregates = unstable_cache(
     const { data, error } = await supabase
       .from("niche_aggregates")
       .select(
-        "peer_count, sentiment_positive_pct, opportunity_pct, avg_weekly_volume, computed_at",
+        "peer_count, sentiment_positive_pct, opportunity_pct, avg_weekly_volume, sentiment_positive_p25, sentiment_positive_p50, sentiment_positive_p75, opportunity_p25, opportunity_p50, opportunity_p75, weekly_volume_p25, weekly_volume_p50, weekly_volume_p75, computed_at",
       )
       .eq("niche_slug", nicheSlug)
       .maybeSingle();
