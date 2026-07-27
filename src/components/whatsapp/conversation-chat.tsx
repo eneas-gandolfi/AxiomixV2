@@ -72,7 +72,7 @@ export function ConversationChat({
   conversationId,
   conversationExternalId,
   initialMessages,
-  pollIntervalMs = 10000,
+  pollIntervalMs = 60000,
 }: ConversationChatProps) {
   const [messages, setMessages] = useState<MessageData[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -84,6 +84,18 @@ export function ConversationChat({
   const bottomRef = useRef<HTMLDivElement>(null);
   const wasAtBottomRef = useRef(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Último sent_at confirmado pelo servidor — permite polling em delta
+  // (param `after` de /api/whatsapp/messages) em vez de rebaixar a lista inteira.
+  const lastServerSentAtRef = useRef<string | null>(null);
+  useEffect(() => {
+    let latest: string | null = null;
+    for (const m of messages) {
+      if (m.id.startsWith("optimistic-") || m.id.startsWith("sent-")) continue;
+      if (m.sent_at && (!latest || m.sent_at > latest)) latest = m.sent_at;
+    }
+    lastServerSentAtRef.current = latest;
+  }, [messages]);
 
   // Supabase Realtime: receber mensagens novas em tempo real (via webhook)
   useRealtimeMessages({
@@ -127,14 +139,15 @@ export function ConversationChat({
     }
   }, [messages]);
 
-  // Polling: buscar novas mensagens periodicamente
-  const fetchNewMessages = useCallback(async () => {
+  // Polling de reconciliação com o banco local (delta via `after`). O tempo
+  // real é coberto pelo Supabase Realtime; o sync com o Evo CRM (agora
+  // enfileirado em background no servidor) roda só no mount e ao focar a aba.
+  const fetchNewMessages = useCallback(async (withEvoSync = false) => {
     if (!conversationId) return;
 
     setPolling(true);
     try {
-      // Primeiro: sync da conversa com Evo CRM (traz mensagens novas do WhatsApp)
-      if (conversationExternalId) {
+      if (withEvoSync && conversationExternalId) {
         await fetch("/api/evo-crm/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -142,16 +155,17 @@ export function ConversationChat({
         });
       }
 
-      // Depois: buscar todas as mensagens atualizadas do banco local
+      const after = lastServerSentAtRef.current;
       const response = await fetch("/api/whatsapp/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, conversationId }),
+        body: JSON.stringify({ companyId, conversationId, ...(after ? { after } : {}) }),
       });
 
       if (response.ok) {
         const data = await response.json();
         const serverMessages: MessageData[] = data.messages ?? [];
+        if (after && serverMessages.length === 0) return;
 
         setMessages((prev) => {
           // Manter mensagens otimistas/enviadas que ainda não estão no server
@@ -167,7 +181,13 @@ export function ConversationChat({
             (m) => !serverContents.has(`${m.direction}::${m.content}`)
           );
 
-          return deduplicateMessages([...serverMessages, ...remainingOptimistic]);
+          // Com `after`, o server devolve só o delta: preservar o histórico já
+          // carregado e acrescentar. Sem `after`, substituir a lista inteira.
+          const priorServer = after
+            ? prev.filter((m) => !m.id.startsWith("optimistic-") && !m.id.startsWith("sent-"))
+            : [];
+
+          return deduplicateMessages([...priorServer, ...serverMessages, ...remainingOptimistic]);
         });
       }
     } catch {
@@ -178,13 +198,14 @@ export function ConversationChat({
   }, [companyId, conversationId, conversationExternalId]);
 
   useEffect(() => {
-    // Polling periódico
-    const interval = setInterval(fetchNewMessages, pollIntervalMs);
+    // Sync com Evo CRM no mount; ticks periódicos só reconciliam com o banco
+    fetchNewMessages(true);
+    const interval = setInterval(() => fetchNewMessages(), pollIntervalMs);
 
-    // Pausar quando tab não está visível
+    // Ao voltar o foco para a aba, sincronizar com o Evo CRM de novo
     const handleVisibility = () => {
       if (!document.hidden) {
-        fetchNewMessages();
+        fetchNewMessages(true);
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);

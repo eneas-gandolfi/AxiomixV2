@@ -177,38 +177,41 @@ export async function ConversationDetailView({
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: conversation } = await supabase
-    .from("conversations")
-    .select("id, external_id, remote_jid, contact_name, status, last_message_at")
-    .eq("id", id)
-    .eq("company_id", companyId)
-    .maybeSingle();
+  // Queries independentes entre si — 1 round-trip em vez de 3 em série.
+  // Messages: só as 200 mais recentes (desc + reverse para render ascendente).
+  const [{ data: conversation }, { data: rawMessages }, { data: insight }] = await Promise.all([
+    supabase
+      .from("conversations")
+      .select("id, external_id, remote_jid, contact_name, status, last_message_at")
+      .eq("id", id)
+      .eq("company_id", companyId)
+      .maybeSingle(),
+    supabase
+      .from("messages")
+      .select("id, content, direction, sent_at, message_type")
+      .eq("company_id", companyId)
+      .eq("conversation_id", id)
+      .order("sent_at", { ascending: false })
+      .limit(200),
+    supabase
+      .from("conversation_insights")
+      .select(
+        "sentiment, intent, sales_stage, summary, implicit_need, explicit_need, objections, next_commitment, stall_reason, confidence_score, feedback_status, feedback_note, feedback_at, action_items, generated_at",
+      )
+      .eq("company_id", companyId)
+      .eq("conversation_id", id)
+      .maybeSingle(),
+  ]);
 
   if (!conversation) notFound();
 
-  const { data: rawMessages } = await supabase
-    .from("messages")
-    .select("id, content, direction, sent_at, message_type")
-    .eq("company_id", companyId)
-    .eq("conversation_id", id)
-    .order("sent_at", { ascending: true });
-
   const seenFingerprints = new Set<string>();
-  const messages = (rawMessages ?? []).filter((message) => {
+  const messages = (rawMessages ?? []).reverse().filter((message) => {
     const fingerprint = `${message.sent_at}::${message.direction}::${message.content ?? ""}`;
     if (seenFingerprints.has(fingerprint)) return false;
     seenFingerprints.add(fingerprint);
     return true;
   });
-
-  const { data: insight } = await supabase
-    .from("conversation_insights")
-    .select(
-      "sentiment, intent, sales_stage, summary, implicit_need, explicit_need, objections, next_commitment, stall_reason, confidence_score, feedback_status, feedback_note, feedback_at, action_items, generated_at",
-    )
-    .eq("company_id", companyId)
-    .eq("conversation_id", id)
-    .maybeSingle();
 
   const insightData = parseInsightData(insight?.action_items);
   const objections = parseStringArray(insight?.objections);

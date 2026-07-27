@@ -75,12 +75,23 @@ export async function POST(request: NextRequest) {
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
 
     if (parsed.data.conversationId) {
-      const { syncMessages } = await import("@/services/evo-crm/conversations");
-      const messageResult = await syncMessages(access.companyId, parsed.data.conversationId);
+      // Sync de mensagens roda em background: o chat não depende do resultado
+      // (recebe as mensagens via Realtime/polling) e o await síncrono prendia
+      // o request no round-trip ao Evo CRM.
+      const conversationId = parsed.data.conversationId;
+      const companyId = access.companyId;
+      after(async () => {
+        try {
+          const { syncMessages } = await import("@/services/evo-crm/conversations");
+          await syncMessages(companyId, conversationId);
+        } catch (error) {
+          console.error(`[SYNC] Falha ao sincronizar mensagens da conversa ${conversationId} em background:`, error);
+        }
+      });
       return NextResponse.json({
-        companyId: access.companyId,
+        companyId,
         mode: "messages",
-        result: messageResult,
+        queued: true,
       });
     }
 

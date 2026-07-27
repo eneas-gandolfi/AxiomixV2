@@ -172,6 +172,13 @@ export type EvoRequestOptions = {
    * `{success, data, meta}` para chamadores que precisam ler `meta.pagination` etc.
    */
   raw?: boolean
+  /**
+   * Quando false, um 429 falha imediatamente em vez de fazer retry com backoff
+   * de 15s/30s. Usar em chamadas no caminho de render/UI (fail-fast).
+   */
+  retry429?: boolean
+  /** Timeout desta chamada em ms; default EVO_HTTP_TIMEOUT_MS (5s). */
+  timeoutMs?: number
 }
 
 /**

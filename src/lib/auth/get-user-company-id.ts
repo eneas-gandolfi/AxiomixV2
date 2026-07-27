@@ -14,21 +14,33 @@ type MembershipCompanyRow = {
   company_id: string | null;
 };
 
+// Membership muda raramente: cache in-memory por usuário com TTL curto evita
+// a query repetida a cada navegação (single-process no deploy self-hosted).
+// Só cacheia companyId resolvido — null (sem empresa) não é cacheado para o
+// onboarding refletir imediatamente.
+const MEMBERSHIP_TTL_MS = 60_000;
+const membershipCache = new Map<string, { companyId: string; expiresAt: number }>();
+
 export const getUserCompanyId = cache(async (): Promise<string | null> => {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  // getClaims valida o JWT localmente (JWKS) quando o projeto usa signing keys
+  // assimétricas — sem ida de rede ao Supabase Auth por navegação.
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims.sub;
 
-  if (userError || !user) {
+  if (claimsError || !userId) {
     return null;
+  }
+
+  const cached = membershipCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.companyId;
   }
 
   const { data, error } = await supabase
     .from("memberships")
     .select("company_id")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle<MembershipCompanyRow>();
@@ -37,5 +49,10 @@ export const getUserCompanyId = cache(async (): Promise<string | null> => {
     throw new Error("Falha ao resolver company_id do usuário autenticado.");
   }
 
-  return data?.company_id ?? null;
+  const companyId = data?.company_id ?? null;
+  if (companyId) {
+    membershipCache.set(userId, { companyId, expiresAt: Date.now() + MEMBERSHIP_TTL_MS });
+  }
+
+  return companyId;
 });

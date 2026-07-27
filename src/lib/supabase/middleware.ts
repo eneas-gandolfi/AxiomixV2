@@ -6,14 +6,14 @@
  */
 
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/database/types/database.types";
 import { getSupabaseEnv } from "@/lib/supabase/config";
 
 type MiddlewareSessionResult = {
   response: NextResponse;
-  user: User | null;
+  user: { id: string; email: string | null } | null;
   supabase: SupabaseClient<Database>;
 };
 
@@ -41,11 +41,21 @@ export async function resolveSessionFromMiddleware(
     },
   });
 
-  const { data, error } = await supabase.auth.getUser();
+  // getClaims valida o JWT localmente via JWKS (cacheado) quando o projeto usa
+  // signing keys assimétricas — evita 1 ida de rede ao Supabase Auth por request.
+  // Com HS256 legado ele valida no servidor (mesmo custo do getUser anterior).
+  const { data, error } = await supabase.auth.getClaims();
 
-  if (error) {
+  if (error || !data?.claims.sub) {
     return { response, user: null, supabase };
   }
 
-  return { response, user: data.user, supabase };
+  return {
+    response,
+    user: {
+      id: data.claims.sub,
+      email: typeof data.claims.email === "string" ? data.claims.email : null,
+    },
+    supabase,
+  };
 }

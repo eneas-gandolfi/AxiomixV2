@@ -584,7 +584,8 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
     for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRIES; attempt++) {
       const controller = new AbortController();
       // Override via env permite testes determinísticos com timeout curto (e.g. 100ms).
-      const timeoutMs = Number(process.env.EVO_HTTP_TIMEOUT_MS_OVERRIDE) || EVO_HTTP_TIMEOUT_MS;
+      const timeoutMs =
+        Number(process.env.EVO_HTTP_TIMEOUT_MS_OVERRIDE) || options?.timeoutMs || EVO_HTTP_TIMEOUT_MS;
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
       let res: Response;
@@ -610,7 +611,7 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
       const responseBody = await res.text();
 
       if (res.status === 429) {
-        if (attempt < RATE_LIMIT_MAX_RETRIES) {
+        if (options?.retry429 !== false && attempt < RATE_LIMIT_MAX_RETRIES) {
           const delay = RATE_LIMIT_BASE_DELAY_MS * (attempt + 1);
           console.warn(`[Evo CRM] Rate limit 429 em ${method} ${path}. Retry ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES} em ${delay / 1000}s...`);
           await new Promise((r) => setTimeout(r, delay));
@@ -1228,7 +1229,11 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
     // --- Equipe ---
 
     async listUsers() {
-      const result = await requestJson<Record<string, unknown>>("/api/v1/users");
+      // Sempre chamado em caminho de UI/render (filtros, selects): fail-fast.
+      const result = await requestJson<Record<string, unknown>>("/api/v1/users", {
+        retry429: false,
+        timeoutMs: 3000,
+      });
       const rawList = Array.isArray(result.users)
         ? result.users
         : Array.isArray(result.data)
@@ -1282,7 +1287,11 @@ export function createEvoCrmClient(config: EvoCrmClientConfig): EvoCrmClient {
     },
 
     async listInboxes() {
-      const result = await requestJson<Record<string, unknown>>("/api/v1/inboxes");
+      // Sempre chamado em caminho de UI/render (filtros, selects): fail-fast.
+      const result = await requestJson<Record<string, unknown>>("/api/v1/inboxes", {
+        retry429: false,
+        timeoutMs: 3000,
+      });
       const rawList = Array.isArray(result.inboxes)
         ? result.inboxes
         : Array.isArray(result.data)

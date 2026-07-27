@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { getEvoCrmClient } from "@/services/evo-crm/client";
+import { getCachedEvoAgents, getCachedEvoInboxes } from "@/services/evo-crm/directory-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     const { action } = parsed.data;
 
     if (action === "listUsers") {
-      const users = await evoClient.listUsers();
+      const users = await getCachedEvoAgents(access.companyId);
       return NextResponse.json({ users });
     }
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "listInboxes") {
-      const inboxes = await evoClient.listInboxes();
+      const inboxes = await getCachedEvoInboxes(access.companyId);
       return NextResponse.json({ inboxes });
     }
 

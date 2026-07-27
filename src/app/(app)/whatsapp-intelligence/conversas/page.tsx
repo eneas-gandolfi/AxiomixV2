@@ -19,7 +19,7 @@ import { ContactsManagerSheet } from "@/components/whatsapp/contacts-manager-she
 import { ConversationDetailView } from "@/components/whatsapp/conversation-detail-view";
 import { ConversationDrawerShell } from "@/components/whatsapp/conversation-drawer-shell";
 import { ConversationDrawerSkeleton } from "@/components/whatsapp/conversation-drawer-skeleton";
-import { getEvoCrmClient } from "@/services/evo-crm/client";
+import { getCachedEvoAgents, getCachedEvoInboxes } from "@/services/evo-crm/directory-cache";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,8 +45,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
   // Buscar conversas, agentes e inboxes do Evo CRM em paralelo
   const fetchAgents = async (): Promise<Array<{ id: string; name: string | null }>> => {
     try {
-      const evoClient = await getEvoCrmClient(companyId);
-      const users = await evoClient.listUsers();
+      const users = await getCachedEvoAgents(companyId);
       return users.map((u) => ({ id: u.id, name: u.name ?? null }));
     } catch (error) {
       console.error("[conversas page] fetchAgents failed; degrading to empty list", {
@@ -62,8 +61,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
     Array<{ id: string; name: string | null; channel_type: string | null }>
   > => {
     try {
-      const evoClient = await getEvoCrmClient(companyId);
-      const items = await evoClient.listInboxes();
+      const items = await getCachedEvoInboxes(companyId);
       return items.map((i) => ({
         id: i.id,
         name: i.name ?? null,
@@ -79,7 +77,9 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
     }
   };
 
-  const [{ data: conversations }, agents, inboxes] = await Promise.all([
+  // Insights filtram só por company_id (sem .in nos ids) para rodar em paralelo
+  // com a query de conversas; o insightMap ignora ids fora da lista.
+  const [{ data: conversations }, agents, inboxes, { data: insights }] = await Promise.all([
     supabase
       .from("conversations")
       .select(
@@ -91,19 +91,11 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
       .limit(100),
     fetchAgents(),
     fetchInboxes(),
+    supabase
+      .from("conversation_insights")
+      .select("conversation_id, sentiment, intent")
+      .eq("company_id", companyId),
   ]);
-
-  const conversationIds = (conversations ?? []).map((conversation) => conversation.id);
-
-  // Buscar insights (depende dos conversationIds)
-  const { data: insights } =
-    conversationIds.length > 0
-      ? await supabase
-          .from("conversation_insights")
-          .select("conversation_id, sentiment, intent")
-          .eq("company_id", companyId)
-          .in("conversation_id", conversationIds)
-      : { data: [] as Array<{ conversation_id: string; sentiment: Sentiment | null; intent: string | null }> };
 
   const insightMap = new Map<string, { sentiment: Sentiment | null; intent: string | null }>();
   for (const insight of insights ?? []) {
