@@ -18,15 +18,17 @@ type ModelOption = {
   hint: string;
 };
 
+// IDs verificados vivos na API do OpenRouter em 2026-07-29. Modelo removido
+// do OpenRouter responde 404 e derruba as features de IA pro fallback.
 const MODEL_OPTIONS: ModelOption[] = [
   {
-    value: "google/gemini-2.0-flash-lite-001",
-    label: "Gemini 2.0 Flash Lite",
+    value: "google/gemini-3.5-flash-lite",
+    label: "Gemini 3.5 Flash Lite",
     hint: "Mais barato. Bom para tarefas simples e alto volume.",
   },
   {
-    value: "google/gemini-2.0-flash-001",
-    label: "Gemini 2.0 Flash",
+    value: "google/gemini-3.5-flash",
+    label: "Gemini 3.5 Flash",
     hint: "Equilíbrio entre custo e qualidade. Bom para produção.",
   },
   {
@@ -40,13 +42,8 @@ const MODEL_OPTIONS: ModelOption[] = [
     hint: "Modelo leve padrão para tarefas sem alta complexidade.",
   },
   {
-    value: "anthropic/claude-haiku-4-5",
-    label: "Claude Haiku 4.5",
-    hint: "Muito bom para análise de conversas e raciocínio.",
-  },
-  {
-    value: "anthropic/claude-sonnet-4-6",
-    label: "Claude Sonnet 4.6",
+    value: "anthropic/claude-sonnet-5",
+    label: "Claude Sonnet 5",
     hint: "Alta qualidade. Use quando precisar do melhor.",
   },
 ];
@@ -172,7 +169,7 @@ export function OpenRouterModelSettings() {
             <div className="rounded-lg border border-border bg-sidebar p-3 text-xs text-muted-light">
               <p>
                 <span className="font-medium text-text">Padrão do servidor:</span>{" "}
-                {envDefault || "google/gemini-2.0-flash-lite-001"}
+                {envDefault || "google/gemini-3.5-flash-lite"}
               </p>
               <p className="mt-1">
                 {isCustom

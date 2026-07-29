@@ -67,7 +67,11 @@ function makeMockSupabase(handlers: {
       return {
         select: () => ({
           eq: () => ({
-            or: vi.fn().mockResolvedValue(makeQueryResult(conversations)),
+            or: () => ({
+              order: () => ({
+                limit: vi.fn().mockResolvedValue(makeQueryResult(conversations)),
+              }),
+            }),
           }),
         }),
       };

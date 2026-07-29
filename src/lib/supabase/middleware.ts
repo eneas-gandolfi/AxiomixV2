@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/database/types/database.types";
 import { getSupabaseEnv } from "@/lib/supabase/config";
+import { supabaseFetch } from "@/lib/supabase/fetch-with-timeout";
 
 type MiddlewareSessionResult = {
   response: NextResponse;
@@ -28,6 +29,7 @@ export async function resolveSessionFromMiddleware(
   });
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: supabaseFetch },
     cookies: {
       get(name: string) {
         return request.cookies.get(name)?.value;

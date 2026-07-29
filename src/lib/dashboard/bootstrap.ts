@@ -11,6 +11,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { withRpcRetry } from "@/lib/dashboard/rpc-retry";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type DashboardBootstrapOk = {
@@ -38,7 +39,9 @@ export type DashboardBootstrapResult =
 export const getDashboardBootstrap = cache(
   async (): Promise<DashboardBootstrapResult> => {
     const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.rpc("dashboard_bootstrap");
+    // Retry curto: blips do gateway Supabase de poucos segundos não devem
+    // derrubar o dashboard inteiro (incidente de 2026-07-29).
+    const { data, error } = await withRpcRetry(() => supabase.rpc("dashboard_bootstrap"));
 
     if (error) {
       throw new Error("Erro ao carregar dados. Tente novamente.");

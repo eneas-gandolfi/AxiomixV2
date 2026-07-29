@@ -10,6 +10,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/database/types/database.types";
+import { supabaseFetch } from "@/lib/supabase/fetch-with-timeout";
 
 let adminClient: SupabaseClient<Database> | null = null;
 
@@ -30,6 +31,7 @@ export function createSupabaseAdminClient() {
   }
 
   adminClient = createClient<Database>(supabaseUrl, serviceRoleKey, {
+    global: { fetch: supabaseFetch },
     auth: {
       autoRefreshToken: false,
       persistSession: false,

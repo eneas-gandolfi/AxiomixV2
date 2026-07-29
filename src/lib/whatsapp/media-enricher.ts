@@ -218,7 +218,7 @@ async function describeImage(
         ],
       },
     ],
-    { responseFormat: "text", temperature: 0.2, model: "google/gemini-2.0-flash-001", maxTokens: 512, module: "whatsapp", operation: "describe_media" }
+    { responseFormat: "text", temperature: 0.2, model: "google/gemini-3.5-flash", maxTokens: 512, module: "whatsapp", operation: "describe_media" }
   );
 }
 

@@ -13,12 +13,14 @@ import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/database/types/database.types";
 import { getSupabaseEnv } from "@/lib/supabase/config";
+import { supabaseFetch } from "@/lib/supabase/fetch-with-timeout";
 
 export async function createSupabaseServerClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies();
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: supabaseFetch },
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -48,6 +50,7 @@ export function createSupabaseRouteHandlerClient(
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: supabaseFetch },
     cookies: {
       get(name: string) {
         return request.cookies.get(name)?.value;

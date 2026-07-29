@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     const model = typeof config.model === "string" && config.model.trim().length > 0
       ? config.model.trim()
       : null;
-    const envDefault = process.env.OPENROUTER_MODEL?.trim() || "google/gemini-2.0-flash-lite-001";
+    const envDefault = process.env.OPENROUTER_MODEL?.trim() || "google/gemini-3.5-flash-lite";
 
     return NextResponse.json({
       model: model ?? envDefault,

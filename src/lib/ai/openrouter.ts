@@ -46,7 +46,7 @@ type OpenRouterOptions = {
   skipFallback?: boolean;
   /** Limite de tokens na resposta (evita 402 quando créditos são baixos) */
   maxTokens?: number;
-  /** Timeout em ms para a requisição (default: 30000) */
+  /** Timeout em ms para a requisição (default: 10000) */
   timeout?: number;
   /** Modulo que originou a chamada (para tracking de uso) */
   module?: string;
@@ -94,16 +94,39 @@ function recordModelSuccess(model: string): void {
 
 /* ── Fallback para modelos gratuitos ── */
 
-const FALLBACK_STATUS_CODES = new Set([0, 402, 429, 500, 502, 503]);
-const DEFAULT_TIMEOUT_MS = 30_000;
+// 404 incluído: modelo descontinuado no OpenRouter ("No endpoints found")
+// deve cair pro fallback imediatamente, não estourar erro pro caller.
+const FALLBACK_STATUS_CODES = new Set([0, 402, 404, 429, 500, 502, 503]);
+// 10s por tentativa: com cadeia de 2 fallbacks, pior caso ~30s no total
+// (antes: 30s × 5 fallbacks ≈ 180s segurando a seção do dashboard).
+const DEFAULT_TIMEOUT_MS = 10_000;
 
+// Verificados vivos na API do OpenRouter em 2026-07-29. Cadeia curta de
+// propósito: cada modelo extra adiciona até DEFAULT_TIMEOUT_MS de espera.
 const DEFAULT_FREE_MODELS = [
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "qwen/qwen3-coder:free",
+  "google/gemma-4-31b-it:free",
   "openrouter/free",
 ];
+
+// Modelos removidos do OpenRouter → sucessor atual. Cobre env OPENROUTER_MODEL
+// e configs por empresa que ainda apontam pro ID antigo (que responde 404),
+// sem depender de mudança de env no Easypanel ou de data-fix no banco.
+const LEGACY_MODEL_REMAP: Record<string, string> = {
+  "google/gemini-2.0-flash-001": "google/gemini-3.5-flash",
+  "google/gemini-2.0-flash-lite-001": "google/gemini-3.5-flash-lite",
+  "google/gemma-3-27b-it:free": "google/gemma-4-31b-it:free",
+  "anthropic/claude-haiku-4-5": "anthropic/claude-sonnet-5",
+  "anthropic/claude-sonnet-4-6": "anthropic/claude-sonnet-5",
+};
+
+function remapLegacyModel(model: string): string {
+  const remapped = LEGACY_MODEL_REMAP[model];
+  if (remapped) {
+    console.warn(`[openrouter] Modelo legado "${model}" remapeado para "${remapped}".`);
+    return remapped;
+  }
+  return model;
+}
 
 function getFreeFallbackModels(): string[] {
   const env = process.env.OPENROUTER_FREE_MODELS?.trim();
@@ -121,7 +144,7 @@ function resolveOpenRouterEnvConfig(): OpenRouterConfig | null {
 
   return {
     apiKey,
-    model: process.env.OPENROUTER_MODEL?.trim() || "google/gemini-2.0-flash-lite-001",
+    model: process.env.OPENROUTER_MODEL?.trim() || "google/gemini-3.5-flash-lite",
   };
 }
 
@@ -135,7 +158,7 @@ async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterCon
     .maybeSingle();
 
   const envApiKey = process.env.OPENROUTER_API_KEY?.trim();
-  const envModel = process.env.OPENROUTER_MODEL?.trim() || "google/gemini-2.0-flash-lite-001";
+  const envModel = process.env.OPENROUTER_MODEL?.trim() || "google/gemini-3.5-flash-lite";
 
   if (integration?.config) {
     const decoded = decodeIntegrationConfig("openrouter", integration.config);
@@ -224,7 +247,7 @@ export async function openRouterChatCompletion(
   const config = await resolveOpenRouterConfig(companyId);
   const responseFormat = options?.responseFormat ?? "json";
   const temperature = options?.temperature ?? 0.2;
-  const primaryModel = options?.model || config.model;
+  const primaryModel = remapLegacyModel(options?.model || config.model);
   const useJson = responseFormat === "json";
   const maxTokens = options?.maxTokens;
   const timeoutMs = options?.timeout ?? DEFAULT_TIMEOUT_MS;
@@ -354,7 +377,7 @@ export async function openRouterAudioTranscription(
         ],
       },
     ],
-    { responseFormat: "text", temperature: 0.1, model: "google/gemini-2.0-flash-001", maxTokens: 2048, module: "whatsapp", operation: "audio_transcription" }
+    { responseFormat: "text", temperature: 0.1, model: "google/gemini-3.5-flash", maxTokens: 2048, module: "whatsapp", operation: "audio_transcription" }
   );
 
   if (!transcription || transcription.trim().length === 0) {

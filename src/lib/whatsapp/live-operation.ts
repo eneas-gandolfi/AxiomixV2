@@ -9,8 +9,12 @@
  *              ainda não são distinguidas.
  *            - "Última mensagem" vem das colunas denormalizadas de
  *              `conversations` (last_message_*), mantidas pelos escritores de
- *              `messages` — sem varredura da tabela de mensagens (o cap de 500
- *              da v1 escondia conversas antigas da fila em tenants com volume).
+ *              `messages` — sem varredura da tabela de mensagens.
+ *            - Cap de segurança de 1000 conversas abertas, ordenado por
+ *              last_message_at ASC (mais antigas primeiro): diferente do cap
+ *              da v1 (que escondia conversas antigas), este preserva o
+ *              "mais esquecido" e a fila de risco; acima do cap, apenas o
+ *              workload por operador pode subcontar (logado quando ocorre).
  * Autor: AXIOMIX
  * Data: 2026-05-06
  */
@@ -96,16 +100,39 @@ function classifySeverity(
  *   2) conversas abertas com assignees + última mensagem denormalizada
  *   3) nomes dos operadores (memberships + users)
  */
+const OPEN_CONVERSATIONS_CAP = 1000;
+
 export async function getLiveOperationData(
   supabase: SupabaseClient<Database>,
   companyId: string,
 ): Promise<LiveOperationData> {
-  // 1) Thresholds do nicho + business_hours + timezone
-  const { data: company } = await supabase
-    .from("companies")
-    .select("niche_slug, business_hours, timezone")
-    .eq("id", companyId)
-    .maybeSingle();
+  // 1+2 em paralelo: thresholds do nicho e conversas abertas são queries
+  // independentes — antes eram sequenciais (2 round-trips virou 1).
+  const [{ data: company }, { data: conversations }] = await Promise.all([
+    supabase
+      .from("companies")
+      .select("niche_slug, business_hours, timezone")
+      .eq("id", companyId)
+      .maybeSingle(),
+    // Conversas abertas (status not in resolved/closed) com a última mensagem
+    // denormalizada (last_message_*) — dispensa varrer `messages`.
+    // ASC + cap: as mais antigas (as que importam pra fila) vêm primeiro.
+    supabase
+      .from("conversations")
+      .select(
+        "id, contact_name, contact_phone, contact_avatar_url, assigned_to, status, pipeline_stage, labels, last_message_at, last_message_preview, last_message_direction, last_message_type",
+      )
+      .eq("company_id", companyId)
+      .or("status.is.null,status.not.in.(resolved,closed)")
+      .order("last_message_at", { ascending: true, nullsFirst: false })
+      .limit(OPEN_CONVERSATIONS_CAP),
+  ]);
+
+  if (conversations && conversations.length === OPEN_CONVERSATIONS_CAP) {
+    console.warn(
+      `[live-operation] cap de ${OPEN_CONVERSATIONS_CAP} conversas abertas atingido para company ${companyId}; workload por operador pode subcontar.`,
+    );
+  }
 
   const nicheSlug = (company?.niche_slug ?? null) as NicheSlug | null;
   const niche = nicheSlug ? getNicheBySlug(nicheSlug) : null;
@@ -121,16 +148,6 @@ export async function getLiveOperationData(
   const isCurrentlyOpen = businessHours
     ? isCurrentlyWithinBusinessHours(now, businessHours, timezone)
     : true; // sem horário cadastrado = sempre aberto (não pausa)
-
-  // 2) Conversas abertas (status not in resolved/closed) com a última mensagem
-  //    denormalizada (last_message_*) — dispensa varrer `messages`.
-  const { data: conversations } = await supabase
-    .from("conversations")
-    .select(
-      "id, contact_name, contact_phone, contact_avatar_url, assigned_to, status, pipeline_stage, labels, last_message_at, last_message_preview, last_message_direction, last_message_type",
-    )
-    .eq("company_id", companyId)
-    .or("status.is.null,status.not.in.(resolved,closed)");
 
   if (!conversations || conversations.length === 0) {
     return {

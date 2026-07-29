@@ -22,7 +22,6 @@ import { KpiTile } from "@/components/dashboard/kpi-tile";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { getConversationKpiData } from "@/lib/dashboard/shared-queries";
 
-const DAY_MS = 86_400_000;
 
 /** Retorna delta percentual arredondado ou null se não houver histórico. */
 function getVariation(current: number, previous: number): number | null {
@@ -49,24 +48,6 @@ function formatResponseTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
-/** Constrói histograma de 7 dias a partir de uma lista de timestamps. */
-function buildDailyCountsFromDates(dates: string[], daysBack = 7): number[] {
-  const counts: number[] = new Array(daysBack).fill(0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  for (const dateStr of dates) {
-    const d = new Date(dateStr);
-    d.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor((today.getTime() - d.getTime()) / DAY_MS);
-    if (diffDays >= 0 && diffDays < daysBack) {
-      counts[daysBack - 1 - diffDays]++;
-    }
-  }
-
-  return counts;
 }
 
 export function DashboardConversationKpisSkeleton() {
@@ -187,8 +168,8 @@ export async function KpiHeroCards({ companyId }: { companyId: string }) {
   noStore();
 
   const data = await getConversationKpiData(companyId);
-  const convSpark = buildDailyCountsFromDates(data.conversationDates);
-  const oppSpark = buildDailyCountsFromDates(data.opportunityDates);
+  const convSpark = data.conversationSparkline;
+  const oppSpark = data.opportunitySparkline;
 
   return (
     <>

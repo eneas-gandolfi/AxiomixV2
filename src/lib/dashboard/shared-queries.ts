@@ -18,6 +18,10 @@ import {
   selectStalledConversations,
   type StalledConversations,
 } from "@/lib/dashboard/selectors/stalledConversations";
+import {
+  mapDailyCountsToSparklines,
+  type DailyCountRow,
+} from "@/lib/dashboard/selectors/dailyCounts";
 
 type IntegrationStatus = Pick<
   Database["public"]["Tables"]["integrations"]["Row"],
@@ -213,10 +217,10 @@ export type ConversationKpiData = {
   opportunities7d: number;
   /** Insights com intent='compra' entre 7-14 dias atrás. */
   opportunities7dPrevious: number;
-  /** Timestamps de last_message_at nos últimos 7 dias (sparkline). */
-  conversationDates: string[];
-  /** Timestamps de generated_at de insights de compra nos últimos 7 dias (sparkline). */
-  opportunityDates: string[];
+  /** Contagem por dia (BRT, oldest→newest) de conversas ativas nos últimos 7 dias. */
+  conversationSparkline: number[];
+  /** Contagem por dia (BRT, oldest→newest) de insights de compra nos últimos 7 dias. */
+  opportunitySparkline: number[];
 };
 
 /**
@@ -245,8 +249,7 @@ export const getConversationKpiData = cache(
       conversations7dPrevResult,
       opportunities7dResult,
       opportunities7dPrevResult,
-      conversationDatesResult,
-      opportunityDatesResult,
+      dailyCountsResult,
       avgResponseResult,
     ] = await Promise.all([
       supabase
@@ -294,19 +297,21 @@ export const getConversationKpiData = cache(
         .eq("intent", "compra")
         .gte("generated_at", fourteenDaysAgoIso)
         .lt("generated_at", sevenDaysAgoIso),
-      supabase
-        .from("conversations")
-        .select("last_message_at")
-        .eq("company_id", companyId)
-        .gte("last_message_at", sevenDaysAgoIso)
-        .lte("last_message_at", nowIso),
-      supabase
-        .from("conversation_insights")
-        .select("generated_at")
-        .eq("company_id", companyId)
-        .eq("intent", "compra")
-        .gte("generated_at", sevenDaysAgoIso)
-        .lte("generated_at", nowIso),
+      // RPC: contagem por dia (BRT) pra sparklines, agregada no banco.
+      // Substitui o fetch linha-a-linha de 7 dias de conversations/insights.
+      // Type assertion: mesma razão da RPC abaixo (types não regenerados).
+      (
+        supabase.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<{
+          data: DailyCountRow[] | null;
+          error: { message: string } | null;
+        }>
+      )("dashboard_daily_counts", {
+        p_company_id: companyId,
+        p_window_days: 7,
+      }),
       // RPC: tempo médio de resposta (janela 7d). Index reusado:
       // idx_messages_conversation_sent. Falha silenciosa → null.
       // Type assertion: a RPC foi adicionada na migration 20260515120000
@@ -325,6 +330,9 @@ export const getConversationKpiData = cache(
       }),
     ]);
 
+    // Falha parcial: uma query com erro não derruba o dashboard inteiro —
+    // o KPI afetado degrada pro valor default (0/null) e o erro vai pro log.
+    // Antes, qualquer erro aqui lançava e matava a página (incidente 2026-07-29).
     const errors = [
       stalledResult.error,
       activeTodayResult.error,
@@ -333,12 +341,14 @@ export const getConversationKpiData = cache(
       conversations7dPrevResult.error,
       opportunities7dResult.error,
       opportunities7dPrevResult.error,
-      conversationDatesResult.error,
-      opportunityDatesResult.error,
-      // avgResponseResult.error é tratado abaixo (degradação graciosa).
-    ];
-    if (errors.some(Boolean)) {
-      throw new Error("Erro ao carregar KPIs de conversação.");
+      dailyCountsResult.error,
+      avgResponseResult.error,
+    ].filter(Boolean);
+    if (errors.length > 0) {
+      console.error(
+        `[dashboard/kpis] ${errors.length} queries falharam (degradação parcial):`,
+        errors.map((e) => (e as { message?: string })?.message ?? String(e)),
+      );
     }
 
     // RPC retorna table(avg_seconds numeric, sample_size bigint). Em erro
@@ -346,6 +356,11 @@ export const getConversationKpiData = cache(
     const avgRow = avgResponseResult.error
       ? null
       : avgResponseResult.data?.[0] ?? null;
+
+    const sparklines = mapDailyCountsToSparklines(
+      dailyCountsResult.error ? [] : dailyCountsResult.data ?? [],
+      7,
+    );
 
     return {
       stalledCount: stalledResult.count ?? 0,
@@ -359,12 +374,8 @@ export const getConversationKpiData = cache(
       conversations7dPrevious: conversations7dPrevResult.count ?? 0,
       opportunities7d: opportunities7dResult.count ?? 0,
       opportunities7dPrevious: opportunities7dPrevResult.count ?? 0,
-      conversationDates: (conversationDatesResult.data ?? [])
-        .map((d) => d.last_message_at)
-        .filter(Boolean) as string[],
-      opportunityDates: (opportunityDatesResult.data ?? [])
-        .map((d) => d.generated_at)
-        .filter(Boolean) as string[],
+      conversationSparkline: sparklines.conversations,
+      opportunitySparkline: sparklines.opportunities,
     };
   },
 );

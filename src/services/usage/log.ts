@@ -33,6 +33,12 @@ const PRICING_MAP: Record<string, { input: number; output: number }> = {
   "openai/gpt-4o-mini": { input: 0.15, output: 0.6 },
   "openai/gpt-5-nano": { input: 0.1, output: 0.4 },
   // Google
+  "google/gemini-3.5-flash-lite": { input: 0.3, output: 2.5 },
+  "google/gemini-3.5-flash": { input: 1.5, output: 9 },
+  "google/gemma-4-31b-it:free": { input: 0, output: 0 },
+  // Anthropic
+  "anthropic/claude-sonnet-5": { input: 2, output: 10 },
+  // Legados (mantidos pra precificar logs históricos)
   "google/gemini-2.0-flash-001": { input: 0.1, output: 0.4 },
   "google/gemma-3-27b-it:free": { input: 0, output: 0 },
   // Minimax
