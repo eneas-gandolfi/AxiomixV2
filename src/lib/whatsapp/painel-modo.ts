@@ -8,11 +8,12 @@
  * Data: 2026-05-11
  */
 
-export type PainelModo = "agora" | "historico";
+export type PainelModo = "grupos" | "agora" | "historico";
 
-export const PAINEL_MODO_DEFAULT: PainelModo = "agora";
+export const PAINEL_MODO_DEFAULT: PainelModo = "grupos";
 
 export function parsePainelModo(value: string | string[] | undefined): PainelModo {
   const raw = Array.isArray(value) ? value[0] : value;
-  return raw === "historico" ? "historico" : "agora";
+  if (raw === "grupos" || raw === "agora" || raw === "historico") return raw;
+  return PAINEL_MODO_DEFAULT;
 }

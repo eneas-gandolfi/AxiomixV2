@@ -56,6 +56,7 @@ import { NicheBenchmarkCard } from "@/components/dashboard/niche-benchmark-card"
 import { PainelAoVivo } from "@/components/whatsapp/painel-ao-vivo";
 import { PainelModeToggle } from "@/components/whatsapp/painel-mode-toggle";
 import { parsePainelModo } from "@/lib/whatsapp/painel-modo";
+import { GroupsRadarPage } from "@/components/whatsapp/groups/groups-radar-page";
 
 const DAY_MS = 86_400_000;
 
@@ -75,6 +76,15 @@ export default async function WhatsAppDashboardPage({
   const companyId = await getUserCompanyId();
   if (!companyId) {
     redirect("/onboarding");
+  }
+
+  if (modo === "grupos") {
+    return (
+      <div className="space-y-3.5">
+        <PainelHeader active="grupos" />
+        <GroupsRadarPage companyId={companyId} />
+      </div>
+    );
   }
 
   // Modo "Ao vivo" — engole o que era a aba Operacao
@@ -273,14 +283,16 @@ export default async function WhatsAppDashboardPage({
 // PainelHeader — toggle Ao vivo / Historico no topo do Painel
 // =============================================================================
 
-function PainelHeader({ active }: { active: "agora" | "historico" }) {
+function PainelHeader({ active }: { active: "grupos" | "agora" | "historico" }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-2">
       <PainelModeToggle active={active} />
       <p className="text-[11.5px] text-[var(--color-text-tertiary)]">
-        {active === "agora"
-          ? "Veja quem está esperando agora · atualiza a cada 30s"
-          : "Métricas históricas e tendências do funil"}
+        {active === "grupos"
+          ? "Radar dos grupos monitorados e do agente IA"
+          : active === "agora"
+            ? "Veja quem está esperando agora · atualiza a cada 30s"
+            : "Métricas históricas e tendências do funil"}
       </p>
     </header>
   );

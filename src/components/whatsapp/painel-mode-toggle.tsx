@@ -16,7 +16,7 @@
 
 import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Clock } from "lucide-react";
+import { Clock, Users2 } from "lucide-react";
 import {
   PAINEL_MODO_DEFAULT,
   type PainelModo,
@@ -49,6 +49,20 @@ export function PainelModeToggle({ active }: { active: PainelModo }) {
       aria-label="Modo do Painel"
       className="inline-flex gap-px rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-0.5"
     >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={active === "grupos"}
+        onClick={() => handleSelect("grupos")}
+        className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-medium transition-all ${
+          active === "grupos"
+            ? "bg-[var(--color-surface)] text-[var(--color-text)] font-semibold shadow-[0_1px_2px_rgba(26,23,20,.08),0_0_0_1px_var(--color-border-subtle,_rgba(0,0,0,.05))]"
+            : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+        }`}
+      >
+        <Users2 className="h-3 w-3" />
+        Grupos
+      </button>
       <button
         type="button"
         role="tab"
