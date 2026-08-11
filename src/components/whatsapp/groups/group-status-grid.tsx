@@ -223,9 +223,7 @@ export function GroupStatusGrid({ groups }: { groups: GroupRadarItem[] }) {
       </div>
       {hiddenGroupsCount > 0 ? (
         <p className="text-xs text-[var(--color-text-tertiary)]">
-          {hiddenGroupsCount === 1
-            ? "1 grupo restante fica em Configurações."
-            : `${hiddenGroupsCount} grupos restantes ficam em Configurações.`}
+          {hiddenGroupsCount} grupo{hiddenGroupsCount === 1 ? "" : "s"} sem prioridade ficam em Configurações.
         </p>
       ) : null}
     </section>
