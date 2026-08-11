@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { CompanyAccessError, resolveCompanyAccess } from "@/lib/auth/resolve-company-access";
 import { listAgents, createAgent, AGENT_TYPES } from "@/services/evo-crm/agents";
+import { classifyAgentsRouteError } from "./errors";
 
 export const dynamic = "force-dynamic";
 
@@ -61,8 +62,11 @@ export async function GET(request: NextRequest) {
       cause: error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause?.code : undefined,
       stack: error instanceof Error ? error.stack : undefined,
     });
-    const message = error instanceof Error ? error.message : "Erro ao listar agentes.";
-    return NextResponse.json({ error: message, code: "AGENTS_ERROR" }, { status: 500 });
+    const classified = classifyAgentsRouteError(error);
+    return NextResponse.json(
+      { error: classified.message, code: classified.code },
+      { status: classified.status }
+    );
   }
 }
 
@@ -81,7 +85,15 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await resolveCompanyAccess(supabase, parsed.data.companyId);
-    const { companyId: _, ...payload } = parsed.data;
+    const payload = {
+      name: parsed.data.name,
+      description: parsed.data.description,
+      agent_type: parsed.data.agent_type,
+      role: parsed.data.role,
+      goal: parsed.data.goal,
+      instructions: parsed.data.instructions,
+      model: parsed.data.model,
+    };
     const agent = await createAgent(access.companyId, payload, access.userId);
 
     return NextResponse.json({ agent }, { status: 201 });
