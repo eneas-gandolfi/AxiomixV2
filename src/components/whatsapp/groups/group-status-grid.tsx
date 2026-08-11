@@ -39,6 +39,21 @@ function getStatusBadgeClass(status: GroupRadarItem["status"]): string {
   }
 }
 
+const GROUP_FOCUS_LIMIT = 6;
+
+function hasDashboardSignal(group: GroupRadarItem): boolean {
+  return (
+    group.status !== "inactive" ||
+    group.messageCount24h > 0 ||
+    group.agentResponses24h > 0 ||
+    Boolean(group.lastMessageAt)
+  );
+}
+
+export function getFocusedGroups(groups: GroupRadarItem[]): GroupRadarItem[] {
+  return groups.filter(hasDashboardSignal).slice(0, GROUP_FOCUS_LIMIT);
+}
+
 function getAgentBadgeClass(mode: GroupRadarItem["agentMode"]): string {
   if (mode === "proactive") {
     return "border-[var(--color-success)]/40 bg-[var(--color-success-bg)] text-[var(--color-success)]";
@@ -138,17 +153,51 @@ export function GroupStatusGrid({ groups }: { groups: GroupRadarItem[] }) {
     );
   }
 
+  const focusedGroups = getFocusedGroups(groups);
+  const hiddenGroupsCount = Math.max(groups.length - focusedGroups.length, 0);
+
+  if (focusedGroups.length === 0) {
+    return (
+      <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">Grupos em foco</h2>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+              Nenhum grupo com sinal recente.
+            </p>
+          </div>
+          <Link
+            href="/settings?tab=group-agent"
+            className="inline-flex h-8 shrink-0 items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 text-xs font-semibold text-[var(--color-text)]"
+          >
+            Ver todos
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-[var(--color-text)]">Todos os grupos</h2>
-        <span className="text-xs text-[var(--color-text-tertiary)]">Visão rápida</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--color-text)]">Grupos em foco</h2>
+          <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
+            {focusedGroups.length} de {groups.length} grupos
+          </p>
+        </div>
+        <Link
+          href="/settings?tab=group-agent"
+          className="inline-flex h-8 items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 text-xs font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--module-accent)]/40 hover:text-[var(--module-accent)]"
+        >
+          Ver todos
+        </Link>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
-        {groups.map((group) => (
+        {focusedGroups.map((group) => (
           <article
             key={group.configId}
-            className="min-h-[132px] min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+            className="min-h-[124px] min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
           >
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
               <div className="min-w-0">
@@ -172,6 +221,11 @@ export function GroupStatusGrid({ groups }: { groups: GroupRadarItem[] }) {
           </article>
         ))}
       </div>
+      {hiddenGroupsCount > 0 ? (
+        <p className="text-xs text-[var(--color-text-tertiary)]">
+          {hiddenGroupsCount} grupo{hiddenGroupsCount === 1 ? "" : "s"} sem prioridade ficam em Configurações.
+        </p>
+      ) : null}
     </section>
   );
 }

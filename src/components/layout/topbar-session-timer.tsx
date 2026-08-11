@@ -7,9 +7,23 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
 import { Timer } from "lucide-react";
 import { useIdleTimeoutContext } from "@/components/layout/idle-timeout-provider";
+
+type SessionTimerState = "active" | "warning" | "expired";
+
+export function shouldShowSessionTimer({
+  rememberMe,
+  state,
+  seconds,
+}: {
+  rememberMe: boolean;
+  state: SessionTimerState;
+  seconds: number;
+}): boolean {
+  if (rememberMe || state === "expired") return false;
+  return state === "warning" || seconds <= 300;
+}
 
 function formatCountdown(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -19,16 +33,11 @@ function formatCountdown(seconds: number): string {
 
 export function TopbarSessionTimer() {
   const { state, countdown, remainingSeconds, rememberMe } = useIdleTimeoutContext();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || rememberMe || state === "expired") return null;
 
   // During warning state, show the modal countdown
   const seconds = state === "warning" ? countdown : remainingSeconds;
+
+  if (!shouldShowSessionTimer({ rememberMe, state, seconds })) return null;
 
   let textColor = "text-[var(--color-muted)]";
   let extraClass = "";

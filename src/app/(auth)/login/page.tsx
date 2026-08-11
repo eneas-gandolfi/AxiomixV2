@@ -12,6 +12,7 @@ import { z } from "zod";
 import { type ChangeEvent, type FormEvent, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getAuthenticatedDefaultRoute } from "@/lib/navigation/default-route";
+import { DEFAULT_REMEMBER_ME } from "@/lib/auth/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -66,7 +67,7 @@ export default function LoginPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [isMagicLinkLoading, setIsMagicLinkLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(DEFAULT_REMEMBER_ME);
 
   const idleReason = searchParams.get("reason") === "idle";
 

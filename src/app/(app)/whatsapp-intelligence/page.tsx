@@ -57,6 +57,7 @@ import { PainelAoVivo } from "@/components/whatsapp/painel-ao-vivo";
 import { PainelModeToggle } from "@/components/whatsapp/painel-mode-toggle";
 import { parsePainelModo } from "@/lib/whatsapp/painel-modo";
 import { GroupsRadarPage } from "@/components/whatsapp/groups/groups-radar-page";
+import { GroupsRadarSkeleton } from "@/components/whatsapp/groups/groups-radar-skeleton";
 
 const DAY_MS = 86_400_000;
 
@@ -82,7 +83,9 @@ export default async function WhatsAppDashboardPage({
     return (
       <div className="space-y-3.5">
         <PainelHeader active="grupos" />
-        <GroupsRadarPage companyId={companyId} />
+        <Suspense fallback={<GroupsRadarSkeleton />}>
+          <GroupsRadarPage companyId={companyId} />
+        </Suspense>
       </div>
     );
   }
