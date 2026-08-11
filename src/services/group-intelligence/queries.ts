@@ -1,0 +1,274 @@
+import "server-only";
+
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+export type GroupRadarStatus = "inactive" | "quiet" | "active" | "hot" | "risk";
+export type GroupAgentMode = "radar_only" | "trigger_only" | "proactive";
+export type GroupRadarInsightKind =
+  | "fact"
+  | "preference"
+  | "decision"
+  | "action_item"
+  | "contact_info"
+  | "response";
+
+export type GroupConfigRow = {
+  id: string;
+  company_id: string;
+  group_jid: string;
+  group_name: string | null;
+  is_active: boolean;
+  agent_name: string;
+  feed_to_rag: boolean;
+  max_responses_per_hour: number;
+  cooldown_seconds: number;
+};
+
+export type GroupMessageRow = {
+  id: string;
+  config_id: string;
+  sender_jid: string;
+  sender_name: string | null;
+  content: string | null;
+  message_type: string | null;
+  is_trigger: boolean;
+  agent_responded: boolean;
+  sent_at: string;
+};
+
+export type GroupResponseRow = {
+  id: string;
+  config_id: string;
+  response_text: string;
+  response_type: string;
+  rag_sources_used: number | null;
+  created_at: string;
+};
+
+export type GroupNoteRow = {
+  id: string;
+  config_id: string;
+  category: Exclude<GroupRadarInsightKind, "response">;
+  content: string;
+  source_sender: string | null;
+  relevance_score: number;
+  created_at: string;
+};
+
+export type GroupRadarItem = {
+  configId: string;
+  groupJid: string;
+  name: string;
+  status: GroupRadarStatus;
+  agentMode: GroupAgentMode;
+  agentName: string;
+  feedToRag: boolean;
+  messageCount24h: number;
+  triggerCount24h: number;
+  agentResponses24h: number;
+  uniqueSenders24h: number;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+};
+
+export type GroupRadarInsight = {
+  id: string;
+  configId: string;
+  groupName: string;
+  kind: GroupRadarInsightKind;
+  text: string;
+  source: string | null;
+  createdAt: string;
+  score: number;
+};
+
+export type GroupRadarData = {
+  summary: {
+    totalGroups: number;
+    activeGroups: number;
+    hotGroups: number;
+    riskGroups: number;
+    messages24h: number;
+    agentResponses24h: number;
+  };
+  groups: GroupRadarItem[];
+  insights: GroupRadarInsight[];
+};
+
+export type BuildGroupRadarInput = {
+  now: Date;
+  configs: GroupConfigRow[];
+  messages: GroupMessageRow[];
+  responses: GroupResponseRow[];
+  notes: GroupNoteRow[];
+};
+
+const DAY_MS = 24 * 60 * 60_000;
+const HOT_MESSAGE_THRESHOLD = 40;
+
+function fallbackGroupName(config: GroupConfigRow): string {
+  return config.group_name ?? `Grupo ${config.group_jid.split("@")[0].slice(-6)}`;
+}
+
+function resolveAgentMode(config: GroupConfigRow): GroupAgentMode {
+  if (!config.is_active) return "radar_only";
+  return config.max_responses_per_hour > 0 ? "trigger_only" : "radar_only";
+}
+
+function isRiskNote(note: GroupNoteRow): boolean {
+  const text = note.content.toLowerCase();
+  return (
+    note.category === "action_item" ||
+    text.includes("risco") ||
+    text.includes("reclam") ||
+    text.includes("urgente") ||
+    text.includes("problema")
+  );
+}
+
+export function buildGroupRadarData(input: BuildGroupRadarInput): GroupRadarData {
+  const since24h = input.now.getTime() - DAY_MS;
+  const messagesByConfig = new Map<string, GroupMessageRow[]>();
+  const responsesByConfig = new Map<string, GroupResponseRow[]>();
+  const notesByConfig = new Map<string, GroupNoteRow[]>();
+
+  for (const message of input.messages) {
+    if (new Date(message.sent_at).getTime() < since24h) continue;
+    const items = messagesByConfig.get(message.config_id) ?? [];
+    items.push(message);
+    messagesByConfig.set(message.config_id, items);
+  }
+
+  for (const response of input.responses) {
+    if (new Date(response.created_at).getTime() < since24h) continue;
+    const items = responsesByConfig.get(response.config_id) ?? [];
+    items.push(response);
+    responsesByConfig.set(response.config_id, items);
+  }
+
+  for (const note of input.notes) {
+    const items = notesByConfig.get(note.config_id) ?? [];
+    items.push(note);
+    notesByConfig.set(note.config_id, items);
+  }
+
+  const groups = input.configs.map((config): GroupRadarItem => {
+    const messages = messagesByConfig.get(config.id) ?? [];
+    const responses = responsesByConfig.get(config.id) ?? [];
+    const notes = notesByConfig.get(config.id) ?? [];
+    const risky = notes.some(isRiskNote);
+    const uniqueSenders = new Set(messages.map((message) => message.sender_jid));
+    const lastMessage = [...messages].sort(
+      (a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime()
+    )[0];
+
+    let status: GroupRadarStatus = "quiet";
+    if (!config.is_active) status = "inactive";
+    else if (risky) status = "risk";
+    else if (messages.length >= HOT_MESSAGE_THRESHOLD) status = "hot";
+    else if (messages.length > 0) status = "active";
+
+    return {
+      configId: config.id,
+      groupJid: config.group_jid,
+      name: fallbackGroupName(config),
+      status,
+      agentMode: resolveAgentMode(config),
+      agentName: config.agent_name,
+      feedToRag: config.feed_to_rag,
+      messageCount24h: messages.length,
+      triggerCount24h: messages.filter((message) => message.is_trigger).length,
+      agentResponses24h: responses.length,
+      uniqueSenders24h: uniqueSenders.size,
+      lastMessageAt: lastMessage?.sent_at ?? null,
+      lastMessagePreview: lastMessage?.content ? lastMessage.content.slice(0, 140) : null,
+    };
+  });
+
+  const groupNameByConfig = new Map(groups.map((group) => [group.configId, group.name]));
+  const noteInsights: GroupRadarInsight[] = input.notes.map((note) => ({
+    id: note.id,
+    configId: note.config_id,
+    groupName: groupNameByConfig.get(note.config_id) ?? "Grupo WhatsApp",
+    kind: note.category,
+    text: note.content,
+    source: note.source_sender,
+    createdAt: note.created_at,
+    score: note.relevance_score,
+  }));
+
+  const responseInsights: GroupRadarInsight[] = input.responses.slice(0, 10).map((response) => ({
+    id: response.id,
+    configId: response.config_id,
+    groupName: groupNameByConfig.get(response.config_id) ?? "Grupo WhatsApp",
+    kind: "response",
+    text: response.response_text,
+    source: response.response_type,
+    createdAt: response.created_at,
+    score: response.rag_sources_used ?? 0,
+  }));
+
+  const insights = [...noteInsights, ...responseInsights]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 20);
+
+  return {
+    summary: {
+      totalGroups: groups.length,
+      activeGroups: groups.filter((group) => group.status !== "inactive").length,
+      hotGroups: groups.filter((group) => group.status === "hot").length,
+      riskGroups: groups.filter((group) => group.status === "risk").length,
+      messages24h: groups.reduce((sum, group) => sum + group.messageCount24h, 0),
+      agentResponses24h: groups.reduce((sum, group) => sum + group.agentResponses24h, 0),
+    },
+    groups: groups.sort((a, b) => b.messageCount24h - a.messageCount24h),
+    insights,
+  };
+}
+
+export async function getGroupRadarData(companyId: string): Promise<GroupRadarData> {
+  const supabase = createSupabaseAdminClient();
+  const since24h = new Date(Date.now() - DAY_MS).toISOString();
+
+  const [{ data: configs }, { data: messages }, { data: responses }, { data: notes }] =
+    await Promise.all([
+      supabase
+        .from("group_agent_configs")
+        .select(
+          "id, company_id, group_jid, group_name, is_active, agent_name, feed_to_rag, max_responses_per_hour, cooldown_seconds"
+        )
+        .eq("company_id", companyId)
+        .order("group_name", { ascending: true }),
+      supabase
+        .from("group_messages")
+        .select(
+          "id, config_id, sender_jid, sender_name, content, message_type, is_trigger, agent_responded, sent_at"
+        )
+        .eq("company_id", companyId)
+        .gte("sent_at", since24h)
+        .order("sent_at", { ascending: false })
+        .limit(500),
+      supabase
+        .from("group_agent_responses")
+        .select("id, config_id, response_text, response_type, rag_sources_used, created_at")
+        .eq("company_id", companyId)
+        .gte("created_at", since24h)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("group_agent_notes")
+        .select("id, config_id, category, content, source_sender, relevance_score, created_at")
+        .eq("company_id", companyId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(100),
+    ]);
+
+  return buildGroupRadarData({
+    now: new Date(),
+    configs: (configs ?? []) as GroupConfigRow[],
+    messages: (messages ?? []) as GroupMessageRow[],
+    responses: (responses ?? []) as GroupResponseRow[],
+    notes: (notes ?? []) as GroupNoteRow[],
+  });
+}
