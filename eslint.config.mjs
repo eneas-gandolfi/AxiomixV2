@@ -16,6 +16,7 @@ export default [
       'coverage/**',
       'dist/**',
       'build/**',
+      '.worktrees/**',
       'next-env.d.ts',
       // Saídas e diretórios de tooling externos
       '_bmad/**',

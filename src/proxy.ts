@@ -1,6 +1,6 @@
 /**
- * Arquivo: middleware.ts
- * Proposito: Proteger rotas autenticadas e liberar links publicos assinados.
+ * Arquivo: src/proxy.ts
+ * Propósito: Proteger rotas autenticadas e liberar links públicos assinados.
  * Autor: AXIOMIX
  * Data: 2026-03-19
  */
@@ -11,7 +11,7 @@ import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "@/lib/auth/constants";
 import { verifyCsrf } from "@/lib/auth/csrf";
 import { resolveRequestId, REQUEST_ID_HEADER } from "@/lib/observability/request-id";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const requestId = resolveRequestId(request);
 
@@ -82,10 +82,10 @@ export const config = {
      * Proteger todas as rotas EXCETO:
      * - /login, /register (auth pages dentro do grupo (auth))
      * - /auth/* (callback OAuth / magic link)
-     * - /onboarding (precisa ser acessivel para usuarios sem empresa)
-     * - /alertas/* (links publicos assinados enviados por WhatsApp)
+     * - /onboarding (precisa ser acessível para usuários sem empresa)
+     * - /alertas/* (links públicos assinados enviados por WhatsApp)
      * - /_next/* (assets do Next.js)
-     * - /favicon.ico, arquivos estaticos com extensao
+     * - /favicon.ico, arquivos estáticos com extensão
      *
      * NOTA: /api/* agora entra no matcher para CSRF check,
      * mas autenticação das APIs continua nos route handlers.

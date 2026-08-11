@@ -23,12 +23,15 @@ const membershipCache = new Map<string, { companyId: string; expiresAt: number }
 
 export const getUserCompanyId = cache(async (): Promise<string | null> => {
   const supabase = await createSupabaseServerClient();
-  // getClaims valida o JWT localmente (JWKS) quando o projeto usa signing keys
-  // assimétricas — sem ida de rede ao Supabase Auth por navegação.
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims.sub;
+  // getUser valida uma sessão real. getClaims pode retornar claims do token
+  // anônimo do projeto quando não há cookies de sessão.
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  const userId = user?.id;
 
-  if (claimsError || !userId) {
+  if (userError || !userId) {
     return null;
   }
 

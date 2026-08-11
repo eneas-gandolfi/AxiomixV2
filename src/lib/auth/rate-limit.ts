@@ -69,6 +69,7 @@ function checkRateLimitInMemory(
 /* ------------------------------------------------------------------ */
 
 const limiters = new Map<string, Ratelimit>();
+let redisFailureWarned = false;
 
 function getRedisLimiter(maxAttempts: number, windowSeconds: number): Ratelimit {
   const key = `${maxAttempts}:${windowSeconds}`;
@@ -103,18 +104,18 @@ export async function checkRateLimit(
   }
 
   const limiter = getRedisLimiter(maxAttempts, windowSeconds);
-  let limitResult: Awaited<ReturnType<Ratelimit["limit"]>>;
+  let success: boolean;
+  let reset: number;
+
   try {
-    limitResult = await limiter.limit(key);
+    ({ success, reset } = await limiter.limit(key));
   } catch (error) {
-    console.warn("[rate-limit] Redis indisponível; usando fallback in-memory.", {
-      key,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    if (!redisFailureWarned) {
+      redisFailureWarned = true;
+      console.warn("[rate-limit] Redis indisponivel; usando fallback em memoria.", error);
+    }
     return checkRateLimitInMemory(key, maxAttempts, windowSeconds);
   }
-
-  const { success, reset } = limitResult;
 
   if (success) return { allowed: true };
 

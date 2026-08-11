@@ -43,20 +43,20 @@ export async function resolveSessionFromMiddleware(
     },
   });
 
-  // getClaims valida o JWT localmente via JWKS (cacheado) quando o projeto usa
-  // signing keys assimétricas — evita 1 ida de rede ao Supabase Auth por request.
-  // Com HS256 legado ele valida no servidor (mesmo custo do getUser anterior).
-  const { data, error } = await supabase.auth.getClaims();
+  // getUser valida uma sessão real do usuário. getClaims pode refletir claims do
+  // token anônimo do projeto quando não há cookies de sessão, o que não deve
+  // liberar páginas autenticadas.
+  const { data, error } = await supabase.auth.getUser();
 
-  if (error || !data?.claims.sub) {
+  if (error || !data?.user) {
     return { response, user: null, supabase };
   }
 
   return {
     response,
     user: {
-      id: data.claims.sub,
-      email: typeof data.claims.email === "string" ? data.claims.email : null,
+      id: data.user.id,
+      email: data.user.email ?? null,
     },
     supabase,
   };

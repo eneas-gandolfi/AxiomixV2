@@ -28,6 +28,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           alt="AXIOMIX"
           width={40}
           height={40}
+          unoptimized
           className="rounded-lg"
         />
         <span className="font-display text-lg font-bold tracking-wide text-[#FF6B1A]">
