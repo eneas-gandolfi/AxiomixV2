@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { type ChangeEvent, type FormEvent, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getAuthenticatedDefaultRoute } from "@/lib/navigation/default-route";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -38,7 +39,7 @@ type LoginErrors = {
 
 function getSafeNextPath() {
   if (typeof window === "undefined") {
-    return "/dashboard";
+    return getAuthenticatedDefaultRoute();
   }
 
   const nextValue = new URLSearchParams(window.location.search).get("next");
@@ -46,7 +47,7 @@ function getSafeNextPath() {
     return nextValue;
   }
 
-  return "/dashboard";
+  return getAuthenticatedDefaultRoute();
 }
 
 function getAuthBaseUrl() {
