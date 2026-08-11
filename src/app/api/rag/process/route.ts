@@ -48,8 +48,21 @@ const processUrl = process.env.NEXT_PUBLIC_APP_URL
   ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "")}/api/rag/process`
   : undefined;
 
-export const POST = verifySignatureAppRouter(processHandler, {
-  currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY,
-  nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY,
-  url: processUrl,
-});
+const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
+const nextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY;
+
+export const POST =
+  currentSigningKey && nextSigningKey
+    ? verifySignatureAppRouter(processHandler, {
+        currentSigningKey,
+        nextSigningKey,
+        url: processUrl,
+      })
+    : async () =>
+        NextResponse.json(
+          {
+            error: "QStash não configurado. Defina QSTASH_CURRENT_SIGNING_KEY e QSTASH_NEXT_SIGNING_KEY.",
+            code: "QSTASH_SIGNING_KEYS_MISSING",
+          },
+          { status: 503 }
+        );
