@@ -166,6 +166,7 @@ describe("buildGroupRadarData", () => {
     });
 
     expect(data.groups[0].status).toBe("active");
+    expect(data.insights).toEqual([]);
   });
 
   it("classifies active proactive groups as proactive", () => {

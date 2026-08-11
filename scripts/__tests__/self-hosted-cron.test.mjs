@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createCronHeaders,
+  resolveInitialDelayMs,
   resolveCronJobs,
   resolveInternalBaseUrl,
   shouldRunSelfHostedCronWorker,
@@ -8,7 +9,7 @@ import {
 
 describe("self-hosted cron worker", () => {
   it("keeps core cron endpoints scheduled", () => {
-    const labels = resolveCronJobs().map((job) => job.label);
+    const labels = resolveCronJobs({}).map((job) => job.label);
 
     expect(labels).toEqual([
       "heartbeat",
@@ -17,6 +18,36 @@ describe("self-hosted cron worker", () => {
       "group-rag-batch",
       "whatsapp-sync",
     ]);
+  });
+
+  it("adds satellite cron endpoints only when feature flags are enabled", () => {
+    const labels = resolveCronJobs({
+      NEXT_PUBLIC_FEATURE_SOCIAL_PUBLISHER: "true",
+      NEXT_PUBLIC_FEATURE_INTELLIGENCE: "true",
+    }).map((job) => job.label);
+
+    expect(labels).toContain("social-publisher");
+    expect(labels).toContain("anomaly-scan");
+  });
+
+  it("delays fixed-time daily jobs until their configured UTC hour", () => {
+    const [groupRagBatch] = resolveCronJobs({}).filter((job) => job.label === "group-rag-batch");
+
+    expect(
+      resolveInitialDelayMs(
+        groupRagBatch,
+        new Date("2026-08-11T02:30:00.000Z"),
+        15_000
+      )
+    ).toBe(30 * 60_000);
+
+    expect(
+      resolveInitialDelayMs(
+        groupRagBatch,
+        new Date("2026-08-11T03:05:00.000Z"),
+        15_000
+      )
+    ).toBe(23 * 60 * 60_000 + 55 * 60_000);
   });
 
   it("builds authenticated cron headers from CRON_SECRET", () => {

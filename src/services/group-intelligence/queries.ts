@@ -190,16 +190,18 @@ export function buildGroupRadarData(input: BuildGroupRadarInput): GroupRadarData
   });
 
   const groupNameByConfig = new Map(groups.map((group) => [group.configId, group.name]));
-  const noteInsights: GroupRadarInsight[] = input.notes.map((note) => ({
-    id: note.id,
-    configId: note.config_id,
-    groupName: groupNameByConfig.get(note.config_id) ?? "Grupo WhatsApp",
-    kind: note.category,
-    text: note.content,
-    source: note.source_sender,
-    createdAt: note.created_at,
-    score: note.relevance_score,
-  }));
+  const noteInsights: GroupRadarInsight[] = Array.from(notesByConfig.values())
+    .flat()
+    .map((note) => ({
+      id: note.id,
+      configId: note.config_id,
+      groupName: groupNameByConfig.get(note.config_id) ?? "Grupo WhatsApp",
+      kind: note.category,
+      text: note.content,
+      source: note.source_sender,
+      createdAt: note.created_at,
+      score: note.relevance_score,
+    }));
 
   const responseInsights: GroupRadarInsight[] = input.responses.slice(0, 10).map((response) => ({
     id: response.id,
