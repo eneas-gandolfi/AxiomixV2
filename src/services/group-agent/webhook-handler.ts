@@ -356,6 +356,44 @@ export function shouldProcessGroupMedia(input: {
   return false;
 }
 
+export async function resolveGroupMediaContinuationContext(params: {
+  supabase: ReturnType<typeof createSupabaseAdminClient>;
+  configId: string;
+  senderJid: string;
+  remoteJid: string;
+  now?: Date;
+}): Promise<{ hasActiveSession: boolean; hasRecentProactive: boolean }> {
+  const { supabase, configId, senderJid, remoteJid } = params;
+  const now = params.now ?? new Date();
+  const proactiveWindowStart = new Date(now.getTime() - 60 * 60_000).toISOString();
+
+  const [{ data: activeSession }, { data: recentProactive }] = await Promise.all([
+    supabase
+      .from("group_agent_sessions")
+      .select("id")
+      .eq("config_id", configId)
+      .eq("sender_jid", senderJid)
+      .eq("group_jid", remoteJid)
+      .gt("expires_at", now.toISOString())
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("group_agent_responses")
+      .select("id")
+      .eq("config_id", configId)
+      .in("response_type", ["proactive_summary", "proactive_alert"])
+      .gte("created_at", proactiveWindowStart)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  return {
+    hasActiveSession: Boolean(activeSession),
+    hasRecentProactive: Boolean(recentProactive),
+  };
+}
+
 export async function processMedia(params: {
   message: ParsedMessage;
   messageType: string;
@@ -366,9 +404,10 @@ export async function processMedia(params: {
   content: string | null;
   messageId: string;
   remoteJid: string;
+  senderJid: string;
   supabase: ReturnType<typeof createSupabaseAdminClient>;
 }): Promise<{ processedContent: string | null; finalMessageType: string }> {
-  const { message, messageType, mediaMimetype, config, instance, messageKey, content, messageId, remoteJid, supabase } = params;
+  const { message, messageType, mediaMimetype, config, instance, messageKey, content, messageId, remoteJid, senderJid, supabase } = params;
 
   const hasMedia = isMediaMessage(message);
   let processedContent = extractTextContent(message);
@@ -380,6 +419,14 @@ export async function processMedia(params: {
 
   const isTrigger = processedContent ? detectTrigger(processedContent, config.trigger_keywords) : false;
   const isAudio = messageType.toLowerCase().includes("audio") || messageType.toLowerCase().includes("ptt");
+  const continuationContext = isAudio && !isTrigger
+    ? await resolveGroupMediaContinuationContext({
+        supabase,
+        configId: config.id,
+        senderJid,
+        remoteJid,
+      })
+    : { hasActiveSession: false, hasRecentProactive: false };
 
   if (
     !shouldProcessGroupMedia({
@@ -387,8 +434,8 @@ export async function processMedia(params: {
       isActive: config.is_active,
       isTrigger,
       isAudio,
-      hasActiveSession: false,
-      hasRecentProactive: false,
+      hasActiveSession: continuationContext.hasActiveSession,
+      hasRecentProactive: continuationContext.hasRecentProactive,
     })
   ) {
     return { processedContent, finalMessageType };

@@ -121,4 +121,76 @@ describe("buildGroupRadarData", () => {
       text: "Resolver reclamacao do cliente ainda hoje",
     });
   });
+
+  it("does not keep stale risk notes in the current status", () => {
+    const data = buildGroupRadarData({
+      now: new Date("2026-08-11T15:00:00Z"),
+      configs: [
+        {
+          id: "config-1",
+          company_id: "company-1",
+          group_jid: "120@g.us",
+          group_name: "Grupo Normalizado",
+          is_active: true,
+          agent_name: "Axiomix IA",
+          feed_to_rag: true,
+          max_responses_per_hour: 20,
+          cooldown_seconds: 10,
+        },
+      ],
+      messages: [
+        {
+          id: "msg-1",
+          config_id: "config-1",
+          sender_jid: "a@s.whatsapp.net",
+          sender_name: "Ana",
+          content: "Tudo certo por aqui",
+          message_type: "text",
+          is_trigger: false,
+          agent_responded: false,
+          sent_at: "2026-08-11T14:00:00Z",
+        },
+      ],
+      responses: [],
+      notes: [
+        {
+          id: "note-1",
+          config_id: "config-1",
+          category: "action_item",
+          content: "Resolver reclamacao antiga",
+          source_sender: "Ana",
+          relevance_score: 0.95,
+          created_at: "2026-08-09T14:30:00Z",
+        },
+      ],
+    });
+
+    expect(data.groups[0].status).toBe("active");
+  });
+
+  it("classifies active proactive groups as proactive", () => {
+    const data = buildGroupRadarData({
+      now: new Date("2026-08-11T15:00:00Z"),
+      configs: [
+        {
+          id: "config-1",
+          company_id: "company-1",
+          group_jid: "120@g.us",
+          group_name: "Grupo Proativo",
+          is_active: true,
+          agent_name: "Axiomix IA",
+          feed_to_rag: true,
+          max_responses_per_hour: 20,
+          cooldown_seconds: 10,
+          proactive_summary: true,
+          proactive_sales_alert: false,
+        },
+      ],
+      messages: [],
+      responses: [],
+      notes: [],
+    });
+
+    expect(data.groups[0].agentMode).toBe("proactive");
+  });
 });

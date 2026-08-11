@@ -170,6 +170,7 @@ export async function POST(request: NextRequest) {
       content,
       messageId,
       remoteJid,
+      senderJid,
       supabase,
     });
 

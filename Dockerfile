@@ -59,6 +59,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/self-hosted-cron.mjs ./scripts/self-hosted-cron.mjs
 
 # Se server.js estiver em subpasta, mover para raiz
 RUN if [ ! -f "server.js" ] && [ -f "axiomix/server.js" ]; then \
@@ -68,4 +69,4 @@ RUN if [ ! -f "server.js" ] && [ -f "axiomix/server.js" ]; then \
 USER nextjs
 EXPOSE 80
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node scripts/self-hosted-cron.mjs & node server.js"]

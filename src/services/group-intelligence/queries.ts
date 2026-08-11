@@ -22,6 +22,8 @@ export type GroupConfigRow = {
   feed_to_rag: boolean;
   max_responses_per_hour: number;
   cooldown_seconds: number;
+  proactive_summary?: boolean | null;
+  proactive_sales_alert?: boolean | null;
 };
 
 export type GroupMessageRow = {
@@ -112,6 +114,7 @@ function fallbackGroupName(config: GroupConfigRow): string {
 
 function resolveAgentMode(config: GroupConfigRow): GroupAgentMode {
   if (!config.is_active) return "radar_only";
+  if (config.proactive_summary || config.proactive_sales_alert) return "proactive";
   return config.max_responses_per_hour > 0 ? "trigger_only" : "radar_only";
 }
 
@@ -147,6 +150,7 @@ export function buildGroupRadarData(input: BuildGroupRadarInput): GroupRadarData
   }
 
   for (const note of input.notes) {
+    if (new Date(note.created_at).getTime() < since24h) continue;
     const items = notesByConfig.get(note.config_id) ?? [];
     items.push(note);
     notesByConfig.set(note.config_id, items);
@@ -235,7 +239,7 @@ export async function getGroupRadarData(companyId: string): Promise<GroupRadarDa
       supabase
         .from("group_agent_configs")
         .select(
-          "id, company_id, group_jid, group_name, is_active, agent_name, feed_to_rag, max_responses_per_hour, cooldown_seconds"
+          "id, company_id, group_jid, group_name, is_active, agent_name, feed_to_rag, max_responses_per_hour, cooldown_seconds, proactive_summary, proactive_sales_alert"
         )
         .eq("company_id", companyId)
         .order("group_name", { ascending: true }),
@@ -260,6 +264,7 @@ export async function getGroupRadarData(companyId: string): Promise<GroupRadarDa
         .select("id, config_id, category, content, source_sender, relevance_score, created_at")
         .eq("company_id", companyId)
         .eq("is_active", true)
+        .gte("created_at", since24h)
         .order("created_at", { ascending: false })
         .limit(100),
     ]);

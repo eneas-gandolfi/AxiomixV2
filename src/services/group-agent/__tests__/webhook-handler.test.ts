@@ -5,10 +5,29 @@ import {
   extractMediaMimetype,
   isGroupJid,
   detectTrigger,
+  resolveGroupMediaContinuationContext,
   shouldProcessGroupMedia,
   resolveTimestamp,
   normalizeEvolutionPayload,
 } from "../webhook-handler";
+
+function createSupabaseMaybeSingleMock(results: unknown[]) {
+  return {
+    from() {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        gt: () => chain,
+        in: () => chain,
+        gte: () => chain,
+        order: () => chain,
+        limit: () => chain,
+        maybeSingle: async () => ({ data: results.shift() ?? null }),
+      };
+      return chain;
+    },
+  };
+}
 
 describe("extractTextContent", () => {
   it("retorna null para message null/undefined", () => {
@@ -236,5 +255,41 @@ describe("shouldProcessGroupMedia", () => {
         hasRecentProactive: false,
       })
     ).toBe(true);
+  });
+});
+
+describe("resolveGroupMediaContinuationContext", () => {
+  it("detects active group agent sessions for media continuation", async () => {
+    const supabase = createSupabaseMaybeSingleMock([{ id: "session-1" }, null]);
+
+    const result = await resolveGroupMediaContinuationContext({
+      supabase: supabase as never,
+      configId: "config-1",
+      senderJid: "sender@s.whatsapp.net",
+      remoteJid: "120@g.us",
+      now: new Date("2026-08-11T15:00:00Z"),
+    });
+
+    expect(result).toEqual({
+      hasActiveSession: true,
+      hasRecentProactive: false,
+    });
+  });
+
+  it("detects recent proactive responses for media continuation", async () => {
+    const supabase = createSupabaseMaybeSingleMock([null, { id: "response-1" }]);
+
+    const result = await resolveGroupMediaContinuationContext({
+      supabase: supabase as never,
+      configId: "config-1",
+      senderJid: "sender@s.whatsapp.net",
+      remoteJid: "120@g.us",
+      now: new Date("2026-08-11T15:00:00Z"),
+    });
+
+    expect(result).toEqual({
+      hasActiveSession: false,
+      hasRecentProactive: true,
+    });
   });
 });
