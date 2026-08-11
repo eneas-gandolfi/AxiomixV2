@@ -1,11 +1,12 @@
 /**
  * Arquivo: src/app/page.tsx
- * Propósito: Redirecionar o usuário para dashboard quando autenticado, senão para login.
+ * Propósito: Redirecionar o usuário para a entrada autenticada, senão para login.
  * Autor: AXIOMIX
  * Data: 2026-03-11
  */
 
 import { redirect } from "next/navigation";
+import { getAuthenticatedDefaultRoute } from "@/lib/navigation/default-route";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function Home() {
@@ -15,7 +16,7 @@ export default async function Home() {
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect("/dashboard");
+    redirect(getAuthenticatedDefaultRoute());
   }
 
   redirect("/login");

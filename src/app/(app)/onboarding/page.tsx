@@ -8,12 +8,13 @@
 import { redirect } from "next/navigation";
 import { OnboardingForm } from "@/components/forms/onboarding-form";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
+import { getAuthenticatedDefaultRoute } from "@/lib/navigation/default-route";
 
 export default async function OnboardingPage() {
   const companyId = await getUserCompanyId();
 
   if (companyId) {
-    redirect("/dashboard");
+    redirect(getAuthenticatedDefaultRoute());
   }
 
   return (
