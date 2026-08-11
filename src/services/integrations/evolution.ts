@@ -427,6 +427,15 @@ function normalizeInstanceName(vendorName: string, companyId: string) {
   return `${base || "vendedor"}-${suffix}`;
 }
 
+function normalizeEvolutionMessageTarget(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.endsWith("@g.us")) {
+    return trimmed;
+  }
+
+  return normalizeWhatsAppPhone(trimmed);
+}
+
 export function createEvolutionVendor(input: {
   companyId: string;
   vendorName: string;
@@ -706,7 +715,7 @@ export async function sendEvolutionTextMessage(input: {
     throw new Error("Nenhuma instância conectada na Evolution API.");
   }
 
-  const normalizedNumber = normalizeWhatsAppPhone(input.number);
+  const normalizedNumber = normalizeEvolutionMessageTarget(input.number);
   if (normalizedNumber.replace(/\D/g, "").length < 8) {
     throw new Error("Número de destino inválido para envio WhatsApp.");
   }
@@ -794,7 +803,7 @@ export async function sendEvolutionMediaMessage(input: {
     throw new Error("Nenhuma instância conectada na Evolution API.");
   }
 
-  const normalizedNumber = normalizeWhatsAppPhone(input.number);
+  const normalizedNumber = normalizeEvolutionMessageTarget(input.number);
   if (normalizedNumber.replace(/\D/g, "").length < 8) {
     throw new Error("Número de destino inválido para envio WhatsApp.");
   }

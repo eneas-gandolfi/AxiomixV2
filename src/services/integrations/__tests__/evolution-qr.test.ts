@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { generateEvolutionQrCode } from "@/services/integrations/evolution";
+import {
+  generateEvolutionQrCode,
+  sendEvolutionTextMessage,
+} from "@/services/integrations/evolution";
 
 const pngQrDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
@@ -101,5 +104,30 @@ describe("generateEvolutionQrCode", () => {
       "https://evolution.example/instance/connect/gestor-1?number=5511999999999",
       expect.any(Object)
     );
+  });
+});
+
+describe("sendEvolutionTextMessage", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("preserva JID de grupo ao enviar mensagem", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({ ok: true }, { status: 201 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendEvolutionTextMessage({
+      credentials: { baseUrl: "https://evolution.example", apiKey: "secret" },
+      instanceName: "gestor-1",
+      number: "5515996256541-1556147298@g.us",
+      text: "Oi grupo",
+    });
+
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const [, init] = calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body.number).toBe("5515996256541-1556147298@g.us");
   });
 });
