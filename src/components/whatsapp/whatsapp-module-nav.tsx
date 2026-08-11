@@ -1,13 +1,11 @@
 /**
  * Arquivo: src/components/whatsapp/whatsapp-module-nav.tsx
- * Propósito: Navegação por abas do módulo Inteligência. Reduzida para 3 abas
- *            (Onda 2 do redesign 7→3):
- *              [Painel] | [Conversas] | [Agentes IA]
+ * Propósito: Navegação por áreas do módulo Inteligência:
+ *              [Grupos] | [Conversas individuais] | [Histórico] | [Agentes IA]
  *
- *            Painel engole Operacao + Analise via toggle interno
- *            (?modo=agora | ?modo=historico). Outras rotas removidas da nav
- *            (Contatos, Pipeline, Sessoes) continuam vivas como fallback ate
- *            ondas seguintes.
+ *            Remove o seletor mental duplicado dentro do Painel e deixa claro
+ *            se o usuário está monitorando grupos, atendendo conversas
+ *            individuais ou lendo histórico analítico.
  * Autor: AXIOMIX
  * Data: 2026-05-11
  */
@@ -15,12 +13,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Bot,
+  Clock,
   KanbanSquare,
-  LayoutDashboard,
   MessageSquare,
+  Users2,
+  type LucideIcon,
 } from "lucide-react";
 
 type TabItem = {
@@ -28,35 +28,42 @@ type TabItem = {
   key: string;
   label: string;
   href: string;
-  icon: typeof LayoutDashboard;
-  exact?: boolean;
+  icon: LucideIcon;
+  match:
+    | { type: "mode"; value: "grupos" | "agora" | "historico" }
+    | { type: "path"; value: string };
 };
 
 type Separator = { kind: "separator" };
 
 type NavEntry = TabItem | Separator;
 
-/**
- * Onda 2 do redesign 7→3: Operacao virou modo do Painel (?modo=agora).
- * Apenas 3 abas no chrome — separators sumiram (so ha 1 grupo + Agentes IA).
- */
 const PIPELINE_ENABLED = process.env.NEXT_PUBLIC_FEATURE_PIPELINE === "true";
 
 const NAV: NavEntry[] = [
   {
     kind: "tab",
-    key: "painel",
-    label: "Painel",
+    key: "grupos",
+    label: "Grupos",
     href: "/whatsapp-intelligence",
-    icon: LayoutDashboard,
-    exact: true,
+    icon: Users2,
+    match: { type: "mode", value: "grupos" },
   },
   {
     kind: "tab",
-    key: "conversas",
-    label: "Conversas",
-    href: "/whatsapp-intelligence/conversas",
+    key: "conversas-individuais",
+    label: "Conversas individuais",
+    href: "/whatsapp-intelligence?modo=agora",
     icon: MessageSquare,
+    match: { type: "mode", value: "agora" },
+  },
+  {
+    kind: "tab",
+    key: "historico",
+    label: "Histórico",
+    href: "/whatsapp-intelligence?modo=historico",
+    icon: Clock,
+    match: { type: "mode", value: "historico" },
   },
   // F6: Pipeline kanban real — só entra no chrome com a flag ligada.
   ...(PIPELINE_ENABLED
@@ -67,6 +74,7 @@ const NAV: NavEntry[] = [
           label: "Pipeline",
           href: "/whatsapp-intelligence/pipeline",
           icon: KanbanSquare,
+          match: { type: "path", value: "/whatsapp-intelligence/pipeline" },
         } satisfies TabItem,
       ]
     : []),
@@ -77,18 +85,28 @@ const NAV: NavEntry[] = [
     label: "Agentes IA",
     href: "/whatsapp-intelligence/agentes",
     icon: Bot,
+    match: { type: "path", value: "/whatsapp-intelligence/agentes" },
   },
 ];
 
-function isTabActive(pathname: string, tab: TabItem) {
-  if (tab.exact) {
-    return pathname === tab.href;
+function getActiveMode(pathname: string, modo: string | null) {
+  if (pathname.startsWith("/whatsapp-intelligence/conversas")) return "agora";
+  if (pathname !== "/whatsapp-intelligence") return null;
+  if (modo === "agora" || modo === "historico") return modo;
+  return "grupos";
+}
+
+function isTabActive(pathname: string, activeMode: string | null, tab: TabItem) {
+  if (tab.match.type === "mode") {
+    return activeMode === tab.match.value;
   }
-  return pathname.startsWith(tab.href);
+  return pathname.startsWith(tab.match.value);
 }
 
 export function WhatsAppModuleNav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeMode = getActiveMode(pathname, searchParams.get("modo"));
 
   return (
     <nav className="border-b border-border">
@@ -105,12 +123,13 @@ export function WhatsAppModuleNav() {
           }
 
           const Icon = entry.icon;
-          const active = isTabActive(pathname, entry);
+          const active = isTabActive(pathname, activeMode, entry);
 
           return (
             <Link
               key={entry.key}
               href={entry.href}
+              aria-current={active ? "page" : undefined}
               className={`flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm rounded-t-lg transition-all border-b-2 ${
                 active
                   ? "border-[var(--module-accent)] text-[var(--module-accent)] font-medium bg-[var(--module-accent-light)]/30"

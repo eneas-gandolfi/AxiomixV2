@@ -16,6 +16,16 @@ const radarData: GroupRadarData = {
     messages24h: 148,
     agentResponses24h: 17,
   },
+  activityBuckets24h: [
+    { label: "18h", count: 0 },
+    { label: "21h", count: 4 },
+    { label: "00h", count: 2 },
+    { label: "03h", count: 0 },
+    { label: "06h", count: 8 },
+    { label: "09h", count: 21 },
+    { label: "12h", count: 48 },
+    { label: "15h", count: 65 },
+  ],
   groups: [
     {
       configId: "vip",

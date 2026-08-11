@@ -267,4 +267,71 @@ describe("buildGroupRadarData", () => {
       "Grupo com Alto Volume",
     ]);
   });
+
+  it("groups the last 24h messages into activity buckets", () => {
+    const data = buildGroupRadarData({
+      now: new Date("2026-08-11T15:00:00Z"),
+      configs: [
+        {
+          id: "config-1",
+          company_id: "company-1",
+          group_jid: "120@g.us",
+          group_name: "Grupo Ativo",
+          is_active: true,
+          agent_name: "Axiomix IA",
+          feed_to_rag: true,
+          max_responses_per_hour: 20,
+          cooldown_seconds: 10,
+        },
+      ],
+      messages: [
+        {
+          id: "msg-1",
+          config_id: "config-1",
+          sender_jid: "a@s.whatsapp.net",
+          sender_name: "Ana",
+          content: "Mensagem recente",
+          message_type: "text",
+          is_trigger: false,
+          agent_responded: false,
+          sent_at: "2026-08-11T14:30:00Z",
+        },
+        {
+          id: "msg-2",
+          config_id: "config-1",
+          sender_jid: "b@s.whatsapp.net",
+          sender_name: "Bruno",
+          content: "Mensagem do meio do dia",
+          message_type: "text",
+          is_trigger: false,
+          agent_responded: false,
+          sent_at: "2026-08-11T10:10:00Z",
+        },
+        {
+          id: "msg-3",
+          config_id: "config-1",
+          sender_jid: "c@s.whatsapp.net",
+          sender_name: "Caio",
+          content: "Mensagem antiga",
+          message_type: "text",
+          is_trigger: false,
+          agent_responded: false,
+          sent_at: "2026-08-10T12:01:00Z",
+        },
+      ],
+      responses: [],
+      notes: [],
+    });
+
+    expect(data.activityBuckets24h.map((bucket) => bucket.count)).toEqual([
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+    ]);
+  });
 });

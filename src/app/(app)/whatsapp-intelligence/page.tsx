@@ -2,14 +2,14 @@
  * Arquivo: src/app/(app)/whatsapp-intelligence/page.tsx
  * Propósito: Painel da Inteligência — porta única com dois modos:
  *
- *              ?modo=agora      -> Operacao ao vivo (default)
+ *              ?modo=agora      -> Conversas individuais em tempo quase-real
  *              ?modo=historico  -> Inteligencia Comercial historica
  *                                  (Pulso, Cold leads, Funil, Objecoes,
  *                                   Heatmap chegada x resposta, Recomendacoes
  *                                   + secoes analiticas §1-§4 quando ha insights)
  *
- *            Decisao da Onda 2 do redesign 7->3 abas (party mode). Header da
- *            pagina mostra toggle segmentado.
+ *            A navegacao principal separa Grupos, Conversas individuais e
+ *            Historico; esta pagina renderiza o conteudo de cada area.
  * Autor: AXIOMIX
  * Data: 2026-05-11
  */
@@ -54,10 +54,10 @@ import { AnalisePeriodPicker } from "@/components/whatsapp/analise-period-picker
 import { parsePeriodFromParam } from "@/lib/whatsapp/analise-period";
 import { NicheBenchmarkCard } from "@/components/dashboard/niche-benchmark-card";
 import { PainelAoVivo } from "@/components/whatsapp/painel-ao-vivo";
-import { PainelModeToggle } from "@/components/whatsapp/painel-mode-toggle";
 import { parsePainelModo } from "@/lib/whatsapp/painel-modo";
 import { GroupsRadarPage } from "@/components/whatsapp/groups/groups-radar-page";
 import { GroupsRadarSkeleton } from "@/components/whatsapp/groups/groups-radar-skeleton";
+import { WhatsAppHistoryOverview } from "@/components/whatsapp/whatsapp-history-overview";
 
 const DAY_MS = 86_400_000;
 
@@ -82,7 +82,6 @@ export default async function WhatsAppDashboardPage({
   if (modo === "grupos") {
     return (
       <div className="space-y-3.5">
-        <PainelHeader active="grupos" />
         <Suspense fallback={<GroupsRadarSkeleton />}>
           <GroupsRadarPage companyId={companyId} />
         </Suspense>
@@ -90,11 +89,10 @@ export default async function WhatsAppDashboardPage({
     );
   }
 
-  // Modo "Ao vivo" — engole o que era a aba Operacao
+  // Conversas individuais em tempo quase-real — engole o que era a aba Operacao.
   if (modo === "agora") {
     return (
       <div className="space-y-3.5">
-        <PainelHeader active="agora" />
         <PainelAoVivo companyId={companyId} />
       </div>
     );
@@ -112,6 +110,10 @@ export default async function WhatsAppDashboardPage({
     { data: periodInsights },
     { count: syncedConversationsCount },
     { data: criticalConversations },
+    { count: groupCount },
+    { count: activeGroupCount },
+    { count: groupMessagesCount },
+    { count: groupResponsesCount },
   ] = await Promise.all([
     supabase
       .from("conversation_insights")
@@ -120,7 +122,7 @@ export default async function WhatsAppDashboardPage({
       .gte("generated_at", sevenDaysAgo.toISOString()),
     supabase
       .from("conversation_insights")
-      .select("sentiment, generated_at")
+      .select("sentiment, intent, generated_at")
       .eq("company_id", companyId)
       .gte("generated_at", periodAgo.toISOString()),
     supabase
@@ -133,6 +135,27 @@ export default async function WhatsAppDashboardPage({
       .eq("company_id", companyId)
       .eq("sentiment", "negativo")
       .gte("generated_at", oneDayAgo.toISOString()),
+    supabase
+      .from("group_agent_configs")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("is_hidden", false),
+    supabase
+      .from("group_agent_configs")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("is_hidden", false)
+      .eq("is_active", true),
+    supabase
+      .from("group_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .gte("sent_at", periodAgo.toISOString()),
+    supabase
+      .from("group_agent_responses")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .gte("created_at", periodAgo.toISOString()),
   ]);
 
   const totalAnalyzed = (recentInsights ?? []).length;
@@ -167,10 +190,32 @@ export default async function WhatsAppDashboardPage({
   }));
 
   const criticalCount = (criticalConversations ?? []).length;
+  const opportunitiesCount = (periodInsights ?? []).filter((insight) => {
+    const intent = (insight.intent ?? "").toLowerCase();
+    return intent.includes("compra") || intent.includes("oportun") || intent.includes("purchase");
+  }).length;
 
   return (
     <div className="space-y-3.5">
-      <PainelHeader active="historico" />
+      <WhatsAppHistoryOverview
+        windowDays={period}
+        groups={{
+          total: groupCount ?? 0,
+          active: activeGroupCount ?? 0,
+          messages: groupMessagesCount ?? 0,
+          aiSignals: groupResponsesCount ?? 0,
+        }}
+        conversations={{
+          total: syncedConversationsCount ?? 0,
+          withoutReturn: criticalCount,
+          opportunities: opportunitiesCount,
+        }}
+        ai={{
+          responses: groupResponsesCount ?? 0,
+          blocked: 0,
+          insights: (periodInsights ?? []).length + (groupResponsesCount ?? 0),
+        }}
+      />
 
       {/* Camada 1 — Pulso Comercial (acima da dobra) */}
       <Suspense fallback={<PulsoComercialSkeleton />}>
@@ -276,25 +321,6 @@ export default async function WhatsAppDashboardPage({
         <RecomendacoesAcoesCard companyId={companyId} />
       </Suspense>
     </div>
-  );
-}
-
-// =============================================================================
-// PainelHeader — toggle Ao vivo / Historico no topo do Painel
-// =============================================================================
-
-function PainelHeader({ active }: { active: "grupos" | "agora" | "historico" }) {
-  return (
-    <header className="flex flex-wrap items-center justify-between gap-2">
-      <PainelModeToggle active={active} />
-      <p className="text-[11.5px] text-[var(--color-text-tertiary)]">
-        {active === "grupos"
-          ? "Agora · 24h"
-          : active === "agora"
-            ? "Veja quem está esperando agora · atualiza a cada 30s"
-            : "Métricas históricas e tendências do funil"}
-      </p>
-    </header>
   );
 }
 

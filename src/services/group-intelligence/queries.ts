@@ -84,6 +84,11 @@ export type GroupRadarInsight = {
   score: number;
 };
 
+export type GroupActivityBucket = {
+  label: string;
+  count: number;
+};
+
 export type GroupRadarData = {
   summary: {
     totalGroups: number;
@@ -93,6 +98,7 @@ export type GroupRadarData = {
     messages24h: number;
     agentResponses24h: number;
   };
+  activityBuckets24h: GroupActivityBucket[];
   groups: GroupRadarItem[];
   insights: GroupRadarInsight[];
 };
@@ -106,6 +112,8 @@ export type BuildGroupRadarInput = {
 };
 
 const DAY_MS = 24 * 60 * 60_000;
+const ACTIVITY_BUCKET_COUNT = 8;
+const ACTIVITY_BUCKET_MS = DAY_MS / ACTIVITY_BUCKET_COUNT;
 const HOT_MESSAGE_THRESHOLD = 40;
 const STATUS_PRIORITY: Record<GroupRadarStatus, number> = {
   risk: 5,
@@ -134,6 +142,32 @@ function isRiskNote(note: GroupNoteRow): boolean {
     text.includes("urgente") ||
     text.includes("problema")
   );
+}
+
+function buildActivityBuckets(messages: GroupMessageRow[], now: Date): GroupActivityBucket[] {
+  const windowStart = now.getTime() - DAY_MS;
+  const buckets = Array.from({ length: ACTIVITY_BUCKET_COUNT }, (_, index) => {
+    const bucketEnd = windowStart + (index + 1) * ACTIVITY_BUCKET_MS;
+    const hour = new Date(bucketEnd).getUTCHours().toString().padStart(2, "0");
+
+    return {
+      label: `${hour}h`,
+      count: 0,
+    };
+  });
+
+  for (const message of messages) {
+    const sentAt = new Date(message.sent_at).getTime();
+    if (sentAt < windowStart || sentAt > now.getTime()) continue;
+
+    const bucketIndex = Math.min(
+      ACTIVITY_BUCKET_COUNT - 1,
+      Math.max(0, Math.floor((sentAt - windowStart) / ACTIVITY_BUCKET_MS))
+    );
+    buckets[bucketIndex].count += 1;
+  }
+
+  return buckets;
 }
 
 export function buildGroupRadarData(input: BuildGroupRadarInput): GroupRadarData {
@@ -234,6 +268,7 @@ export function buildGroupRadarData(input: BuildGroupRadarInput): GroupRadarData
       messages24h: groups.reduce((sum, group) => sum + group.messageCount24h, 0),
       agentResponses24h: groups.reduce((sum, group) => sum + group.agentResponses24h, 0),
     },
+    activityBuckets24h: buildActivityBuckets(input.messages, input.now),
     groups: groups.sort((a, b) => {
       const priorityDelta = STATUS_PRIORITY[b.status] - STATUS_PRIORITY[a.status];
       if (priorityDelta !== 0) return priorityDelta;

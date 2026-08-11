@@ -39,7 +39,7 @@ function getStatusBadgeClass(status: GroupRadarItem["status"]): string {
   }
 }
 
-const GROUP_FOCUS_LIMIT = 6;
+const GROUP_FOCUS_LIMIT = 4;
 
 function hasDashboardSignal(group: GroupRadarItem): boolean {
   return (
@@ -52,6 +52,25 @@ function hasDashboardSignal(group: GroupRadarItem): boolean {
 
 export function getFocusedGroups(groups: GroupRadarItem[]): GroupRadarItem[] {
   return groups.filter(hasDashboardSignal).slice(0, GROUP_FOCUS_LIMIT);
+}
+
+function getOperationalQueue(groups: GroupRadarItem[], focusedGroups: GroupRadarItem[]) {
+  const focusedIds = new Set(focusedGroups.map((group) => group.configId));
+  const actionCount = groups.filter((group) => group.status === "risk" || group.status === "hot").length;
+  const observedCount = groups.filter(
+    (group) => group.status === "active" || group.status === "quiet"
+  ).length;
+  const withoutPriorityCount = groups.filter(
+    (group) => group.status === "inactive" && !hasDashboardSignal(group)
+  ).length;
+  const outsideMainViewCount = groups.filter((group) => !focusedIds.has(group.configId)).length;
+
+  return {
+    actionCount,
+    observedCount,
+    withoutPriorityCount,
+    outsideMainViewCount,
+  };
 }
 
 function getAgentBadgeClass(mode: GroupRadarItem["agentMode"]): string {
@@ -83,6 +102,10 @@ export function GroupPriorityList({ groups }: { groups: GroupRadarItem[] }) {
     .filter((group) => group.status === "risk" || group.status === "hot")
     .slice(0, 3);
 
+  if (priorityGroups.length === 0) {
+    return null;
+  }
+
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-3">
@@ -90,45 +113,36 @@ export function GroupPriorityList({ groups }: { groups: GroupRadarItem[] }) {
         <span className="text-xs text-[var(--color-text-tertiary)]">Prioridade</span>
       </div>
 
-      {priorityGroups.length === 0 ? (
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-          <p className="text-sm font-medium text-[var(--color-text)]">Sem urgências agora</p>
-          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-            Os grupos estão em observação.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-2">
-          {priorityGroups.map((group) => (
-            <article
-              key={group.configId}
-              className="grid min-w-0 grid-cols-1 gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:grid-cols-[minmax(0,1fr)_auto]"
-            >
-              <div className="min-w-0">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <h3 className="min-w-0 flex-1 basis-full truncate text-sm font-semibold text-[var(--color-text)] sm:basis-auto">
-                    {group.name}
-                  </h3>
-                  <StatusBadge status={group.status} />
-                  <AgentBadge mode={group.agentMode} />
-                </div>
-                <p className="mt-2 truncate text-sm text-[var(--color-text-secondary)]">
-                  {getPriorityAction(group)}
-                </p>
-                <GroupNumbers group={group} compact />
+      <div className="grid gap-2">
+        {priorityGroups.map((group) => (
+          <article
+            key={group.configId}
+            className="grid min-w-0 grid-cols-1 gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+          >
+            <div className="min-w-0">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h3 className="min-w-0 flex-1 basis-full truncate text-sm font-semibold text-[var(--color-text)] sm:basis-auto">
+                  {group.name}
+                </h3>
+                <StatusBadge status={group.status} />
+                <AgentBadge mode={group.agentMode} />
               </div>
-              <Link
-                href="/settings?tab=group-agent"
-                aria-label={`Configurar ${group.name}`}
-                title="Configurar grupo"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] sm:justify-self-end"
-              >
-                <Settings className="h-4 w-4" />
-              </Link>
-            </article>
-          ))}
-        </div>
-      )}
+              <p className="mt-2 truncate text-sm text-[var(--color-text-secondary)]">
+                {getPriorityAction(group)}
+              </p>
+              <GroupNumbers group={group} compact />
+            </div>
+            <Link
+              href="/settings?tab=group-agent"
+              aria-label={`Configurar ${group.name}`}
+              title="Configurar grupo"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)] sm:justify-self-end"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -154,78 +168,77 @@ export function GroupStatusGrid({ groups }: { groups: GroupRadarItem[] }) {
   }
 
   const focusedGroups = getFocusedGroups(groups);
-  const hiddenGroupsCount = Math.max(groups.length - focusedGroups.length, 0);
+  const queue = getOperationalQueue(groups, focusedGroups);
 
   if (focusedGroups.length === 0) {
     return (
-      <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-[var(--color-text)]">Grupos em foco</h2>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-              Nenhum grupo com sinal recente.
-            </p>
+      <section className="space-y-3">
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--color-text)]">Grupos em foco</h2>
+              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                Nenhum grupo com sinal recente.
+              </p>
+            </div>
+            <Link
+              href="/settings?tab=group-agent"
+              className="inline-flex h-8 shrink-0 items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 text-xs font-semibold text-[var(--color-text)]"
+            >
+              Ver todos
+            </Link>
           </div>
-          <Link
-            href="/settings?tab=group-agent"
-            className="inline-flex h-8 shrink-0 items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 text-xs font-semibold text-[var(--color-text)]"
-          >
-            Ver todos
-          </Link>
         </div>
+        <OperationalQueue queue={queue} totalGroups={groups.length} />
       </section>
     );
   }
 
   return (
-    <section className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--color-text)]">Grupos em foco</h2>
-          <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
-            {focusedGroups.length} de {groups.length} grupos
-          </p>
-        </div>
-        <Link
-          href="/settings?tab=group-agent"
-          className="inline-flex h-8 items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 text-xs font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--module-accent)]/40 hover:text-[var(--module-accent)]"
-        >
-          Ver todos
-        </Link>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        {focusedGroups.map((group) => (
-          <article
-            key={group.configId}
-            className="min-h-[124px] min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+    <section className="space-y-3">
+      <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">Grupos em foco</h2>
+            <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
+              {focusedGroups.length} grupos principais aparecem aqui; o restante fica organizado na fila.
+            </p>
+          </div>
+          <Link
+            href="/settings?tab=group-agent"
+            className="inline-flex h-8 items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 text-xs font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--module-accent)]/40 hover:text-[var(--module-accent)]"
           >
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+            Ver todos
+          </Link>
+        </div>
+        <div className="divide-y divide-[var(--color-border)]">
+          {focusedGroups.map((group) => (
+            <article
+              key={group.configId}
+              className="grid min-w-0 grid-cols-1 gap-3 px-4 py-3 md:grid-cols-[minmax(180px,1fr)_88px_70px_82px_minmax(180px,1fr)] md:items-center"
+            >
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-semibold text-[var(--color-text)]">
+                <h3 className="truncate text-sm font-semibold text-[var(--color-text)]">
                   {group.name}
-                </h2>
-                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                  {getStatusLabel(group.status)}
+                </h3>
+                <p className="mt-1 truncate text-xs text-[var(--color-text-secondary)]">
+                  {group.lastMessagePreview ?? getStatusLabel(group.status)}
                 </p>
               </div>
               <StatusBadge status={group.status} />
-            </div>
-
-            <GroupNumbers group={group} />
-
-            {group.lastMessagePreview ? (
-              <p className="mt-3 truncate text-xs text-[var(--color-text-secondary)]">
-                {group.lastMessagePreview}
+              <MetricCell value={group.messageCount24h} label="msg" />
+              <MetricCell
+                value={group.uniqueSenders24h}
+                label={group.uniqueSenders24h === 1 ? "pessoa" : "pessoas"}
+              />
+              <p className="line-clamp-2 text-xs leading-snug text-[var(--color-text-secondary)]">
+                {getPriorityAction(group)}
               </p>
-            ) : null}
-          </article>
-        ))}
+            </article>
+          ))}
+        </div>
       </div>
-      {hiddenGroupsCount > 0 ? (
-        <p className="text-xs text-[var(--color-text-tertiary)]">
-          {hiddenGroupsCount} grupo{hiddenGroupsCount === 1 ? "" : "s"} sem prioridade ficam em Configurações.
-        </p>
-      ) : null}
+      <OperationalQueue queue={queue} totalGroups={groups.length} />
     </section>
   );
 }
@@ -247,6 +260,71 @@ function AgentBadge({ mode }: { mode: GroupRadarItem["agentMode"] }) {
     >
       {getAgentModeLabel(mode)}
     </span>
+  );
+}
+
+function MetricCell({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-[var(--color-surface-2)] px-3 py-2 md:bg-transparent md:px-0 md:py-0">
+      <strong className="block font-mono text-sm font-semibold text-[var(--color-text)]">
+        {value}
+      </strong>
+      <span className="block truncate text-xs text-[var(--color-text-tertiary)]">{label}</span>
+    </div>
+  );
+}
+
+function OperationalQueue({
+  queue,
+  totalGroups,
+}: {
+  queue: ReturnType<typeof getOperationalQueue>;
+  totalGroups: number;
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--color-text)]">Fila operacional</h2>
+          <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
+            Mostra para onde vai cada grupo sem alongar a página.
+          </p>
+        </div>
+        <span className="inline-flex h-7 items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 text-xs font-semibold text-[var(--color-text-secondary)]">
+          {totalGroups} grupo{totalGroups === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 p-3 lg:grid-cols-4">
+        <QueueCard label="ação" value={queue.actionCount} detail="exigem resposta agora" />
+        <QueueCard label="observação" value={queue.observedCount} detail="com algum sinal recente" />
+        <QueueCard
+          label="sem prioridade"
+          value={queue.withoutPriorityCount}
+          detail="sem prioridade agora"
+        />
+        <QueueCard
+          label="fora da leitura"
+          value={queue.outsideMainViewCount}
+          detail="fora da leitura principal"
+        />
+      </div>
+    </section>
+  );
+}
+
+function QueueCard({ label, value, detail }: { label: string; value: number; detail: string }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
+      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+        {label}
+      </p>
+      <strong className="mt-2 block font-mono text-lg font-semibold text-[var(--color-text)]">
+        {value}
+      </strong>
+      <p className="mt-1 line-clamp-2 text-xs leading-snug text-[var(--color-text-secondary)]">
+        {detail}
+      </p>
+    </div>
   );
 }
 

@@ -72,11 +72,19 @@ export async function GET(request: NextRequest) {
       .eq("id", access.companyId)
       .maybeSingle();
 
-    // Fetch integrations
-    const { data: integrations } = await supabase
-      .from("integrations")
-      .select("type, is_active, config")
-      .eq("company_id", access.companyId);
+    // Fetch integrations and group-agent readiness
+    const [{ data: integrations }, { count: activeGroupAgentsCount }] = await Promise.all([
+      supabase
+        .from("integrations")
+        .select("type, is_active, config")
+        .eq("company_id", access.companyId),
+      supabase
+        .from("group_agent_configs")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", access.companyId)
+        .eq("is_active", true)
+        .eq("is_hidden", false),
+    ]);
 
     // Count active integrations
     const activeIntegrations = integrations?.filter((i) => i.is_active).length ?? 0;
@@ -102,6 +110,7 @@ export async function GET(request: NextRequest) {
       totalSocialPlatforms,
       integrationsActive: activeIntegrations,
       totalIntegrations,
+      groupAgentReady: (activeGroupAgentsCount ?? 0) > 0,
       lastUpdate: company?.created_at ?? null,
     });
   } catch (error) {

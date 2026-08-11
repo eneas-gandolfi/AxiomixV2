@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup - Dashboard de Grupos WhatsApp</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6f8;
+        --surface: #ffffff;
+        --surface-soft: #f8fafb;
+        --line: #d9e0e8;
+        --line-soft: #e8edf2;
+        --text: #111827;
+        --muted: #6b7280;
+        --faint: #8b95a3;
+        --teal: #0f9f8f;
+        --teal-soft: #e7f7f4;
+        --orange: #f35b04;
+        --orange-soft: #fff1e8;
+        --green: #22c55e;
+        --green-soft: #eaf8ef;
+        --red: #ef4444;
+        --red-soft: #fff0f0;
+        --blue: #2563eb;
+        --blue-soft: #edf4ff;
+        --ink-soft: #f1f4f7;
+        --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      .shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+      }
+
+      .rail {
+        background: #081018;
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 14px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+        align-items: center;
+      }
+
+      .brand {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #ff6a00, #f04405);
+        color: white;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+      }
+
+      .nav-dot {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        color: #718096;
+      }
+
+      .nav-dot.active {
+        color: #ff6a00;
+        background: rgba(255, 106, 0, 0.11);
+      }
+
+      .content {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .topbar {
+        height: 64px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px;
+      }
+
+      .topbar strong {
+        font-size: 15px;
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      main {
+        padding: 26px 28px 34px;
+      }
+
+      .hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(32px, 4vw, 48px);
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .hero-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      button,
+      .button {
+        border: 1px solid var(--line);
+        min-height: 42px;
+        border-radius: 12px;
+        padding: 0 16px;
+        font: inherit;
+        font-weight: 800;
+        background: var(--surface);
+        color: var(--text);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .button.primary {
+        color: white;
+        background: var(--teal);
+        border-color: var(--teal);
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .metric {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px 18px;
+        min-height: 118px;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .metric-main {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .metric-value {
+        font-size: 42px;
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .spark {
+        width: 92px;
+        height: 36px;
+      }
+
+      .metric-foot {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.65fr);
+        gap: 16px;
+        align-items: start;
+      }
+
+      .left,
+      .right {
+        display: grid;
+        gap: 16px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+
+      .panel-head {
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--line-soft);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 17px;
+        line-height: 1.2;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+
+      .panel-body {
+        padding: 18px;
+      }
+
+      .activity-chart {
+        height: 150px;
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 8px;
+        align-items: end;
+        padding-top: 8px;
+      }
+
+      .bar-wrap {
+        min-width: 0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      .bar {
+        width: 100%;
+        max-width: 28px;
+        border-radius: 8px 8px 4px 4px;
+        background: linear-gradient(180deg, var(--teal), #54d1c4);
+        min-height: 8px;
+      }
+
+      .bar.hot {
+        background: linear-gradient(180deg, var(--orange), #ff9b62);
+      }
+
+      .bar-label {
+        color: var(--faint);
+        font-size: 11px;
+      }
+
+      .status-bars {
+        display: grid;
+        gap: 13px;
+      }
+
+      .status-row {
+        display: grid;
+        grid-template-columns: 86px minmax(0, 1fr) 34px;
+        gap: 10px;
+        align-items: center;
+        font-size: 13px;
+      }
+
+      .track {
+        height: 12px;
+        border-radius: 999px;
+        background: var(--ink-soft);
+        overflow: hidden;
+      }
+
+      .fill {
+        height: 100%;
+        border-radius: inherit;
+      }
+
+      .focus-list {
+        display: grid;
+      }
+
+      .focus-row {
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) 86px 78px 86px minmax(190px, 1.1fr);
+        gap: 14px;
+        align-items: center;
+        padding: 12px 18px;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .focus-row:first-child {
+        border-top: 0;
+      }
+
+      .group-name {
+        font-weight: 850;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 3px;
+      }
+
+      .tag {
+        justify-self: start;
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .tag.ok {
+        color: #128344;
+        background: var(--green-soft);
+      }
+
+      .tag.hot {
+        color: #b84a00;
+        background: var(--orange-soft);
+      }
+
+      .tag.quiet {
+        color: #3b5f91;
+        background: var(--blue-soft);
+      }
+
+      .tag.risk {
+        color: #b91c1c;
+        background: var(--red-soft);
+      }
+
+      .number {
+        font-weight: 900;
+        font-size: 18px;
+      }
+
+      .action {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .queue-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .queue-card {
+        min-height: 118px;
+        border: 1px solid var(--line-soft);
+        border-radius: 16px;
+        background: var(--surface-soft);
+        padding: 14px;
+        display: grid;
+        align-content: space-between;
+        gap: 12px;
+      }
+
+      .queue-card strong {
+        display: block;
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      .queue-card span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.3;
+        margin-top: 6px;
+      }
+
+      .queue-label {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .next-step {
+        margin-top: 12px;
+        border: 1px solid #ffd2b8;
+        border-radius: 16px;
+        background: var(--orange-soft);
+        color: #9a3412;
+        padding: 13px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .next-step strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .next-step span {
+        color: #a13b00;
+        font-size: 13px;
+      }
+
+      .signal-list {
+        display: grid;
+      }
+
+      .signal {
+        padding: 15px 18px;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .signal:first-child {
+        border-top: 0;
+      }
+
+      .signal-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        margin-bottom: 7px;
+      }
+
+      .signal p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.38;
+      }
+
+      .credit {
+        background: var(--orange-soft);
+        border: 1px solid #ffd2b8;
+        color: #a13b00;
+        margin: 14px 18px 18px;
+        border-radius: 14px;
+        padding: 13px 14px;
+        font-size: 13px;
+        font-weight: 750;
+        line-height: 1.35;
+      }
+
+      .health {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .health-item {
+        border: 1px solid var(--line-soft);
+        border-radius: 14px;
+        background: var(--surface-soft);
+        padding: 13px;
+      }
+
+      .health-item strong {
+        display: block;
+        font-size: 22px;
+      }
+
+      .health-item span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 1100px) {
+        .summary-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+
+        .rail {
+          display: none;
+        }
+
+        .topbar {
+          padding: 0 16px;
+        }
+
+        main {
+          padding: 20px 14px 28px;
+        }
+
+        .hero {
+          display: grid;
+        }
+
+        .hero-actions {
+          justify-content: stretch;
+        }
+
+        .hero-actions .button {
+          flex: 1;
+        }
+
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .activity-chart {
+          gap: 5px;
+        }
+
+        .focus-row {
+          grid-template-columns: 1fr 80px;
+          gap: 8px;
+        }
+
+        .focus-row .tag,
+        .focus-row .action {
+          grid-column: 1 / -1;
+        }
+
+        .health {
+          grid-template-columns: 1fr;
+        }
+
+        .queue-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .next-step {
+          display: grid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="rail" aria-label="Navegacao">
+        <div class="brand">a</div>
+        <div class="nav-dot active">▦</div>
+        <div class="nav-dot">□</div>
+        <div class="nav-dot">⌁</div>
+        <div class="nav-dot">⚙</div>
+      </aside>
+
+      <div class="content">
+        <header class="topbar">
+          <div>
+            <strong>Terca-feira, 11 de agosto</strong>
+            <span class="pill">16:42</span>
+          </div>
+          <div class="top-actions">
+            <span class="pill">Operacional</span>
+            <span class="pill">A</span>
+          </div>
+        </header>
+
+        <main>
+          <section class="hero">
+            <div>
+              <h1>Grupos</h1>
+              <p class="subtitle">Radar de WhatsApp com atividade, risco e sinais recentes da IA.</p>
+            </div>
+            <div class="hero-actions">
+              <a class="button" href="#">Agentes</a>
+              <a class="button primary" href="#">Configurar</a>
+            </div>
+          </section>
+
+          <section class="summary-grid" aria-label="Resumo">
+            <article class="metric">
+              <div class="metric-label">Atencao</div>
+              <div class="metric-main">
+                <div class="metric-value">0</div>
+                <svg class="spark" viewBox="0 0 92 36" role="img" aria-label="Sem alta de risco">
+                  <path d="M4 27 C18 27 20 23 31 24 C43 25 47 20 59 21 C72 22 77 18 88 17" fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="metric-foot">0 risco · 0 quente</div>
+            </article>
+
+            <article class="metric">
+              <div class="metric-label">Mensagens</div>
+              <div class="metric-main">
+                <div class="metric-value">5</div>
+                <svg class="spark" viewBox="0 0 92 36" role="img" aria-label="Baixo volume">
+                  <path d="M4 28 L18 26 L32 29 L46 18 L60 23 L74 16 L88 20" fill="none" stroke="#0f9f8f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </div>
+              <div class="metric-foot">24h · 2 grupos com movimento</div>
+            </article>
+
+            <article class="metric">
+              <div class="metric-label">Monitorados</div>
+              <div class="metric-main">
+                <div class="metric-value">44</div>
+                <svg class="spark" viewBox="0 0 92 36" role="img" aria-label="Distribuicao estavel">
+                  <rect x="4" y="19" width="10" height="13" rx="4" fill="#d7e0e8" />
+                  <rect x="22" y="12" width="10" height="20" rx="4" fill="#0f9f8f" />
+                  <rect x="40" y="24" width="10" height="8" rx="4" fill="#d7e0e8" />
+                  <rect x="58" y="7" width="10" height="25" rx="4" fill="#f35b04" />
+                  <rect x="76" y="17" width="10" height="15" rx="4" fill="#d7e0e8" />
+                </svg>
+              </div>
+              <div class="metric-foot">1 ativo · 42 sem prioridade</div>
+            </article>
+
+            <article class="metric">
+              <div class="metric-label">IA</div>
+              <div class="metric-main">
+                <div class="metric-value">4</div>
+                <svg class="spark" viewBox="0 0 92 36" role="img" aria-label="Respostas IA">
+                  <path d="M4 30 L20 30 L20 24 L36 24 L36 18 L52 18 L52 12 L68 12 L68 8 L88 8" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </div>
+              <div class="metric-foot">respostas em 24h</div>
+            </article>
+          </section>
+
+          <section class="grid">
+            <div class="left">
+              <article class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Atividade nas ultimas 24h</h2>
+                    <div class="hint">Volume por horario para identificar picos sem ler todos os grupos.</div>
+                  </div>
+                  <span class="pill">24h</span>
+                </div>
+                <div class="panel-body">
+                  <div class="activity-chart" aria-label="Grafico de barras por horario">
+                    <div class="bar-wrap"><div class="bar" style="height: 18%"></div><span class="bar-label">06</span></div>
+                    <div class="bar-wrap"><div class="bar" style="height: 11%"></div><span class="bar-label">08</span></div>
+                    <div class="bar-wrap"><div class="bar" style="height: 16%"></div><span class="bar-label">10</span></div>
+                    <div class="bar-wrap"><div class="bar hot" style="height: 72%"></div><span class="bar-label">12</span></div>
+                    <div class="bar-wrap"><div class="bar" style="height: 28%"></div><span class="bar-label">14</span></div>
+                    <div class="bar-wrap"><div class="bar hot" style="height: 86%"></div><span class="bar-label">16</span></div>
+                    <div class="bar-wrap"><div class="bar" style="height: 35%"></div><span class="bar-label">18</span></div>
+                    <div class="bar-wrap"><div class="bar" style="height: 24%"></div><span class="bar-label">20</span></div>
+                    <div class="bar-wrap"><div class="bar" style="height: 12%"></div><span class="bar-label">22</span></div>
+                    <div class="bar-wrap"><div class="bar" style="height: 8%"></div><span class="bar-label">00</span></div>
+                    <div class="bar-wrap"><div class="bar" style="height: 6%"></div><span class="bar-label">02</span></div>
+                    <div class="bar-wrap"><div class="bar" style="height: 10%"></div><span class="bar-label">04</span></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Grupos em foco</h2>
+                    <div class="hint">4 grupos principais aparecem aqui; o restante fica organizado na fila.</div>
+                  </div>
+                  <a class="button" href="#">Ver todos</a>
+                </div>
+                <div class="focus-list">
+                  <div class="focus-row">
+                    <div>
+                      <div class="group-name">Anotacoes</div>
+                      <div class="small">@axiomix teste final creditos</div>
+                    </div>
+                    <span class="tag ok">Ativo</span>
+                    <div><div class="number">4</div><div class="small">msg</div></div>
+                    <div><div class="number">1</div><div class="small">pessoa</div></div>
+                    <div class="action">IA respondeu; aguardando creditos OpenRouter.</div>
+                  </div>
+
+                  <div class="focus-row">
+                    <div>
+                      <div class="group-name">Amantes da 7a arte</div>
+                      <div class="small">Vc vai chamar as criancas das suas amigas?</div>
+                    </div>
+                    <span class="tag quiet">Radar</span>
+                    <div><div class="number">1</div><div class="small">msg</div></div>
+                    <div><div class="number">1</div><div class="small">pessoa</div></div>
+                    <div class="action">Sem acao comercial; apenas monitorar.</div>
+                  </div>
+
+                  <div class="focus-row">
+                    <div>
+                      <div class="group-name">#57 Python - Lira da Hashtag</div>
+                      <div class="small">Sem mensagens novas no periodo.</div>
+                    </div>
+                    <span class="tag quiet">Baixo</span>
+                    <div><div class="number">0</div><div class="small">msg</div></div>
+                    <div><div class="number">0</div><div class="small">pessoa</div></div>
+                    <div class="action">Fica fora da rotina diaria ate voltar a ter movimento.</div>
+                  </div>
+
+                  <div class="focus-row">
+                    <div>
+                      <div class="group-name">Comunidade - Vianna</div>
+                      <div class="small">Grupo sincronizado, sem sinal recente.</div>
+                    </div>
+                    <span class="tag quiet">Radar</span>
+                    <div><div class="number">0</div><div class="small">msg</div></div>
+                    <div><div class="number">0</div><div class="small">pessoa</div></div>
+                    <div class="action">Monitorar em segundo plano; nao exige leitura agora.</div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Fila operacional</h2>
+                    <div class="hint">Mostra para onde vai cada grupo sem alongar a pagina.</div>
+                  </div>
+                  <span class="pill">44 grupos</span>
+                </div>
+                <div class="panel-body">
+                  <div class="queue-grid">
+                    <div class="queue-card">
+                      <div class="queue-label">acao</div>
+                      <div><strong>1</strong><span>aguarda credito OpenRouter</span></div>
+                    </div>
+                    <div class="queue-card">
+                      <div class="queue-label">observacao</div>
+                      <div><strong>2</strong><span>com movimento nas ultimas 24h</span></div>
+                    </div>
+                    <div class="queue-card">
+                      <div class="queue-label">silenciosos</div>
+                      <div><strong>39</strong><span>sem atividade relevante hoje</span></div>
+                    </div>
+                    <div class="queue-card">
+                      <div class="queue-label">ocultos</div>
+                      <div><strong>0</strong><span>removidos da leitura diaria</span></div>
+                    </div>
+                  </div>
+                  <div class="next-step">
+                    <div>
+                      <strong>Proxima acao clara</strong>
+                      <span>Recarregar OpenRouter para liberar respostas reais da IA.</span>
+                    </div>
+                    <a class="button" href="#">Resolver</a>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <aside class="right">
+              <article class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Distribuicao dos grupos</h2>
+                    <div class="hint">Leitura de status sem precisar abrir a lista completa.</div>
+                  </div>
+                </div>
+                <div class="panel-body">
+                  <div class="status-bars">
+                    <div class="status-row"><span>Atencao</span><div class="track"><div class="fill" style="width: 0%; background: var(--red)"></div></div><strong>0</strong></div>
+                    <div class="status-row"><span>Quentes</span><div class="track"><div class="fill" style="width: 0%; background: var(--orange)"></div></div><strong>0</strong></div>
+                    <div class="status-row"><span>Ativos</span><div class="track"><div class="fill" style="width: 12%; background: var(--green)"></div></div><strong>1</strong></div>
+                    <div class="status-row"><span>Radar</span><div class="track"><div class="fill" style="width: 18%; background: var(--blue)"></div></div><strong>1</strong></div>
+                    <div class="status-row"><span>Inativos</span><div class="track"><div class="fill" style="width: 96%; background: #9aa4b2"></div></div><strong>42</strong></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Sinais recentes</h2>
+                    <div class="hint">Compacto, com destaque para o que bloqueia a IA.</div>
+                  </div>
+                </div>
+                <div class="signal-list">
+                  <div class="signal">
+                    <div class="signal-meta"><span>Anotacoes</span><span>Resposta IA</span><span>16:10</span></div>
+                    <p>Nao consegui responder porque os creditos do OpenRouter acabaram.</p>
+                  </div>
+                  <div class="signal">
+                    <div class="signal-meta"><span>Anotacoes</span><span>Resposta IA</span><span>16:04</span></div>
+                    <p>Nao consegui responder porque os creditos do OpenRouter acabaram.</p>
+                  </div>
+                  <div class="signal">
+                    <div class="signal-meta"><span>Anotacoes</span><span>Resposta IA</span><span>15:56</span></div>
+                    <p>Teste hotfix confirmado. Envio para grupos funcionando corretamente.</p>
+                  </div>
+                </div>
+                <div class="credit">OpenRouter sem saldo util. Recarregue creditos para liberar respostas reais da IA.</div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Saude da operacao</h2>
+                    <div class="hint">Indicadores pequenos, sem ocupar a pagina inteira.</div>
+                  </div>
+                  <span class="pill">estavel</span>
+                </div>
+                <div class="panel-body">
+                  <div class="health">
+                    <div class="health-item"><strong>0</strong><span>alertas</span></div>
+                    <div class="health-item"><strong>2</strong><span>em foco</span></div>
+                    <div class="health-item"><strong>42</strong><span>arquivados</span></div>
+                  </div>
+                </div>
+              </article>
+            </aside>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

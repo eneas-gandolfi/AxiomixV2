@@ -17,7 +17,7 @@ export function WhatsAppModuleHeader() {
         <div>
           <h1 className="ax-t1 text-xl md:text-2xl">Inteligência</h1>
           <p className="mt-1 ax-body text-[var(--color-text-secondary)]">
-            Painel ao vivo, histórico de IA e conversas do WhatsApp.
+            Grupos monitorados, conversas individuais e histórico de IA.
           </p>
         </div>
         <Link

@@ -36,6 +36,7 @@ type SettingsStats = {
   totalIntegrations: number;
   evoCrmActive?: boolean;
   evolutionApiActive?: boolean;
+  groupAgentReady?: boolean;
   lastUpdate: string | null;
 };
 
@@ -166,14 +167,16 @@ export function SettingsLayout({ companyId, initialStats, initialTab, initialInt
     totalIntegrations: initialStats?.totalIntegrations ?? 2,
     evoCrmActive: initialStats?.evoCrmActive,
     evolutionApiActive: initialStats?.evolutionApiActive,
+    groupAgentReady: initialStats?.groupAgentReady ?? false,
     lastUpdate: initialStats?.lastUpdate ?? null,
   };
 
   const evolutionApiActive = stats.evolutionApiActive ?? stats.integrationsActive >= stats.totalIntegrations;
+  const groupAgentReady = Boolean(stats.groupAgentReady);
   const completedSteps = [
     stats.companyConfigured,
     evolutionApiActive,
-    false,
+    groupAgentReady,
   ].filter(Boolean).length;
 
   const openIntegration = (key: IntegrationModalKey) => {
@@ -327,10 +330,11 @@ function OverviewTab({
   onOpenIntegration: (key: IntegrationModalKey) => void;
 }) {
   const evolutionApiActive = stats.evolutionApiActive ?? stats.integrationsActive >= stats.totalIntegrations;
+  const groupAgentReady = Boolean(stats.groupAgentReady);
   const completedSteps = [
     stats.companyConfigured,
     evolutionApiActive,
-    false,
+    groupAgentReady,
   ].filter(Boolean).length;
 
   const nextAction = !stats.companyConfigured
@@ -347,12 +351,19 @@ function OverviewTab({
             button: "Gerar QR Code",
             integration: "evolution" as const,
           }
-        : {
+        : !groupAgentReady
+          ? {
             title: "Selecionar grupos",
             description: "Escolha quais grupos serão monitorados e como a IA deve responder.",
             button: "Escolher grupos",
             tab: "group-agent" as const,
-          };
+          }
+          : {
+              title: "Configuração pronta",
+              description: "Seu WhatsApp está conectado e já existe grupo ativo para a IA monitorar.",
+              button: "Revisar grupos",
+              tab: "group-agent" as const,
+            };
 
   const handleNextAction = () => {
     if ("integration" in nextAction && nextAction.integration) {
@@ -381,8 +392,12 @@ function OverviewTab({
     },
     {
       label: "IA dos grupos",
-      detail: groupsUnlocked ? "Selecionar grupos" : "Libere após as conexões",
-      done: false,
+      detail: groupAgentReady
+        ? "Grupo ativo monitorado"
+        : groupsUnlocked
+          ? "Selecionar grupos"
+          : "Libere após as conexões",
+      done: groupAgentReady,
       tab: "group-agent" as const,
     },
   ];
