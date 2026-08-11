@@ -44,7 +44,7 @@ export default async function SettingsPage({
     userRole = membership?.role ?? "member";
   }
 
-  const [companyResult, integrationsResult] = await Promise.all([
+  const [companyResult, integrationsResult, activeGroupsResult] = await Promise.all([
     supabase
       .from("companies")
       .select("id, name, niche, logo_url, created_at")
@@ -54,6 +54,12 @@ export default async function SettingsPage({
       .from("integrations")
       .select("type, is_active, config")
       .eq("company_id", companyId),
+    supabase
+      .from("group_agent_configs")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .eq("is_hidden", false),
   ]);
 
   const company = companyResult.data;
@@ -68,6 +74,7 @@ export default async function SettingsPage({
     totalIntegrations: integrationFlags.totalIntegrations,
     evoCrmActive: integrationFlags.evoCrmActive,
     evolutionApiActive: integrationFlags.evolutionApiActive,
+    groupAgentReady: (activeGroupsResult.count ?? 0) > 0,
     lastUpdate: company?.created_at ?? null,
   };
 

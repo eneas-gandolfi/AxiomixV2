@@ -18,23 +18,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
+  AlertCircle,
   ArrowRight,
+  Clock,
   Loader2,
   Moon,
   Pause,
   Play,
   RefreshCw,
+  UserRound,
   Volume2,
   VolumeX,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type {
-  ConversationSeverity,
   LiveOperationData,
   OperatorWorkload,
   WaitingConversation,
 } from "@/lib/whatsapp/live-operation";
-import { diffCalendarDaysInTz } from "@/lib/whatsapp/calendar-days";
 
 type LiveOperationContext = {
   currentUserId: string;
@@ -48,37 +49,6 @@ const TICK_INTERVAL_MS = 1_000; // pra cronômetro contar localmente entre polls
 // Helpers de formatação
 // =============================================================================
 
-/** Formato "longo" pra waits >= 24h — substitui o cronometro h:mm:ss
- *  por uma narrativa "Há N dias" porque o numero absurdo nao agrega
- *  decisao (cliente abandonado != cliente em espera ativa).
- *
- *  Usa dias de CALENDÁRIO em America/Sao_Paulo (não períodos de 24h) —
- *  a label tem que bater com a data exibida abaixo ("desde 04/05"). Dividir
- *  o delta por 86_400_000 fazia mensagens de 04/05 16:16 aparecerem como
- *  "Há 9 dias" no dia 14/05 às 12:00 (antes do horário de corte), em vez
- *  de "Há 10 dias" como a data dá a entender. */
-function formatLongWait(lastInboundAt: string, now: Date = new Date()): string {
-  const inbound = new Date(lastInboundAt);
-  const days = diffCalendarDaysInTz(inbound, now);
-  if (days >= 1) {
-    return `Há ${days} ${days === 1 ? "dia" : "dias"}`;
-  }
-  const hours = Math.floor((now.getTime() - inbound.getTime()) / 3_600_000);
-  return `Há ${hours} h`;
-}
-
-function formatTimer(totalSeconds: number): string {
-  const s = Math.max(0, Math.floor(totalSeconds));
-  const hours = Math.floor(s / 3600);
-  const minutes = Math.floor((s % 3600) / 60);
-  const seconds = s % 60;
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  }
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
-const LONG_WAIT_THRESHOLD_SECONDS = 86400; // 24h
 const DATETIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
   month: "2-digit",
@@ -100,16 +70,6 @@ function formatCompact(totalSeconds: number): string {
   if (hours < 24) return `${hours}h ${minutes % 60}m`;
   const days = Math.floor(hours / 24);
   return `${days}d ${hours % 24}h`;
-}
-
-function formatRelative(isoTimestamp: string | null): string {
-  if (!isoTimestamp) return "agora";
-  const diffMs = Date.now() - new Date(isoTimestamp).getTime();
-  const seconds = Math.max(0, Math.floor(diffMs / 1000));
-  if (seconds < 30) return "agora";
-  if (seconds < 90) return "1min";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}min`;
-  return `${Math.floor(seconds / 3600)}h`;
 }
 
 /** Beep curto via Web Audio API. Pure JS, sem asset externo. */
@@ -493,6 +453,12 @@ export function OperacaoLivePanel() {
   // Suprime warning de tick não usado — o setState força re-render do cronômetro.
   void tick;
 
+  const waitingConversations = [
+    ...(data.mostForgotten ? [data.mostForgotten] : []),
+    ...data.inRiskQueue,
+  ];
+  const hasOperators = data.operators.length > 0;
+
   return (
     <div className="space-y-4">
       <PollingHeader
@@ -514,35 +480,24 @@ export function OperacaoLivePanel() {
 
       {data.hasBusinessHours && !data.isCurrentlyOpen ? <ClosedBanner /> : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div>
-          {data.mostForgotten ? (
-            <HeroCard
-              conversation={data.mostForgotten}
-              currentWaitSeconds={computeWaitNow(
-                data.mostForgotten.lastInboundAt,
-                data.mostForgotten.waitSeconds,
-              )}
-              amberSeconds={data.thresholds.amberSeconds}
-              redSeconds={data.thresholds.redSeconds}
-              isPending={pendingActionConvId === data.mostForgotten.conversationId}
-              currentUserId={context?.currentUserId ?? null}
-              onAssume={handleAssumeConversation}
-              onNudge={handleNudgeOperator}
-              onRelease={handleReleaseConversation}
-            />
-          ) : (
-            <EmptyHero />
-          )}
-        </div>
+      <div className={hasOperators ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]" : ""}>
+        {waitingConversations.length > 0 ? (
+          <WaitingConversationsQueue
+            conversations={waitingConversations}
+            totalWaiting={data.totalWaiting}
+            currentUserId={context?.currentUserId ?? null}
+            pendingActionConvId={pendingActionConvId}
+            computeWaitNow={computeWaitNow}
+            onAssume={handleAssumeConversation}
+            onNudge={handleNudgeOperator}
+            onRelease={handleReleaseConversation}
+          />
+        ) : (
+          <EmptyHero />
+        )}
 
-        <QueueCard
-          queue={data.inRiskQueue}
-          computeWaitNow={computeWaitNow}
-        />
+        <OperatorsGrid operators={data.operators} />
       </div>
-
-      <OperatorsGrid operators={data.operators} />
     </div>
   );
 }
@@ -632,265 +587,405 @@ function PollingHeader({
 }
 
 // =============================================================================
-// Hero card — cliente mais esquecido
+// Fila compacta de conversas individuais
 // =============================================================================
 
-function HeroCard({
-  conversation,
-  currentWaitSeconds,
-  amberSeconds,
-  redSeconds,
-  isPending,
+function WaitingConversationsQueue({
+  conversations,
+  totalWaiting,
   currentUserId,
+  pendingActionConvId,
+  computeWaitNow,
+  onAssume,
+  onNudge,
+  onRelease,
+}: {
+  conversations: WaitingConversation[];
+  totalWaiting: number;
+  currentUserId: string | null;
+  pendingActionConvId: string | null;
+  computeWaitNow: (lastInboundAt: string, serverWaitSeconds: number) => number;
+  onAssume: (conversationId: string) => void;
+  onNudge: (conversation: WaitingConversation) => void;
+  onRelease: (conversationId: string) => void;
+}) {
+  const sortedConversations = conversations
+    .map((conversation) => ({
+      conversation,
+      waitSeconds: computeWaitNow(conversation.lastInboundAt, conversation.waitSeconds),
+    }))
+    .sort((a, b) => b.waitSeconds - a.waitSeconds);
+  const criticalCount = sortedConversations.filter(
+    ({ conversation }) => conversation.severity === "red",
+  ).length;
+  const unassignedCount = sortedConversations.filter(
+    ({ conversation }) => !conversation.assigneeId,
+  ).length;
+  const longestWait = sortedConversations[0]?.waitSeconds ?? 0;
+  const immediateConversations = sortedConversations.slice(0, 3);
+  const remainingConversations = sortedConversations.slice(3);
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-bricolage text-2xl font-bold text-text">
+              Conversas individuais
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted">
+              Veja quem está esperando, assuma casos críticos e abra a conversa
+              sem perder o contexto.
+            </p>
+          </div>
+          <span className="rounded-full border border-border bg-card px-3 py-1.5 font-mono text-xs text-muted">
+            {totalWaiting} {totalWaiting === 1 ? "cliente esperando" : "clientes esperando"}
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <QueueMetric label="Esperando" value={totalWaiting} detail="na fila" />
+          <QueueMetric label="Críticas" value={criticalCount} detail="risco alto" tone="danger" />
+          <QueueMetric label="Sem atendente" value={unassignedCount} detail="pedem dono" />
+          <QueueMetric label="Maior espera" value={formatCompact(longestWait)} detail="caso mais antigo" tone="warning" />
+        </div>
+      </div>
+
+      <section className="rounded-2xl border border-border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+          <div>
+            <h3 className="font-bricolage text-base font-bold text-text">
+              Ação imediata
+            </h3>
+            <p className="mt-0.5 text-xs text-muted">
+              Os primeiros casos para decidir agora.
+            </p>
+          </div>
+        </header>
+
+        <div className="grid gap-3 p-3 md:grid-cols-2 2xl:grid-cols-3">
+          {immediateConversations.map(({ conversation, waitSeconds }) => (
+            <ConversationActionCard
+              key={conversation.conversationId}
+              conversation={conversation}
+              waitSeconds={waitSeconds}
+              currentUserId={currentUserId}
+              isPending={pendingActionConvId === conversation.conversationId}
+              onAssume={onAssume}
+              onNudge={onNudge}
+              onRelease={onRelease}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div>
+            <h3 className="font-bricolage text-base font-bold text-text">
+              Fila completa
+            </h3>
+          </div>
+          <span className="text-xs text-muted">
+            {remainingConversations.length} restantes
+          </span>
+        </header>
+
+        {remainingConversations.length > 0 ? (
+          <div className="divide-y divide-border/70">
+            {remainingConversations.map(({ conversation, waitSeconds }) => (
+              <ConversationListRow
+                key={conversation.conversationId}
+                conversation={conversation}
+                waitSeconds={waitSeconds}
+                currentUserId={currentUserId}
+                isPending={pendingActionConvId === conversation.conversationId}
+                onAssume={onAssume}
+                onNudge={onNudge}
+                onRelease={onRelease}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="px-4 py-4 text-sm text-muted">
+            Os casos visíveis já estão em ação imediata.
+          </div>
+        )}
+      </section>
+    </section>
+  );
+}
+
+function QueueMetric({
+  label,
+  value,
+  detail,
+  tone = "neutral",
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  tone?: "neutral" | "danger" | "warning";
+}) {
+  const toneClass =
+    tone === "danger"
+      ? "border-danger/25 bg-danger-light/30"
+      : tone === "warning"
+        ? "border-warning/25 bg-warning-light/30"
+        : "border-border bg-card";
+
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${toneClass}`}>
+      <p className="text-xs text-muted">{label}</p>
+      <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-text">
+        {value}
+      </p>
+      <p className="text-xs text-muted-light">{detail}</p>
+    </div>
+  );
+}
+
+function ConversationActionCard({
+  conversation,
+  waitSeconds,
+  currentUserId,
+  isPending,
   onAssume,
   onNudge,
   onRelease,
 }: {
   conversation: WaitingConversation;
-  currentWaitSeconds: number;
-  amberSeconds: number;
-  redSeconds: number;
-  isPending: boolean;
+  waitSeconds: number;
   currentUserId: string | null;
+  isPending: boolean;
   onAssume: (conversationId: string) => void;
   onNudge: (conversation: WaitingConversation) => void;
   onRelease: (conversationId: string) => void;
 }) {
-  const severity: ConversationSeverity =
-    currentWaitSeconds >= redSeconds
-      ? "red"
-      : currentWaitSeconds >= amberSeconds
-        ? "amber"
-        : "ok";
-
-  // Ação primária depende de quem é o assignee — não só da severidade.
-  // Severidade só decide a urgência visual (cor/destaque).
   const hasAssignee = !!conversation.assigneeId;
-  const isMine =
-    !!currentUserId && conversation.assigneeId === currentUserId;
-  // primaryAction:
-  //   - "assume": ninguém pegou ainda → atribui pra mim
-  //   - "view":   já é minha (ou severidade ok) → só abrir
-  //   - "nudge":  é de outro atendente que não respondeu → notificar
-  const primaryAction: "assume" | "view" | "nudge" =
-    severity === "ok"
-      ? "view"
-      : !hasAssignee
-        ? "assume"
-        : isMine
-          ? "view"
-          : "nudge";
-
-  const bgClass =
-    severity === "red"
-      ? "bg-gradient-to-br from-card to-danger-light/60 border-danger/30"
-      : severity === "amber"
-        ? "bg-gradient-to-br from-card to-warning-light/60 border-warning/30"
-        : "bg-card border-border";
-
-  const eyebrowText =
-    severity === "red"
-      ? "▲ Cliente prestes a desistir"
-      : severity === "amber"
-        ? "⚠ Cliente esquecido"
-        : "Cliente esperando há mais tempo";
-
-  const eyebrowColor =
-    severity === "red"
+  const isMine = !!currentUserId && conversation.assigneeId === currentUserId;
+  const preview = formatMessagePreview(
+    conversation.lastMessage,
+    conversation.lastMessageType,
+  );
+  const severityLabel =
+    conversation.severity === "red"
+      ? "Crítica"
+      : conversation.severity === "amber"
+        ? "Atenção"
+        : "Em espera";
+  const timeClass =
+    conversation.severity === "red"
       ? "text-danger"
-      : severity === "amber"
-        ? "text-warning"
-        : "text-muted";
-
-  const timerColor =
-    severity === "red"
-      ? "text-danger"
-      : severity === "amber"
+      : conversation.severity === "amber"
         ? "text-warning"
         : "text-text";
 
-  // Cor do botão segue severidade quando ainda há ação urgente (assume/nudge).
-  // Pra "view" o botão fica neutro mesmo em red/amber — pq nesse caso é só
-  // navegação, não ação que destrava o cliente.
-  const buttonClass =
-    primaryAction === "view"
-      ? "bg-card border border-border hover:bg-surface-2 text-text"
-      : severity === "red"
-        ? "bg-danger hover:bg-danger/90 text-white"
-        : "bg-primary hover:bg-primary-hover text-white";
-
-  const buttonLabel =
-    primaryAction === "assume"
-      ? "Assumir"
-      : primaryAction === "nudge"
-        ? `Avisar ${conversation.assigneeName ?? "atendente"}`
-        : "Abrir";
-
   return (
-    <section className={`rounded-xl border p-5 transition-colors ${bgClass}`}>
-      <p
-        className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${eyebrowColor}`}
-      >
-        <span
-          className={`h-2 w-2 rounded-full ${severity === "ok" ? "bg-muted-light" : "bg-current animate-ax-breathe"}`}
+    <article className="flex min-h-[210px] min-w-0 flex-col rounded-xl border border-border bg-surface p-4">
+      <div className="flex min-w-0 items-start gap-3">
+        <CustomerAvatar
+          name={conversation.customerName}
+          avatarUrl={conversation.customerAvatar}
+          size="lg"
         />
-        {eyebrowText}
+        <div className="min-w-0">
+          <p className="truncate font-bricolage text-lg font-bold text-text">
+            {conversation.customerName}
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            {conversation.assigneeName ?? "sem atendente"}
+          </p>
+        </div>
+        <span className="ml-auto rounded-full border border-border bg-card px-2 py-0.5 text-xs font-semibold text-muted">
+          {severityLabel}
+        </span>
+      </div>
+
+      <div className="mt-4 flex items-end gap-3">
+        <Clock className={`mb-1 h-5 w-5 ${timeClass}`} />
+        <div>
+          <p className={`font-mono text-3xl font-bold tabular-nums ${timeClass}`}>
+            {formatCompact(waitSeconds)}
+          </p>
+          <p className="text-xs text-muted-light">
+            {formatSinceLabel(conversation.lastInboundAt)}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-4 line-clamp-2 text-sm leading-snug text-muted">
+        {preview ?? "Sem prévia da última mensagem."}
       </p>
 
-      <div className="mt-3 flex items-center gap-3">
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+        <ConversationActionButton
+          conversation={conversation}
+          isPending={isPending}
+          hasAssignee={hasAssignee}
+          isMine={isMine}
+          onAssume={onAssume}
+          onNudge={onNudge}
+          onRelease={onRelease}
+        />
+        <Link
+          href={`/whatsapp-intelligence/conversas/${conversation.conversationId}`}
+          aria-label={`Abrir ${conversation.customerName}`}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium text-text transition-colors hover:bg-surface-2"
+        >
+          Abrir
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function ConversationListRow({
+  conversation,
+  waitSeconds,
+  currentUserId,
+  isPending,
+  onAssume,
+  onNudge,
+  onRelease,
+}: {
+  conversation: WaitingConversation;
+  waitSeconds: number;
+  currentUserId: string | null;
+  isPending: boolean;
+  onAssume: (conversationId: string) => void;
+  onNudge: (conversation: WaitingConversation) => void;
+  onRelease: (conversationId: string) => void;
+}) {
+  const hasAssignee = !!conversation.assigneeId;
+  const isMine = !!currentUserId && conversation.assigneeId === currentUserId;
+  const preview = formatMessagePreview(
+    conversation.lastMessage,
+    conversation.lastMessageType,
+  );
+  const dotClass =
+    conversation.severity === "red"
+      ? "bg-danger animate-ax-breathe"
+      : conversation.severity === "amber"
+        ? "bg-warning"
+        : "bg-success";
+  const timeClass =
+    conversation.severity === "red"
+      ? "text-danger"
+      : conversation.severity === "amber"
+        ? "text-warning"
+        : "text-text";
+
+  return (
+    <article className="grid min-w-0 gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${dotClass}`} />
         <CustomerAvatar
           name={conversation.customerName}
           avatarUrl={conversation.customerAvatar}
           size="md"
         />
         <div className="min-w-0 flex-1">
-          <h2 className="font-bricolage text-xl font-bold tracking-tight md:text-2xl text-text truncate">
-            {conversation.customerName}
-          </h2>
-          <p className="mt-0.5 text-sm text-muted">
-            {conversation.assigneeName ? (
-              <>
-                com{" "}
-                <strong className="font-medium text-text">
-                  {conversation.assigneeName}
-                </strong>
-              </>
-            ) : (
-              <strong className="font-medium text-text">sem atendente</strong>
-            )}
-            {conversation.pipelineStage ? (
-              <span className="ml-2 inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted">
-                {conversation.pipelineStage}
-              </span>
-            ) : null}
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <p className="min-w-0 truncate text-sm font-semibold text-text">
+              {conversation.customerName}
+            </p>
+            <p className="truncate text-[11px] text-muted-light">
+              {conversation.customerPhone ?? "WhatsApp individual"}
+            </p>
+          </div>
+          <p className="mt-0.5 truncate text-xs text-muted">
+            {conversation.assigneeName ?? "sem atendente"}
+            {preview ? <span className="text-muted-light"> · {preview}</span> : null}
           </p>
         </div>
       </div>
 
-      {(() => {
-        const preview = formatMessagePreview(
-          conversation.lastMessage,
-          conversation.lastMessageType,
-        );
-        return preview ? (
-          <p className="mt-2 text-sm italic text-muted">&ldquo;{preview}&rdquo;</p>
-        ) : null;
-      })()}
-
-      {currentWaitSeconds >= LONG_WAIT_THRESHOLD_SECONDS ? (
-        // Espera longa (>=24h) — narrativa "Há N dias" + data exata.
-        // Cronometro h:mm:ss perde sentido aqui (cliente ja foi).
-        <div className="mt-3 flex flex-col gap-1">
-          <span
-            className={`font-bricolage text-3xl font-bold leading-tight tracking-tight md:text-4xl ${timerColor}`}
-          >
-            {formatLongWait(conversation.lastInboundAt)}
-          </span>
-          <span className="text-xs text-muted">
-            <span className="uppercase tracking-[0.14em]">sem resposta</span>
-            {" · "}
-            <span className="font-mono">
-              {formatSinceLabel(conversation.lastInboundAt)}
-            </span>
-          </span>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
+        <div className="min-w-[72px] text-left md:text-right">
+          <p className={`font-mono text-sm font-bold tabular-nums ${timeClass}`}>
+            {formatCompact(waitSeconds)}
+          </p>
+          <p className="text-[11px] text-muted-light">sem resposta</p>
         </div>
-      ) : (
-        // Espera curta (<24h) — cronometro acionavel padrao h:mm:ss.
-        <div className="mt-3 flex items-baseline gap-3">
-          <span
-            className={`font-mono text-4xl font-bold leading-none tracking-tight tabular-nums md:text-5xl ${timerColor}`}
-          >
-            {formatTimer(currentWaitSeconds)}
-          </span>
-          <span className="text-xs uppercase tracking-[0.14em] text-muted">
-            sem resposta
-          </span>
-        </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {primaryAction === "assume" ? (
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => onAssume(conversation.conversationId)}
-            className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${buttonClass}`}
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Assumindo...
-              </>
-            ) : (
-              <>
-                {buttonLabel}
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
-        ) : primaryAction === "nudge" ? (
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => onNudge(conversation)}
-            className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${buttonClass}`}
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Avisando...
-              </>
-            ) : (
-              <>
-                {buttonLabel}
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
-        ) : (
-          <Link
-            href={`/whatsapp-intelligence/conversas/${conversation.conversationId}`}
-            className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${buttonClass}`}
-          >
-            {buttonLabel}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        )}
-
-        {/* Botão "Ver conversa" só faz sentido como secundário quando o
-            primário NÃO é "view" (senão fica duplicado). */}
-        {primaryAction !== "view" ? (
-          <Link
-            href={`/whatsapp-intelligence/conversas/${conversation.conversationId}`}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium text-text hover:bg-surface-2"
-          >
-            Abrir
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        ) : null}
-
-        {/* "Liberar" só aparece quando a conversa é minha — devolve pra fila
-            sem responsável. Visual sutil pra não competir com a ação primária. */}
-        {isMine ? (
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => onRelease(conversation.conversationId)}
-            className="inline-flex h-10 items-center rounded-lg border border-border bg-transparent px-4 text-sm font-medium text-muted hover:text-text hover:bg-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Devolve a conversa pra fila sem responsável"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Liberando...
-              </>
-            ) : (
-              "Liberar"
-            )}
-          </button>
-        ) : null}
+        <ConversationActionButton
+          conversation={conversation}
+          isPending={isPending}
+          hasAssignee={hasAssignee}
+          isMine={isMine}
+          onAssume={onAssume}
+          onNudge={onNudge}
+          onRelease={onRelease}
+        />
+        <Link
+          href={`/whatsapp-intelligence/conversas/${conversation.conversationId}`}
+          aria-label={`Abrir ${conversation.customerName}`}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-medium text-text transition-colors hover:bg-surface-2"
+        >
+          Abrir
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
-    </section>
+    </article>
+  );
+}
+
+function ConversationActionButton({
+  conversation,
+  isPending,
+  hasAssignee,
+  isMine,
+  onAssume,
+  onNudge,
+  onRelease,
+}: {
+  conversation: WaitingConversation;
+  isPending: boolean;
+  hasAssignee: boolean;
+  isMine: boolean;
+  onAssume: (conversationId: string) => void;
+  onNudge: (conversation: WaitingConversation) => void;
+  onRelease: (conversationId: string) => void;
+}) {
+  if (!hasAssignee) {
+    return (
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={() => onAssume(conversation.conversationId)}
+        className="inline-flex h-9 items-center gap-1.5 rounded-md bg-danger px-3 text-sm font-semibold text-white transition-colors hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserRound className="h-4 w-4" />}
+        Assumir
+      </button>
+    );
+  }
+
+  if (isMine) {
+    return (
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={() => onRelease(conversation.conversationId)}
+        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-text disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        Liberar
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={isPending}
+      onClick={() => onNudge(conversation)}
+      className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium text-text transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertCircle className="h-4 w-4" />}
+      Avisar
+    </button>
   );
 }
 
@@ -915,103 +1010,6 @@ function EmptyHero() {
 }
 
 // =============================================================================
-// Queue lateral — outras conversas em risco
-// =============================================================================
-
-function QueueCard({
-  queue,
-  computeWaitNow,
-}: {
-  queue: WaitingConversation[];
-  computeWaitNow: (lastInboundAt: string, serverWaitSeconds: number) => number;
-}) {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-baseline justify-between">
-        <h3 className="font-bricolage text-base font-bold text-text">
-          Outras conversas em risco
-        </h3>
-        <span className="font-mono text-xs text-muted">{queue.length}</span>
-      </div>
-      <p className="mt-1 text-xs text-muted-light">
-        Acima do limiar âmbar · ordenado por tempo
-      </p>
-
-      {queue.length === 0 ? (
-        <p className="mt-6 text-center text-sm italic text-muted-light">
-          Nenhuma outra em risco no momento.
-        </p>
-      ) : (
-        <ul className="mt-4 divide-y divide-border/60">
-          {queue.map((item) => {
-            const waitNow = computeWaitNow(item.lastInboundAt, item.waitSeconds);
-            const dotClass =
-              item.severity === "red"
-                ? "bg-danger animate-ax-breathe"
-                : item.severity === "amber"
-                  ? "bg-warning"
-                  : "bg-success";
-            const timeClass =
-              item.severity === "red"
-                ? "text-danger"
-                : item.severity === "amber"
-                  ? "text-warning"
-                  : "text-muted";
-            return (
-              <li key={item.conversationId} className="flex items-center gap-3 py-2.5">
-                <span className={`h-2 w-2 flex-shrink-0 rounded-full ${dotClass}`} />
-                <CustomerAvatar
-                  name={item.customerName}
-                  avatarUrl={item.customerAvatar}
-                  size="sm"
-                />
-                <Link
-                  href={`/whatsapp-intelligence/conversas/${item.conversationId}`}
-                  className="flex-1 min-w-0 hover:underline"
-                >
-                  <p className="truncate text-sm font-medium text-text">
-                    {item.customerName}
-                    {item.customerPhone ? (
-                      <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-light">
-                        {item.customerPhone}
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="truncate text-[11px] text-muted">
-                    {item.assigneeName ? `com ${item.assigneeName}` : "sem atendente"}
-                    {item.pipelineStage ? (
-                      <span className="ml-1.5 text-muted-light">
-                        · {item.pipelineStage}
-                      </span>
-                    ) : null}
-                    {(() => {
-                      const preview = formatMessagePreview(
-                        item.lastMessage,
-                        item.lastMessageType,
-                      );
-                      return preview ? (
-                        <span className="ml-1.5 italic text-muted-light">
-                          · &ldquo;{preview}&rdquo;
-                        </span>
-                      ) : null;
-                    })()}
-                  </p>
-                </Link>
-                <span
-                  className={`flex-shrink-0 font-mono text-xs font-semibold tabular-nums ${timeClass}`}
-                >
-                  {formatCompact(waitNow)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-// =============================================================================
 // Grid de operadores
 // =============================================================================
 
@@ -1029,7 +1027,7 @@ function OperatorsGrid({ operators }: { operators: OperatorWorkload[] }) {
         </span>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
         {operators.map((op) => (
           <OperatorCard key={op.operatorId ?? "unassigned"} operator={op} />
         ))}

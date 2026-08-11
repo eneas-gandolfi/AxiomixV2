@@ -169,6 +169,31 @@ describe("SettingsLayout", () => {
     expect(within(navigation).queryByRole("button", { name: "Agente de Grupo" })).not.toBeInTheDocument();
   });
 
+  it("marca a configuração como 3/3 quando há WhatsApp conectado e IA de grupos ativa", () => {
+    render(
+      <SettingsLayout
+        companyId="company-1"
+        initialStats={{
+          companyConfigured: true,
+          integrationsActive: 1,
+          totalIntegrations: 2,
+          evoCrmActive: true,
+          evolutionApiActive: true,
+          groupAgentReady: true,
+          lastUpdate: "2026-08-11T12:00:00.000Z",
+        }}
+        userRole="admin"
+      />
+    );
+
+    const setup = screen.getByLabelText("Configuração guiada");
+
+    expect(within(setup).getByText("3/3")).toBeInTheDocument();
+    expect(within(setup).getByText("3 concluídas")).toBeInTheDocument();
+    expect(within(setup).getByText("Grupo ativo monitorado")).toBeInTheDocument();
+    expect(within(setup).getByRole("heading", { name: "Configuração pronta" })).toBeInTheDocument();
+  });
+
   it.each([
     ["general", "Empresa aberta"],
     ["alerts", "Notificações abertas"],

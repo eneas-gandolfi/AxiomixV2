@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Axiomix - Mockup Inteligência WhatsApp</title>
+    <style>
+      :root {
+        --bg: #f4f6f8;
+        --surface: #ffffff;
+        --surface-2: #f8fafc;
+        --line: #d8dee8;
+        --line-soft: #e8edf3;
+        --text: #111827;
+        --muted: #687385;
+        --muted-2: #8b95a7;
+        --orange: #f45b0b;
+        --orange-soft: #fff0e8;
+        --teal: #0f9f90;
+        --teal-soft: #e6f7f4;
+        --red: #ef3f45;
+        --red-soft: #fff0f1;
+        --yellow: #f5a524;
+        --yellow-soft: #fff7e8;
+        --green: #21b768;
+        --green-soft: #eaf8ef;
+        --blue: #3876f6;
+        --blue-soft: #edf4ff;
+        --shadow: 0 18px 55px rgba(16, 24, 40, 0.08);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      button,
+      a {
+        font: inherit;
+      }
+
+      .shell {
+        min-height: 100vh;
+        padding: 22px 26px 32px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .title h1 {
+        margin: 0;
+        font-size: clamp(28px, 3vw, 42px);
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .title p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 99px;
+        background: var(--green);
+        box-shadow: 0 0 0 4px var(--green-soft);
+      }
+
+      .nav {
+        display: flex;
+        gap: 4px;
+        overflow-x: auto;
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 18px;
+      }
+
+      .nav button {
+        border: 0;
+        border-bottom: 3px solid transparent;
+        background: transparent;
+        padding: 13px 16px 12px;
+        color: var(--muted);
+        cursor: pointer;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .nav button.active {
+        color: var(--teal);
+        border-color: var(--teal);
+        font-weight: 750;
+      }
+
+      .screen {
+        display: none;
+      }
+
+      .screen.active {
+        display: block;
+      }
+
+      .screen-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 14px;
+      }
+
+      .screen-head h2 {
+        margin: 0;
+        font-size: clamp(25px, 2.2vw, 34px);
+        line-height: 1.06;
+        letter-spacing: 0;
+      }
+
+      .screen-head p {
+        margin: 7px 0 0;
+        color: var(--muted);
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .pill {
+        min-height: 34px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        border-radius: 999px;
+        padding: 7px 12px;
+        color: var(--muted);
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .button {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 9px 13px;
+        background: var(--surface);
+        color: var(--text);
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .button.primary {
+        background: var(--orange);
+        border-color: var(--orange);
+        color: #fff;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin: 12px 0 14px;
+      }
+
+      .metric {
+        min-height: 94px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--surface);
+        padding: 15px 16px;
+        box-shadow: 0 1px 1px rgba(16, 24, 40, 0.02);
+      }
+
+      .metric label {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 800;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 10px;
+        font-size: 32px;
+        line-height: 1;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .section {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        margin-bottom: 14px;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .section-title h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .section-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .action-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        padding: 14px;
+        background: linear-gradient(180deg, #fff, var(--surface-2));
+      }
+
+      .priority-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--surface);
+        padding: 15px;
+        min-height: 188px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .priority-card.critical {
+        border-color: rgba(239, 63, 69, 0.35);
+        background: linear-gradient(180deg, #fff, var(--red-soft));
+      }
+
+      .customer-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: #ffdbe4;
+        color: #be123c;
+        font-weight: 800;
+        flex: 0 0 auto;
+      }
+
+      .customer-line h4 {
+        margin: 0;
+        font-size: 17px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .customer-line p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .wait {
+        font-size: 30px;
+        color: var(--red);
+        font-weight: 850;
+        line-height: 1;
+      }
+
+      .quote {
+        min-height: 40px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      .card-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: auto;
+      }
+
+      .card-actions .button {
+        flex: 1;
+        justify-content: center;
+      }
+
+      .queue {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .queue th,
+      .queue td {
+        border-bottom: 1px solid var(--line-soft);
+        padding: 12px 14px;
+        text-align: left;
+        vertical-align: middle;
+      }
+
+      .queue th {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background: var(--surface-2);
+      }
+
+      .queue td {
+        font-size: 14px;
+      }
+
+      .queue tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .name-cell {
+        min-width: 240px;
+      }
+
+      .name-cell strong {
+        display: block;
+      }
+
+      .name-cell span,
+      .muted {
+        color: var(--muted);
+      }
+
+      .risk {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-weight: 800;
+      }
+
+      .risk::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--red);
+      }
+
+      .mini-action {
+        display: flex;
+        gap: 7px;
+        justify-content: flex-end;
+      }
+
+      .history-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 14px;
+      }
+
+      .insight-row {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .insight-row:last-child {
+        border-bottom: 0;
+      }
+
+      .badge-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+      }
+
+      .badge-icon.group {
+        background: var(--teal-soft);
+        color: var(--teal);
+      }
+
+      .badge-icon.chat {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+
+      .badge-icon.ai {
+        background: var(--orange-soft);
+        color: var(--orange);
+      }
+
+      .insight-row h4 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .insight-row p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .value {
+        font-size: 22px;
+        font-weight: 850;
+        text-align: right;
+      }
+
+      .chart {
+        padding: 16px 18px 18px;
+      }
+
+      .bars {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 9px;
+        height: 170px;
+        align-items: end;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .bar-stack {
+        display: grid;
+        align-items: end;
+        gap: 3px;
+        height: 100%;
+      }
+
+      .bar {
+        border-radius: 7px 7px 0 0;
+        min-height: 10px;
+      }
+
+      .bar.messages {
+        background: var(--teal);
+      }
+
+      .bar.ai {
+        background: var(--orange);
+      }
+
+      .bar.opportunities {
+        background: var(--blue);
+      }
+
+      .bar-labels {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 9px;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
+      }
+
+      .legend {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .legend i {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        display: inline-block;
+      }
+
+      .split-cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .domain-card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .domain-card header {
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .domain-card h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .domain-card p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .mini-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        padding: 12px;
+      }
+
+      .mini-metric {
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        padding: 11px;
+        background: var(--surface-2);
+      }
+
+      .mini-metric strong {
+        display: block;
+        font-size: 24px;
+      }
+
+      .mini-metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .callout {
+        border: 1px solid rgba(244, 91, 11, 0.25);
+        background: var(--orange-soft);
+        color: #9a3412;
+        border-radius: 14px;
+        padding: 13px 15px;
+        font-size: 14px;
+      }
+
+      @media (max-width: 1120px) {
+        .metrics,
+        .action-grid,
+        .split-cards,
+        .history-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          padding: 16px;
+        }
+
+        .topbar,
+        .screen-head {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .toolbar {
+          justify-content: flex-start;
+        }
+
+        .metrics,
+        .action-grid,
+        .split-cards,
+        .history-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .queue {
+          min-width: 760px;
+        }
+
+        .table-wrap {
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="topbar">
+        <div class="title">
+          <h1>Inteligência WhatsApp</h1>
+          <p>Grupos monitorados, conversas individuais e histórico da IA em um só lugar.</p>
+        </div>
+        <div class="status"><span class="dot"></span> Operacional</div>
+      </div>
+
+      <nav class="nav" aria-label="Áreas do módulo">
+        <button type="button">Grupos</button>
+        <button type="button" class="active" data-screen-button="conversas">Conversas individuais</button>
+        <button type="button" data-screen-button="historico">Histórico</button>
+        <button type="button">Agentes IA</button>
+      </nav>
+
+      <section class="screen active" id="screen-conversas">
+        <div class="screen-head">
+          <div>
+            <h2>Conversas individuais</h2>
+            <p>Fila operacional para decidir quem precisa de resposta primeiro.</p>
+          </div>
+          <div class="toolbar">
+            <span class="pill">Atualiza a cada 30s</span>
+            <button class="button">Pausar</button>
+            <button class="button primary">Sincronizar</button>
+          </div>
+        </div>
+
+        <div class="metrics">
+          <div class="metric">
+            <label>Esperando</label>
+            <strong>11</strong>
+            <span>clientes na fila</span>
+          </div>
+          <div class="metric">
+            <label>Críticas</label>
+            <strong>6</strong>
+            <span>acima do limite</span>
+          </div>
+          <div class="metric">
+            <label>Sem atendente</label>
+            <strong>11</strong>
+            <span>precisam ser assumidas</span>
+          </div>
+          <div class="metric">
+            <label>Maior espera</label>
+            <strong>6d 19h</strong>
+            <span>Graça Maria</span>
+          </div>
+        </div>
+
+        <section class="section">
+          <div class="section-title">
+            <div>
+              <h3>Ação imediata</h3>
+              <p>As 3 conversas que o usuário deve resolver antes de olhar o restante.</p>
+            </div>
+            <span class="pill">Prioridade máxima</span>
+          </div>
+          <div class="action-grid">
+            <article class="priority-card critical">
+              <div class="customer-line">
+                <div class="avatar">GM</div>
+                <div>
+                  <h4>Graça Maria</h4>
+                  <p>sem atendente</p>
+                </div>
+              </div>
+              <div class="wait">6d 19h</div>
+              <div class="quote">Sem resposta desde 26/07. Última mensagem pede retorno sobre orçamento.</div>
+              <div class="card-actions">
+                <button class="button primary">Assumir</button>
+                <button class="button">Abrir</button>
+              </div>
+            </article>
+
+            <article class="priority-card critical">
+              <div class="customer-line">
+                <div class="avatar" style="background:#ffedd5;color:#c2410c">MS</div>
+                <div>
+                  <h4>Maria Cátia Antunes</h4>
+                  <p>sem atendente</p>
+                </div>
+              </div>
+              <div class="wait">6d 19h</div>
+              <div class="quote">Mensagem inicial sem continuidade. Possível lead frio.</div>
+              <div class="card-actions">
+                <button class="button primary">Assumir</button>
+                <button class="button">Abrir</button>
+              </div>
+            </article>
+
+            <article class="priority-card critical">
+              <div class="customer-line">
+                <div class="avatar" style="background:#dbeafe;color:#1d4ed8">F</div>
+                <div>
+                  <h4>Flávia</h4>
+                  <p>sem atendente</p>
+                </div>
+              </div>
+              <div class="wait">6d 19h</div>
+              <div class="quote">Pediu mais informações e ficou sem resposta.</div>
+              <div class="card-actions">
+                <button class="button primary">Assumir</button>
+                <button class="button">Abrir</button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <div>
+              <h3>Fila completa</h3>
+              <p>Lista enxuta, com cabeçalhos fixos e sem rótulos repetidos em cada linha.</p>
+            </div>
+            <div class="toolbar">
+              <span class="pill">Ordenado por espera</span>
+              <button class="button">Filtrar</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="queue">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Responsável</th>
+                  <th>Espera</th>
+                  <th>Status</th>
+                  <th>Última mensagem</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="name-cell"><strong>Alice2793</strong><span>+5519981562793</span></td>
+                  <td>sem atendente</td>
+                  <td><strong style="color:var(--red)">6d 19h</strong></td>
+                  <td><span class="risk">Crítica</span></td>
+                  <td class="muted">Olá! Posso ter mais informações?</td>
+                  <td><div class="mini-action"><button class="button primary">Assumir</button><button class="button">Abrir</button></div></td>
+                </tr>
+                <tr>
+                  <td class="name-cell"><strong>Design de sobrancelhas</strong><span>+558799515949</span></td>
+                  <td>sem atendente</td>
+                  <td><strong style="color:var(--red)">6d 19h</strong></td>
+                  <td><span class="risk">Crítica</span></td>
+                  <td class="muted">Olá! Posso ter informações sobre horários?</td>
+                  <td><div class="mini-action"><button class="button primary">Assumir</button><button class="button">Abrir</button></div></td>
+                </tr>
+                <tr>
+                  <td class="name-cell"><strong>Cristina De Vargas</strong><span>+555596753934</span></td>
+                  <td>sem atendente</td>
+                  <td><strong style="color:var(--yellow)">3h 12m</strong></td>
+                  <td><span class="muted">Atenção</span></td>
+                  <td class="muted">Pode me enviar o catálogo?</td>
+                  <td><div class="mini-action"><button class="button primary">Assumir</button><button class="button">Abrir</button></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="screen" id="screen-historico">
+        <div class="screen-head">
+          <div>
+            <h2>Histórico de Inteligência WhatsApp</h2>
+            <p>Leitura histórica de grupos, conversas individuais e respostas da IA.</p>
+          </div>
+          <div class="toolbar">
+            <button class="button">7d</button>
+            <button class="button primary">30d</button>
+            <button class="button">90d</button>
+          </div>
+        </div>
+
+        <div class="split-cards">
+          <article class="domain-card">
+            <header>
+              <h3>Grupos monitorados</h3>
+              <p>O coração da plataforma: volume, dúvidas e sinais coletivos.</p>
+            </header>
+            <div class="mini-metrics">
+              <div class="mini-metric"><strong>44</strong><span>grupos</span></div>
+              <div class="mini-metric"><strong>318</strong><span>mensagens</span></div>
+              <div class="mini-metric"><strong>27</strong><span>sinais da IA</span></div>
+            </div>
+          </article>
+
+          <article class="domain-card">
+            <header>
+              <h3>Conversas individuais</h3>
+              <p>Atendimento, retorno comercial e oportunidades por cliente.</p>
+            </header>
+            <div class="mini-metrics">
+              <div class="mini-metric"><strong>126</strong><span>conversas</span></div>
+              <div class="mini-metric"><strong>18</strong><span>sem retorno</span></div>
+              <div class="mini-metric"><strong>34</strong><span>oportunidades</span></div>
+            </div>
+          </article>
+        </div>
+
+        <div class="history-grid">
+          <section class="section">
+            <div class="section-title">
+              <div>
+                <h3>Tendência de inteligência</h3>
+                <p>Mensagens de grupos, respostas da IA e oportunidades detectadas.</p>
+              </div>
+              <span class="pill">últimos 7 dias</span>
+            </div>
+            <div class="chart">
+              <div class="bars">
+                <div class="bar-stack"><div class="bar messages" style="height:76%"></div><div class="bar ai" style="height:20%"></div><div class="bar opportunities" style="height:28%"></div></div>
+                <div class="bar-stack"><div class="bar messages" style="height:54%"></div><div class="bar ai" style="height:18%"></div><div class="bar opportunities" style="height:20%"></div></div>
+                <div class="bar-stack"><div class="bar messages" style="height:63%"></div><div class="bar ai" style="height:26%"></div><div class="bar opportunities" style="height:30%"></div></div>
+                <div class="bar-stack"><div class="bar messages" style="height:88%"></div><div class="bar ai" style="height:38%"></div><div class="bar opportunities" style="height:34%"></div></div>
+                <div class="bar-stack"><div class="bar messages" style="height:71%"></div><div class="bar ai" style="height:31%"></div><div class="bar opportunities" style="height:22%"></div></div>
+                <div class="bar-stack"><div class="bar messages" style="height:46%"></div><div class="bar ai" style="height:14%"></div><div class="bar opportunities" style="height:18%"></div></div>
+                <div class="bar-stack"><div class="bar messages" style="height:68%"></div><div class="bar ai" style="height:33%"></div><div class="bar opportunities" style="height:29%"></div></div>
+              </div>
+              <div class="bar-labels"><span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span><span>sáb</span><span>dom</span></div>
+              <div class="legend">
+                <span><i style="background:var(--teal)"></i> mensagens em grupos</span>
+                <span><i style="background:var(--orange)"></i> respostas IA</span>
+                <span><i style="background:var(--blue)"></i> oportunidades</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <div>
+                <h3>Sinais recentes</h3>
+                <p>O que mudou e merece atenção do gestor.</p>
+              </div>
+            </div>
+            <div class="insight-row">
+              <div class="badge-icon group">G</div>
+              <div><h4>Comunidade Leads Premium aqueceu</h4><p>Mais perguntas sobre preço e plano anual.</p></div>
+              <div class="value">+38%</div>
+            </div>
+            <div class="insight-row">
+              <div class="badge-icon chat">C</div>
+              <div><h4>18 clientes sem retorno</h4><p>Fila individual precisa de ação comercial.</p></div>
+              <div class="value">18</div>
+            </div>
+            <div class="insight-row">
+              <div class="badge-icon ai">IA</div>
+              <div><h4>OpenRouter sem saldo útil</h4><p>Respostas reais da IA ficaram bloqueadas.</p></div>
+              <div class="value">4</div>
+            </div>
+          </section>
+        </div>
+
+        <section class="section">
+          <div class="section-title">
+            <div>
+              <h3>Leitura executiva</h3>
+              <p>Resumo em linguagem de decisão, sem sobrecarregar a tela.</p>
+            </div>
+          </div>
+          <div style="padding:16px 18px">
+            <div class="callout">
+              Grupos estão gerando mais intenção comercial que conversas individuais nesta semana. Prioridade: recarregar créditos da IA, assumir clientes críticos e revisar ofertas citadas nos grupos mais ativos.
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const buttons = document.querySelectorAll("[data-screen-button]");
+      const screens = {
+        conversas: document.querySelector("#screen-conversas"),
+        historico: document.querySelector("#screen-historico"),
+      };
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = button.dataset.screenButton;
+          buttons.forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          Object.values(screens).forEach((screen) => screen.classList.remove("active"));
+          screens[target].classList.add("active");
+        });
+      });
+    </script>
+  </body>
+</html>

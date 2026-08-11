@@ -2,10 +2,15 @@
  * @vitest-environment jsdom
  */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { GroupRadarItem } from "@/services/group-intelligence/queries";
-import { getAgentModeLabel, getFocusedGroups, GroupStatusGrid } from "../group-status-grid";
+import {
+  getAgentModeLabel,
+  getFocusedGroups,
+  GroupPriorityList,
+  GroupStatusGrid,
+} from "../group-status-grid";
 
 function makeGroup(
   index: number,
@@ -38,7 +43,7 @@ describe("getAgentModeLabel", () => {
 });
 
 describe("getFocusedGroups", () => {
-  it("keeps the dashboard focused on the six highest-signal groups", () => {
+  it("keeps the dashboard focused on the four highest-signal groups", () => {
     const groups = [
       makeGroup(1, { name: "Risco recente", status: "risk", lastMessageAt: "2026-08-11T12:00:00.000Z" }),
       makeGroup(2, { name: "Quente", status: "hot", messageCount24h: 80 }),
@@ -52,20 +57,18 @@ describe("getFocusedGroups", () => {
 
     const focused = getFocusedGroups(groups);
 
-    expect(focused).toHaveLength(6);
+    expect(focused).toHaveLength(4);
     expect(focused.map((group) => group.name)).toEqual([
       "Risco recente",
       "Quente",
       "Ativo recente",
       "Ativo antigo",
-      "Pouco movimento",
-      "Inativo com mensagem",
     ]);
   });
 });
 
 describe("GroupStatusGrid", () => {
-  it("renders only focused groups and sends the full list to settings", () => {
+  it("renders compact focused groups and an operational queue", () => {
     const groups = Array.from({ length: 8 }, (_, index) =>
       makeGroup(index + 1, {
         name: `Grupo ${index + 1}`,
@@ -78,13 +81,31 @@ describe("GroupStatusGrid", () => {
     render(<GroupStatusGrid groups={groups} />);
 
     expect(screen.getByRole("heading", { name: "Grupos em foco" })).toBeInTheDocument();
-    expect(screen.getByText("6 de 8 grupos")).toBeInTheDocument();
+    expect(screen.getByText("4 grupos principais aparecem aqui; o restante fica organizado na fila.")).toBeInTheDocument();
     expect(screen.getByText("Grupo 1")).toBeInTheDocument();
-    expect(screen.getByText("Grupo 6")).toBeInTheDocument();
-    expect(screen.queryByText("Grupo 7")).not.toBeInTheDocument();
+    expect(screen.getByText("Grupo 4")).toBeInTheDocument();
+    expect(screen.queryByText("Grupo 5")).not.toBeInTheDocument();
+    const queue = screen
+      .getByRole("heading", { name: "Fila operacional" })
+      .closest("section");
+
+    expect(queue).not.toBeNull();
+    expect(within(queue as HTMLElement).getByText("sem prioridade agora")).toBeInTheDocument();
+    expect(within(queue as HTMLElement).getByText("fora da leitura principal")).toBeInTheDocument();
+    expect(within(queue as HTMLElement).getByText("2")).toBeInTheDocument();
+    expect(within(queue as HTMLElement).getByText("4")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver todos" })).toHaveAttribute(
       "href",
       "/settings?tab=group-agent"
     );
+  });
+});
+
+describe("GroupPriorityList", () => {
+  it("does not render an empty attention card when no group needs action", () => {
+    render(<GroupPriorityList groups={[makeGroup(1, { status: "active" })]} />);
+
+    expect(screen.queryByRole("heading", { name: "Atenção agora" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Sem urgências agora")).not.toBeInTheDocument();
   });
 });
