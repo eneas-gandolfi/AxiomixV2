@@ -5,6 +5,7 @@ import {
   extractMediaMimetype,
   isGroupJid,
   detectTrigger,
+  shouldProcessGroupMedia,
   resolveTimestamp,
   normalizeEvolutionPayload,
 } from "../webhook-handler";
@@ -181,5 +182,59 @@ describe("normalizeEvolutionPayload", () => {
     const raw = { event: "messages.upsert", data: [] };
     const result = normalizeEvolutionPayload(raw);
     expect(result.data).toEqual({});
+  });
+});
+
+describe("shouldProcessGroupMedia", () => {
+  it("does not process media for inactive groups", () => {
+    expect(
+      shouldProcessGroupMedia({
+        hasMedia: true,
+        isActive: false,
+        isTrigger: true,
+        isAudio: true,
+        hasActiveSession: false,
+        hasRecentProactive: false,
+      })
+    ).toBe(false);
+  });
+
+  it("does not process non-trigger media in passive radar flow", () => {
+    expect(
+      shouldProcessGroupMedia({
+        hasMedia: true,
+        isActive: true,
+        isTrigger: false,
+        isAudio: false,
+        hasActiveSession: false,
+        hasRecentProactive: false,
+      })
+    ).toBe(false);
+  });
+
+  it("processes media when the message explicitly triggers the agent", () => {
+    expect(
+      shouldProcessGroupMedia({
+        hasMedia: true,
+        isActive: true,
+        isTrigger: true,
+        isAudio: false,
+        hasActiveSession: false,
+        hasRecentProactive: false,
+      })
+    ).toBe(true);
+  });
+
+  it("processes audio only when it belongs to an active agent conversation", () => {
+    expect(
+      shouldProcessGroupMedia({
+        hasMedia: true,
+        isActive: true,
+        isTrigger: false,
+        isAudio: true,
+        hasActiveSession: true,
+        hasRecentProactive: false,
+      })
+    ).toBe(true);
   });
 });

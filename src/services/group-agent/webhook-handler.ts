@@ -342,6 +342,20 @@ export async function resolveGroupConfig(
 /*  Media processing                                                   */
 /* ------------------------------------------------------------------ */
 
+export function shouldProcessGroupMedia(input: {
+  hasMedia: boolean;
+  isActive: boolean;
+  isTrigger: boolean;
+  isAudio: boolean;
+  hasActiveSession: boolean;
+  hasRecentProactive: boolean;
+}): boolean {
+  if (!input.hasMedia || !input.isActive) return false;
+  if (input.isTrigger) return true;
+  if (input.isAudio && (input.hasActiveSession || input.hasRecentProactive)) return true;
+  return false;
+}
+
 export async function processMedia(params: {
   message: ParsedMessage;
   messageType: string;
@@ -366,9 +380,19 @@ export async function processMedia(params: {
 
   const isTrigger = processedContent ? detectTrigger(processedContent, config.trigger_keywords) : false;
   const isAudio = messageType.toLowerCase().includes("audio") || messageType.toLowerCase().includes("ptt");
-  const isMediaTrigger = isTrigger || isAudio;
 
-  if (!isMediaTrigger) return { processedContent, finalMessageType };
+  if (
+    !shouldProcessGroupMedia({
+      hasMedia,
+      isActive: config.is_active,
+      isTrigger,
+      isAudio,
+      hasActiveSession: false,
+      hasRecentProactive: false,
+    })
+  ) {
+    return { processedContent, finalMessageType };
+  }
 
   const mediaType = resolveMediaType(messageType);
   if (!mediaType) return { processedContent, finalMessageType };
