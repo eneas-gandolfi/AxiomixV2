@@ -5,7 +5,12 @@ const DAY_MS = 24 * HOUR_MS;
 export function resolveCronJobs(env = process.env) {
   const jobs = [
     { label: "heartbeat", path: "/api/cron/heartbeat", intervalMs: 5 * MINUTE_MS },
-    { label: "process-jobs", path: "/api/cron/process-jobs", intervalMs: 2 * MINUTE_MS },
+    {
+      label: "process-jobs",
+      path: "/api/cron/process-jobs",
+      intervalMs: 2 * MINUTE_MS,
+      headers: { "x-cron-max-jobs": "5" },
+    },
     {
       label: "group-proactive",
       path: "/api/cron/group-proactive",
@@ -86,7 +91,10 @@ export function resolveInitialDelayMs(job, now = new Date(), fallbackDelayMs = 1
 async function runCronJob(job, baseUrl, headers) {
   const url = `${baseUrl}${job.path}`;
   try {
-    const response = await fetch(url, { method: "GET", headers });
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { ...headers, ...(job.headers ?? {}) },
+    });
     if (!response.ok) {
       const body = await response.text().catch(() => "");
       console.error(`[self-hosted-cron] ${job.label} falhou`, {

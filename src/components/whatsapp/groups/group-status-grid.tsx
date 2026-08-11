@@ -8,6 +8,16 @@ const STATUS_LABEL: Record<GroupRadarItem["status"], string> = {
   risk: "Risco",
 };
 
+const AGENT_MODE_LABEL: Record<GroupRadarItem["agentMode"], string> = {
+  radar_only: "Radar",
+  trigger_only: "Trigger",
+  proactive: "Proativo",
+};
+
+export function getAgentModeLabel(mode: GroupRadarItem["agentMode"]): string {
+  return AGENT_MODE_LABEL[mode];
+}
+
 export function GroupStatusGrid({ groups }: { groups: GroupRadarItem[] }) {
   if (groups.length === 0) {
     return (
@@ -39,7 +49,7 @@ export function GroupStatusGrid({ groups }: { groups: GroupRadarItem[] }) {
               </p>
             </div>
             <span className="rounded-md border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-text-secondary)]">
-              {group.agentMode === "radar_only" ? "Radar" : "Agente"}
+              {getAgentModeLabel(group.agentMode)}
             </span>
           </div>
 

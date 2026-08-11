@@ -14,6 +14,12 @@ import { processJobs } from "@/lib/jobs/processor";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+export function resolveProcessJobsMaxJobs(headers: Headers): number {
+  const requested = Number(headers.get("x-cron-max-jobs") ?? "1");
+  if (!Number.isFinite(requested)) return 1;
+  return Math.min(Math.max(Math.floor(requested), 1), 5);
+}
+
 export async function GET(request: NextRequest) {
   if (!isCronAuthorized(request)) {
     return NextResponse.json(
@@ -24,8 +30,8 @@ export async function GET(request: NextRequest) {
 
   after(async () => {
     try {
-      // Hobby plan = 60s max. Processar 1 job por vez para caber no limite.
-      const result = await processJobs({ maxJobs: 1 });
+      const maxJobs = resolveProcessJobsMaxJobs(request.headers);
+      const result = await processJobs({ maxJobs });
       console.log("[process-jobs cron] Processados:", result.processed, "jobs");
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Erro inesperado.";

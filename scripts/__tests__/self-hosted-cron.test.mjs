@@ -20,6 +20,12 @@ describe("self-hosted cron worker", () => {
     ]);
   });
 
+  it("keeps self-hosted job processing at the previous batch size", () => {
+    const processJobs = resolveCronJobs({}).find((job) => job.label === "process-jobs");
+
+    expect(processJobs?.headers).toEqual({ "x-cron-max-jobs": "5" });
+  });
+
   it("adds satellite cron endpoints only when feature flags are enabled", () => {
     const labels = resolveCronJobs({
       NEXT_PUBLIC_FEATURE_SOCIAL_PUBLISHER: "true",
