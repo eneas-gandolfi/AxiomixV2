@@ -234,6 +234,7 @@ export async function processGroupAgentResponse(
       responseFormat: "text",
       temperature: 0.3,
       maxTokens: 1024,
+      skipFallback: true,
       module: "group_agent",
       operation: "respond",
     });
