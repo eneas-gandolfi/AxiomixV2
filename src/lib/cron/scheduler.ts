@@ -16,6 +16,8 @@ export type CronRegistration = {
   run: () => Promise<unknown>;
 };
 
+type CronEnv = Record<string, string | undefined>;
+
 async function safeRun(label: string, fn: () => Promise<unknown>): Promise<void> {
   try {
     const result = await fn();
@@ -26,7 +28,7 @@ async function safeRun(label: string, fn: () => Promise<unknown>): Promise<void>
   }
 }
 
-export function resolveCronRegistrations(env: NodeJS.ProcessEnv): CronRegistration[] {
+export function resolveCronRegistrations(env: CronEnv): CronRegistration[] {
   const socialEnabled = env.NEXT_PUBLIC_FEATURE_SOCIAL_PUBLISHER === "true";
   const intelligenceEnabled = env.NEXT_PUBLIC_FEATURE_INTELLIGENCE === "true";
 
