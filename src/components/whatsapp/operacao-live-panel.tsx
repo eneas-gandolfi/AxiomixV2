@@ -721,15 +721,15 @@ function HeroCard({
 
   const buttonLabel =
     primaryAction === "assume"
-      ? "Assumir conversa agora"
+      ? "Assumir"
       : primaryAction === "nudge"
         ? `Avisar ${conversation.assigneeName ?? "atendente"}`
-        : "Ver conversa";
+        : "Abrir";
 
   return (
-    <section className={`rounded-2xl border p-7 transition-colors ${bgClass}`}>
+    <section className={`rounded-xl border p-5 transition-colors ${bgClass}`}>
       <p
-        className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${eyebrowColor}`}
+        className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${eyebrowColor}`}
       >
         <span
           className={`h-2 w-2 rounded-full ${severity === "ok" ? "bg-muted-light" : "bg-current animate-ax-breathe"}`}
@@ -741,10 +741,10 @@ function HeroCard({
         <CustomerAvatar
           name={conversation.customerName}
           avatarUrl={conversation.customerAvatar}
-          size="lg"
+          size="md"
         />
         <div className="min-w-0 flex-1">
-          <h2 className="font-bricolage text-2xl font-bold tracking-tight md:text-3xl text-text truncate">
+          <h2 className="font-bricolage text-xl font-bold tracking-tight md:text-2xl text-text truncate">
             {conversation.customerName}
           </h2>
           <p className="mt-0.5 text-sm text-muted">
@@ -780,14 +780,14 @@ function HeroCard({
       {currentWaitSeconds >= LONG_WAIT_THRESHOLD_SECONDS ? (
         // Espera longa (>=24h) — narrativa "Há N dias" + data exata.
         // Cronometro h:mm:ss perde sentido aqui (cliente ja foi).
-        <div className="mt-4 flex flex-col gap-1">
+        <div className="mt-3 flex flex-col gap-1">
           <span
-            className={`font-bricolage text-4xl font-bold leading-tight tracking-tight md:text-5xl ${timerColor}`}
+            className={`font-bricolage text-3xl font-bold leading-tight tracking-tight md:text-4xl ${timerColor}`}
           >
             {formatLongWait(conversation.lastInboundAt)}
           </span>
           <span className="text-xs text-muted">
-            <span className="uppercase tracking-[0.18em]">sem resposta</span>
+            <span className="uppercase tracking-[0.14em]">sem resposta</span>
             {" · "}
             <span className="font-mono">
               {formatSinceLabel(conversation.lastInboundAt)}
@@ -796,25 +796,25 @@ function HeroCard({
         </div>
       ) : (
         // Espera curta (<24h) — cronometro acionavel padrao h:mm:ss.
-        <div className="mt-4 flex items-baseline gap-4">
+        <div className="mt-3 flex items-baseline gap-3">
           <span
-            className={`font-mono text-6xl font-bold leading-none tracking-tight tabular-nums md:text-7xl ${timerColor}`}
+            className={`font-mono text-4xl font-bold leading-none tracking-tight tabular-nums md:text-5xl ${timerColor}`}
           >
             {formatTimer(currentWaitSeconds)}
           </span>
-          <span className="text-xs uppercase tracking-[0.18em] text-muted">
+          <span className="text-xs uppercase tracking-[0.14em] text-muted">
             sem resposta
           </span>
         </div>
       )}
 
-      <div className="mt-6 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {primaryAction === "assume" ? (
           <button
             type="button"
             disabled={isPending}
             onClick={() => onAssume(conversation.conversationId)}
-            className={`inline-flex h-11 items-center gap-2 rounded-lg px-5 text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${buttonClass}`}
+            className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${buttonClass}`}
           >
             {isPending ? (
               <>
@@ -833,7 +833,7 @@ function HeroCard({
             type="button"
             disabled={isPending}
             onClick={() => onNudge(conversation)}
-            className={`inline-flex h-11 items-center gap-2 rounded-lg px-5 text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${buttonClass}`}
+            className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${buttonClass}`}
           >
             {isPending ? (
               <>
@@ -850,7 +850,7 @@ function HeroCard({
         ) : (
           <Link
             href={`/whatsapp-intelligence/conversas/${conversation.conversationId}`}
-            className={`inline-flex h-11 items-center gap-2 rounded-lg px-5 text-sm font-semibold transition-colors ${buttonClass}`}
+            className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${buttonClass}`}
           >
             {buttonLabel}
             <ArrowRight className="h-4 w-4" />
@@ -862,9 +862,10 @@ function HeroCard({
         {primaryAction !== "view" ? (
           <Link
             href={`/whatsapp-intelligence/conversas/${conversation.conversationId}`}
-            className="inline-flex h-11 items-center rounded-lg border border-border bg-card px-5 text-sm font-medium text-text hover:bg-surface-2"
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium text-text hover:bg-surface-2"
           >
-            Ver conversa
+            Abrir
+            <ArrowRight className="h-4 w-4" />
           </Link>
         ) : null}
 
@@ -875,7 +876,7 @@ function HeroCard({
             type="button"
             disabled={isPending}
             onClick={() => onRelease(conversation.conversationId)}
-            className="inline-flex h-11 items-center rounded-lg border border-border bg-transparent px-4 text-sm font-medium text-muted hover:text-text hover:bg-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex h-10 items-center rounded-lg border border-border bg-transparent px-4 text-sm font-medium text-muted hover:text-text hover:bg-surface-2 disabled:opacity-60 disabled:cursor-not-allowed"
             title="Devolve a conversa pra fila sem responsável"
           >
             {isPending ? (
