@@ -133,6 +133,7 @@ describe("OperacaoLivePanel", () => {
     expect(screen.getByText("Maior espera")).toBeInTheDocument();
 
     expect(screen.getByText("Graça Maria")).toBeInTheDocument();
+    expect(screen.getByText("Graça Maria").closest("article")).not.toHaveClass("min-h-[210px]");
     expect(screen.getByText("Alice2793")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Abrir Alice2793/i })).toHaveAttribute(
       "href",

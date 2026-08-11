@@ -62,6 +62,7 @@ export async function GroupsRadarPage({ companyId }: { companyId: string }) {
         <aside className="space-y-4">
           <GroupDistributionPanel data={data} />
           <GroupInsightsFeed insights={data.insights} />
+          <GroupOperationHealthPanel data={data} />
         </aside>
       </section>
     </div>
@@ -177,5 +178,51 @@ function GroupDistributionPanel({ data }: { data: GroupRadarData }) {
         ))}
       </div>
     </section>
+  );
+}
+
+function GroupOperationHealthPanel({ data }: { data: GroupRadarData }) {
+  const attentionGroups = data.summary.riskGroups + data.summary.hotGroups;
+  const inactiveGroups = Math.max(data.summary.totalGroups - data.summary.activeGroups, 0);
+  const statusLabel = attentionGroups > 0 ? "atenção" : "estável";
+  const statusClass =
+    attentionGroups > 0
+      ? "border-[var(--color-danger)]/35 bg-[var(--color-danger-bg)] text-[var(--color-danger)]"
+      : "border-[var(--color-success)]/35 bg-[var(--color-success-bg)] text-[var(--color-success)]";
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--color-text)]">
+            Saúde da operação
+          </h2>
+          <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
+            Resumo lateral, sem área vazia.
+          </p>
+        </div>
+        <span className={`inline-flex h-7 items-center rounded-full border px-3 text-xs font-semibold ${statusClass}`}>
+          {statusLabel}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 p-3">
+        <HealthMetric label="alertas" value={attentionGroups} />
+        <HealthMetric label="ativos" value={data.summary.activeGroups} />
+        <HealthMetric label="arquivados" value={inactiveGroups} />
+      </div>
+    </section>
+  );
+}
+
+function HealthMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
+      <strong className="block font-mono text-lg font-semibold text-[var(--color-text)]">
+        {value}
+      </strong>
+      <span className="mt-1 block truncate text-xs text-[var(--color-text-secondary)]">
+        {label}
+      </span>
+    </div>
   );
 }

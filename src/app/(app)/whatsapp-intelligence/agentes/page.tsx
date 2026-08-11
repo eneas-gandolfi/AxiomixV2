@@ -45,10 +45,12 @@ export default function AgentsPage() {
   const [integrationsByAgent, setIntegrationsByAgent] = useState<Record<string, Integration[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [setupIssue, setSetupIssue] = useState<"evo_auth_missing" | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSetupIssue(null);
     try {
       // Buscar agentes e inboxes em paralelo
       const [agentsRes, inboxesRes] = await Promise.all([
@@ -67,17 +69,24 @@ export default function AgentsPage() {
         setAgents(agentsList);
       } else {
         const data = await agentsRes.json().catch(() => ({}));
-        const knownMessages: Record<string, string> = {
-          AGENTS_ERROR: "Não foi possível carregar os agentes. Tente novamente.",
-          VALIDATION_ERROR: "Dados inválidos retornados pelo servidor.",
-          EVO_CRM_NOT_CONFIGURED: "Evo CRM não está configurado para esta empresa.",
-          EVO_AUTH_MISSING: "Agentes IA precisam das credenciais do Evo Auth Service no ambiente.",
-        };
         const code = typeof data.code === "string" ? data.code : null;
-        const friendly = (code && knownMessages[code])
-          ?? "Não foi possível carregar os agentes. Tente novamente.";
-        console.error("[agentes page] backend error", { code, raw: data.error });
-        throw new Error(friendly);
+
+        if (code === "EVO_AUTH_MISSING") {
+          setAgents([]);
+          setSetupIssue("evo_auth_missing");
+          agentsList = [];
+        } else {
+          const knownMessages: Record<string, string> = {
+            AGENTS_ERROR: "Não foi possível carregar os agentes. Tente novamente.",
+            VALIDATION_ERROR: "Dados inválidos retornados pelo servidor.",
+            EVO_CRM_NOT_CONFIGURED: "Evo CRM não está configurado para esta empresa.",
+            EVO_AUTH_MISSING: "Agentes IA precisam das credenciais do Evo Auth Service no ambiente.",
+          };
+          const friendly = (code && knownMessages[code])
+            ?? "Não foi possível carregar os agentes. Tente novamente.";
+          console.error("[agentes page] backend error", { code, raw: data.error });
+          throw new Error(friendly);
+        }
       }
 
       if (inboxesRes.ok) {
@@ -184,13 +193,35 @@ export default function AgentsPage() {
         </div>
       )}
 
+      {setupIssue === "evo_auth_missing" && (
+        <div className="rounded-xl border border-warning/25 bg-warning-light/30 p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold text-text">
+                Agentes IA do Evo CRM indisponíveis
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                Configure EVO_AUTH_EMAIL e EVO_AUTH_PASSWORD no servidor para criar
+                agentes do Evo CRM. A análise de grupos continua funcionando pela
+                seção WhatsApp e IA.
+              </p>
+            </div>
+            <Link href="/settings?tab=group-agent" className="shrink-0">
+              <Button size="sm" variant="secondary">
+                Configurar WhatsApp e IA
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-lg border border-danger/30 bg-danger/5 p-4 text-sm text-danger">
           {error}
         </div>
       )}
 
-      {agents.length === 0 && !error ? (
+      {agents.length === 0 && !error && !setupIssue ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
           <Bot className="mb-3 h-10 w-10 text-muted/40" />
           <p className="text-sm font-medium text-text">Nenhum agente configurado</p>
@@ -204,7 +235,7 @@ export default function AgentsPage() {
             </Button>
           </Link>
         </div>
-      ) : (
+      ) : agents.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {agents.map((agent) => (
             <AgentCard
@@ -217,7 +248,7 @@ export default function AgentsPage() {
             />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

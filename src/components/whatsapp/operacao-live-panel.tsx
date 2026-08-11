@@ -663,7 +663,7 @@ function WaitingConversationsQueue({
           </div>
         </header>
 
-        <div className="grid gap-3 p-3 md:grid-cols-2 2xl:grid-cols-3">
+        <div className="divide-y divide-border/70">
           {immediateConversations.map(({ conversation, waitSeconds }) => (
             <ConversationActionCard
               key={conversation.conversationId}
@@ -782,43 +782,43 @@ function ConversationActionCard({
         : "text-text";
 
   return (
-    <article className="flex min-h-[210px] min-w-0 flex-col rounded-xl border border-border bg-surface p-4">
-      <div className="flex min-w-0 items-start gap-3">
+    <article className="grid min-w-0 gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.2fr)_110px_minmax(0,1fr)_auto] md:items-center">
+      <div className="flex min-w-0 items-center gap-3">
         <CustomerAvatar
           name={conversation.customerName}
           avatarUrl={conversation.customerAvatar}
-          size="lg"
+          size="md"
         />
         <div className="min-w-0">
-          <p className="truncate font-bricolage text-lg font-bold text-text">
-            {conversation.customerName}
-          </p>
-          <p className="mt-0.5 text-xs text-muted">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <p className="min-w-0 truncate font-bricolage text-base font-bold text-text">
+              {conversation.customerName}
+            </p>
+            <span className="rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-muted">
+              {severityLabel}
+            </span>
+          </div>
+          <p className="mt-0.5 truncate text-xs text-muted">
             {conversation.assigneeName ?? "sem atendente"}
           </p>
         </div>
-        <span className="ml-auto rounded-full border border-border bg-card px-2 py-0.5 text-xs font-semibold text-muted">
-          {severityLabel}
-        </span>
       </div>
 
-      <div className="mt-4 flex items-end gap-3">
-        <Clock className={`mb-1 h-5 w-5 ${timeClass}`} />
-        <div>
-          <p className={`font-mono text-3xl font-bold tabular-nums ${timeClass}`}>
-            {formatCompact(waitSeconds)}
-          </p>
-          <p className="text-xs text-muted-light">
-            {formatSinceLabel(conversation.lastInboundAt)}
-          </p>
-        </div>
+      <div className="flex items-center gap-2 md:block">
+        <Clock className={`h-4 w-4 md:hidden ${timeClass}`} />
+        <p className={`font-mono text-xl font-bold tabular-nums ${timeClass}`}>
+          {formatCompact(waitSeconds)}
+        </p>
+        <p className="text-[11px] text-muted-light">
+          {formatSinceLabel(conversation.lastInboundAt)}
+        </p>
       </div>
 
-      <p className="mt-4 line-clamp-2 text-sm leading-snug text-muted">
+      <p className="line-clamp-2 min-w-0 text-sm leading-snug text-muted">
         {preview ?? "Sem prévia da última mensagem."}
       </p>
 
-      <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+      <div className="flex flex-wrap items-center gap-2 md:justify-end">
         <ConversationActionButton
           conversation={conversation}
           isPending={isPending}
