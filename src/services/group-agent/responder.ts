@@ -157,6 +157,10 @@ export async function processGroupAgentResponse(
       evolutionStatus: resetResult.evolutionStatus,
     });
 
+    if (resetResult.success) {
+      await markGroupMessageResponded(supabase, message.id);
+    }
+
     return {
       success: resetResult.success,
       responseText: resetText,
@@ -290,6 +294,10 @@ export async function processGroupAgentResponse(
       evolutionStatus: fallbackStatus,
     });
 
+    if (fallbackStatus.endsWith("_fallback_sent")) {
+      await markGroupMessageResponded(supabase, message.id);
+    }
+
     return {
       success: false,
       responseText: fallbackText,
@@ -351,10 +359,7 @@ export async function processGroupAgentResponse(
     evolutionStatus: sendResult.evolutionStatus,
   });
 
-  await supabase
-    .from("group_messages")
-    .update({ agent_responded: true })
-    .eq("id", message.id);
+  await markGroupMessageResponded(supabase, message.id);
 
   // Extrair notas em background (best-effort, não bloqueia resposta)
   extractAndSaveNotes({
@@ -447,4 +452,14 @@ async function recordResponse(
     processing_time_ms: input.processingTimeMs,
     evolution_status: input.evolutionStatus,
   });
+}
+
+async function markGroupMessageResponded(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  messageId: string
+): Promise<void> {
+  await supabase
+    .from("group_messages")
+    .update({ agent_responded: true })
+    .eq("id", messageId);
 }
