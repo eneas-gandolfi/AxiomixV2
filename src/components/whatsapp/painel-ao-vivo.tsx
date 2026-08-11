@@ -1,7 +1,7 @@
 /**
  * Arquivo: src/components/whatsapp/painel-ao-vivo.tsx
  * Proposito: Conteudo do modo "Ao vivo" do Painel — antes morava em
- *            /whatsapp-intelligence/operacao. Server Component que busca
+ *            ?modo=agora. Server Component que busca
  *            contagem de conversas e renderiza o painel ao vivo (polling 30s)
  *            ou estado vazio pos-onboarding.
  * Autor: AXIOMIX

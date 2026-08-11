@@ -267,7 +267,7 @@ export function OnboardingForm() {
     setToast("Empresa criada! Conecte o WhatsApp para começar.");
 
     setTimeout(() => {
-      router.push(response.redirectTo ?? "/whatsapp-intelligence/operacao");
+      router.push(response.redirectTo ?? "/whatsapp-intelligence");
       router.refresh();
     }, 1200);
   };

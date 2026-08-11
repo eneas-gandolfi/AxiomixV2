@@ -89,9 +89,9 @@ describe("tfrBreachStrategy", () => {
     expect(result!.priority).toBe(100);
   });
 
-  it("CTA aponta pro modo Agora do Painel (1 clique pra resolver)", () => {
+  it("CTA aponta para a entrada padrão de Inteligência", () => {
     const result = tfrBreachStrategy.run(makeContext([item("c1", "amber")]));
     expect(result!.ctaLabel).toBe("Ver fila");
-    expect(result!.ctaHref).toBe("/whatsapp-intelligence?modo=agora");
+    expect(result!.ctaHref).toBe("/whatsapp-intelligence");
   });
 });

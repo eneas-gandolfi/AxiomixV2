@@ -2,7 +2,8 @@
  * Arquivo: src/app/(app)/whatsapp-intelligence/page.tsx
  * Propósito: Painel da Inteligência — porta única com dois modos:
  *
- *              ?modo=agora      -> Operacao ao vivo (default)
+ *              sem modo         -> Radar de grupos (default)
+ *              ?modo=agora      -> Operacao ao vivo
  *              ?modo=historico  -> Inteligencia Comercial historica
  *                                  (Pulso, Cold leads, Funil, Objecoes,
  *                                   Heatmap chegada x resposta, Recomendacoes
@@ -87,7 +88,7 @@ export default async function WhatsAppDashboardPage({
     );
   }
 
-  // Modo "Ao vivo" — engole o que era a aba Operacao
+  // Modo "Ao vivo" — mantido como superfície operacional explícita
   if (modo === "agora") {
     return (
       <div className="space-y-3.5">

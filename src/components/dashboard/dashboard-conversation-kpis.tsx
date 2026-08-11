@@ -117,7 +117,7 @@ export async function DashboardConversationKpis({
         }
         state="live"
         urgent={data.stalledCount > 0}
-        href={data.stalledCount > 0 ? "/whatsapp-intelligence/operacao" : undefined}
+        href={data.stalledCount > 0 ? "/whatsapp-intelligence" : undefined}
       />
 
       {/* KPI 2 — conversas ativas hoje + delta vs ontem */}

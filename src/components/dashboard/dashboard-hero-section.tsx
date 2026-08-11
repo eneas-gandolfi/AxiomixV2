@@ -61,7 +61,7 @@ export async function DashboardHeroSection({
           plural: niche.vocabulary.customerPlural,
         }}
         thresholdSeconds={stalled.amberSeconds}
-        ctaHref="/whatsapp-intelligence?modo=agora"
+        ctaHref="/whatsapp-intelligence"
         topItems={stalled.items}
       />
       <InsightsPanel insights={insights} />

@@ -237,11 +237,11 @@ describe("POST /api/onboarding/company", () => {
     expect(body).toMatchObject({
       companyId: "company-1",
       slug: "boutique-x",
-      redirectTo: "/whatsapp-intelligence/operacao",
+      redirectTo: "/whatsapp-intelligence",
     });
   });
 
-  it("redireciona pra /whatsapp-intelligence/operacao após sucesso", async () => {
+  it("redireciona pra entrada padrão da Inteligência após sucesso", async () => {
     setupAuthenticatedUser();
     mockInsertCompany.mockResolvedValue({
       data: { id: "company-2", slug: "clinica-vitalis" },
@@ -258,6 +258,6 @@ describe("POST /api/onboarding/company", () => {
     );
     const body = await response.json();
 
-    expect(body.redirectTo).toBe("/whatsapp-intelligence/operacao");
+    expect(body.redirectTo).toBe("/whatsapp-intelligence");
   });
 });

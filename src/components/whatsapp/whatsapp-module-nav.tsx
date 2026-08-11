@@ -5,7 +5,7 @@
  *              [Painel] | [Conversas] | [Agentes IA]
  *
  *            Painel engole Operacao + Analise via toggle interno
- *            (?modo=agora | ?modo=historico). Outras rotas removidas da nav
+ *            (?modo=grupos | ?modo=agora | ?modo=historico). Outras rotas removidas da nav
  *            (Contatos, Pipeline, Sessoes) continuam vivas como fallback ate
  *            ondas seguintes.
  * Autor: AXIOMIX
@@ -37,7 +37,7 @@ type Separator = { kind: "separator" };
 type NavEntry = TabItem | Separator;
 
 /**
- * Onda 2 do redesign 7→3: Operacao virou modo do Painel (?modo=agora).
+ * Onda dos grupos: Painel abre no radar de grupos e mantém Ao vivo/Histórico como modos explícitos.
  * Apenas 3 abas no chrome — separators sumiram (so ha 1 grupo + Agentes IA).
  */
 const PIPELINE_ENABLED = process.env.NEXT_PUBLIC_FEATURE_PIPELINE === "true";

@@ -249,9 +249,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       companyId: company.id,
       slug: company.slug,
-      // Pós-onboarding aterrissa direto na Operação. Estado vazio guia o
-      // próximo passo (conectar WhatsApp).
-      redirectTo: "/whatsapp-intelligence/operacao",
+      // Pós-onboarding aterrissa na entrada padrão da Inteligência.
+      redirectTo: "/whatsapp-intelligence",
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Erro inesperado.";

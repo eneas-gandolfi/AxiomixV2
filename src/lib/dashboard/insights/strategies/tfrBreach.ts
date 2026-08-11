@@ -56,7 +56,7 @@ export const tfrBreachStrategy: InsightStrategy = {
       title,
       body,
       ctaLabel: "Ver fila",
-      ctaHref: "/whatsapp-intelligence?modo=agora",
+      ctaHref: "/whatsapp-intelligence",
       metric: {
         value: avgWaitLabel,
         sub: `meta ${thresholdLabel} · em ${conversationsLabel}`,
