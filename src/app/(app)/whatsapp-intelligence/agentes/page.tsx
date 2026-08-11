@@ -71,6 +71,7 @@ export default function AgentsPage() {
           AGENTS_ERROR: "Não foi possível carregar os agentes. Tente novamente.",
           VALIDATION_ERROR: "Dados inválidos retornados pelo servidor.",
           EVO_CRM_NOT_CONFIGURED: "Evo CRM não está configurado para esta empresa.",
+          EVO_AUTH_MISSING: "Agentes IA precisam das credenciais do Evo Auth Service no ambiente.",
         };
         const code = typeof data.code === "string" ? data.code : null;
         const friendly = (code && knownMessages[code])
