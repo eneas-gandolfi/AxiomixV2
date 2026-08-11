@@ -9,6 +9,13 @@
 
 import cron from "node-cron";
 
+export type CronRegistration = {
+  label: string;
+  schedule: string;
+  enabled: boolean;
+  run: () => Promise<unknown>;
+};
+
 async function safeRun(label: string, fn: () => Promise<unknown>): Promise<void> {
   try {
     const result = await fn();
@@ -19,6 +26,77 @@ async function safeRun(label: string, fn: () => Promise<unknown>): Promise<void>
   }
 }
 
+export function resolveCronRegistrations(env: NodeJS.ProcessEnv): CronRegistration[] {
+  const socialEnabled = env.NEXT_PUBLIC_FEATURE_SOCIAL_PUBLISHER === "true";
+  const intelligenceEnabled = env.NEXT_PUBLIC_FEATURE_INTELLIGENCE === "true";
+
+  return [
+    {
+      label: "heartbeat",
+      schedule: "*/5 * * * *",
+      enabled: true,
+      run: async () => {
+        const { runHeartbeat } = await import("@/lib/cron/heartbeat");
+        return runHeartbeat();
+      },
+    },
+    {
+      label: "process-jobs",
+      schedule: "*/2 * * * *",
+      enabled: true,
+      run: async () => {
+        const { processJobs } = await import("@/lib/jobs/processor");
+        return processJobs({ maxJobs: 5 });
+      },
+    },
+    {
+      label: "group-proactive",
+      schedule: "0 * * * *",
+      enabled: true,
+      run: async () => {
+        const { runGroupProactiveCron } = await import("@/lib/cron/group-proactive");
+        return runGroupProactiveCron();
+      },
+    },
+    {
+      label: "group-rag-batch",
+      schedule: "0 3 * * *",
+      enabled: true,
+      run: async () => {
+        const { runGroupRagBatchCron } = await import("@/lib/cron/group-rag-batch");
+        return runGroupRagBatchCron();
+      },
+    },
+    {
+      label: "whatsapp-sync",
+      schedule: "30 * * * *",
+      enabled: true,
+      run: async () => {
+        const { runWhatsappSyncCron } = await import("@/lib/cron/whatsapp-sync");
+        return runWhatsappSyncCron();
+      },
+    },
+    {
+      label: "social-publisher",
+      schedule: "* * * * *",
+      enabled: socialEnabled,
+      run: async () => {
+        const { processDueScheduledPosts } = await import("@/services/social/poller");
+        return processDueScheduledPosts();
+      },
+    },
+    {
+      label: "anomaly-scan",
+      schedule: "0 12 * * *",
+      enabled: intelligenceEnabled,
+      run: async () => {
+        const { runAnomalyScanCron } = await import("@/lib/cron/anomaly-scan");
+        return runAnomalyScanCron();
+      },
+    },
+  ];
+}
+
 export function startCronScheduler(): void {
   if (process.env.DISABLE_CRONS === "true") {
     console.log("[cron] Crons desabilitados via DISABLE_CRONS=true");
@@ -27,53 +105,16 @@ export function startCronScheduler(): void {
 
   console.log("[cron] Iniciando scheduler de crons...");
 
-  // Heartbeat: a cada 5 minutos (housekeeping + recover + enqueue)
-  cron.schedule("*/5 * * * *", async () => {
-    const { runHeartbeat } = await import("@/lib/cron/heartbeat");
-    await safeRun("heartbeat", runHeartbeat);
-  });
+  for (const registration of resolveCronRegistrations(process.env)) {
+    if (!registration.enabled) {
+      console.log(`[cron] ${registration.label} desabilitado por feature flag`);
+      continue;
+    }
 
-  // Process jobs: a cada 2 minutos, ate 5 jobs por ciclo para nao estrangular a fila.
-  cron.schedule("*/2 * * * *", async () => {
-    const { processJobs } = await import("@/lib/jobs/processor");
-    await safeRun("process-jobs", () => processJobs({ maxJobs: 5 }));
-  });
-
-  // Group proactive: a cada hora
-  cron.schedule("0 * * * *", async () => {
-    const { runGroupProactiveCron } = await import("@/lib/cron/group-proactive");
-    await safeRun("group-proactive", runGroupProactiveCron);
-  });
-
-  // Group RAG batch: diario as 03:00 UTC
-  cron.schedule("0 3 * * *", async () => {
-    const { runGroupRagBatchCron } = await import("@/lib/cron/group-rag-batch");
-    await safeRun("group-rag-batch", runGroupRagBatchCron);
-  });
-
-  // WhatsApp sync: horário — safety-net do webhook (F1). O webhook é a fonte
-  // primária; este cron só reconcilia empresas com drift (webhook mudo).
-  cron.schedule("30 * * * *", async () => {
-    const { runWhatsappSyncCron } = await import("@/lib/cron/whatsapp-sync");
-    await safeRun("whatsapp-sync", runWhatsappSyncCron);
-  });
-
-  // F3 (jul/2026): cron whatsapp-batch removido — análise de IA em lote
-  // automática eliminada (custo de LLM recorrente). Análise agora é só sob
-  // demanda (botão Analisar / bulk-analyze explícito).
-
-  // Social publisher: a cada minuto (dispara posts agendados vencidos)
-  cron.schedule("* * * * *", async () => {
-    const { processDueScheduledPosts } = await import("@/services/social/poller");
-    await safeRun("social-publisher", processDueScheduledPosts);
-  });
-
-  // Anomaly scan (Intelligence Layer): diário às 12:00 UTC (09:00 BRT) —
-  // compara janela 7d vs baseline 21d por tenant e despacha alertas proativos.
-  cron.schedule("0 12 * * *", async () => {
-    const { runAnomalyScanCron } = await import("@/lib/cron/anomaly-scan");
-    await safeRun("anomaly-scan", runAnomalyScanCron);
-  });
+    cron.schedule(registration.schedule, async () => {
+      await safeRun(registration.label, registration.run);
+    });
+  }
 
   console.log("[cron] Scheduler de crons iniciado.");
 }
