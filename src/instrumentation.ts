@@ -1,14 +1,19 @@
 /**
  * Arquivo: src/instrumentation.ts
  * Proposito: Next.js Instrumentation — executado uma vez no startup do servidor.
- * Inicializa o scheduler de crons para deploy self-hosted.
+ * Mantem o processo web leve. Crons rodam via endpoints dedicados ou worker
+ * separado, sem puxar jobs pesados para o bundle das paginas.
  * Autor: AXIOMIX
  * Data: 2026-04-07
  */
 
+type InstrumentationEnv = Record<string, string | undefined>;
+
+export function shouldStartCronSchedulerInWebProcess(env: InstrumentationEnv): boolean {
+  void env;
+  return false;
+}
+
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { startCronScheduler } = await import("@/lib/cron/scheduler");
-    startCronScheduler();
-  }
+  shouldStartCronSchedulerInWebProcess(process.env);
 }
