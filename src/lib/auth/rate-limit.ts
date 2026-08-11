@@ -103,7 +103,18 @@ export async function checkRateLimit(
   }
 
   const limiter = getRedisLimiter(maxAttempts, windowSeconds);
-  const { success, reset } = await limiter.limit(key);
+  let limitResult: Awaited<ReturnType<Ratelimit["limit"]>>;
+  try {
+    limitResult = await limiter.limit(key);
+  } catch (error) {
+    console.warn("[rate-limit] Redis indisponível; usando fallback in-memory.", {
+      key,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return checkRateLimitInMemory(key, maxAttempts, windowSeconds);
+  }
+
+  const { success, reset } = limitResult;
 
   if (success) return { allowed: true };
 
