@@ -215,6 +215,7 @@ export async function POST(request: NextRequest) {
       credentials,
       instanceName: vendor.instanceName,
       companyId: access.companyId,
+      phoneNumber: managerPhone,
     });
 
     const vendorWithQr: EvolutionVendor = {
@@ -260,6 +261,7 @@ export async function POST(request: NextRequest) {
       vendor: vendorWithQr,
       managerPhone,
       qrCodeDataUrl: qr.qrCodeDataUrl,
+      pairingCode: qr.pairingCode,
       testDetail: test.detail,
     });
   } catch (error) {

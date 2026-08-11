@@ -982,7 +982,7 @@ export function CreatePostDrawer({
                       <div className="space-y-1">
                         <p>Nenhuma plataforma conectada.</p>
                         <Link
-                          href="/settings?tab=social"
+                          href="/settings?tab=integrations"
                           className="inline-flex items-center gap-1 text-xs font-medium underline underline-offset-2"
                         >
                           Ir para redes sociais

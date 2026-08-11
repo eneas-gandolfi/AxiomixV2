@@ -34,6 +34,7 @@ type EvolutionQrResult = {
   instanceName: string;
   source: string;
   qrCodeDataUrl: string;
+  pairingCode?: string | null;
 };
 
 type EvolutionSendTextResult = {
@@ -102,21 +103,110 @@ function normalizeQrValue(value: string): string | null {
   }
 
   if (trimmed.startsWith("data:image/")) {
-    return trimmed;
+    return isValidImageDataUrl(trimmed) ? trimmed : null;
   }
 
   if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
+    return isLikelyImageUrl(trimmed) ? trimmed : null;
   }
 
   const cleaned = trimmed.replace(/^data:image\/\w+;base64,/, "");
   const base64Pattern = /^[A-Za-z0-9+/=\r\n]+$/;
 
-  if (!base64Pattern.test(cleaned) || cleaned.length < 120) {
+  if (!base64Pattern.test(cleaned)) {
     return null;
   }
 
-  return `data:image/png;base64,${cleaned}`;
+  return hasImageSignature(Buffer.from(cleaned, "base64")) ? `data:image/png;base64,${cleaned}` : null;
+}
+
+function isLikelyImageUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return /\.(png|jpe?g|gif|webp|svg)$/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function isValidImageDataUrl(value: string) {
+  const match = value.match(/^data:(image\/[^;,]+);base64,(.+)$/i);
+  if (!match) {
+    return false;
+  }
+
+  return hasImageSignature(Buffer.from(match[2] ?? "", "base64"));
+}
+
+function normalizePairingCode(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith("2@") || trimmed.startsWith("data:image/")) {
+    return null;
+  }
+
+  const normalized = trimmed.toUpperCase();
+  return /^[A-Z0-9-]{4,20}$/.test(normalized) ? normalized : null;
+}
+
+function extractPairingCodeFromPayload(payload: unknown): string | null {
+  const visited = new Set<unknown>();
+
+  const walk = (node: unknown): string | null => {
+    if (node === null || node === undefined || typeof node !== "object") {
+      return null;
+    }
+
+    if (visited.has(node)) {
+      return null;
+    }
+    visited.add(node);
+
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const candidate = walk(item);
+        if (candidate) {
+          return candidate;
+        }
+      }
+      return null;
+    }
+
+    for (const [key, value] of Object.entries(node)) {
+      if (/pairing/i.test(key) && typeof value === "string") {
+        const candidate = normalizePairingCode(value);
+        if (candidate) {
+          return candidate;
+        }
+      }
+
+      const nested = walk(value);
+      if (nested) {
+        return nested;
+      }
+    }
+
+    return null;
+  };
+
+  return walk(payload);
+}
+
+function hasImageSignature(buffer: Buffer) {
+  if (buffer.length < 8) {
+    return false;
+  }
+
+  const header = buffer.subarray(0, 12);
+  const hex = header.toString("hex");
+  const ascii = header.toString("ascii");
+
+  return (
+    hex.startsWith("89504e47") ||
+    hex.startsWith("ffd8ff") ||
+    ascii.startsWith("GIF87a") ||
+    ascii.startsWith("GIF89a") ||
+    (ascii.startsWith("RIFF") && ascii.slice(8, 12) === "WEBP")
+  );
 }
 
 function extractQrFromPayload(payload: unknown): string | null {
@@ -424,8 +514,10 @@ export async function generateEvolutionQrCode(input: {
   credentials: EvolutionCredentials;
   instanceName: string;
   companyId?: string;
+  phoneNumber?: string;
 }): Promise<EvolutionQrResult> {
   const webhookUrl = buildWebhookUrl(input.companyId);
+  const normalizedPhone = normalizeWhatsAppPhone(input.phoneNumber ?? "");
 
   const createBody: Record<string, unknown> = {
     instanceName: input.instanceName,
@@ -449,6 +541,15 @@ export async function generateEvolutionQrCode(input: {
       url: `${input.credentials.baseUrl}/instance/create`,
       body: createBody,
     },
+    ...(normalizedPhone
+      ? [
+          {
+            source: "connect_instance_pairing",
+            method: "GET" as const,
+            url: `${input.credentials.baseUrl}/instance/connect/${encodeURIComponent(input.instanceName)}?number=${encodeURIComponent(normalizedPhone)}`,
+          },
+        ]
+      : []),
     {
       source: "connect_instance",
       method: "GET",
@@ -467,6 +568,7 @@ export async function generateEvolutionQrCode(input: {
   ];
 
   let lastFailure: string | null = null;
+  let firstQr: EvolutionQrResult | null = null;
 
   for (const attempt of attempts) {
     let result: FetchResult;
@@ -494,15 +596,36 @@ export async function generateEvolutionQrCode(input: {
         : result.payload;
 
     const qr = extractQrFromPayload(payload);
+    const pairingCode = extractPairingCodeFromPayload(payload);
     if (!qr) {
+      if (firstQr && pairingCode) {
+        return {
+          ...firstQr,
+          source: attempt.source,
+          pairingCode,
+        };
+      }
       continue;
     }
 
-    return {
+    const qrResult = {
       instanceName: input.instanceName,
       source: attempt.source,
       qrCodeDataUrl: qr,
+      pairingCode,
     };
+
+    if (!firstQr) {
+      firstQr = qrResult;
+    }
+
+    if (!normalizedPhone || pairingCode) {
+      return qrResult;
+    }
+  }
+
+  if (firstQr) {
+    return firstQr;
   }
 
   throw new Error(

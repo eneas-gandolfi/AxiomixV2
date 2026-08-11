@@ -157,8 +157,9 @@ async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterCon
     .eq("type", "openrouter")
     .maybeSingle();
 
-  const envApiKey = process.env.OPENROUTER_API_KEY?.trim();
-  const envModel = process.env.OPENROUTER_MODEL?.trim() || "google/gemini-3.5-flash-lite";
+  const envConfig = resolveOpenRouterEnvConfig();
+  const envApiKey = envConfig?.apiKey;
+  const envModel = envConfig?.model ?? "google/gemini-3.5-flash-lite";
 
   if (integration?.config) {
     const decoded = decodeIntegrationConfig("openrouter", integration.config);
@@ -169,8 +170,8 @@ async function resolveOpenRouterConfig(companyId: string): Promise<OpenRouterCon
     }
   }
 
-  if (envApiKey) {
-    return { apiKey: envApiKey, model: envModel };
+  if (envConfig) {
+    return envConfig;
   }
 
   throw new Error("Integração OpenRouter não configurada para esta empresa.");
@@ -251,6 +252,7 @@ export async function openRouterChatCompletion(
   const useJson = responseFormat === "json";
   const maxTokens = options?.maxTokens;
   const timeoutMs = options?.timeout ?? DEFAULT_TIMEOUT_MS;
+  let creditFailureDetail: string | null = null;
 
   /* ── Tentativa primária (com circuit breaker) ── */
   if (!isModelCircuitOpen(primaryModel)) {
@@ -275,6 +277,9 @@ export async function openRouterChatCompletion(
 
     recordModelFailure(primaryModel);
     const { status: primaryStatus, detail: primaryDetail } = primary;
+    if (primaryStatus === 402) {
+      creditFailureDetail = primaryDetail;
+    }
 
     /* ── Decidir se deve tentar fallback ── */
     if (options?.skipFallback || !FALLBACK_STATUS_CODES.has(primaryStatus)) {
@@ -317,6 +322,10 @@ export async function openRouterChatCompletion(
       return attempt.content;
     }
 
+    if (attempt.status === 402) {
+      creditFailureDetail = attempt.detail;
+    }
+
     /* Se pediu JSON e falhou, tentar sem response_format (o system prompt já pede JSON) */
     if (useJson) {
       const retryNoJson = await attemptChatCompletion(
@@ -339,10 +348,18 @@ export async function openRouterChatCompletion(
         }).catch(() => {});
         return retryNoJson.content;
       }
+
+      if (retryNoJson.status === 402) {
+        creditFailureDetail = retryNoJson.detail;
+      }
     }
   }
 
   /* ── Todos os fallbacks falharam ── */
+  if (creditFailureDetail) {
+    throw new Error(`OpenRouter error 402: ${creditFailureDetail}`);
+  }
+
   throw new Error(
     `OpenRouter: modelo "${primaryModel}" e todos os fallbacks gratuitos falharam.`,
   );

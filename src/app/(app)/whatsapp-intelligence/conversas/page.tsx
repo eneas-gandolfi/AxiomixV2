@@ -20,6 +20,7 @@ import { ConversationDetailView } from "@/components/whatsapp/conversation-detai
 import { ConversationDrawerShell } from "@/components/whatsapp/conversation-drawer-shell";
 import { ConversationDrawerSkeleton } from "@/components/whatsapp/conversation-drawer-skeleton";
 import { getCachedEvoAgents, getCachedEvoInboxes } from "@/services/evo-crm/directory-cache";
+import { logDirectoryFallback } from "@/lib/whatsapp/directory-fallback-log";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -48,11 +49,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
       const users = await getCachedEvoAgents(companyId);
       return users.map((u) => ({ id: u.id, name: u.name ?? null }));
     } catch (error) {
-      console.error("[conversas page] fetchAgents failed; degrading to empty list", {
-        companyId,
-        message: error instanceof Error ? error.message : String(error),
-        cause: error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause?.code : undefined,
-      });
+      logDirectoryFallback("agents", companyId, error);
       return [];
     }
   };
@@ -68,11 +65,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
         channel_type: i.channel_type ?? null,
       }));
     } catch (error) {
-      console.error("[conversas page] fetchInboxes failed; degrading to empty list", {
-        companyId,
-        message: error instanceof Error ? error.message : String(error),
-        cause: error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause?.code : undefined,
-      });
+      logDirectoryFallback("inboxes", companyId, error);
       return [];
     }
   };

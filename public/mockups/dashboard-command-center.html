@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Axiomix - Mockup Dashboard</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fa;
+        --sidebar: #080d14;
+        --card: #ffffff;
+        --card-soft: #f8fafc;
+        --line: #d8dee8;
+        --line-soft: #e8edf3;
+        --text: #111827;
+        --muted: #667085;
+        --faint: #8a95a6;
+        --orange: #f05a12;
+        --orange-soft: #fff1e8;
+        --green: #16a34a;
+        --green-soft: #eaf8ef;
+        --red: #dc2626;
+        --red-soft: #fff0f0;
+        --amber: #d97706;
+        --amber-soft: #fff7e6;
+        --blue: #2563eb;
+        --blue-soft: #eef4ff;
+        --shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow-x: hidden;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      .app {
+        display: grid;
+        min-height: 100vh;
+        grid-template-columns: 88px minmax(0, 1fr);
+      }
+
+      .rail {
+        background: var(--sidebar);
+        padding: 12px 10px;
+      }
+
+      .brand {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        margin: 0 auto 54px;
+        border-radius: 10px;
+        background: var(--orange);
+        color: #fff;
+        font-weight: 900;
+      }
+
+      .rail nav {
+        display: grid;
+        gap: 14px;
+        justify-items: center;
+      }
+
+      .rail-item {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        color: #96a3b7;
+        font-size: 18px;
+      }
+
+      .rail-item.active {
+        border: 1px solid rgba(240, 90, 18, 0.55);
+        background: rgba(240, 90, 18, 0.12);
+        color: #ff7a2f;
+      }
+
+      .shell {
+        min-width: 0;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-width: 0;
+        min-height: 86px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+        padding: 0 36px;
+      }
+
+      .time {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        min-width: 0;
+        gap: 20px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .time strong {
+        color: var(--text);
+      }
+
+      .user {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 14px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .toggle,
+      .bell,
+      .avatar {
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .toggle {
+        width: 72px;
+        height: 38px;
+        border-radius: 999px;
+        background: #d7dde6;
+        color: var(--orange);
+      }
+
+      .bell,
+      .avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+      }
+
+      .avatar {
+        border: 0;
+        background: var(--orange-soft);
+        color: var(--orange);
+      }
+
+      main {
+        width: min(1480px, 100%);
+        margin: 0 auto;
+        padding: 32px 36px 48px;
+      }
+
+      .headline {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--green);
+      }
+
+      .command {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .focus {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 18px;
+        min-height: 150px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #f05a12, #ff7a2f);
+        box-shadow: 0 16px 34px rgba(240, 90, 18, 0.23);
+        color: #fff;
+        padding: 24px;
+      }
+
+      .focus-icon {
+        display: grid;
+        place-items: center;
+        width: 58px;
+        height: 58px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.2);
+        font-size: 24px;
+        font-weight: 900;
+      }
+
+      .eyebrow {
+        margin-bottom: 8px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        opacity: 0.78;
+        text-transform: uppercase;
+      }
+
+      .focus h2 {
+        font-size: 28px;
+        line-height: 1.15;
+      }
+
+      .focus p {
+        margin-top: 8px;
+        color: rgba(255, 255, 255, 0.86);
+        font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        font-weight: 800;
+        padding: 0 16px;
+        white-space: nowrap;
+      }
+
+      .daily {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+        padding: 18px;
+      }
+
+      .daily-head,
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .daily h2,
+      .section-head h2 {
+        font-size: 15px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        height: 26px;
+        border-radius: 999px;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .pill.green {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .pill.red {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .pill.amber {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .todo-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .todo {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: var(--card-soft);
+        padding: 12px;
+      }
+
+      .rank {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: #fff;
+        color: var(--orange);
+        font-weight: 900;
+      }
+
+      .todo strong {
+        display: block;
+        overflow: hidden;
+        color: var(--text);
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .todo span {
+        display: block;
+        margin-top: 3px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mini-action {
+        color: var(--orange);
+        font-size: 13px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .kpi {
+        min-height: 106px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--card);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+        padding: 16px;
+      }
+
+      .kpi label {
+        display: block;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .kpi strong {
+        display: block;
+        margin-top: 10px;
+        font-size: 32px;
+        line-height: 1;
+      }
+
+      .kpi small {
+        display: block;
+        margin-top: 9px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .left,
+      .right {
+        display: grid;
+        min-width: 0;
+        gap: 16px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+        padding: 18px;
+      }
+
+      .groups {
+        display: grid;
+        gap: 10px;
+      }
+
+      .group {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: var(--card-soft);
+        padding: 13px;
+      }
+
+      .group h3 {
+        overflow: hidden;
+        font-size: 15px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .group p {
+        margin-top: 4px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        justify-self: end;
+        width: min(100%, 280px);
+      }
+
+      .metric {
+        display: grid;
+        min-width: 0;
+        min-height: 58px;
+        align-content: center;
+        justify-items: center;
+        border-radius: 10px;
+        background: #fff;
+        padding: 7px 8px;
+        text-align: center;
+      }
+
+      .metric b {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        font-size: 15px;
+        line-height: 1.1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .metric span {
+        color: var(--faint);
+        font-size: 11px;
+        line-height: 1.2;
+      }
+
+      .bottom-cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .status-panel {
+        display: grid;
+        min-height: 72px;
+        align-content: center;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: var(--card-soft);
+        padding: 12px;
+      }
+
+      .status-panel strong {
+        display: block;
+        overflow: hidden;
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .status-panel span {
+        display: block;
+        margin-top: 5px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .insight {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .signal {
+        border-bottom: 1px solid var(--line-soft);
+        padding-bottom: 12px;
+      }
+
+      .signal:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .signal-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        color: var(--faint);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .signal p {
+        margin-top: 6px;
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      .health-card {
+        padding: 16px;
+      }
+
+      .health-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .health-item {
+        min-width: 0;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: var(--card-soft);
+        padding: 10px;
+      }
+
+      .health-item b {
+        display: block;
+        overflow: hidden;
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .health-item span {
+        display: block;
+        margin-top: 4px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      @media (max-width: 1180px) {
+        .command,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .right {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 820px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        .rail {
+          display: none;
+        }
+
+        .topbar {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
+          min-height: auto;
+          align-items: flex-start;
+          padding: 16px;
+        }
+
+        .time {
+          gap: 10px;
+          font-size: 13px;
+        }
+
+        .user {
+          gap: 8px;
+        }
+
+        .bell,
+        .avatar,
+        .user span:last-child {
+          display: none;
+        }
+
+        main {
+          padding: 18px 14px 32px;
+        }
+
+        .headline {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        h1 {
+          font-size: 24px;
+        }
+
+        .focus {
+          grid-template-columns: 1fr;
+          gap: 14px;
+          min-height: auto;
+          padding: 18px;
+        }
+
+        .focus h2 {
+          font-size: 22px;
+        }
+
+        .button {
+          width: 100%;
+        }
+
+        .kpis,
+        .bottom-cards,
+        .right {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .kpi {
+          min-height: 96px;
+          padding: 14px;
+        }
+
+        .kpi strong {
+          font-size: 26px;
+        }
+
+        .group,
+        .todo {
+          grid-template-columns: 1fr;
+        }
+
+        .metrics {
+          justify-self: stretch;
+          width: 100%;
+        }
+
+        .mini-action {
+          justify-self: start;
+        }
+      }
+
+      @media (max-width: 620px) {
+        main {
+          padding-inline: 12px;
+        }
+
+        .kpis,
+        .bottom-cards,
+        .right {
+          grid-template-columns: 1fr;
+        }
+
+        .group {
+          padding: 10px;
+        }
+
+        .metrics {
+          gap: 6px;
+        }
+
+        .metric {
+          min-height: 58px;
+          padding-inline: 5px;
+        }
+
+        .metric b {
+          font-size: 14px;
+        }
+
+        .daily-head,
+        .section-head {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="rail" aria-label="Navegação">
+        <div class="brand">A</div>
+        <nav>
+          <div class="rail-item active">□</div>
+          <div class="rail-item">▱</div>
+          <div class="rail-item">⌁</div>
+          <div class="rail-item">⌘</div>
+          <div class="rail-item">⚙</div>
+        </nav>
+      </aside>
+
+      <div class="shell">
+        <header class="topbar">
+          <div class="time">
+            <strong>Terça-feira, 11 de agosto</strong>
+            <span>12:06</span>
+            <span>28:00</span>
+          </div>
+          <div class="user">
+            <div class="toggle">☀</div>
+            <div class="bell">!</div>
+            <div class="avatar">A</div>
+            <span>Sair</span>
+          </div>
+        </header>
+
+        <main>
+          <section class="headline">
+            <div>
+              <h1>Bom dia, Axiomix.</h1>
+              <p class="sub">Seu painel abre direto no que precisa de decisão.</p>
+            </div>
+            <div class="status"><span class="status-dot"></span> Operacional</div>
+          </section>
+
+          <section class="command">
+            <article class="focus">
+              <div class="focus-icon">1</div>
+              <div>
+                <p class="eyebrow">Próxima ação</p>
+                <h2>Ativar inteligência dos grupos</h2>
+                <p>Comece pelos grupos do WhatsApp. Eles concentram sinais, dúvidas e oportunidades.</p>
+              </div>
+              <div class="button">Abrir grupos</div>
+            </article>
+
+            <aside class="daily">
+              <div class="daily-head">
+                <h2>Fila de hoje</h2>
+                <span class="pill amber">3 ações</span>
+              </div>
+              <div class="todo-list">
+                <div class="todo">
+                  <div class="rank">1</div>
+                  <div>
+                    <strong>Configurar grupos prioritários</strong>
+                    <span>WhatsApp Intelligence</span>
+                  </div>
+                  <div class="mini-action">Abrir</div>
+                </div>
+                <div class="todo">
+                  <div class="rank">2</div>
+                  <div>
+                    <strong>Conectar Evo CRM</strong>
+                    <span>Sincronização e histórico</span>
+                  </div>
+                  <div class="mini-action">Configurar</div>
+                </div>
+                <div class="todo">
+                  <div class="rank">3</div>
+                  <div>
+                    <strong>Revisar conversas paradas</strong>
+                    <span>Sem pendências no momento</span>
+                  </div>
+                  <div class="mini-action">Ver</div>
+                </div>
+              </div>
+            </aside>
+          </section>
+
+          <section class="kpis" aria-label="Resumo operacional">
+            <article class="kpi">
+              <label>Atenção</label>
+              <strong>0</strong>
+              <small>sem urgências agora</small>
+            </article>
+            <article class="kpi">
+              <label>Grupos monitorados</label>
+              <strong>7</strong>
+              <small>5 ativos hoje</small>
+            </article>
+            <article class="kpi">
+              <label>Mensagens 24h</label>
+              <strong>148</strong>
+              <small>em grupos e conversas</small>
+            </article>
+            <article class="kpi">
+              <label>IA</label>
+              <strong>17</strong>
+              <small>respostas em 24h</small>
+            </article>
+          </section>
+
+          <section class="grid">
+            <div class="left">
+              <article class="card">
+                <div class="section-head">
+                  <h2>Radar de grupos WhatsApp</h2>
+                  <span class="pill green">Central do produto</span>
+                </div>
+                <div class="groups">
+                  <div class="group">
+                    <div>
+                      <h3>VIP Lançamento Agosto</h3>
+                      <p>Ação: responder prazo e acionar responsável.</p>
+                    </div>
+                    <div class="metrics">
+                      <div class="metric"><b>18</b><span>msg</span></div>
+                      <div class="metric"><b>9</b><span>pessoas</span></div>
+                      <div class="metric"><b>Risco</b><span>status</span></div>
+                    </div>
+                  </div>
+                  <div class="group">
+                    <div>
+                      <h3>Comunidade Leads Premium</h3>
+                      <p>Ação: enviar oferta e próximo horário.</p>
+                    </div>
+                    <div class="metrics">
+                      <div class="metric"><b>64</b><span>msg</span></div>
+                      <div class="metric"><b>21</b><span>pessoas</span></div>
+                      <div class="metric"><b>Quente</b><span>status</span></div>
+                    </div>
+                  </div>
+                  <div class="group">
+                    <div>
+                      <h3>Clientes Ativos SP</h3>
+                      <p>Grupo ativo, sem bloqueio comercial.</p>
+                    </div>
+                    <div class="metrics">
+                      <div class="metric"><b>31</b><span>msg</span></div>
+                      <div class="metric"><b>12</b><span>pessoas</span></div>
+                      <div class="metric"><b>OK</b><span>status</span></div>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+            </div>
+
+            <aside class="right">
+              <article class="card insight">
+                <div class="section-head">
+                  <h2>Sinais da IA</h2>
+                  <span class="pill green">24h</span>
+                </div>
+                <div class="signal">
+                  <div class="signal-meta">
+                    <span>Grupo VIP</span>
+                    <span>Pendência</span>
+                    <span>11:40</span>
+                  </div>
+                  <p>Cliente pediu prazo antes de fechar.</p>
+                </div>
+                <div class="signal">
+                  <div class="signal-meta">
+                    <span>Leads Premium</span>
+                    <span>Oportunidade</span>
+                    <span>11:20</span>
+                  </div>
+                  <p>Perguntas sobre plano anual e desconto.</p>
+                </div>
+                <div class="signal">
+                  <div class="signal-meta">
+                    <span>Clientes SP</span>
+                    <span>Resposta IA</span>
+                    <span>10:58</span>
+                  </div>
+                  <p>Resposta gerada com base na base de conhecimento.</p>
+                </div>
+              </article>
+            </aside>
+          </section>
+
+          <section class="bottom-cards" aria-label="Estado operacional">
+            <article class="card">
+              <div class="section-head">
+                <h2>Controle de risco</h2>
+                <span class="pill green">OK</span>
+              </div>
+              <div class="status-panel">
+                <strong>Tudo respondido.</strong>
+                <span>Nenhum cliente esperando agora.</span>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="section-head">
+                <h2>Oportunidades</h2>
+                <span class="pill amber">vendas</span>
+              </div>
+              <div class="status-panel">
+                <strong>0 oportunidades ativas</strong>
+                <span>A IA avisa quando detectar intenção de compra.</span>
+              </div>
+            </article>
+
+            <article class="card health-card">
+              <div class="section-head">
+                <h2>Saúde da operação</h2>
+                <span class="pill green">estável</span>
+              </div>
+              <div class="health-summary">
+                <div class="health-item">
+                  <b>Ação</b>
+                  <span>Evo CRM</span>
+                </div>
+                <div class="health-item">
+                  <b>OK</b>
+                  <span>base da IA</span>
+                </div>
+                <div class="health-item">
+                  <b>7</b>
+                  <span>grupos</span>
+                </div>
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

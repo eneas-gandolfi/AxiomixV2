@@ -313,7 +313,7 @@ function EmptyState({
       title = "Defina seu nicho pra ativar";
       body =
         "Atualize seu cadastro em Configurações pra escolher um nicho da lista curada e desbloquear o benchmark.";
-      cta = { href: "/settings?tab=general", label: "Ir pra Configurações" };
+      cta = { href: "/settings?tab=company", label: "Ir pra Configurações" };
       break;
     case "not-enough-peers":
       title = `Coletando dados do nicho ${nicheLabel ?? ""}`.trim();

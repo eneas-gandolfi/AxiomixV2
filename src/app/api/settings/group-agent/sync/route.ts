@@ -12,9 +12,9 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
 import {
   resolveEvolutionCredentials,
-  resolvePreferredEvolutionInstance,
   fetchEvolutionGroups,
 } from "@/services/integrations/evolution";
+import { resolveGroupSyncInstance } from "@/services/group-agent/sync-planning";
 
 export const dynamic = "force-dynamic";
 
@@ -45,10 +45,29 @@ export async function POST(request: NextRequest) {
         baseUrl: decoded.baseUrl,
         apiKey: decoded.apiKey,
       });
-      instanceName =
-        resolvePreferredEvolutionInstance(decoded.vendors) ?? instanceName;
+      const syncInstance = resolveGroupSyncInstance({
+        hasStoredIntegration: true,
+        fallbackInstanceName: instanceName,
+        vendors: decoded.vendors,
+      });
+
+      if (syncInstance.ok) {
+        instanceName = syncInstance.instanceName;
+      } else {
+        return NextResponse.json(
+          { error: syncInstance.error, code: syncInstance.code },
+          { status: syncInstance.status }
+        );
+      }
     } else {
       credentials = resolveEvolutionCredentials();
+      const syncInstance = resolveGroupSyncInstance({
+        hasStoredIntegration: false,
+        fallbackInstanceName: instanceName,
+      });
+      if (syncInstance.ok) {
+        instanceName = syncInstance.instanceName;
+      }
     }
 
     // --- Buscar grupos da Evolution API ---

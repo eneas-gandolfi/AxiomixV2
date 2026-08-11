@@ -9,6 +9,7 @@ import type React from "react";
 import { redirect } from "next/navigation";
 import { PageContainer } from "@/components/layouts/page-container";
 import { SettingsLayout } from "@/components/settings/settings-layout";
+import { resolveSettingsIntegrationFlags } from "@/components/settings/settings-status";
 import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -19,6 +20,7 @@ export default async function SettingsPage({
 }) {
   const params = await searchParams;
   const tabParam = typeof params.tab === "string" ? params.tab : undefined;
+  const connectParam = typeof params.connect === "string" ? params.connect : undefined;
   const companyId = await getUserCompanyId();
 
   if (!companyId) {
@@ -50,22 +52,22 @@ export default async function SettingsPage({
       .maybeSingle(),
     supabase
       .from("integrations")
-      .select("type, is_active")
+      .select("type, is_active, config")
       .eq("company_id", companyId),
   ]);
 
   const company = companyResult.data;
   const integrations = integrationsResult.data;
-
-  const activeIntegrations = integrations?.filter((i) => i.is_active).length ?? 0;
-  const totalIntegrations = 2; // Evo CRM + Evolution API
+  const integrationFlags = resolveSettingsIntegrationFlags(integrations);
 
   const companyConfigured = Boolean(company?.name && company?.niche);
 
   const initialStats = {
     companyConfigured,
-    integrationsActive: activeIntegrations,
-    totalIntegrations,
+    integrationsActive: integrationFlags.activeIntegrations,
+    totalIntegrations: integrationFlags.totalIntegrations,
+    evoCrmActive: integrationFlags.evoCrmActive,
+    evolutionApiActive: integrationFlags.evolutionApiActive,
     lastUpdate: company?.created_at ?? null,
   };
 
@@ -76,6 +78,7 @@ export default async function SettingsPage({
           companyId={companyId}
           initialStats={initialStats}
           initialTab={tabParam}
+          initialIntegration={connectParam}
           userRole={userRole as "owner" | "admin" | "member"}
         />
       </PageContainer>

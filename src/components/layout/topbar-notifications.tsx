@@ -342,7 +342,7 @@ export function TopbarNotifications() {
                     </button>
                   ) : null}
                   <Link
-                    href="/settings?tab=alerts"
+                    href="/settings?tab=notifications"
                     onClick={() => setIsOpen(false)}
                     className="text-xs font-medium text-[var(--color-primary)] transition-opacity hover:opacity-80"
                   >

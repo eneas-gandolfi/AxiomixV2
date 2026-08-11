@@ -19,22 +19,15 @@
 import { Suspense, type CSSProperties } from "react";
 import { redirect } from "next/navigation";
 import { DashboardChartsSection } from "@/components/dashboard/dashboard-charts-section";
+import { DashboardGroupCommandCenterSection } from "@/components/dashboard/group-command-center-section";
 import { DashboardSidebarSection } from "@/components/dashboard/dashboard-sidebar-section";
 import { NicheBenchmarkCard } from "@/components/dashboard/niche-benchmark-card";
-import { RiskControlCard } from "@/components/dashboard/risk-control-card";
-import {
-  DashboardHeroSection,
-  DashboardHeroSkeleton,
-} from "@/components/dashboard/dashboard-hero-section";
 import { DashboardNextActionSection } from "@/components/dashboard/dashboard-next-action-section";
 import {
   DashboardConversationKpis,
   DashboardConversationKpisSkeleton,
-  KpiHeroCards,
-  KpiHeroCardsSkeleton,
 } from "@/components/dashboard/dashboard-conversation-kpis";
 import { getDashboardBootstrap } from "@/lib/dashboard/bootstrap";
-import { isValidNicheSlug } from "@/lib/niches";
 
 function getGreeting(): string {
   const now = new Date();
@@ -80,24 +73,6 @@ function DashboardCardSkeleton() {
   );
 }
 
-/**
- * Skeleton compacto pro `RiskControlCard`. Empty state real é uma linha só
- * (~64px: check verde + "Tudo em dia"); cair em um placeholder de 140px
- * causaria layout shift visível. Mantém o shape do empty state já que é o
- * caso mais comum.
- */
-function RiskControlCardSkeleton() {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-card-modern">
-      <div className="skeleton-shimmer animate-shimmer h-9 w-9 shrink-0 rounded-lg" />
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <div className="skeleton-shimmer animate-shimmer h-3.5 w-32 rounded" />
-        <div className="skeleton-shimmer animate-shimmer h-3 w-40 rounded" />
-      </div>
-    </div>
-  );
-}
-
 function NextActionSkeleton() {
   return (
     <div
@@ -130,7 +105,6 @@ export default async function DashboardPage() {
 
   const { companyId, companyName } = bootstrap;
   const isOwnerOrAdmin = bootstrap.role === "owner" || bootstrap.role === "admin";
-  const nicheSlug = isValidNicheSlug(bootstrap.nicheSlug) ? bootstrap.nicheSlug : "outro";
   const greeting = getGreeting();
 
   return (
@@ -179,22 +153,10 @@ export default async function DashboardPage() {
           <DashboardSidebarSection companyId={companyId} isOwnerOrAdmin={isOwnerOrAdmin} />
         </Suspense>
 
-        {/* RiskControl + MetricCards hero (conversas 7d + oportunidades) */}
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Suspense fallback={<RiskControlCardSkeleton />}>
-            <RiskControlCard companyId={companyId} />
-          </Suspense>
-          <Suspense fallback={<KpiHeroCardsSkeleton />}>
-            <KpiHeroCards companyId={companyId} />
-          </Suspense>
-        </section>
-
-        {/* HeroMetric + InsightsPanel (detalhe operacional) */}
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,340px)] xl:items-stretch">
-          <Suspense fallback={<DashboardHeroSkeleton />}>
-            <DashboardHeroSection companyId={companyId} nicheSlug={nicheSlug} />
-          </Suspense>
-        </div>
+        {/* Centro do produto: radar de grupos, sinais da IA e status compacto */}
+        <Suspense fallback={<DashboardCardSkeleton />}>
+          <DashboardGroupCommandCenterSection companyId={companyId} />
+        </Suspense>
 
         <section>
           <Suspense fallback={<DashboardCardSkeleton />}>
@@ -211,7 +173,7 @@ export default async function DashboardPage() {
         <span>Dados sincronizados de Evo CRM</span>
         <span aria-hidden="true">·</span>
         <a
-          href="/settings?tab=integrations"
+          href="/settings?tab=integrations&connect=whatsapp"
           className="border-b border-border/70 text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
         >
           Configurar sincronização →

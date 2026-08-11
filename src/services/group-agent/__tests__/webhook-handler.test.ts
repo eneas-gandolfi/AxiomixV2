@@ -149,6 +149,10 @@ describe("detectTrigger", () => {
   it("é case-insensitive", () => {
     expect(detectTrigger("AXIOMIX help", keywords)).toBe(true);
   });
+
+  it("aceita /nome como alias natural de @nome", () => {
+    expect(detectTrigger("/axiomix", ["@axiomix", "/ia"])).toBe(true);
+  });
 });
 
 describe("resolveTimestamp", () => {

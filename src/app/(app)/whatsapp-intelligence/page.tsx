@@ -215,10 +215,7 @@ export default async function WhatsAppDashboardPage({
 
       {/* Banner de "rode a IA" — só aparece quando faltam insights p/ §1-§4 */}
       {showAnalysisEmptyBanner ? (
-        <AnalysisEmptyBanner
-          companyId={companyId}
-          hasSynced={Boolean(syncedConversationsCount)}
-        />
+        <AnalysisEmptyBanner hasSynced={Boolean(syncedConversationsCount)} />
       ) : null}
 
       {/* Volume diário + intenções · full-width antes do masonry (gráficos
@@ -289,7 +286,7 @@ function PainelHeader({ active }: { active: "grupos" | "agora" | "historico" }) 
       <PainelModeToggle active={active} />
       <p className="text-[11.5px] text-[var(--color-text-tertiary)]">
         {active === "grupos"
-          ? "Radar dos grupos monitorados e do agente IA"
+          ? "Agora · 24h"
           : active === "agora"
             ? "Veja quem está esperando agora · atualiza a cada 30s"
             : "Métricas históricas e tendências do funil"}
@@ -304,13 +301,7 @@ function PainelHeader({ active }: { active: "grupos" | "agora" | "historico" }) 
 // e Recomendações — esses tem proprios empty states amigaveis.
 // =============================================================================
 
-function AnalysisEmptyBanner({
-  companyId,
-  hasSynced,
-}: {
-  companyId: string;
-  hasSynced: boolean;
-}) {
+function AnalysisEmptyBanner({ hasSynced }: { hasSynced: boolean }) {
   if (hasSynced) {
     return (
       <div className="flex items-center gap-2.5 rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] px-4 py-2.5">

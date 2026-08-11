@@ -88,4 +88,24 @@ describe("openRouterChatCompletion — modelo descontinuado (404)", () => {
     const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect(firstBody.model).toBe("google/gemini-3.5-flash");
   });
+
+  it("preserva erro 402 de créditos quando todos os modelos falham", async () => {
+    fetchMock.mockImplementation(async () =>
+      new Response('{"error":{"message":"Insufficient credits. Please add credits."}}', {
+        status: 402,
+      }),
+    );
+
+    await expect(
+      openRouterChatCompletion(
+        "company-credits-test",
+        [{ role: "user", content: "oi" }],
+        {
+          model: "openai/test-model",
+          module: "group_agent",
+          responseFormat: "text",
+        },
+      ),
+    ).rejects.toThrow(/OpenRouter error 402: .*Insufficient credits/i);
+  });
 });

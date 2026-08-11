@@ -10,15 +10,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { isCronAuthorized } from "@/lib/auth/cron-auth";
 import { processJobs } from "@/lib/jobs/processor";
+import { resolveProcessJobsMaxJobs } from "@/app/api/cron/process-jobs/process-jobs-limits";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
-
-export function resolveProcessJobsMaxJobs(headers: Headers): number {
-  const requested = Number(headers.get("x-cron-max-jobs") ?? "1");
-  if (!Number.isFinite(requested)) return 1;
-  return Math.min(Math.max(Math.floor(requested), 1), 5);
-}
 
 export async function GET(request: NextRequest) {
   if (!isCronAuthorized(request)) {

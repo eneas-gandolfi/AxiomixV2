@@ -20,6 +20,7 @@ import {
   isPdfDocument,
   processMediaMessage,
 } from "@/services/group-agent/media-processor";
+import { expandTriggerKeywords } from "@/services/group-agent/trigger-keywords";
 
 const LOG_PREFIX = "[webhook/group]";
 
@@ -104,7 +105,7 @@ export function isGroupJid(jid: string): boolean {
 
 export function detectTrigger(content: string, triggerKeywords: string[]): boolean {
   const normalized = content.toLowerCase().trim();
-  return triggerKeywords.some((keyword) => {
+  return expandTriggerKeywords(triggerKeywords).some((keyword) => {
     const k = keyword.toLowerCase().trim();
     return normalized.startsWith(k) || normalized.includes(` ${k}`) || normalized.includes(`\n${k}`);
   });

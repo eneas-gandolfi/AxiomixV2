@@ -51,12 +51,25 @@ type GroupAgentConfig = {
   };
 };
 
+function groupTimestamp(config: GroupAgentConfig) {
+  const timestamp = config.updated_at || config.created_at;
+  const time = new Date(timestamp).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function sortGroupsByRecentDate(a: GroupAgentConfig, b: GroupAgentConfig) {
+  return groupTimestamp(b) - groupTimestamp(a);
+}
+
 export function GroupAgentSettings({ companyId }: { companyId: string }) {
+  void companyId;
+
   const [configs, setConfigs] = useState<GroupAgentConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"visible" | "hidden">("visible");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -77,7 +90,20 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
   useEffect(() => { fetchConfigs(); }, [fetchConfigs]);
 
   const handleSyncGroups = async () => {
+    if (syncing) return;
+
     setSyncing(true);
+    setSyncProgress(8);
+    let completed = false;
+    const progressTimer = window.setInterval(() => {
+      setSyncProgress((current) => {
+        if (current === null) return 8;
+        if (current < 50) return Math.min(current + 12, 50);
+        if (current < 75) return Math.min(current + 8, 75);
+        return Math.min(current + 4, 92);
+      });
+    }, 450);
+
     try {
       const res = await fetch("/api/settings/group-agent/sync", { method: "POST" });
       if (!res.ok) {
@@ -89,7 +115,8 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
         title: "Grupos sincronizados",
         description: `${data.created} novo(s), ${data.updated} atualizado(s)${data.hidden ? `, ${data.hidden} oculto(s)` : ""} de ${data.total} grupo(s).`,
       });
-      fetchConfigs();
+      await fetchConfigs();
+      completed = true;
     } catch (err) {
       toast({
         title: "Erro",
@@ -97,7 +124,12 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
         variant: "destructive",
       });
     } finally {
+      window.clearInterval(progressTimer);
+      setSyncProgress(completed ? 100 : null);
       setSyncing(false);
+      if (completed) {
+        window.setTimeout(() => setSyncProgress(null), 900);
+      }
     }
   };
 
@@ -193,8 +225,8 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
 
   const visibleConfigs = configs
     .filter((c) => !c.is_hidden)
-    .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1));
-  const hiddenConfigs = configs.filter((c) => c.is_hidden);
+    .sort(sortGroupsByRecentDate);
+  const hiddenConfigs = configs.filter((c) => c.is_hidden).sort(sortGroupsByRecentDate);
   const currentConfigs = activeTab === "visible" ? visibleConfigs : hiddenConfigs;
 
   if (loading) {
@@ -219,19 +251,44 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
         <p className="text-sm text-muted">
           {configs.length} grupo(s) detectado(s)
         </p>
-        <button
-          onClick={handleSyncGroups}
-          disabled={syncing}
-          className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-muted hover:text-text hover:bg-sidebar transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Sincronizando..." : "Sincronizar Grupos"}
-        </button>
+        <div className="flex w-full max-w-[320px] flex-col gap-2 sm:w-[320px]">
+          <button
+            type="button"
+            onClick={handleSyncGroups}
+            disabled={syncing}
+            className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-muted hover:text-text hover:bg-sidebar transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Sincronizando..." : "Sincronizar Grupos"}
+          </button>
+          {syncProgress !== null && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-medium text-muted">
+                <span>{syncing ? "Sincronizando grupos" : "Sincronização concluída"}</span>
+                <span className="tabular-nums text-text">{syncProgress}%</span>
+              </div>
+              <div
+                aria-label="Progresso da sincronização"
+                aria-valuemax={100}
+                aria-valuemin={0}
+                aria-valuenow={syncProgress}
+                className="h-1.5 overflow-hidden rounded-full bg-sidebar"
+                role="progressbar"
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${syncProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tabs: Grupos / Ocultos */}
       <div className="flex items-center gap-4 border-b border-border">
         <button
+          type="button"
           onClick={() => { setActiveTab("visible"); setSelectedIds(new Set()); }}
           className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
             activeTab === "visible"
@@ -242,6 +299,7 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
           Grupos ({visibleConfigs.length})
         </button>
         <button
+          type="button"
           onClick={() => { setActiveTab("hidden"); setSelectedIds(new Set()); }}
           className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
             activeTab === "hidden"
@@ -261,6 +319,7 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
         <div className="flex items-center gap-3 rounded-lg bg-sidebar px-4 py-2">
           <span className="text-sm text-muted">{selectedIds.size} selecionado(s)</span>
           <button
+            type="button"
             onClick={() => handleBulkToggleHidden(activeTab === "visible")}
             className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90 transition-colors"
           >
@@ -268,6 +327,7 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
             {activeTab === "visible" ? "Ocultar selecionados" : "Restaurar selecionados"}
           </button>
           <button
+            type="button"
             onClick={() => setSelectedIds(new Set())}
             className="text-xs text-muted hover:text-text transition-colors"
           >
@@ -306,6 +366,7 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
                   da Evolution API, ou aguarde mensagens chegarem via webhook.
                 </p>
                 <button
+                  type="button"
                   onClick={handleSyncGroups}
                   disabled={syncing}
                   className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
@@ -381,7 +442,7 @@ function GroupCard({
               <Bot className={`h-5 w-5 ${config.is_active ? "text-success" : "text-muted"}`} />
             </div>
             <div className="min-w-0">
-              <p className="font-medium text-sm text-text truncate">
+              <p className="font-medium text-sm text-text truncate" data-testid="group-agent-card-name">
                 {config.group_name ?? config.group_jid}
               </p>
               <div className="flex items-center gap-3 mt-1.5 text-xs text-muted">
@@ -411,6 +472,7 @@ function GroupCard({
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <button
+              type="button"
               onClick={onToggleHidden}
               className="rounded-lg p-2 text-muted hover:text-text hover:bg-sidebar transition-colors"
               title={config.is_hidden ? "Restaurar grupo" : "Ocultar grupo"}
@@ -418,6 +480,7 @@ function GroupCard({
               {config.is_hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </button>
             <button
+              type="button"
               onClick={onToggle}
               className={`rounded-lg p-2 transition-colors ${
                 config.is_active
@@ -429,6 +492,7 @@ function GroupCard({
               {config.is_active ? <Power className="h-4 w-4" /> : <PowerOff className="h-4 w-4" />}
             </button>
             <button
+              type="button"
               onClick={onExpand}
               className="rounded-lg p-2 text-muted hover:text-text hover:bg-sidebar transition-colors"
               title="Configurações"
@@ -555,6 +619,7 @@ function GroupCard({
 
             <div className="flex items-center gap-3 pt-2">
               <button
+                type="button"
                 onClick={() =>
                   onSave({
                     groupName: localName.trim() || undefined,
@@ -574,6 +639,7 @@ function GroupCard({
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
               </button>
               <button
+                type="button"
                 onClick={onDelete}
                 className="rounded-lg border border-border px-4 py-2 text-sm text-muted hover:text-danger hover:border-danger/30 transition-colors flex items-center gap-1.5"
               >

@@ -194,4 +194,77 @@ describe("buildGroupRadarData", () => {
 
     expect(data.groups[0].agentMode).toBe("proactive");
   });
+
+  it("orders groups by operational priority before message volume", () => {
+    const messages = [
+      ...Array.from({ length: 45 }, (_, index) => ({
+        id: `hot-msg-${index}`,
+        config_id: "hot-config",
+        sender_jid: "a@s.whatsapp.net",
+        sender_name: "Ana",
+        content: "Mensagem com contexto comercial",
+        message_type: "text",
+        is_trigger: false,
+        agent_responded: false,
+        sent_at: "2026-08-11T14:00:00Z",
+      })),
+      {
+        id: "risk-msg-1",
+        config_id: "risk-config",
+        sender_jid: "b@s.whatsapp.net",
+        sender_name: "Bruno",
+        content: "Cliente reclamou do prazo",
+        message_type: "text",
+        is_trigger: false,
+        agent_responded: false,
+        sent_at: "2026-08-11T14:30:00Z",
+      },
+    ];
+
+    const data = buildGroupRadarData({
+      now: new Date("2026-08-11T15:00:00Z"),
+      configs: [
+        {
+          id: "hot-config",
+          company_id: "company-1",
+          group_jid: "120@g.us",
+          group_name: "Grupo com Alto Volume",
+          is_active: true,
+          agent_name: "Axiomix IA",
+          feed_to_rag: true,
+          max_responses_per_hour: 20,
+          cooldown_seconds: 10,
+        },
+        {
+          id: "risk-config",
+          company_id: "company-1",
+          group_jid: "121@g.us",
+          group_name: "Grupo em Risco",
+          is_active: true,
+          agent_name: "Axiomix IA",
+          feed_to_rag: true,
+          max_responses_per_hour: 20,
+          cooldown_seconds: 10,
+        },
+      ],
+      messages,
+      responses: [],
+      notes: [
+        {
+          id: "note-risk",
+          config_id: "risk-config",
+          category: "action_item",
+          content: "Resolver reclamacao do cliente hoje",
+          source_sender: "Bruno",
+          relevance_score: 0.95,
+          created_at: "2026-08-11T14:35:00Z",
+        },
+      ],
+    });
+
+    expect(data.groups.map((group) => group.name)).toEqual([
+      "Grupo em Risco",
+      "Grupo com Alto Volume",
+    ]);
+  });
 });

@@ -99,6 +99,11 @@ describe('detectGroupAgentIntent', () => {
       expect(result.cleanedQuery).toBe('resumo')
     })
 
+    it('remove /nome quando @nome esta configurado', () => {
+      const result = detectGroupAgentIntent('/axiomix bom dia', ['@axiomix', '/ia'])
+      expect(result.cleanedQuery).toBe('bom dia')
+    })
+
     it('nao remove trigger quando nao esta no inicio', () => {
       const result = detectGroupAgentIntent('ola @bot resumo', trigger)
       expect(result.cleanedQuery).toBe('ola @bot resumo')

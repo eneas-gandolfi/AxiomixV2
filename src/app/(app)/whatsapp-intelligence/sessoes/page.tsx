@@ -11,5 +11,5 @@
 import { permanentRedirect } from "next/navigation";
 
 export default function SessoesPage() {
-  permanentRedirect("/settings?tab=connections");
+  permanentRedirect("/settings?tab=group-agent");
 }

@@ -1,0 +1,1074 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Axiomix - Configurações Console</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6f8;
+        --nav: #080d14;
+        --panel: #ffffff;
+        --soft: #f8fafc;
+        --soft-2: #eef2f6;
+        --line: #d9e0ea;
+        --line-soft: #e9eef5;
+        --text: #111827;
+        --muted: #667085;
+        --faint: #8b96a8;
+        --orange: #f05a12;
+        --orange-soft: #fff1e8;
+        --green: #16a34a;
+        --green-soft: #eaf8ef;
+        --amber: #d97706;
+        --amber-soft: #fff7e6;
+        --red: #dc2626;
+        --red-soft: #fff0f0;
+        --shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow-x: hidden;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .app {
+        display: grid;
+        min-height: 100vh;
+        grid-template-columns: 88px minmax(0, 1fr);
+      }
+
+      .rail {
+        background: var(--nav);
+        padding: 12px 10px;
+      }
+
+      .brand {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        margin: 0 auto 54px;
+        border-radius: 10px;
+        background: var(--orange);
+        color: #fff;
+        font-weight: 900;
+      }
+
+      .rail nav {
+        display: grid;
+        gap: 14px;
+        justify-items: center;
+      }
+
+      .rail-item {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        color: #95a2b7;
+        font-size: 18px;
+      }
+
+      .rail-item.active {
+        border: 1px solid rgba(240, 90, 18, 0.55);
+        background: rgba(240, 90, 18, 0.12);
+        color: #ff7a2f;
+      }
+
+      .shell {
+        min-width: 0;
+      }
+
+      .topbar {
+        display: flex;
+        min-width: 0;
+        min-height: 76px;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+        padding: 0 32px;
+      }
+
+      .time,
+      .user {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 18px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .time strong {
+        color: var(--text);
+      }
+
+      .icon-button,
+      .avatar,
+      .theme {
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .theme {
+        width: 72px;
+        height: 38px;
+        border-radius: 999px;
+        background: #d7dde6;
+        color: var(--orange);
+      }
+
+      .icon-button,
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+      }
+
+      .avatar {
+        border: 0;
+        background: var(--orange-soft);
+        color: var(--orange);
+        font-weight: 900;
+      }
+
+      main {
+        width: min(1480px, 100%);
+        margin: 0 auto;
+        padding: 28px 32px 44px;
+      }
+
+      .page-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 20px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        font-size: 28px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .health {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        padding: 0 12px;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--amber);
+      }
+
+      .console {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr) 320px;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .section-nav,
+      .main-panel,
+      .side-panel {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .section-nav {
+        display: grid;
+        gap: 4px;
+        padding: 10px;
+      }
+
+      .nav-title {
+        padding: 8px 10px 10px;
+        color: var(--faint);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .nav-item {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        min-height: 48px;
+        border: 0;
+        border-radius: 11px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        padding: 0 10px;
+        text-align: left;
+      }
+
+      .nav-item.active {
+        background: var(--orange-soft);
+        color: var(--orange);
+      }
+
+      .nav-icon {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+        background: #fff;
+        color: currentColor;
+      }
+
+      .nav-item span:nth-child(2) {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .nav-badge {
+        min-width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--line);
+      }
+
+      .nav-badge.warn {
+        background: var(--amber);
+      }
+
+      .nav-badge.ok {
+        background: var(--green);
+      }
+
+      .main-panel {
+        overflow: hidden;
+        min-width: 0;
+      }
+
+      .module-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 20px;
+      }
+
+      .eyebrow {
+        color: var(--orange);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .module-head h2 {
+        margin-top: 4px;
+        font-size: 22px;
+        line-height: 1.15;
+      }
+
+      .module-head p {
+        margin-top: 7px;
+        max-width: 720px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 900;
+        padding: 0 13px;
+        white-space: nowrap;
+      }
+
+      .button.primary {
+        border-color: var(--orange);
+        background: var(--orange);
+        color: #fff;
+      }
+
+      .signal-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .signal {
+        min-width: 0;
+        border-right: 1px solid var(--line-soft);
+        padding: 14px 18px;
+      }
+
+      .signal:last-child {
+        border-right: 0;
+      }
+
+      .signal label {
+        display: block;
+        overflow: hidden;
+        color: var(--faint);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .signal strong {
+        display: block;
+        margin-top: 8px;
+        overflow: hidden;
+        font-size: 22px;
+        line-height: 1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .config-body {
+        display: grid;
+        min-width: 0;
+        gap: 18px;
+        padding: 20px;
+      }
+
+      .block {
+        display: grid;
+        min-width: 0;
+        gap: 8px;
+      }
+
+      .block-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .block-head h3 {
+        font-size: 15px;
+      }
+
+      .block-head span {
+        color: var(--faint);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .setting-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+        max-width: 100%;
+        min-height: 64px;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: var(--soft);
+        padding: 10px 12px;
+      }
+
+      .setting-row h4 {
+        overflow: hidden;
+        margin: 0;
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .setting-row p {
+        margin-top: 4px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .segmented {
+        display: inline-grid;
+        grid-auto-flow: column;
+        gap: 3px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: #fff;
+        padding: 3px;
+      }
+
+      .segment {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        padding: 0 10px;
+        white-space: nowrap;
+      }
+
+      .segment.active {
+        background: var(--orange-soft);
+        color: var(--orange);
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        border-radius: 999px;
+        background: var(--green-soft);
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 900;
+        padding: 0 10px;
+        white-space: nowrap;
+      }
+
+      .status-pill.warn {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .toggle {
+        position: relative;
+        width: 46px;
+        height: 26px;
+        border-radius: 999px;
+        background: var(--green);
+      }
+
+      .toggle::after {
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #fff;
+        content: "";
+      }
+
+      .group-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .group-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 92px 92px 86px;
+        align-items: center;
+        gap: 10px;
+        min-height: 58px;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: #fff;
+        padding: 9px 12px;
+      }
+
+      .group-row h4 {
+        overflow: hidden;
+        margin: 0;
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .group-row p {
+        margin-top: 3px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .cell {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-align: right;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .side-panel {
+        display: grid;
+        gap: 16px;
+        padding: 16px;
+      }
+
+      .side-section {
+        display: grid;
+        gap: 10px;
+      }
+
+      .side-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .side-head h2 {
+        font-size: 15px;
+      }
+
+      .side-head span {
+        color: var(--faint);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .checklist {
+        display: grid;
+        gap: 8px;
+      }
+
+      .check {
+        display: grid;
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        min-height: 54px;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: var(--soft);
+        padding: 10px;
+      }
+
+      .check-icon {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 9px;
+        background: var(--green-soft);
+        color: var(--green);
+        font-weight: 900;
+      }
+
+      .check-icon.warn {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .check h3 {
+        overflow: hidden;
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .check p {
+        margin-top: 3px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .advanced {
+        border-top: 1px solid var(--line-soft);
+        padding-top: 12px;
+      }
+
+      .advanced summary {
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .advanced-items {
+        display: grid;
+        gap: 7px;
+        margin-top: 10px;
+      }
+
+      .advanced-item {
+        border: 1px solid var(--line-soft);
+        border-radius: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        padding: 9px 10px;
+      }
+
+      @media (max-width: 1180px) {
+        .console {
+          grid-template-columns: 200px minmax(0, 1fr);
+        }
+
+        .side-panel {
+          grid-column: 1 / -1;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 860px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        .rail {
+          display: none;
+        }
+
+        .topbar {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
+          min-height: auto;
+          align-items: start;
+          padding: 16px;
+        }
+
+        .time {
+          flex-wrap: wrap;
+          gap: 10px;
+          font-size: 13px;
+        }
+
+        .icon-button,
+        .avatar,
+        .user span:last-child {
+          display: none;
+        }
+
+        main {
+          padding: 18px 14px 32px;
+        }
+
+        .page-head,
+        .module-head {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 24px;
+        }
+
+        .console {
+          grid-template-columns: 1fr;
+        }
+
+        .section-nav {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          overflow: visible;
+        }
+
+        .nav-title {
+          display: none;
+        }
+
+        .nav-item {
+          min-width: 0;
+        }
+
+        .signal-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .signal:nth-child(2) {
+          border-right: 0;
+        }
+
+        .signal:nth-child(-n + 2) {
+          border-bottom: 1px solid var(--line-soft);
+        }
+
+        .side-panel {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 620px) {
+        main {
+          padding-inline: 12px;
+        }
+
+        .actions {
+          display: grid;
+          grid-template-columns: 1fr;
+          justify-content: stretch;
+        }
+
+        .button {
+          width: 100%;
+        }
+
+        .module-head {
+          padding: 18px 16px;
+        }
+
+        .module-head p {
+          overflow-wrap: anywhere;
+        }
+
+        .config-body {
+          gap: 16px;
+          padding: 16px 12px;
+        }
+
+        .main-panel,
+        .config-body,
+        .block,
+        .setting-row,
+        .setting-row > *,
+        .group-list,
+        .group-row,
+        .group-row > * {
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .setting-row {
+          grid-template-columns: 1fr;
+          align-items: start;
+          overflow: hidden;
+          padding: 10px;
+        }
+
+        .segmented {
+          grid-auto-flow: row;
+          width: 100%;
+        }
+
+        .group-row {
+          grid-template-columns: 1fr 72px;
+        }
+
+        .group-row .cell:nth-of-type(2) {
+          display: none;
+        }
+
+        .group-row .cell:nth-of-type(3) {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="rail" aria-label="Navegação principal">
+        <div class="brand">A</div>
+        <nav>
+          <div class="rail-item">□</div>
+          <div class="rail-item">▱</div>
+          <div class="rail-item">⌁</div>
+          <div class="rail-item active">⚙</div>
+        </nav>
+      </aside>
+
+      <div class="shell">
+        <header class="topbar">
+          <div class="time">
+            <strong>Terça-feira, 11 de agosto</strong>
+            <span>12:06</span>
+            <span>28:00</span>
+          </div>
+          <div class="user">
+            <span class="theme">☀</span>
+            <span class="icon-button">!</span>
+            <span class="avatar">A</span>
+            <span>Sair</span>
+          </div>
+        </header>
+
+        <main>
+          <section class="page-head">
+            <div>
+              <h1>Configurações</h1>
+              <p class="sub">Controle operacional do WhatsApp, IA e grupos.</p>
+            </div>
+            <div class="health"><span class="dot"></span> 2 ajustes pendentes</div>
+          </section>
+
+          <section class="console">
+            <nav class="section-nav" aria-label="Seções de configuração">
+              <div class="nav-title">Configurar</div>
+              <button class="nav-item">
+                <span class="nav-icon">1</span>
+                <span>Essencial</span>
+                <span class="nav-badge ok"></span>
+              </button>
+              <button class="nav-item">
+                <span class="nav-icon">2</span>
+                <span>WhatsApp</span>
+                <span class="nav-badge warn"></span>
+              </button>
+              <button class="nav-item active">
+                <span class="nav-icon">3</span>
+                <span>IA dos grupos</span>
+                <span class="nav-badge ok"></span>
+              </button>
+              <button class="nav-item">
+                <span class="nav-icon">4</span>
+                <span>Equipe</span>
+                <span class="nav-badge ok"></span>
+              </button>
+              <button class="nav-item">
+                <span class="nav-icon">5</span>
+                <span>Avançado</span>
+                <span class="nav-badge"></span>
+              </button>
+            </nav>
+
+            <article class="main-panel">
+              <header class="module-head">
+                <div>
+                  <p class="eyebrow">Módulo ativo</p>
+                  <h2>IA dos grupos WhatsApp</h2>
+                  <p>
+                    Configure como a Axiomix observa grupos, responde menções e transforma
+                    conversas em sinais comerciais.
+                  </p>
+                </div>
+                <div class="actions">
+                  <div class="button">Testar IA</div>
+                  <div class="button primary">Salvar alterações</div>
+                </div>
+              </header>
+
+              <section class="signal-strip" aria-label="Resumo do módulo">
+                <div class="signal">
+                  <label>Grupos</label>
+                  <strong>7</strong>
+                </div>
+                <div class="signal">
+                  <label>Respostas 24h</label>
+                  <strong>17</strong>
+                </div>
+                <div class="signal">
+                  <label>Limite/hora</label>
+                  <strong>12</strong>
+                </div>
+                <div class="signal">
+                  <label>Base da IA</label>
+                  <strong>OK</strong>
+                </div>
+              </section>
+
+              <div class="config-body">
+                <section class="block">
+                  <div class="block-head">
+                    <h3>Comportamento do agente</h3>
+                    <span>4 controles</span>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <h4>Modo de atuação</h4>
+                      <p>Define se a IA só observa, responde gatilhos ou age proativamente.</p>
+                    </div>
+                    <div class="segmented" aria-label="Modo de atuação">
+                      <span class="segment">Radar</span>
+                      <span class="segment">Trigger</span>
+                      <span class="segment active">Proativo</span>
+                    </div>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <h4>Base de conhecimento</h4>
+                      <p>Usada para respostas e resumo de aprendizados dos grupos.</p>
+                    </div>
+                    <span class="status-pill">conectada</span>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <h4>Alertas comerciais</h4>
+                      <p>Notifica quando perguntas indicam intenção de compra.</p>
+                    </div>
+                    <span class="toggle" aria-label="Ativado"></span>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <h4>Limites de segurança</h4>
+                      <p>Controla volume máximo e intervalo entre respostas da IA.</p>
+                    </div>
+                    <span class="status-pill warn">12 resp/h</span>
+                  </div>
+                </section>
+
+                <section class="block">
+                  <div class="block-head">
+                    <h3>Grupos monitorados</h3>
+                    <span>top 3</span>
+                  </div>
+
+                  <div class="group-list">
+                    <div class="group-row">
+                      <div>
+                        <h4>VIP Lançamento Agosto</h4>
+                        <p>Proativo · alimenta base</p>
+                      </div>
+                      <div class="cell">18 msg</div>
+                      <div class="cell">9 pessoas</div>
+                      <div class="cell">Risco</div>
+                    </div>
+
+                    <div class="group-row">
+                      <div>
+                        <h4>Comunidade Leads Premium</h4>
+                        <p>Trigger · alertas comerciais</p>
+                      </div>
+                      <div class="cell">64 msg</div>
+                      <div class="cell">21 pessoas</div>
+                      <div class="cell">Quente</div>
+                    </div>
+
+                    <div class="group-row">
+                      <div>
+                        <h4>Clientes Ativos SP</h4>
+                        <p>Radar · sem resposta automática</p>
+                      </div>
+                      <div class="cell">31 msg</div>
+                      <div class="cell">12 pessoas</div>
+                      <div class="cell">OK</div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </article>
+
+            <aside class="side-panel">
+              <section class="side-section">
+                <div class="side-head">
+                  <h2>Ativação</h2>
+                  <span>3/4</span>
+                </div>
+                <div class="checklist">
+                  <div class="check">
+                    <div class="check-icon">✓</div>
+                    <div>
+                      <h3>Empresa configurada</h3>
+                      <p>Nicho e dados principais.</p>
+                    </div>
+                  </div>
+                  <div class="check">
+                    <div class="check-icon warn">!</div>
+                    <div>
+                      <h3>WhatsApp pendente</h3>
+                      <p>Conectar sessão principal.</p>
+                    </div>
+                  </div>
+                  <div class="check">
+                    <div class="check-icon">✓</div>
+                    <div>
+                      <h3>IA dos grupos ativa</h3>
+                      <p>7 grupos monitorados.</p>
+                    </div>
+                  </div>
+                  <div class="check">
+                    <div class="check-icon">✓</div>
+                    <div>
+                      <h3>Equipe em dia</h3>
+                      <p>Permissões revisadas.</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="side-section">
+                <div class="side-head">
+                  <h2>Próxima ação</h2>
+                  <span>agora</span>
+                </div>
+                <div class="check">
+                  <div class="check-icon warn">1</div>
+                  <div>
+                    <h3>Conectar WhatsApp</h3>
+                    <p>Libera sincronização de conversas e grupos.</p>
+                  </div>
+                </div>
+              </section>
+
+              <details class="advanced">
+                <summary>Avançado</summary>
+                <div class="advanced-items">
+                  <div class="advanced-item">Webhooks e tokens</div>
+                  <div class="advanced-item">Logs de sincronização</div>
+                  <div class="advanced-item">Modelo da IA</div>
+                  <div class="advanced-item">Retenção de dados</div>
+                </div>
+              </details>
+            </aside>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

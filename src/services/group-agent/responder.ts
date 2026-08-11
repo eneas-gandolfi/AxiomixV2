@@ -27,6 +27,7 @@ import {
 import { extractAndSaveNotes } from "@/services/group-agent/note-extractor";
 import { resolvePreferredEvolutionInstance } from "@/services/integrations/evolution";
 import { decodeIntegrationConfig } from "@/lib/integrations/service";
+import { buildOpenRouterFailureFallback } from "@/services/group-agent/openrouter-errors";
 import type {
   AgentTone,
   GroupAgentResponseResult,
@@ -240,6 +241,7 @@ export async function processGroupAgentResponse(
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Erro IA";
     console.error("[group-agent/responder] Falha na geração:", detail);
+    const fallback = buildOpenRouterFailureFallback(error);
 
     // Resolver instance para enviar fallback amigável ao grupo
     let fallbackInstance = config.evolution_instance_name ?? null;
@@ -258,16 +260,18 @@ export async function processGroupAgentResponse(
     }
     fallbackInstance = fallbackInstance ?? process.env.EVOLUTION_INSTANCE_NAME ?? "axiomix-default";
 
-    const fallbackText = "Tive uma dificuldade técnica agora. Pode tentar de novo em alguns segundos?";
+    const fallbackText = fallback.text;
 
-    let fallbackStatus = "llm_failed";
+    let fallbackStatus: string = fallback.statusBase;
     try {
       const sendResult = await sendGroupAgentResponse({
         instanceName: fallbackInstance,
         groupJid: message.group_jid,
         responseText: fallbackText,
       });
-      fallbackStatus = sendResult.success ? "llm_failed_fallback_sent" : "llm_failed_fallback_send_failed";
+      fallbackStatus = sendResult.success
+        ? `${fallback.statusBase}_fallback_sent`
+        : `${fallback.statusBase}_fallback_send_failed`;
     } catch (sendErr) {
       console.error("[group-agent/responder] Falha ao enviar fallback:", sendErr instanceof Error ? sendErr.message : sendErr);
     }

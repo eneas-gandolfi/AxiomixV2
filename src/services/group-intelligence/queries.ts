@@ -107,6 +107,13 @@ export type BuildGroupRadarInput = {
 
 const DAY_MS = 24 * 60 * 60_000;
 const HOT_MESSAGE_THRESHOLD = 40;
+const STATUS_PRIORITY: Record<GroupRadarStatus, number> = {
+  risk: 5,
+  hot: 4,
+  active: 3,
+  quiet: 2,
+  inactive: 1,
+};
 
 function fallbackGroupName(config: GroupConfigRow): string {
   return config.group_name ?? `Grupo ${config.group_jid.split("@")[0].slice(-6)}`;
@@ -227,7 +234,17 @@ export function buildGroupRadarData(input: BuildGroupRadarInput): GroupRadarData
       messages24h: groups.reduce((sum, group) => sum + group.messageCount24h, 0),
       agentResponses24h: groups.reduce((sum, group) => sum + group.agentResponses24h, 0),
     },
-    groups: groups.sort((a, b) => b.messageCount24h - a.messageCount24h),
+    groups: groups.sort((a, b) => {
+      const priorityDelta = STATUS_PRIORITY[b.status] - STATUS_PRIORITY[a.status];
+      if (priorityDelta !== 0) return priorityDelta;
+
+      const recencyDelta =
+        (b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0) -
+        (a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0);
+      if (recencyDelta !== 0) return recencyDelta;
+
+      return b.messageCount24h - a.messageCount24h;
+    }),
     insights,
   };
 }

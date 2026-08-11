@@ -49,7 +49,7 @@ function PainelAoVivoEmptyState() {
 
       <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
         <Link
-          href="/settings?tab=integrations"
+          href="/settings?tab=integrations&connect=whatsapp"
           className="inline-flex h-11 items-center gap-2 rounded-lg bg-[var(--color-primary)] px-5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
         >
           <Plug className="h-4 w-4" />

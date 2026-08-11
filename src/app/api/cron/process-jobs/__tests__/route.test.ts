@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveProcessJobsMaxJobs } from "../route";
+import { resolveProcessJobsMaxJobs } from "../process-jobs-limits";
 
 describe("resolveProcessJobsMaxJobs", () => {
   it("uses a safe default for external cron calls", () => {

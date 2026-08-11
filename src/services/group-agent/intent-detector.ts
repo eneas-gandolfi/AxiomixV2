@@ -6,6 +6,7 @@
  */
 
 import type { GroupAgentIntent } from "@/types/modules/group-agent.types";
+import { stripTriggerKeyword } from "@/services/group-agent/trigger-keywords";
 
 type IntentResult = {
   intent: GroupAgentIntent;
@@ -39,27 +40,11 @@ const INTENT_KEYWORDS: Record<GroupAgentIntent, string[]> = {
   general: [],
 };
 
-function stripTrigger(message: string, triggerKeywords: string[]): string {
-  let cleaned = message.trim();
-  for (const keyword of triggerKeywords) {
-    const lower = cleaned.toLowerCase();
-    const kwLower = keyword.toLowerCase().trim();
-    if (lower.startsWith(kwLower)) {
-      cleaned = cleaned.slice(kwLower.length).trim();
-      if (cleaned.startsWith(",") || cleaned.startsWith(":")) {
-        cleaned = cleaned.slice(1).trim();
-      }
-      break;
-    }
-  }
-  return cleaned;
-}
-
 export function detectGroupAgentIntent(
   messageContent: string,
   triggerKeywords: string[]
 ): IntentResult {
-  const cleanedQuery = stripTrigger(messageContent, triggerKeywords);
+  const cleanedQuery = stripTriggerKeyword(messageContent, triggerKeywords);
   const lower = cleanedQuery.toLowerCase().trim();
 
   // Trigger vazio ou saudação simples

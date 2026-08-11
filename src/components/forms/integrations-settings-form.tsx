@@ -9,7 +9,6 @@
 
 import { z } from "zod";
 import { useCallback, useEffect, useState, type ChangeEvent, type ReactNode } from "react";
-import Image from "next/image";
 import { AlertCircle, CheckCircle2, Link2, Loader2, QrCode, Smartphone, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,6 +76,7 @@ type EvolutionConnectResponse = {
   vendor?: EvolutionVendor;
   managerPhone?: string;
   qrCodeDataUrl?: string;
+  pairingCode?: string | null;
   testDetail?: string;
   error?: string;
 };
@@ -93,6 +93,11 @@ type ModalMeta = {
   key: "evo" | "evolution";
   title: string;
   subtitle: string;
+};
+
+type IntegrationsSettingsFormProps = {
+  autoOpen?: "evo" | "evolution" | null;
+  onAutoOpenHandled?: () => void;
 };
 
 const initialErrors: FormErrors = {
@@ -171,6 +176,8 @@ type IntegrationOverviewCardProps = {
   status: IntegrationStatus;
   icon: ReactNode;
   onConnect: () => void;
+  actionLabel?: string;
+  connectedActionLabel?: string;
   extra?: ReactNode;
 };
 
@@ -180,6 +187,8 @@ function IntegrationOverviewCard({
   status,
   icon,
   onConnect,
+  actionLabel = "Conectar agora",
+  connectedActionLabel = "Reconfigurar conexão",
   extra,
 }: IntegrationOverviewCardProps) {
   return (
@@ -210,7 +219,7 @@ function IntegrationOverviewCard({
         {extra}
 
         <Button type="button" onClick={onConnect} className="w-full">
-          {status.testStatus === "ok" ? "Reconfigurar conexão" : "Conectar agora"}
+          {status.testStatus === "ok" ? connectedActionLabel : actionLabel}
         </Button>
       </CardContent>
     </Card>
@@ -249,7 +258,7 @@ function resolveEvolutionUiStatus(vendors: EvolutionVendor[], fallback: Integrat
   };
 }
 
-export function IntegrationsSettingsForm() {
+export function IntegrationsSettingsForm({ autoOpen, onAutoOpenHandled }: IntegrationsSettingsFormProps = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ModalMeta | null>(null);
@@ -262,6 +271,8 @@ export function IntegrationsSettingsForm() {
   const [evolutionVendorName, setEvolutionVendorName] = useState("");
   const [evolutionVendors, setEvolutionVendors] = useState<EvolutionVendor[]>([]);
   const [evolutionQrCode, setEvolutionQrCode] = useState<string | null>(null);
+  const [evolutionPairingCode, setEvolutionPairingCode] = useState<string | null>(null);
+  const [evolutionQrImageFailed, setEvolutionQrImageFailed] = useState(false);
   const [pendingEvolutionInstance, setPendingEvolutionInstance] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<FormErrors>(initialErrors);
@@ -369,27 +380,39 @@ export function IntegrationsSettingsForm() {
   const closeActiveModal = () => {
     setActiveModal(null);
     setPendingEvolutionInstance(null);
+    setEvolutionPairingCode(null);
   };
 
-  const openModal = (key: "evo" | "evolution") => {
+  const openModal = useCallback((key: "evo" | "evolution") => {
     if (key === "evo") {
       setActiveModal({
         key,
-        title: "Conectar Evo CRM",
-        subtitle: "Informe credenciais da conta para liberar sincronização de conversas.",
+        title: "Conectar dados comerciais",
+        subtitle: "Opcional: use o CRM para enriquecer a análise com contatos e oportunidades.",
       });
       return;
     }
 
     setEvolutionQrCode(null);
+    setEvolutionPairingCode(null);
+    setEvolutionQrImageFailed(false);
     setEvolutionVendorName("");
     setPendingEvolutionInstance(null);
     setActiveModal({
       key,
-      title: "Conectar Evolution API",
-      subtitle: "Conecte o WhatsApp do gestor para receber relatórios e alertas.",
+      title: "Conectar WhatsApp",
+      subtitle: "Escaneie o QR Code para liberar grupos, mensagens e respostas da IA.",
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!autoOpen || isLoading) {
+      return;
+    }
+
+    openModal(autoOpen);
+    onAutoOpenHandled?.();
+  }, [autoOpen, isLoading, onAutoOpenHandled, openModal]);
 
   const handleEvoChange = (field: keyof EvoForm) => (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
@@ -508,6 +531,7 @@ export function IntegrationsSettingsForm() {
     }
 
     setIsConnectingEvolution(true);
+    setEvolutionPairingCode(null);
     setErrors((previous) => ({ ...previous, evolution: { ...previous.evolution, form: undefined } }));
 
     try {
@@ -542,6 +566,8 @@ export function IntegrationsSettingsForm() {
 
       setEvolutionManagerPhone(response.managerPhone ?? evolutionManagerPhone);
       setEvolutionQrCode(response.qrCodeDataUrl ?? null);
+      setEvolutionPairingCode(response.pairingCode ?? null);
+      setEvolutionQrImageFailed(false);
       setPendingEvolutionInstance(response.vendor?.instanceName ?? null);
       setErrors((previous) => ({ ...previous, evolution: {} }));
       setEvolutionFeedback(
@@ -603,6 +629,8 @@ export function IntegrationsSettingsForm() {
 
       if (connectedVendor) {
         setEvolutionQrCode(null);
+        setEvolutionPairingCode(null);
+        setEvolutionQrImageFailed(false);
         setPendingEvolutionInstance(null);
         setEvolutionFeedback(
           `${connectedVendor.vendorName} conectado com sucesso. Modal fechado automaticamente.`
@@ -670,6 +698,8 @@ export function IntegrationsSettingsForm() {
       if (pendingEvolutionInstance === vendor.instanceName) {
         setPendingEvolutionInstance(null);
         setEvolutionQrCode(null);
+        setEvolutionPairingCode(null);
+        setEvolutionQrImageFailed(false);
       }
 
       setEvolutionFeedback(response.message ?? `${vendor.vendorName} removido com sucesso.`);
@@ -765,7 +795,7 @@ export function IntegrationsSettingsForm() {
   const renderEvolutionModal = () => (
     <div className="grid gap-4">
       <p className="text-sm text-muted">
-        Credenciais da Evolution estão no servidor. Informe o WhatsApp do gestor e escaneie o QR Code para conectar.
+        Informe o WhatsApp do gestor e escaneie o QR Code para conectar a conta que vai monitorar os grupos.
       </p>
 
       <div className="space-y-1">
@@ -822,20 +852,50 @@ export function IntegrationsSettingsForm() {
         </Button>
       </div>
 
-      {evolutionQrCode ? (
+      {evolutionQrCode || evolutionPairingCode ? (
         <div className="rounded-lg border border-border bg-background p-3">
           <div className="flex flex-col items-center gap-2">
-            <Image
-              src={evolutionQrCode}
-              alt="QR Code Evolution"
-              width={224}
-              height={224}
-              unoptimized
-              className="h-56 w-56 rounded-lg border border-border bg-card p-2"
-            />
-            <p className="text-xs text-muted">
-              Abra o WhatsApp do gestor no celular e escaneie este QR Code.
-            </p>
+            {evolutionQrCode && !evolutionQrImageFailed ? (
+              <>
+                {/* QR pode vir como data URL da Evolution; img nativo evita otimização indevida. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={evolutionQrCode}
+                  alt="QR Code para conectar WhatsApp"
+                  width={224}
+                  height={224}
+                  className="h-56 w-56 rounded-lg border border-border bg-card p-2"
+                  onError={() => setEvolutionQrImageFailed(true)}
+                  onLoad={() => setEvolutionQrImageFailed(false)}
+                />
+                <p className="text-xs text-muted">
+                  Abra o WhatsApp do gestor no celular e escaneie este QR Code.
+                </p>
+              </>
+            ) : null}
+            {evolutionQrCode && evolutionQrImageFailed ? (
+              <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger-light p-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+                <p className="text-sm text-danger">
+                  {evolutionPairingCode
+                    ? "Não foi possível exibir este QR Code. Use o código abaixo para conectar este WhatsApp."
+                    : "Não foi possível exibir este QR Code. Gere um novo código e tente novamente."}
+                </p>
+              </div>
+            ) : null}
+            {evolutionPairingCode ? (
+              <div className="w-full rounded-lg border border-border bg-card p-3 text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Conectar com código
+                </p>
+                <p className="mt-1 font-mono text-2xl font-bold tracking-widest text-text">
+                  {evolutionPairingCode}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  No WhatsApp: Aparelhos conectados, conectar com número de telefone.
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -936,11 +996,29 @@ export function IntegrationsSettingsForm() {
     <>
       <div className="grid gap-4 lg:grid-cols-2">
         <IntegrationOverviewCard
-          title="Evo CRM"
-          description="Sincroniza conversas e oportunidades comerciais."
+          title="Conexão WhatsApp"
+          description="Fluxo principal para capturar grupos, mensagens e respostas da IA."
+          status={evolutionStatus}
+          icon={<Smartphone className="h-5 w-5" />}
+          onConnect={() => openModal("evolution")}
+          actionLabel="Conectar WhatsApp"
+          connectedActionLabel="Revisar WhatsApp"
+          extra={
+            <div className="rounded-lg border border-border bg-background p-3">
+              <p className="text-xs text-muted">Conexões cadastradas: {evolutionVendors.length}</p>
+              <p className="text-xs text-muted">WhatsApps conectados: {connectedVendorsCount}</p>
+            </div>
+          }
+        />
+
+        <IntegrationOverviewCard
+          title="Dados comerciais"
+          description="Opcional para enriquecer grupos com contatos, oportunidades e histórico do CRM."
           status={evoStatus}
           icon={<Link2 className="h-5 w-5" />}
           onConnect={() => openModal("evo")}
+          actionLabel="Conectar dados"
+          connectedActionLabel="Revisar dados"
           extra={
             <div className="space-y-3">
               {evoFeedback ? (
@@ -959,20 +1037,6 @@ export function IntegrationsSettingsForm() {
               >
                 {isResettingEvo ? "Limpando dados..." : "Limpar dados sincronizados"}
               </Button>
-            </div>
-          }
-        />
-
-        <IntegrationOverviewCard
-          title="Evolution API"
-          description="Envia relatórios e alertas via WhatsApp para o gestor."
-          status={evolutionStatus}
-          icon={<Smartphone className="h-5 w-5" />}
-          onConnect={() => openModal("evolution")}
-          extra={
-            <div className="rounded-lg border border-border bg-background p-3">
-              <p className="text-xs text-muted">Conexões cadastradas:{evolutionVendors.length}</p>
-              <p className="text-xs text-muted">Conectados: {connectedVendorsCount}</p>
             </div>
           }
         />
