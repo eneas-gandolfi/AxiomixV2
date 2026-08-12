@@ -2,7 +2,8 @@
  * @vitest-environment jsdom
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OperacaoLivePanel } from "../operacao-live-panel";
 import type { LiveOperationData } from "@/lib/whatsapp/live-operation";
@@ -132,9 +133,10 @@ describe("OperacaoLivePanel", () => {
     expect(screen.getByText("Sem atendente")).toBeInTheDocument();
     expect(screen.getByText("Maior espera")).toBeInTheDocument();
 
-    expect(screen.getByText("Graça Maria")).toBeInTheDocument();
-    expect(screen.getByText("Graça Maria").closest("article")).not.toHaveClass("min-h-[210px]");
-    expect(screen.getByText("Alice2793")).toBeInTheDocument();
+    const gracaEntries = screen.getAllByText("Graça Maria");
+    expect(gracaEntries[0]).toBeInTheDocument();
+    expect(gracaEntries[0].closest("article")).not.toHaveClass("min-h-[210px]");
+    expect(screen.getAllByText("Alice2793").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Abrir Alice2793/i })).toHaveAttribute(
       "href",
       "/whatsapp-intelligence/conversas/c-2"
@@ -148,6 +150,8 @@ describe("OperacaoLivePanel", () => {
     expect(screen.getByRole("link", { name: /Abrir design de sobrancelhas/i })).toHaveTextContent(/^Abrir$/);
     expect(screen.queryByText("Outras conversas em risco")).not.toBeInTheDocument();
     expect(screen.queryByText("Cliente prestes a desistir")).not.toBeInTheDocument();
+    expect(screen.getByText("Gargalos da fila")).toBeInTheDocument();
+    expect(screen.getByText("4 sem atendente")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith("/api/whatsapp/live-operation", {
@@ -155,5 +159,72 @@ describe("OperacaoLivePanel", () => {
         cache: "no-store",
       });
     });
+  });
+
+  it("allows selecting multiple visible conversations to analyze with IA", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/whatsapp/live-operation") {
+        return Response.json({
+          data: liveData,
+          context: { currentUserId: "u-1", companyId: "company-1" },
+        });
+      }
+      if (url === "/api/whatsapp/analyze" && init?.method === "POST") {
+        return Response.json({ ok: true });
+      }
+      return Response.json({ error: "unexpected request" }, { status: 500 });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    render(<OperacaoLivePanel />);
+
+    await screen.findByText("Conversas individuais");
+    await user.click(screen.getByRole("button", { name: "Selecionar conversas" }));
+    await user.click(screen.getByRole("checkbox", { name: "Selecionar Graça Maria" }));
+    await user.click(screen.getByRole("checkbox", { name: "Selecionar Alice2793" }));
+
+    expect(screen.getByText("2 selecionadas")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Analisar com IA" }));
+
+    await waitFor(() => {
+      const analyzeCalls = fetchMock.mock.calls.filter(([input]) => String(input) === "/api/whatsapp/analyze");
+      expect(analyzeCalls).toHaveLength(2);
+    });
+    expect(screen.getByText("2 análises concluídas")).toBeInTheDocument();
+  });
+
+  it("opens a modal with all visible individual conversations and keeps direct access to the complete inbox", async () => {
+    const user = userEvent.setup();
+
+    render(<OperacaoLivePanel />);
+
+    await screen.findByText("Conversas individuais");
+    await user.click(screen.getByRole("button", { name: "Ver todas as conversas" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Todas as conversas individuais" });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("5 conversas na fila atual")).toBeInTheDocument();
+    expect(within(dialog).getByText("Graça Maria")).toBeInTheDocument();
+    expect(within(dialog).getByText("Cristina De Vargas")).toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: "Abrir lista completa" })).toHaveAttribute(
+      "href",
+      "/whatsapp-intelligence/conversas",
+    );
+    expect(within(dialog).getByRole("button", { name: "Voltar à tela anterior" })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Voltar à tela anterior" }));
+    expect(screen.queryByRole("dialog", { name: "Todas as conversas individuais" })).not.toBeInTheDocument();
+  });
+
+  it("shows a layout-aware skeleton while loading the live conversations", () => {
+    global.fetch = vi.fn(() => new Promise<Response>(() => {})) as unknown as typeof fetch;
+
+    render(<OperacaoLivePanel />);
+
+    expect(screen.getByLabelText("Carregando conversas individuais")).toBeInTheDocument();
+    expect(screen.getByLabelText("Carregando ação imediata")).toBeInTheDocument();
+    expect(screen.getByLabelText("Carregando operadores agora")).toBeInTheDocument();
   });
 });

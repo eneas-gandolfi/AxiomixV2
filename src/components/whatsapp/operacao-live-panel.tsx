@@ -29,6 +29,7 @@ import {
   UserRound,
   Volume2,
   VolumeX,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type {
@@ -441,13 +442,7 @@ export function OperacaoLivePanel() {
   }
 
   if (!data) {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-border bg-card p-8">
-          <div className="skeleton-shimmer animate-shimmer h-32 w-full rounded-xl" />
-        </div>
-      </div>
-    );
+    return <LiveOperationSkeleton />;
   }
 
   // Suprime warning de tick não usado — o setState força re-render do cronômetro.
@@ -486,6 +481,7 @@ export function OperacaoLivePanel() {
             conversations={waitingConversations}
             totalWaiting={data.totalWaiting}
             currentUserId={context?.currentUserId ?? null}
+            companyId={context?.companyId ?? null}
             pendingActionConvId={pendingActionConvId}
             computeWaitNow={computeWaitNow}
             onAssume={handleAssumeConversation}
@@ -496,7 +492,108 @@ export function OperacaoLivePanel() {
           <EmptyHero />
         )}
 
-        <OperatorsGrid operators={data.operators} />
+        <OperatorsGrid operators={data.operators} conversations={waitingConversations} />
+      </div>
+    </div>
+  );
+}
+
+function LiveOperationSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Carregando conversas individuais">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-3">
+          <div className="skeleton-shimmer animate-shimmer h-6 w-48 rounded-full" />
+          <div className="skeleton-shimmer animate-shimmer h-5 w-32 rounded" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="skeleton-shimmer animate-shimmer h-7 w-28 rounded" />
+          <div className="skeleton-shimmer animate-shimmer h-7 w-7 rounded-md" />
+          <div className="skeleton-shimmer animate-shimmer h-7 w-7 rounded-md" />
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="space-y-4">
+          <div>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="skeleton-shimmer animate-shimmer h-8 w-64 rounded" />
+                <div className="skeleton-shimmer animate-shimmer mt-2 h-4 w-96 max-w-full rounded" />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="skeleton-shimmer animate-shimmer h-9 w-28 rounded-lg" />
+                <div className="skeleton-shimmer animate-shimmer h-9 w-40 rounded-lg" />
+                <div className="skeleton-shimmer animate-shimmer h-9 w-36 rounded-lg" />
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {[0, 1, 2, 3].map((item) => (
+                <div key={item} className="rounded-xl border border-border bg-card px-4 py-3">
+                  <div className="skeleton-shimmer animate-shimmer h-3 w-20 rounded" />
+                  <div className="skeleton-shimmer animate-shimmer mt-2 h-8 w-14 rounded" />
+                  <div className="skeleton-shimmer animate-shimmer mt-2 h-3 w-24 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <section className="rounded-2xl border border-border bg-card" aria-label="Carregando ação imediata">
+            <div className="border-b border-border px-4 py-3">
+              <div className="skeleton-shimmer animate-shimmer h-5 w-32 rounded" />
+              <div className="skeleton-shimmer animate-shimmer mt-2 h-3 w-56 rounded" />
+            </div>
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="grid gap-3 border-b border-border/70 px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1fr)_110px_minmax(0,1fr)_170px]">
+                <div className="flex items-center gap-3">
+                  <div className="skeleton-shimmer animate-shimmer h-10 w-10 rounded-full" />
+                  <div className="min-w-0 flex-1">
+                    <div className="skeleton-shimmer animate-shimmer h-4 w-40 rounded" />
+                    <div className="skeleton-shimmer animate-shimmer mt-2 h-3 w-28 rounded" />
+                  </div>
+                </div>
+                <div className="skeleton-shimmer animate-shimmer h-8 w-20 rounded" />
+                <div className="skeleton-shimmer animate-shimmer h-8 w-full rounded" />
+                <div className="skeleton-shimmer animate-shimmer h-9 w-full rounded-md" />
+              </div>
+            ))}
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card">
+            <div className="border-b border-border px-4 py-3">
+              <div className="skeleton-shimmer animate-shimmer h-5 w-28 rounded" />
+            </div>
+            {[0, 1].map((item) => (
+              <div key={item} className="flex items-center gap-3 border-b border-border/70 px-4 py-3 last:border-b-0">
+                <div className="skeleton-shimmer animate-shimmer h-9 w-9 rounded-full" />
+                <div className="min-w-0 flex-1">
+                  <div className="skeleton-shimmer animate-shimmer h-4 w-48 rounded" />
+                  <div className="skeleton-shimmer animate-shimmer mt-2 h-3 w-72 max-w-full rounded" />
+                </div>
+                <div className="skeleton-shimmer animate-shimmer h-8 w-32 rounded-md" />
+              </div>
+            ))}
+          </section>
+        </section>
+
+        <aside className="space-y-3" aria-label="Carregando operadores agora">
+          <div className="flex items-baseline justify-between px-1">
+            <div className="skeleton-shimmer animate-shimmer h-5 w-36 rounded" />
+            <div className="skeleton-shimmer animate-shimmer h-4 w-28 rounded" />
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="skeleton-shimmer animate-shimmer h-12 w-12 rounded-full" />
+            <div className="skeleton-shimmer animate-shimmer mt-4 h-5 w-40 rounded" />
+            <div className="skeleton-shimmer animate-shimmer mt-3 h-10 w-28 rounded" />
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="skeleton-shimmer animate-shimmer h-5 w-32 rounded" />
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="skeleton-shimmer animate-shimmer h-16 rounded-lg" />
+              <div className="skeleton-shimmer animate-shimmer h-16 rounded-lg" />
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );
@@ -594,6 +691,7 @@ function WaitingConversationsQueue({
   conversations,
   totalWaiting,
   currentUserId,
+  companyId,
   pendingActionConvId,
   computeWaitNow,
   onAssume,
@@ -603,6 +701,7 @@ function WaitingConversationsQueue({
   conversations: WaitingConversation[];
   totalWaiting: number;
   currentUserId: string | null;
+  companyId: string | null;
   pendingActionConvId: string | null;
   computeWaitNow: (lastInboundAt: string, serverWaitSeconds: number) => number;
   onAssume: (conversationId: string) => void;
@@ -624,6 +723,66 @@ function WaitingConversationsQueue({
   const longestWait = sortedConversations[0]?.waitSeconds ?? 0;
   const immediateConversations = sortedConversations.slice(0, 3);
   const remainingConversations = sortedConversations.slice(3);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isAnalyzingSelected, setIsAnalyzingSelected] = useState(false);
+  const [selectionFeedback, setSelectionFeedback] = useState<string | null>(null);
+  const [showAllConversationsModal, setShowAllConversationsModal] = useState(false);
+  const visibleIds = sortedConversations.map(({ conversation }) => conversation.conversationId);
+
+  const toggleSelection = (conversationId: string) => {
+    setSelectionFeedback(null);
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(conversationId)) {
+        next.delete(conversationId);
+      } else {
+        next.add(conversationId);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setSelectionFeedback(null);
+  };
+
+  const toggleSelectAll = () => {
+    setSelectionFeedback(null);
+    setSelectedIds((current) =>
+      current.size === visibleIds.length ? new Set() : new Set(visibleIds),
+    );
+  };
+
+  const analyzeSelected = async () => {
+    if (!companyId || selectedIds.size === 0) return;
+
+    const ids = Array.from(selectedIds);
+    setIsAnalyzingSelected(true);
+    setSelectionFeedback(null);
+
+    let successCount = 0;
+    for (const conversationId of ids) {
+      try {
+        const response = await fetch("/api/whatsapp/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyId, conversationId }),
+        });
+        if (response.ok) successCount += 1;
+      } catch {
+        // Mantém o lote andando; o feedback final mostra apenas concluídas.
+      }
+    }
+
+    setIsAnalyzingSelected(false);
+    setSelectionFeedback(
+      `${successCount} análise${successCount === 1 ? "" : "s"} concluída${successCount === 1 ? "" : "s"}`,
+    );
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+  };
 
   return (
     <section className="space-y-4">
@@ -638,9 +797,28 @@ function WaitingConversationsQueue({
               sem perder o contexto.
             </p>
           </div>
-          <span className="rounded-full border border-border bg-card px-3 py-1.5 font-mono text-xs text-muted">
-            {totalWaiting} {totalWaiting === 1 ? "cliente esperando" : "clientes esperando"}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-border bg-card px-3 py-1.5 font-mono text-xs text-muted">
+              {totalWaiting} {totalWaiting === 1 ? "cliente esperando" : "clientes esperando"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowAllConversationsModal(true)}
+              className="inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-semibold text-text transition hover:bg-surface-2"
+            >
+              Ver todas as conversas
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectionMode((value) => !value);
+                clearSelection();
+              }}
+              className="inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-semibold text-text transition hover:bg-surface-2"
+            >
+              {selectionMode ? "Cancelar seleção" : "Selecionar conversas"}
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -650,6 +828,40 @@ function WaitingConversationsQueue({
           <QueueMetric label="Maior espera" value={formatCompact(longestWait)} detail="caso mais antigo" tone="warning" />
         </div>
       </div>
+
+      {selectionMode || selectedIds.size > 0 || selectionFeedback ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+          <div className="text-sm font-semibold text-text">
+            {selectionFeedback ?? `${selectedIds.size} selecionada${selectedIds.size === 1 ? "" : "s"}`}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {selectionMode ? (
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="h-8 rounded-md border border-border bg-card px-3 text-xs font-medium text-text hover:bg-surface-2"
+              >
+                {selectedIds.size === visibleIds.length ? "Limpar todas" : "Selecionar todas"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={!companyId || selectedIds.size === 0 || isAnalyzingSelected}
+              onClick={analyzeSelected}
+              className="h-8 rounded-md bg-primary px-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isAnalyzingSelected ? "Analisando..." : "Analisar com IA"}
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="h-8 rounded-md border border-border bg-card px-3 text-xs font-medium text-muted hover:bg-surface-2"
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <section className="rounded-2xl border border-border bg-card">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
@@ -670,7 +882,10 @@ function WaitingConversationsQueue({
               conversation={conversation}
               waitSeconds={waitSeconds}
               currentUserId={currentUserId}
+              selectionMode={selectionMode}
+              selected={selectedIds.has(conversation.conversationId)}
               isPending={pendingActionConvId === conversation.conversationId}
+              onToggleSelection={toggleSelection}
               onAssume={onAssume}
               onNudge={onNudge}
               onRelease={onRelease}
@@ -699,7 +914,10 @@ function WaitingConversationsQueue({
                 conversation={conversation}
                 waitSeconds={waitSeconds}
                 currentUserId={currentUserId}
+                selectionMode={selectionMode}
+                selected={selectedIds.has(conversation.conversationId)}
                 isPending={pendingActionConvId === conversation.conversationId}
+                onToggleSelection={toggleSelection}
                 onAssume={onAssume}
                 onNudge={onNudge}
                 onRelease={onRelease}
@@ -712,7 +930,99 @@ function WaitingConversationsQueue({
           </div>
         )}
       </section>
+
+      {showAllConversationsModal ? (
+        <AllConversationsModal
+          conversations={sortedConversations}
+          onClose={() => setShowAllConversationsModal(false)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function AllConversationsModal({
+  conversations,
+  onClose,
+}: {
+  conversations: Array<{ conversation: WaitingConversation; waitSeconds: number }>;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="all-conversations-title"
+        className="max-h-[86vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+          <div>
+            <h3 id="all-conversations-title" className="font-bricolage text-lg font-bold text-text">
+              Todas as conversas individuais
+            </h3>
+            <p className="mt-1 text-sm text-muted">
+              {conversations.length} conversa{conversations.length === 1 ? "" : "s"} na fila atual
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:bg-surface-2 hover:text-text"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="max-h-[52vh] divide-y divide-border/70 overflow-y-auto">
+          {conversations.map(({ conversation, waitSeconds }) => (
+            <article
+              key={conversation.conversationId}
+              className="grid gap-3 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-text">{conversation.customerName}</p>
+                <p className="mt-0.5 truncate text-xs text-muted">
+                  {conversation.assigneeName ?? "sem atendente"}
+                  {conversation.customerPhone ? ` · ${conversation.customerPhone}` : ""}
+                </p>
+              </div>
+              <span className="font-mono text-sm font-bold text-danger tabular-nums">
+                {formatCompact(waitSeconds)}
+              </span>
+              <Link
+                href={`/whatsapp-intelligence/conversas/${conversation.conversationId}`}
+                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-card px-3 text-xs font-semibold text-text hover:bg-surface-2"
+              >
+                Abrir
+              </Link>
+            </article>
+          ))}
+        </div>
+
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-2/70 px-5 py-4">
+          <p className="text-xs leading-5 text-muted">
+            Para filtros, histórico e até 100 conversas sincronizadas, use a lista completa.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-card px-4 text-sm font-semibold text-text hover:bg-surface-2"
+            >
+              Voltar à tela anterior
+            </button>
+            <Link
+              href="/whatsapp-intelligence/conversas"
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-bold text-white hover:bg-primary-hover"
+            >
+              Abrir lista completa
+            </Link>
+          </div>
+        </footer>
+      </section>
+    </div>
   );
 }
 
@@ -749,7 +1059,10 @@ function ConversationActionCard({
   conversation,
   waitSeconds,
   currentUserId,
+  selectionMode,
+  selected,
   isPending,
+  onToggleSelection,
   onAssume,
   onNudge,
   onRelease,
@@ -757,7 +1070,10 @@ function ConversationActionCard({
   conversation: WaitingConversation;
   waitSeconds: number;
   currentUserId: string | null;
+  selectionMode: boolean;
+  selected: boolean;
   isPending: boolean;
+  onToggleSelection: (conversationId: string) => void;
   onAssume: (conversationId: string) => void;
   onNudge: (conversation: WaitingConversation) => void;
   onRelease: (conversationId: string) => void;
@@ -784,6 +1100,15 @@ function ConversationActionCard({
   return (
     <article className="grid min-w-0 gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.2fr)_110px_minmax(0,1fr)_auto] md:items-center">
       <div className="flex min-w-0 items-center gap-3">
+        {selectionMode ? (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelection(conversation.conversationId)}
+            aria-label={`Selecionar ${conversation.customerName}`}
+            className="h-4 w-4 flex-shrink-0 rounded border-border text-primary focus:ring-primary"
+          />
+        ) : null}
         <CustomerAvatar
           name={conversation.customerName}
           avatarUrl={conversation.customerAvatar}
@@ -845,7 +1170,10 @@ function ConversationListRow({
   conversation,
   waitSeconds,
   currentUserId,
+  selectionMode,
+  selected,
   isPending,
+  onToggleSelection,
   onAssume,
   onNudge,
   onRelease,
@@ -853,7 +1181,10 @@ function ConversationListRow({
   conversation: WaitingConversation;
   waitSeconds: number;
   currentUserId: string | null;
+  selectionMode: boolean;
+  selected: boolean;
   isPending: boolean;
+  onToggleSelection: (conversationId: string) => void;
   onAssume: (conversationId: string) => void;
   onNudge: (conversation: WaitingConversation) => void;
   onRelease: (conversationId: string) => void;
@@ -880,6 +1211,15 @@ function ConversationListRow({
   return (
     <article className="grid min-w-0 gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
       <div className="flex min-w-0 items-center gap-3">
+        {selectionMode ? (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelection(conversation.conversationId)}
+            aria-label={`Selecionar ${conversation.customerName}`}
+            className="h-4 w-4 flex-shrink-0 rounded border-border text-primary focus:ring-primary"
+          />
+        ) : null}
         <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${dotClass}`} />
         <CustomerAvatar
           name={conversation.customerName}
@@ -1013,11 +1353,21 @@ function EmptyHero() {
 // Grid de operadores
 // =============================================================================
 
-function OperatorsGrid({ operators }: { operators: OperatorWorkload[] }) {
+function OperatorsGrid({
+  operators,
+  conversations,
+}: {
+  operators: OperatorWorkload[];
+  conversations: WaitingConversation[];
+}) {
   if (operators.length === 0) return null;
 
+  const unassignedCount = conversations.filter((conversation) => !conversation.assigneeId).length;
+  const criticalCount = conversations.filter((conversation) => conversation.severity === "red").length;
+  const waitingWithPreview = conversations.filter((conversation) => conversation.lastMessage).slice(0, 2);
+
   return (
-    <section>
+    <section className="space-y-3 self-start">
       <div className="mb-3 flex items-baseline justify-between px-1">
         <h3 className="font-bricolage text-base font-bold text-text">
           Operadores agora
@@ -1032,6 +1382,42 @@ function OperatorsGrid({ operators }: { operators: OperatorWorkload[] }) {
           <OperatorCard key={op.operatorId ?? "unassigned"} operator={op} />
         ))}
       </div>
+
+      <article className="rounded-xl border border-border bg-card p-4">
+        <h4 className="font-bricolage text-sm font-bold text-text">Gargalos da fila</h4>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-surface-2 px-3 py-2">
+            <p className="font-mono text-lg font-bold text-danger">{criticalCount}</p>
+            <p className="text-[11px] text-muted">críticas</p>
+          </div>
+          <div className="rounded-lg bg-surface-2 px-3 py-2">
+            <p className="font-mono text-lg font-bold text-text">{unassignedCount}</p>
+            <p className="text-[11px] text-muted">sem atendente</p>
+          </div>
+        </div>
+        <p className="mt-3 text-xs font-semibold text-text">
+          {unassignedCount} sem atendente
+        </p>
+        <p className="mt-1 text-xs leading-5 text-muted">
+          Priorize assumir ou distribuir estes casos antes de abrir novas conversas.
+        </p>
+      </article>
+
+      {waitingWithPreview.length > 0 ? (
+        <article className="rounded-xl border border-border bg-card p-4">
+          <h4 className="font-bricolage text-sm font-bold text-text">Últimos sinais</h4>
+          <div className="mt-3 divide-y divide-border/70">
+            {waitingWithPreview.map((conversation) => (
+              <div key={conversation.conversationId} className="py-2 first:pt-0 last:pb-0">
+                <p className="truncate text-xs font-semibold text-text">{conversation.customerName}</p>
+                <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted">
+                  {formatMessagePreview(conversation.lastMessage, conversation.lastMessageType)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </article>
+      ) : null}
     </section>
   );
 }
