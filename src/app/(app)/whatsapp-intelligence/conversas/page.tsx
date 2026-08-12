@@ -13,6 +13,7 @@ import { getUserCompanyId } from "@/lib/auth/get-user-company-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { BulkAnalyzeButton } from "@/components/whatsapp/bulk-analyze-button";
 import { ConversationsList } from "@/components/whatsapp/conversations-list";
+import { ConversationsReturnLink } from "@/components/whatsapp/conversations-return-link";
 import { StartConversationButton } from "@/components/whatsapp/start-conversation-button";
 import { SyncEvoCrmButton } from "@/components/whatsapp/sync-evo-crm-button";
 import { ContactsManagerSheet } from "@/components/whatsapp/contacts-manager-sheet";
@@ -176,6 +177,7 @@ export default async function ConversasPage({ searchParams }: ConversasPageProps
 
         {/* Direita: ações */}
         <div className="flex flex-wrap items-center gap-2">
+          <ConversationsReturnLink />
           <SyncEvoCrmButton />
           <ContactsManagerSheet
             companyId={companyId}
