@@ -37,6 +37,9 @@ ENV QSTASH_URL=$QSTASH_URL
 
 # Build trace collection (pdfjs-dist + standalone) estourava heap default de 1.5GB
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+# TypeScript continua obrigatório em CI/local; no Docker evitamos a checagem duplicada
+# para reduzir o tempo de build no EasyPanel/Hostinger.
+ENV NEXT_SKIP_DOCKER_TYPECHECK=1
 RUN npm run build
 
 # Debug: verificar estrutura do standalone

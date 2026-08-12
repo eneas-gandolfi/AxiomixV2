@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
+const skipDockerTypecheck = process.env.NEXT_SKIP_DOCKER_TYPECHECK === "1";
+
 const nextConfig = {
   output: "standalone",
+  typescript: skipDockerTypecheck
+    ? {
+        ignoreBuildErrors: true,
+      }
+    : undefined,
   async headers() {
     return [
       {
