@@ -61,8 +61,8 @@ export async function GroupsRadarPage({ companyId }: { companyId: string }) {
         </div>
         <aside className="space-y-4">
           <GroupDistributionPanel data={data} />
-          <GroupInsightsFeed insights={data.insights} />
           <GroupOperationHealthPanel data={data} />
+          <GroupInsightsFeed insights={data.insights} />
         </aside>
       </section>
     </div>

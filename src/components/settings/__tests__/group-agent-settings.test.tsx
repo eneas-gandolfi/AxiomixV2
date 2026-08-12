@@ -14,6 +14,12 @@ type Config = {
   is_hidden?: boolean;
   created_at: string;
   updated_at: string;
+  activity?: {
+    lastMessageAt: string | null;
+    lastMessagePreview: string | null;
+    messages24h: number;
+    uniqueSenders24h: number;
+  };
 };
 
 function makeConfig(config: Config) {
@@ -40,6 +46,12 @@ function makeConfig(config: Config) {
     stats: {
       totalMessages: 0,
       totalResponses: 0,
+    },
+    activity: config.activity ?? {
+      lastMessageAt: null,
+      lastMessagePreview: null,
+      messages24h: 0,
+      uniqueSenders24h: 0,
     },
   };
 }
@@ -121,18 +133,24 @@ describe("GroupAgentSettings", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({
       configs: [
         makeConfig({
-          id: "grupo-antigo-ativo",
-          group_name: "Grupo antigo ativo",
+          id: "grupo-cadastro-recente-sem-mensagem",
+          group_name: "Grupo cadastro recente sem mensagem",
           is_active: true,
-          created_at: "2026-08-08T10:00:00.000Z",
-          updated_at: "2026-08-08T10:00:00.000Z",
-        }),
-        makeConfig({
-          id: "grupo-recente",
-          group_name: "Grupo recente",
-          is_active: false,
           created_at: "2026-08-11T10:00:00.000Z",
           updated_at: "2026-08-11T10:00:00.000Z",
+        }),
+        makeConfig({
+          id: "grupo-cadastro-antigo-mensagem-recente",
+          group_name: "Grupo cadastro antigo mensagem recente",
+          is_active: false,
+          created_at: "2026-08-08T10:00:00.000Z",
+          updated_at: "2026-08-08T10:00:00.000Z",
+          activity: {
+            lastMessageAt: "2026-08-12T12:00:00.000Z",
+            lastMessagePreview: "Perguntaram sobre prazo e valores.",
+            messages24h: 8,
+            uniqueSenders24h: 3,
+          },
         }),
         makeConfig({
           id: "grupo-intermediario",
@@ -146,16 +164,43 @@ describe("GroupAgentSettings", () => {
 
     render(<GroupAgentSettings companyId="company-1" />);
 
-    await screen.findByText("Grupo recente");
+    await screen.findAllByTestId("group-agent-card-name");
 
     const names = screen
       .getAllByTestId("group-agent-card-name")
       .map((element) => element.textContent);
 
     expect(names).toEqual([
-      "Grupo recente",
+      "Grupo cadastro antigo mensagem recente",
+      "Grupo cadastro recente sem mensagem",
       "Grupo intermediário",
-      "Grupo antigo ativo",
     ]);
+  });
+
+  it("mostra um resumo compacto de assuntos e engajamento dos grupos", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({
+      configs: [
+        makeConfig({
+          id: "grupo-engajado",
+          group_name: "Grupo engajado",
+          created_at: "2026-08-08T10:00:00.000Z",
+          updated_at: "2026-08-08T10:00:00.000Z",
+          activity: {
+            lastMessageAt: "2026-08-12T12:00:00.000Z",
+            lastMessagePreview: "Clientes perguntando sobre preço e desconto.",
+            messages24h: 18,
+            uniqueSenders24h: 7,
+          },
+        }),
+      ],
+    }));
+
+    render(<GroupAgentSettings companyId="company-1" />);
+
+    expect(await screen.findByText("Assuntos e engajamento")).toBeInTheDocument();
+    expect(screen.getAllByText("Grupo engajado").length).toBeGreaterThan(0);
+    expect(screen.getByText("18 msgs")).toBeInTheDocument();
+    expect(screen.getByText("7 pessoas")).toBeInTheDocument();
+    expect(screen.getByText("Clientes perguntando sobre preço e desconto.")).toBeInTheDocument();
   });
 });

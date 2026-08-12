@@ -417,33 +417,33 @@ export function DashboardCommandCenterView({ data }: { data: DashboardCommandCen
               <div>
                 <h2 className="text-base font-semibold tracking-tight text-[var(--color-text)]">Ações rápidas</h2>
                 <p className="mt-1 text-sm leading-5 text-muted">
-                  Use o espaço livre para decidir o próximo movimento sem rolar a página.
+                  Atalhos para investigar grupos, conversas e configurações.
                 </p>
               </div>
-              <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-primary ring-1 ring-orange-100">
-                direto ao ponto
+              <span className="rounded-full bg-[var(--color-surface)] px-3 py-1 text-xs font-semibold text-muted ring-1 ring-border">
+                navegar
               </span>
             </div>
-            <nav className="mt-4 grid grid-cols-3 gap-2">
+            <nav className="mt-3 grid grid-cols-3 gap-2">
               <Link
                 href="/whatsapp-intelligence"
-                className="grid min-h-[68px] place-items-center rounded-xl border border-border bg-[var(--color-surface)] p-3 text-center text-xs font-semibold text-[var(--color-text)] hover:border-primary/40 hover:bg-primary/5"
+                className="grid min-h-[56px] place-items-center rounded-xl border border-border bg-[var(--color-surface)] p-2 text-center text-xs font-semibold text-[var(--color-text)] hover:border-primary/40 hover:bg-primary/5"
               >
-                <Users2 className="mb-1 h-5 w-5 text-primary" aria-hidden="true" />
+                <Users2 className="mb-1 h-4 w-4 text-primary" aria-hidden="true" />
                 Grupos
               </Link>
               <Link
                 href="/whatsapp-intelligence?modo=agora"
-                className="grid min-h-[68px] place-items-center rounded-xl border border-border bg-[var(--color-surface)] p-3 text-center text-xs font-semibold text-[var(--color-text)] hover:border-primary/40 hover:bg-primary/5"
+                className="grid min-h-[56px] place-items-center rounded-xl border border-border bg-[var(--color-surface)] p-2 text-center text-xs font-semibold text-[var(--color-text)] hover:border-primary/40 hover:bg-primary/5"
               >
-                <MessageSquare className="mb-1 h-5 w-5 text-primary" aria-hidden="true" />
+                <MessageSquare className="mb-1 h-4 w-4 text-primary" aria-hidden="true" />
                 Conversas
               </Link>
               <Link
                 href="/settings?tab=group-agent"
-                className="grid min-h-[68px] place-items-center rounded-xl border border-border bg-[var(--color-surface)] p-3 text-center text-xs font-semibold text-[var(--color-text)] hover:border-primary/40 hover:bg-primary/5"
+                className="grid min-h-[56px] place-items-center rounded-xl border border-border bg-[var(--color-surface)] p-2 text-center text-xs font-semibold text-[var(--color-text)] hover:border-primary/40 hover:bg-primary/5"
               >
-                <Settings className="mb-1 h-5 w-5 text-primary" aria-hidden="true" />
+                <Settings className="mb-1 h-4 w-4 text-primary" aria-hidden="true" />
                 Configurar
               </Link>
             </nav>
@@ -452,8 +452,8 @@ export function DashboardCommandCenterView({ data }: { data: DashboardCommandCen
 
         <aside className="grid content-start gap-4">
           <article className="rounded-[18px] border border-border bg-card p-4 shadow-sm sm:p-5">
-            <SectionHeader title="Sinais da IA" badge="24h">
-              Sinais extraídos dos grupos.
+            <SectionHeader title="Eventos da IA" badge="24h">
+              Últimas respostas, alertas e leituras detectadas nos grupos.
             </SectionHeader>
             <div className="mt-4 divide-y divide-border">
               {signals.length > 0 ? (
@@ -469,7 +469,7 @@ export function DashboardCommandCenterView({ data }: { data: DashboardCommandCen
                 ))
               ) : (
                 <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted">
-                  Aguardando padrões. Os sinais aparecem conforme a IA analisa os grupos.
+                  Aguardando eventos. As leituras aparecem conforme a IA analisa os grupos.
                 </div>
               )}
             </div>

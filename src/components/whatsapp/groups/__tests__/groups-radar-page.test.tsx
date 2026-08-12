@@ -47,7 +47,8 @@ describe("GroupsRadarPage", () => {
   it("fills the signals rail with a compact operation health card", async () => {
     render(await GroupsRadarPage({ companyId: "18b641e2-7c73-4fa7-9831-cc7c0eb967b6" }));
 
-    expect(screen.getByRole("heading", { name: "Sinais recentes" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Eventos da IA" })).toBeInTheDocument();
+    expect(screen.getByText("Últimas respostas, alertas e leituras detectadas nos grupos.")).toBeInTheDocument();
     const healthPanel = screen.getByRole("heading", { name: "Saúde da operação" }).closest("section");
     expect(healthPanel).not.toBeNull();
     expect(screen.getByText(/sem área vazia/i)).toBeInTheDocument();

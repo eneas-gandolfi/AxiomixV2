@@ -97,7 +97,8 @@ describe("DashboardCommandCenterView", () => {
     expect(within(radar).getByText("Comunidade Leads Premium")).toBeInTheDocument();
     expect(within(radar).getByText("Clientes Ativos SP")).toBeInTheDocument();
 
-    expect(screen.getByRole("heading", { name: "Sinais da IA" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Eventos da IA" })).toBeInTheDocument();
+    expect(screen.getByText("Últimas respostas, alertas e leituras detectadas nos grupos.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Gargalos de vendas" })).toBeInTheDocument();
     expect(screen.getByText("Sem resposta longa")).toBeInTheDocument();
     expect(screen.getAllByText(/OpenRouter/).length).toBeGreaterThan(0);
@@ -123,7 +124,7 @@ describe("DashboardCommandCenterView", () => {
     const shortcuts = within(leftColumn).getByLabelText("Atalhos operacionais");
     expect(shortcuts).toBeInTheDocument();
     expect(within(shortcuts).getByText("Ações rápidas")).toBeInTheDocument();
-    expect(within(shortcuts).getByText("Use o espaço livre para decidir o próximo movimento sem rolar a página.")).toBeInTheDocument();
+    expect(within(shortcuts).getByText("Atalhos para investigar grupos, conversas e configurações.")).toBeInTheDocument();
     expect(within(leftColumn).getByRole("link", { name: /Grupos/i })).toHaveAttribute(
       "href",
       "/whatsapp-intelligence",

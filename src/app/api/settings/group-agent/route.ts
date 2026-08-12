@@ -15,6 +15,31 @@ import { resolvePreferredEvolutionInstance } from "@/services/integrations/evolu
 
 export const dynamic = "force-dynamic";
 
+const DAY_MS = 24 * 60 * 60_000;
+
+type RecentGroupMessage = {
+  config_id: string;
+  sender_jid: string | null;
+  content: string | null;
+  sent_at: string;
+};
+
+type GroupActivity = {
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  messages24h: number;
+  uniqueSenders24h: number;
+};
+
+function emptyActivity(): GroupActivity {
+  return {
+    lastMessageAt: null,
+    lastMessagePreview: null,
+    messages24h: 0,
+    uniqueSenders24h: 0,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const response = NextResponse.json({ ok: true });
@@ -58,6 +83,44 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const configIds = (configs ?? []).map((config) => config.id);
+    const activityByConfig = new Map<string, GroupActivity>();
+
+    if (configIds.length > 0) {
+      const since24h = Date.now() - DAY_MS;
+      const { data: recentMessages } = await admin
+        .from("group_messages")
+        .select("config_id, sender_jid, content, sent_at")
+        .eq("company_id", access.companyId)
+        .in("config_id", configIds)
+        .order("sent_at", { ascending: false })
+        .limit(2000);
+
+      const senderSets = new Map<string, Set<string>>();
+
+      for (const message of (recentMessages ?? []) as RecentGroupMessage[]) {
+        const current = activityByConfig.get(message.config_id) ?? emptyActivity();
+
+        if (!current.lastMessageAt) {
+          current.lastMessageAt = message.sent_at;
+          current.lastMessagePreview = message.content ? message.content.slice(0, 140) : null;
+        }
+
+        if (new Date(message.sent_at).getTime() >= since24h) {
+          current.messages24h += 1;
+
+          if (message.sender_jid) {
+            const senders = senderSets.get(message.config_id) ?? new Set<string>();
+            senders.add(message.sender_jid);
+            senderSets.set(message.config_id, senders);
+            current.uniqueSenders24h = senders.size;
+          }
+        }
+
+        activityByConfig.set(message.config_id, current);
+      }
+    }
+
     const configsWithStats = await Promise.all(
       (configs ?? []).map(async (config) => {
         const [{ count: messageCount }, { count: responseCount }] = await Promise.all([
@@ -77,6 +140,7 @@ export async function GET(request: NextRequest) {
             totalMessages: messageCount ?? 0,
             totalResponses: responseCount ?? 0,
           },
+          activity: activityByConfig.get(config.id) ?? emptyActivity(),
         };
       })
     );

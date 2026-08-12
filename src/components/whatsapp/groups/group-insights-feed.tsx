@@ -25,16 +25,16 @@ export function GroupInsightsFeed({ insights }: { insights: GroupRadarInsight[] 
     <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] xl:sticky xl:top-4">
       <div className="border-b border-[var(--color-border)] px-4 py-3">
         <h2 className="text-sm font-semibold text-[var(--color-text)]">
-          Sinais recentes
+          Eventos da IA
         </h2>
         <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
-          Extraídos pela IA
+          Últimas respostas, alertas e leituras detectadas nos grupos.
         </p>
       </div>
       <div className="divide-y divide-[var(--color-border)]">
         {insights.length === 0 ? (
           <p className="px-4 py-5 text-sm text-[var(--color-text-secondary)]">
-            Sem sinais recentes.
+            Sem eventos recentes da IA.
           </p>
         ) : (
           insights.map((insight) => (

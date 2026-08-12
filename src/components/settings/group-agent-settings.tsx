@@ -21,6 +21,8 @@ import {
   RefreshCw,
   EyeOff,
   Eye,
+  Users,
+  Activity,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -49,10 +51,16 @@ type GroupAgentConfig = {
     totalMessages: number;
     totalResponses: number;
   };
+  activity?: {
+    lastMessageAt: string | null;
+    lastMessagePreview: string | null;
+    messages24h: number;
+    uniqueSenders24h: number;
+  };
 };
 
 function groupTimestamp(config: GroupAgentConfig) {
-  const timestamp = config.updated_at || config.created_at;
+  const timestamp = config.activity?.lastMessageAt || config.updated_at || config.created_at;
   const time = new Date(timestamp).getTime();
   return Number.isFinite(time) ? time : 0;
 }
@@ -337,56 +345,151 @@ export function GroupAgentSettings({ companyId }: { companyId: string }) {
       )}
 
       {/* Lista de grupos */}
-      {currentConfigs.length > 0 ? (
-        <div className="space-y-3">
-          {currentConfigs.map((config) => (
-            <GroupCard
-              key={config.id}
-              config={config}
-              expanded={expandedId === config.id}
-              saving={saving === config.id}
-              selected={selectedIds.has(config.id)}
-              onToggle={() => handleToggle(config.id, config.is_active)}
-              onExpand={() => setExpandedId(expandedId === config.id ? null : config.id)}
-              onDelete={() => handleDelete(config.id)}
-              onSave={(updates) => handleUpdateSettings(config.id, updates)}
-              onToggleHidden={() => handleToggleHidden(config.id, config.is_hidden)}
-              onToggleSelect={() => toggleSelection(config.id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <Card className="border border-border rounded-xl bg-sidebar/30">
-          <CardContent className="flex flex-col items-center gap-3 py-8">
-            {activeTab === "visible" ? (
-              <>
-                <Bot className="h-10 w-10 text-muted" />
-                <p className="text-sm text-muted text-center max-w-md">
-                  Nenhum grupo detectado ainda. Clique em &quot;Sincronizar Grupos&quot; para buscar os grupos
-                  da Evolution API, ou aguarde mensagens chegarem via webhook.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleSyncGroups}
-                  disabled={syncing}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-                  {syncing ? "Sincronizando..." : "Sincronizar Grupos"}
-                </button>
-              </>
-            ) : (
-              <>
-                <Eye className="h-10 w-10 text-muted" />
-                <p className="text-sm text-muted text-center max-w-md">
-                  Nenhum grupo oculto. Use o botão <EyeOff className="inline h-3.5 w-3.5" /> nos grupos para ocultá-los da lista principal.
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        {currentConfigs.length > 0 ? (
+          <div className="space-y-3">
+            {currentConfigs.map((config) => (
+              <GroupCard
+                key={config.id}
+                config={config}
+                expanded={expandedId === config.id}
+                saving={saving === config.id}
+                selected={selectedIds.has(config.id)}
+                onToggle={() => handleToggle(config.id, config.is_active)}
+                onExpand={() => setExpandedId(expandedId === config.id ? null : config.id)}
+                onDelete={() => handleDelete(config.id)}
+                onSave={(updates) => handleUpdateSettings(config.id, updates)}
+                onToggleHidden={() => handleToggleHidden(config.id, config.is_hidden)}
+                onToggleSelect={() => toggleSelection(config.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <Card className="border border-border rounded-xl bg-sidebar/30">
+            <CardContent className="flex flex-col items-center gap-3 py-8">
+              {activeTab === "visible" ? (
+                <>
+                  <Bot className="h-10 w-10 text-muted" />
+                  <p className="text-sm text-muted text-center max-w-md">
+                    Nenhum grupo detectado ainda. Clique em &quot;Sincronizar Grupos&quot; para buscar os grupos
+                    da Evolution API, ou aguarde mensagens chegarem via webhook.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSyncGroups}
+                    disabled={syncing}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                    {syncing ? "Sincronizando..." : "Sincronizar Grupos"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Eye className="h-10 w-10 text-muted" />
+                  <p className="text-sm text-muted text-center max-w-md">
+                    Nenhum grupo oculto. Use o botão <EyeOff className="inline h-3.5 w-3.5" /> nos grupos para ocultá-los da lista principal.
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <GroupEngagementCard groups={visibleConfigs} />
+      </div>
     </div>
+  );
+}
+
+function GroupEngagementCard({ groups }: { groups: GroupAgentConfig[] }) {
+  const activeGroups = groups
+    .filter((group) => group.activity?.lastMessageAt || (group.activity?.messages24h ?? 0) > 0)
+    .sort((a, b) => {
+      const messageDelta = (b.activity?.messages24h ?? 0) - (a.activity?.messages24h ?? 0);
+      if (messageDelta !== 0) return messageDelta;
+      return groupTimestamp(b) - groupTimestamp(a);
+    });
+  const topGroup = activeGroups[0] ?? null;
+  const totalMessages24h = groups.reduce((sum, group) => sum + (group.activity?.messages24h ?? 0), 0);
+  const engagedPeople24h = groups.reduce((sum, group) => sum + (group.activity?.uniqueSenders24h ?? 0), 0);
+
+  return (
+    <Card className="border border-border rounded-xl bg-card">
+      <CardContent className="space-y-4 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-text">Assuntos e engajamento</h3>
+            <p className="mt-0.5 text-xs text-muted">Leitura rápida dos grupos nas últimas 24h.</p>
+          </div>
+          <span className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-semibold text-primary">
+            24h
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-border bg-sidebar/40 px-3 py-2">
+            <p className="text-lg font-semibold tabular-nums text-text">{totalMessages24h}</p>
+            <p className="text-xs text-muted">mensagens</p>
+          </div>
+          <div className="rounded-lg border border-border bg-sidebar/40 px-3 py-2">
+            <p className="text-lg font-semibold tabular-nums text-text">{engagedPeople24h}</p>
+            <p className="text-xs text-muted">participações</p>
+          </div>
+        </div>
+
+        {topGroup ? (
+          <div className="rounded-lg border border-border bg-background p-3">
+            <div className="flex items-start gap-2">
+              <Activity className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">Mais ativo</p>
+                <p className="mt-0.5 truncate text-sm font-semibold text-text">
+                  {topGroup.group_name ?? topGroup.group_jid}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-sidebar px-2 py-1">
+                    <MessageSquare className="h-3 w-3" />
+                    {topGroup.activity?.messages24h ?? 0} msgs
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-sidebar px-2 py-1">
+                    <Users className="h-3 w-3" />
+                    {topGroup.activity?.uniqueSenders24h ?? 0} pessoas
+                  </span>
+                </div>
+                <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted">
+                  {topGroup.activity?.lastMessagePreview ?? "Sem assunto recente registrado."}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-border bg-background px-3 py-4 text-sm text-muted">
+            Ainda não há mensagens recentes para resumir. Assim que os grupos receberem novas mensagens,
+            este painel mostra assunto e engajamento.
+          </div>
+        )}
+
+        {activeGroups.length > 1 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">Outros sinais</p>
+            {activeGroups.slice(1, 3).map((group) => (
+              <div key={group.id} className="flex items-start justify-between gap-3 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-text">{group.group_name ?? group.group_jid}</p>
+                  <p className="truncate text-xs text-muted">
+                    {group.activity?.lastMessagePreview ?? "Sem preview recente."}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold tabular-nums text-muted">
+                  {group.activity?.messages24h ?? 0} msgs
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
